@@ -1,0 +1,27 @@
+body {
+    font-family: Arial, Sans-serif;
+} 
+
+header, section, footer {
+    margin: 20px;
+    padding: 20px;
+}
+
+header {
+    background: #333;
+    color: #333;
+    text-align: center;
+}
+
+.project {
+    margin-bottom: 20px;
+}
+
+.project_img {
+    max-width: 100%;
+    height: auto;
+}
+
+#contact {
+    background: #eee;
+}
