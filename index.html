@@ -7,15 +7,68 @@
  <meta name="description" content="" />
  <link rel="icon" href="favicon.png">
  <link rel="stylesheet" href="css/style.css"> 
+
+ <script>
+    document.addEventListener("DOMContentLoaded", function() {
+    var images = [
+        "https://images.unsplash.com/photo-1604079628040-94301bb21b91?q=80&w=2731&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+        "https://images.unsplash.com/photo-1604076913837-52ab5629fba9?q=80&w=2731&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+    ];
+    var currentIndex = 0;
+    var header = document.querySelector("header"); // Assuming header is the parent container
+    var currentImg = document.getElementById("header-image");
+
+    unction changeImage() {
+  // Fade out the current image
+  currentImg.style.opacity = 0;
+
+  // Create a new image and set it up
+  var newImg = document.createElement("img");
+  newImg.src = images[currentIndex];
+  newImg.style.position = 'absolute';
+  newImg.style.top = '0';
+  newImg.style.left = '0';
+  newImg.style.width = '100%';
+  newImg.style.height = '100%';
+  newImg.style.objectFit = 'cover';
+  newImg.style.opacity = '0'; // Start transparent
+  newImg.style.transition = 'opacity 2s ease-in-out';
+  newImg.style.zIndex = '-1'; // Start behind the current image
+
+  // Insert the new image into the header
+  header.insertBefore(newImg, currentImg);
+
+  // Once the current image has faded out, fade in the new image
+  currentImg.addEventListener('transitionend', function handler() {
+    this.removeEventListener('transitionend', handler);
+    // Fade in the new image
+    newImg.style.zIndex = '0'; // Move the new image on top
+    newImg.style.opacity = 1;
+    // Remove the old image from the DOM
+    this.parentNode.removeChild(this);
+  });
+
+  // Update the currentImg reference to the new image
+  currentImg = newImg;
+  currentIndex = (currentIndex + 1) % images.length;
+}
+}
+
+    // Set interval to change images every 4 seconds to account for the 2-second fade
+    setInterval(changeImage, 4000);
+});
+    </script>
 </head>
 <body>
 <header>
+    <img id = "header-image" src = "https://images.unsplash.com/photo-1604076913837-52ab5629fba9?q=80&w=2731&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D" alt = "Header Image" />
     <h1>Ambrose V</h1>
-    <h3>Computer Science and History Major at Wesleyan University</h3>
+    <h3>Computer Science and History Major at Wesleyan University.</h3>
 </header>
 <section id="about"> 
     <h2>About me</h2>
     <p>I'm Ambrose, a sophomore at Wesleyan University, majoring in Computer Science and History.</p>
+    
 </section> 
 <section id="projects">
     <h2>My projects</h2>
