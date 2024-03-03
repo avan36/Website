@@ -20,17 +20,28 @@ header {
     text-align: center;
     padding-top: 40px;
     padding-bottom: 40px;
-    transition: background-image 1s ease-in-out;
     background-size: cover;
     background-position: center;
     animation: gradient-animation 10s infinite alternate;
-    backdrop-filter: blur(200px);
+    
 }
 
 .header-image {
-    max-width: 100%;
+    display: block;
+    width: 100%;
     height: auto;
+    border: none;
+    transition: filter 2s ease-in-out, opacity 2s ease-in-out; /* Update transition time if needed */
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: -1;
+    object-fit: cover;
 }
+
+
+
+
 
 
 #header-image {
@@ -40,16 +51,15 @@ header {
     height: 100%;
     width: 100%;
     max-width: 100%;
-    opacity: 0.5;
-    object-fit: cover; /* This will ensure the image covers the area without stretching */
-    z-index: -1; /* This will ensure the image stays behind the content */
-    
+    object-fit: cover;
+    z-index: -1;
+    filter: blur(10px); /* Initial blur */
 }
 
 header h1 {
     margin: 0;
     font-size: 2.5em;
-    color: #000000;
+    color: #ffffff;
 }
 
 header h2 {
@@ -58,10 +68,14 @@ header h2 {
     color: #ffffff;
 }
 
+
 header h3 {
     margin-top: 10px;
     font-weight: normal;
-    color: #000000;
+    color: #ffffff;
+}
+.h-text {
+    color: white;
 }
 
 section {
@@ -79,7 +93,6 @@ section h2 {
 .project {
     background-color: #fff;
     padding: 20px;
-    /*margin-bottom: 20px;*/
     border-radius: 15px;
     box-shadow: 0 4px 6px rgba(0,0,0,0.1); 
     display: flex;

@@ -7,58 +7,6 @@
  <meta name="description" content="" />
  <link rel="icon" href="favicon.png">
  <link rel="stylesheet" href="css/style.css"> 
-
- <script>
-    document.addEventListener("DOMContentLoaded", function() {
-    /ar images = [
-        "https://images.unsplash.com/photo-1604079628040-94301bb21b91?q=80&w=2731&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-        "https://images.unsplash.com/photo-1604076913837-52ab5629fba9?q=80&w=2731&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-    ];
-    var currentIndex = 0;
-    var header = document.querySelector("header"); // Assuming header is the parent container
-    var currentImg = document.getElementById("header-image");
-
-    function changeImage() {
-  // Fade out the current image
-  currentImg.style.opacity = 0;
-
-  // Create a new image and set it up
-  var newImg = document.createElement("img");
-  newImg.src = images[currentIndex];
-  newImg.style.position = 'absolute';
-  newImg.style.top = '0';
-  newImg.style.left = '0';
-  newImg.style.width = '100%';
-  newImg.style.height = '100%';
-  newImg.style.objectFit = 'cover';
-  newImg.style.opacity = '0'; // Start transparent
-  newImg.style.transition = 'opacity 2s ease-in-out';
-  newImg.style.zIndex = '-1'; // Start behind the current image
-
-  // Insert the new image into the header
-  header.insertBefore(newImg, currentImg);
-
-  // Once the current image has faded out, fade in the new image
-  currentImg.addEventListener('transitionend', function handler() {
-    this.removeEventListener('transitionend', handler);
-    // Fade in the new image
-    newImg.style.zIndex = '0'; // Move the new image on top
-    newImg.style.opacity = 1;
-    // Remove the old image from the DOM
-    this.parentNode.removeChild(this);
-  });
-
-  // Update the currentImg reference to the new image
-  currentImg = newImg;
-  currentIndex = (currentIndex + 1) % images.length;
-}
-}
-
-    // Set interval to change images every 4 seconds to account for the 2-second fade
-    setInterval(changeImage, 4000);
-});
-    </script>
-
 </head>
 <body>
 <header>
@@ -113,5 +61,36 @@
 <footer>
     <p>&copy; 2024 Ambrose V</p>
 </footer>
+
+<script>
+    var images = [
+        "https://images.unsplash.com/photo-1604079628040-94301bb21b91?q=80&w=2731&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+        "https://images.unsplash.com/photo-1604076913837-52ab5629fba9?q=80&w=2731&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+    ];
+    
+    let currentImageIndex = 0;
+    
+    function changeImage() {
+        const headerImage = document.getElementById('header-image');
+        //headerImage.style.filter = 'blur(10px)';
+        headerImage.style.opacity = '0.5'; //Changed
+        headerImage.style.filter = 'blur(5px)'; // Start with a blur
+    
+        setTimeout(() => {
+            currentImageIndex = (currentImageIndex + 1) % images.length;
+            headerImage.src = images[currentImageIndex];
+            headerImage.style.filter = 'blur(10px)'; // Start with a blur
+            headerImage.style.opacity = '1'; // Fade in the new image
+        }, 500);
+
+        setTimeout(() => {
+        headerImage.style.filter = 'blur(5px)'; // Start with a blur
+        headerImage.style.filter = 'none'; // Remove the blur after the image is visible
+    }, 1000);
+    }
+    
+    const changeInterval = 5000;
+    setInterval(changeImage, changeInterval);
+    </script>
 </body>
 </html>
