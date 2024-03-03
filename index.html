@@ -55,7 +55,7 @@
         <a href="https://github.com/avan36/Website">See project and code</a>
     </div>
 </section>
-<section id="contact">
+<section class="contact">
     <a href="https://www.linkedin.com/in/ambrosev/">My LinkedIn</a>
 </section>
 <footer>
@@ -79,7 +79,7 @@
         setTimeout(() => {
             currentImageIndex = (currentImageIndex + 1) % images.length;
             headerImage.src = images[currentImageIndex];
-            headerImage.style.filter = 'blur(10px)'; // Start with a blur
+            headerImage.style.filter = 'blur(5px)'; // Start with a blur
             headerImage.style.opacity = '1'; // Fade in the new image
         }, 500);
 
@@ -89,7 +89,7 @@
     }, 1000);
     }
     
-    const changeInterval = 5000;
+    const changeInterval = 10000;
     setInterval(changeImage, changeInterval);
     </script>
 </body>
