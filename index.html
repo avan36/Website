@@ -1,111 +1,88 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
- <meta charset="UTF-8" />
- <title>Ambrose Portfolio</title>
- <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=1">
- <meta name="description" content="" />
- <link rel="icon" href="https://github.com/avan36/Website/raw/main/Designer-2.ico" type="image/x-icon">
-<link rel="shortcut icon" href="https://github.com/avan36/Website/raw/main/Designer-2.ico" type="image/x-icon">
- <!--<link rel="icon" href="favicon.png"> -->
- <link rel="stylesheet" href="css/style.css"> 
+    <meta charset="UTF-8" />
+    <title>Ambrose Portfolio</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=1">
+    <meta name="description" content="" />
+    <link rel="icon" href="https://github.com/avan36/Website/raw/main/Designer-2.ico" type="image/x-icon">
+    <link rel="stylesheet" href="css/style.css"> 
 
     <!-- Basic meta tags for overall content -->
     <meta property="og:title" content="Ambrose V Portfolio" />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://www.ambrosevannier.com" />
     <meta property="og:image" content="https://github.com/avan36/Website/blob/main/Designer-2.png?raw=true" />
-    <!-- Optional: -->
     <meta property="og:description" content="A brief description of your website" />
     <meta property="og:site_name" content="Ambrose V Portfolio" />
     <meta property="og:image:width" content="1024" /> <!-- Width of the image in pixels -->
     <meta property="og:image:height" content="1024" /> <!-- Height of the image in pixels -->
-    
-
 </head>
 <body>
-<header>
-     <img id = "header-image" class = "header-image" src = "https://images.unsplash.com/photo-1604076913837-52ab5629fba9?q=80&w=2731&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D" alt = "Header Image" />
-
-    <h1 id = "h-text">Ambrose V</h1>
-    <h3 id = "h-text">Computer Science and History Major at Wesleyan University.</h3>
-</header>
-<section id="about"> 
-    <h2>About me</h2>
-    <p>I'm Ambrose, a sophomore at Wesleyan University, majoring in Computer Science and History.</p>
+    <header>
+        <div id="image-container">
+            <img id="header-image" src="https://images.unsplash.com/photo-1604076913837-52ab5629fba9?q=80&w=2731&auto=format&fit=crop" alt="Header Image">
+        </div>
+        <div id="header-content">
+            <h1>Ambrose V</h1>
+            <h3>Computer Science and History Major at Wesleyan University.</h3>
+        </div>
+    </header>
     
-</section> 
-<section id="projects">
-    <h2>My projects</h2>
-    <div class="project">
-        <img src="https://github.com/avan36/Website/blob/main/7G3CtXS.png?raw=true" alt="Toothbrushing app icon">
-        <h3>Toothbrushing App</h3>
-        <p>I developed this toothbrushing app to help people using manual toothbrushes track their brushing time more easily. Its features include:</p>
-        <ul>
-            <li>Apple Health Integration</li>
-            <li>Dynamic island/live activities support</li>
-            <li>Background timer functionality</li>
-            <li>Notifications</li>
-            <li>Logging of brushing time</li>
-            <li>Manual setting of toothbrushing time</li>
+    <nav id="site-nav"> 
+        <ul class="toc-list">
+            <li><a href="#about" class="nav-link">About Me</a></li>
+            <li><a href="#projects" class="nav-link">My Projects</a></li>
+            <li><a href="#research" class="nav-link">My Research Work</a></li>
         </ul>
-        <a href="https://github.com/avan36/ToothBrushing">See project and code</a>
-    </div>
-    <div class="project">
-        <img src="https://github.com/avan36/Website/blob/main/Simulator%20Screenshot%20-%20iPhone%2015%20Pro%20-%202024-02-29%20at%2001.53.35.png?raw=true" alt="Miscellaenous iOS app projects">
-        <h3>Miscellaenous iOS app development</h3>
-        <p>I am building various iOS apps to master advanced iOS app skills, such as enabling complex gestures, core data permanence, and SwiftUI animations</p>
-        <a href="https://github.com/avan36/SwiftDevote">See to-do list project </a> <br>
-        <a href="https://github.com/avan36/SwiftRestart">See inspiration app project</a> <br>
-        <a href="https://github.com/avan36/Tinder-like-Honeymoon-Finder-App">See Tinder-like app project</a> <br>
-        <a href="https://github.com/avan36/AvocadosApp">See cooking app project</a> <br>
-        
-        
-        
-    </div>
-    <div class="project">
-        <img src="https://github.com/avan36/Website/blob/main/Designer-2.png?raw=true" alt="Project 3">
-        <h3>Website Development</h3>
-        <p>I am ceating this website to showcase my portfolio while improving my web development skills.</p>
-        <a href="https://github.com/avan36/Website">See project and code</a>
-    </div>
-</section>
-<section class="contact">
-    <a href="https://www.linkedin.com/in/ambrosev/">My LinkedIn</a>
-</section>
-<footer>
-    <p>&copy; 2024 Ambrose V</p>
-</footer>
+    </nav>
 
-<script>
-    var images = [
-        "https://images.unsplash.com/photo-1604079628040-94301bb21b91?q=80&w=2731&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-        "https://images.unsplash.com/photo-1604076913837-52ab5629fba9?q=80&w=2731&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-    ];
-    
-    let currentImageIndex = 0;
-    
-    function changeImage() {
-        const headerImage = document.getElementById('header-image');
-        //headerImage.style.filter = 'blur(10px)';
-        headerImage.style.opacity = '0.5'; //Changed
-        headerImage.style.filter = 'blur(5px)'; // Start with a blur
-    
-        setTimeout(() => {
-            currentImageIndex = (currentImageIndex + 1) % images.length;
-            headerImage.src = images[currentImageIndex];
-            headerImage.style.filter = 'blur(5px)'; // Start with a blur
-            headerImage.style.opacity = '1'; // Fade in the new image
-        }, 500);
-
-        setTimeout(() => {
-        headerImage.style.filter = 'blur(5px)'; // Start with a blur
-        headerImage.style.filter = 'none'; // Remove the blur after the image is visible
-    }, 1000);
-    }
-    
-    const changeInterval = 10000;
-    setInterval(changeImage, changeInterval);
-    </script>
+    <main>
+        <!-- Project Section -->
+        <section id="projects">
+            <h2>My projects</h2>
+            <div class="project">
+                <img src="https://github.com/avan36/Website/blob/main/7G3CtXS.png?raw=true" alt="Toothbrushing app icon">
+                <h3>Toothbrushing App</h3>
+                <p>I developed this toothbrushing app to help people using manual toothbrushes track their brushing time more easily. Its features include:</p>
+                <ul>
+                    <li>Apple Health Integration</li>
+                    <li>Dynamic island/live activities support</li>
+                    <li>Background timer functionality</li>
+                    <li>Notifications</li>
+                    <li>Logging of brushing time</li>
+                    <li>Manual setting of toothbrushing time</li>
+                </ul>
+                <a href="https://github.com/avan36/ToothBrushing">See project and code</a>
+            </div>
+            <div class="project">
+                <img src="https://github.com/avan36/Website/blob/main/Simulator%20Screenshot%20-%20iPhone%2015%20Pro%20-%202024-02-29%20at%2001.53.35.png?raw=true" alt="Miscellaneous iOS app projects">
+                <h3>Miscellaneous iOS app development</h3>
+                <p>I am building various iOS apps to master advanced iOS app skills, such as enabling complex gestures, core data permanence, and SwiftUI animations</p>
+                <a href="https://github.com/avan36/SwiftDevote">See to-do list project </a> <br>
+                <a href="https://github.com/avan36/SwiftRestart">See inspiration app project</a> <br>
+                <a href="https://github.com/avan36/Tinder-like-Honeymoon-Finder-App">See Tinder-like app project</a> <br>
+                <a href="https://github.com/avan36/AvocadosApp">See cooking app project</a> <br>
+            </div>
+            <div class="project">
+                <img src="https://github.com/avan36/Website/blob/main/Designer-2.png?raw=true" alt="Project 3">
+                <h3>Website Development</h3>
+                <p>I am creating this website to showcase my portfolio while improving my web development skills.</p>
+                <a href="https://github.com/avan36/Website">See project and code</a>
+            </div>
+        </section>
+        <section id="research"> 
+            <h2>My Research Work</h2>
+            <p>Since Fall 2023, I've been working as a research assistant at the Wesleyan Assessment Lab. We study student use/perceptions of Generative AI and community sense on campus, conducting pop-up focus groups with prizes.</p>
+        </section>
+        <section class="contact">
+            <a href="https://www.linkedin.com/in/ambrosev/">My LinkedIn</a>
+        </section>
+        <div id="embeddedContent"></div>
+    </main>
+    <footer>
+        <p>&copy; 2024 Ambrose V</p>
+    </footer>
+    <script src="script.js"></script>
 </body>
 </html>
