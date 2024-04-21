@@ -53,28 +53,29 @@ header {
 
 
 #site-nav {
-    background-color: #2e2727;
-    width: 100%;
-    text-align: center;
-    margin: 0; 
-    padding: 0; 
-}
-#nav-link {
-    color: #333;
+    width: 100%; /* Ensure nav bar takes full width */
+    box-sizing: border-box; /* Include padding and border in the width */
+    background-color: #333;
+    min-height: 40px;
+    max-height: 70px;
+    vertical-align: center;
 }
 
 .toc-list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
     display: flex;
-    justify-content: center;
-    gap: 20px;
+    justify-content: center; /* Horizontally center the navigation links */
+    align-items: center; /* Vertically center the links */
+    width: 100%; /* Use full width to ensure proper centering */
+    padding: 0;
+    margin: 0 auto; /* Center the list if it's not taking full width */
 }
 
-
+.toc-list li {
+    padding: 10px 15px; /* Adequate padding for clickable area */
+}
 .toc-list li a {
     color: #ffffff;
+    text-align: center;
     text-decoration: none;
     padding: 10px 15px;
     display: block;
@@ -155,7 +156,7 @@ section h2 {
 }
 
 .contact {
-  background-color: #f4f4f4;
+  background-color: #ffffff;
   padding: 20px;
   border-radius: 10px;
   text-align: center;
@@ -163,7 +164,7 @@ section h2 {
 }
 
 .contact {
-    background-color: #f4f4f4;
+    background-color: #ffffff;
     padding: 20px;
     border-radius: 10px;
     text-align: center;
@@ -185,13 +186,21 @@ footer p {
 @media (max-width: 600px) {
     .toc-list {
         flex-direction: column;
-        text-align: left;
+        align-items: center;  /* Center align items */
+        width: 100%;  /* Use full width of the nav bar */
     }
 
     .toc-list li {
-        margin-bottom: 10px;
+        width: 100%;  /* Full width to align text nicely */
+        text-align: center;  /* Center the text within the list item */
+    }
+
+    .toc-list li a {
+        width: 100%;  /* Full width for easier tap targets */
+        padding: 10px;  /* Increase padding for better tap ability */
     }
 }
+
 
 @media (max-width: 767px) {
     .project {
