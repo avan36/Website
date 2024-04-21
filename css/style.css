@@ -10,7 +10,7 @@ body {
 }
 
 main {
-    padding: 20px;
+    padding-top: 20px;
 }
 
 header {
@@ -57,7 +57,6 @@ header {
     box-sizing: border-box; /* Include padding and border in the width */
     background-color: #333;
     min-height: 40px;
-    max-height: 70px;
     vertical-align: center;
 }
 
