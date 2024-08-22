@@ -5,6 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LinkedIn Post</title>
 <style>
+  .posts-container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+  }
+
   .linkedin-post {
     font-family: Arial, sans-serif;
     max-width: 600px;
@@ -13,6 +19,12 @@
     border: 1px solid #cccccc;
     border-radius: 8px;
     background-color: #ffffff;
+  }
+
+  @media (min-width: 1300px) {
+    .linkedin-post {
+      width: 48%;
+    }
   }
   
   .linkedin-post-header {
@@ -55,6 +67,7 @@
 </style>
 </head>
 <body>
+  <div class = "posts-container">
   <div class="linkedin-post">
     <div class="linkedin-post-header">
       <div class="linkedin-profile-img"></div>
@@ -104,7 +117,7 @@
       13 April • Edited
     </div>
   </div>
-
+</div>
 
 </body>
 </html>
