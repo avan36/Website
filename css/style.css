@@ -223,9 +223,6 @@ footer p {
         width: 100%;  /* Full width for easier tap targets */
         padding: 10px;  /* Increase padding for better tap ability */
     }
-    .project {
-        width: 100%; /* Ensures the project divs don't overflow */
-    }
 }
 
 
