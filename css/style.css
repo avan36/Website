@@ -128,21 +128,37 @@ section h2 {
     transition: transform 0.2s, box-shadow 0.2s; /* Shorthand for transition */
 }
 
+
+
 .project:hover {
     transform: translateY(-5px); 
     box-shadow: 0 6px 12px rgba(0,0,0,0.15); 
 }
-.project:hover img {
-    transform: scale(1.05);
-    box-shadow: 0 1px 12px rgba(0,0,0,0.15); 
+.project:hover .icon {
+    transform: scale(1.10);
+    box-shadow: 0 5px 20px rgba(0,0,0,0.3); 
 }
 .project img {
     max-width: 150px;
     height: auto;
-    border-radius: 15px;
-    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-    
+    border-radius: 27px;
 }
+.icon {
+    max-width: 150px;
+    height: auto;
+    border-radius: 27px;
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;   
+}
+.project showcase {
+    flex-direction:row;
+    padding: 100px;
+    gap: 5px;
+    max-width: 150px;
+    height: auto;
+    border-radius: 100px;
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
 
 
 .project a {
