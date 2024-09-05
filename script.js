@@ -1,4 +1,4 @@
-// Load embedded content from LinkedInPost.html
+/*// Load embedded content from LinkedInPost.html
 fetch('LinkedInPost.html')
     .then(response => response.text())
     .then(data => {
@@ -29,4 +29,4 @@ const changeImage = function () {
 };
 
 setInterval(changeImage, 10000); // Change image every 10 seconds
-
+*/
