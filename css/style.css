@@ -18,7 +18,7 @@ main {
 }
 
 .text-alignment {
-    max-width: 55%;
+    max-width: 750px;
     text-align: center;
 }
 
@@ -29,6 +29,7 @@ header {
     color: white;
     margin: 0; 
 }
+
 
 #image-container {
     position: relative; /* Container must be relative for absolutely positioned image */
@@ -49,6 +50,9 @@ header {
     scale: 110%
 }
 
+#header-title {
+    color: #ffffff;
+}
 
 
 @keyframes hue-rotation {
@@ -104,23 +108,23 @@ header {
     max-width: 100%;
 }
 
-h1, h2, h3 {
-    color: #ffffff; /* Simplified color assignment for all headers in one rule */
-    margin: 0;
-}
 
-h1 {
+
+
+
+h1, h2 {
     font-size: 2.5em;
 }
 
 h2 {
     font-size: 1.8em;
-    color: #333; /* Specific color override for non-header sections */
+    
 }
 
 h3 {
     font-size: 1.5em; /* Specify a font size for h3 */
-    margin-top: 10px;
+    margin-top: 20px;
+    margin: 0;
 }
 
 section {
@@ -155,10 +159,10 @@ section h2 {
 }
 .project:hover .icon {
     transform: scale(1.10);
-    box-shadow: 0 5px 20px rgba(0,0,0,0.3); 
+    box-shadow: 0 5px 20px rgba(73, 73, 73, 0.3); 
 }
 .project img {
-    max-width: 150px;
+    max-width: 140px;
     height: auto;
     border-radius: 27px;
 }
