@@ -36,6 +36,7 @@ header {
     position: absolute; /* Ensure the image is positioned relative to its container */
     top: 0;
     left: 0;
+    animation: hue-rotation 10s infinite linear; /* Adjust time for the rotation speed */
     width: 100%; /* Ensure image stretches to full container width */
     height: 100%; /* Ensure image covers full container height */
     object-fit: cover; /* Ensures image covers the container and maintains aspect ratio */
