@@ -204,8 +204,10 @@ section h2 {
 
 footer {
     background: #1a1a1a;
+    margin-top: 10px;
     color: #fff;
     text-align: center;
+    width: 100%;
     padding: 20px 0;
 }
 
@@ -231,6 +233,11 @@ footer p {
     }
 }
 
+iframe {
+    display: block; /* Ensure iframe does not add extra space */
+    margin: 0; /* Remove any default margin */
+}
+
 
 @media (max-width: 767px) {
     .project {
@@ -246,3 +253,74 @@ footer p {
         filter: hue-rotate(360deg);
     }
 }
+
+
+.posts-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px; /* Smaller gap */
+  justify-content: flex-start;
+}
+
+.linkedin-post {
+  font-family: Arial, sans-serif;
+  max-width: 600px;
+  max-height: 500px;
+  margin: 0; /* Remove margin to handle spacing via gap */
+  padding: 15px;
+  border: 1px solid #cccccc;
+  border-radius: 8px;
+  background-color: #ffffff;
+}
+
+@media (min-width: 1300px) {
+  .linkedin-post {
+    width: calc(50% - 10px); /* Adjust for new gap */
+  }
+}
+
+.linkedin-post-header {
+  display: flex;
+  align-items: center;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #eeeeee;
+  margin-bottom: 10px;
+}
+
+.linkedin-profile-img {
+  width: 50px;
+  height: 50px;
+  border-radius: 25px;
+  background-color: #000000;
+  margin-right: 10px;
+}
+
+.linkedin-profile-name {
+  font-weight: bold;
+}
+
+.linkedin-profile-info {
+  color: #666666;
+}
+
+.linkedin-post-body {
+  margin-bottom: 10px;
+}
+
+.posts-full-view {
+    align-content: center;
+    align-items: center;
+    justify-content: center;
+}
+
+.linkedin-post-hashtag {
+  color: #0a66c2;
+  text-decoration: none;
+}
+
+.linkedin-post-footer {
+  color: #666666;
+  text-align: right;
+}
+
+
