@@ -57,7 +57,12 @@ header {
 #header-title {
     color: #ffffff;
     max-width: 80%;
+    text-align: center;
+    padding-left: 10px;
+    padding-right: 10px;
+    
 }
+
 
 
 @keyframes hue-rotation {
