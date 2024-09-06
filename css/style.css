@@ -28,10 +28,11 @@ header {
 #image-container {
     overflow: hidden; /* Hide anything going out of bounds */
     height: 300px;    /* Fixed height */
+    width: 100vh;
 }
 
 #header-image {
-    width: 100%;
+    width: 100vh;
     height: 310px; /* Slightly larger to extend beyond container */
     object-fit: cover;
     filter: blur(8px) brightness(50%);
