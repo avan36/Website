@@ -26,21 +26,23 @@ header {
 }
 
 #image-container {
-    overflow: hidden; /* Hide anything going out of bounds */
-    height: 300px;    /* Fixed height */
-    width: 100vh;
+    position: relative; /* Container must be relative for absolutely positioned image */
+    overflow: hidden;
+    width: 100vw; /* Full viewport width */
+    height: 300px; /* Fixed height for the container */
 }
 
 #header-image {
-    width: 100vh;
-    height: 310px; /* Slightly larger to extend beyond container */
-    object-fit: cover;
+    position: absolute; /* Ensure the image is positioned relative to its container */
+    top: 0;
+    left: 0;
+    width: 100%; /* Ensure image stretches to full container width */
+    height: 100%; /* Ensure image covers full container height */
+    object-fit: cover; /* Ensures image covers the container and maintains aspect ratio */
     filter: blur(8px) brightness(50%);
-    position: relative;
-    top: -1%;
-    scale: 102%;
-    left: -1%; /* Center the scaled image */
+    scale: 110%
 }
+
 
 
 @keyframes hue-rotation {
