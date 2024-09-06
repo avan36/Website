@@ -6,65 +6,67 @@
 <title>LinkedIn Post</title>
 <style>
   .posts-container {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 20px;
-    justify-content: flex-start;
-  }
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px; /* Smaller gap */
+  justify-content: flex-start;
+}
 
+.linkedin-post {
+  font-family: Arial, sans-serif;
+  max-width: 600px;
+  max-height: 500px;
+  margin: 0; /* Remove margin to handle spacing via gap */
+  padding: 15px;
+  border: 1px solid #cccccc;
+  border-radius: 8px;
+  background-color: #ffffff;
+}
+
+@media (min-width: 1300px) {
   .linkedin-post {
-    font-family: Arial, sans-serif;
-    max-width: 600px;
-    margin: 20px;
-    padding: 15px;
-    border: 1px solid #cccccc;
-    border-radius: 8px;
-    background-color: #ffffff;
+    width: calc(50% - 10px); /* Adjust for new gap */
   }
+}
 
-  @media (min-width: 1300px) {
-    .linkedin-post {
-      width: calc(50% - 20px);
-    }
-  }
-  
-  .linkedin-post-header {
-    display: flex;
-    align-items: center;
-    padding-bottom: 10px;
-    border-bottom: 1px solid #eeeeee;
-    margin-bottom: 10px;
-  }
+.linkedin-post-header {
+  display: flex;
+  align-items: center;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #eeeeee;
+  margin-bottom: 10px;
+}
 
-  .linkedin-profile-img {
-    width: 50px;
-    height: 50px;
-    border-radius: 25px;
-    background-color: #000000;
-    margin-right: 10px;
-  }
+.linkedin-profile-img {
+  width: 50px;
+  height: 50px;
+  border-radius: 25px;
+  background-color: #000000;
+  margin-right: 10px;
+}
 
-  .linkedin-profile-name {
-    font-weight: bold;
-  }
+.linkedin-profile-name {
+  font-weight: bold;
+}
 
-  .linkedin-profile-info {
-    color: #666666;
-  }
+.linkedin-profile-info {
+  color: #666666;
+}
 
-  .linkedin-post-body {
-    margin-bottom: 10px;
-  }
+.linkedin-post-body {
+  margin-bottom: 10px;
+}
 
-  .linkedin-post-hashtag {
-    color: #0a66c2;
-    text-decoration: none;
-  }
-  
-  .linkedin-post-footer {
-    color: #666666;
-    text-align: right;
-  }
+.linkedin-post-hashtag {
+  color: #0a66c2;
+  text-decoration: none;
+}
+
+.linkedin-post-footer {
+  color: #666666;
+  text-align: right;
+}
+
 </style>
 </head>
 <body>
