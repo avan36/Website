@@ -12,6 +12,9 @@ body {
 html, body {
     overflow-x: hidden;
 }
+html {
+    scroll-behavior: smooth;
+}
 
 main {
     padding-top: 20px;
