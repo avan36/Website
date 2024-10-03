@@ -1,5 +1,35 @@
-User-agent: Googlebot
-Disallow:
+User-agent: Perplexity
+Disallow: /
+
+User-agent: OpenAI
+Disallow: /
+
+User-agent: GPT-3
+Disallow: /
+
+User-agent: Claude
+Disallow: /
+
+User-agent: Bingbot
+Disallow: /
+
+User-agent: AhrefsBot
+Disallow: /
+
+User-agent: SemrushBot
+Disallow: /
+
+User-agent: Moz
+Disallow: /
+
+User-agent: Yandex
+Disallow: /
+
+User-agent: DuckDuckBot
+Disallow: /
+
+User-agent: GPTBot
+Disallow: /
 
 User-agent: *
 Disallow: /
