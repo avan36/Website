@@ -1,0 +1,345 @@
+body {
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    align-items: center;
+    background: #f4f4f4;
+    color: #333;
+    line-height: 1.6;
+    display: flex;
+    flex-direction: column;
+}
+html, body {
+    overflow-x: hidden;
+}
+html {
+    scroll-behavior: smooth;
+}
+
+main {
+    padding-top: 20px;
+}
+
+.text-alignment {
+    max-width: 750px;
+    text-align: center;
+}
+
+header {
+    
+    position: relative;
+    text-align: center;
+    color: white;
+    margin: 0; 
+}
+
+
+#image-container {
+    position: relative; /* Container must be relative for absolutely positioned image */
+    overflow: hidden;
+    width: 100vw; /* Full viewport width */
+    height: 300px; /* Fixed height for the container */
+}
+
+#header-image {
+    position: absolute; /* Ensure the image is positioned relative to its container */
+    top: 0;
+    left: 0;
+    animation: hue-rotation 10s infinite linear; /* Adjust time for the rotation speed */
+    
+    width: 100%; /* Ensure image stretches to full container width */
+    height: 100%; /* Ensure image covers full container height */
+    object-fit: cover; /* Ensures image covers the container and maintains aspect ratio */
+    filter: blur(8px) brightness(50%);
+    scale: 110%
+}
+
+#header-title {
+    color: #ffffff;
+    max-width: 80%;
+    text-align: center;
+    padding-left: 10px;
+    padding-right: 10px;
+    
+}
+
+
+
+@keyframes hue-rotation {
+    from { filter: hue-rotate(0deg) blur(8px) brightness(50%); }
+    to { filter: hue-rotate(360deg) blur(8px) brightness(50%); }
+}
+
+#header-content {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 100%;
+    z-index: 1; /* Ensure text is on top */
+}
+
+
+#site-nav {
+    width: 100%; /* Ensure nav bar takes full width */
+    box-sizing: border-box; /* Include padding and border in the width */
+    background-color: #333;
+    min-height: 40px;
+    vertical-align: center;
+    max-width: 100%;
+}
+
+.toc-list {
+    display: flex;
+    justify-content: center; /* Horizontally center the navigation links */
+    align-items: center; /* Vertically center the links */
+    width: 100%; /* Use full width to ensure proper centering */
+    padding: 0;
+    margin: 0 auto; /* Center the list if it's not taking full width */
+    max-width: 100%;
+}
+
+.toc-list li {
+    padding: 10px 15px; /* Adequate padding for clickable area */
+}
+.toc-list li a {
+    color: #ffffff;
+    text-align: center;
+    text-decoration: none;
+    padding: 10px 15px;
+    display: block;
+    max-width: 100%;
+
+}
+
+.toc-list li a:hover,
+.toc-list li a:focus {
+    background-color: #555;
+    max-width: 100%;
+}
+
+
+
+
+
+h1, h2 {
+    font-size: 2.5em;
+}
+
+h2 {
+    font-size: 1.8em;
+    
+}
+
+h3 {
+    font-size: 1.5em; /* Specify a font size for h3 */
+    margin-top: 20px;
+    margin: 0;
+}
+
+section {
+    margin: 40px 20px;
+}
+
+section h2 {
+    font-size: 1.8em;
+    margin-bottom: 20px;
+    color: #333;
+    border-bottom: 2px solid #eaeaea;
+    padding-bottom: 10px;
+}
+
+.project {
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 15px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    transition: transform 0.2s, box-shadow 0.2s; /* Shorthand for transition */
+    margin: 20px 0; /* Increase top and bottom margin */
+}
+
+
+
+.project:hover {
+    transform: translateY(-5px); 
+    box-shadow: 0 6px 12px rgba(0,0,0,0.15); 
+}
+.project:hover .icon {
+    transform: scale(1.10);
+    box-shadow: 0 5px 20px rgba(73, 73, 73, 0.3); 
+}
+.project img {
+    max-width: 140px;
+    height: auto;
+    border-radius: 27px;
+}
+.icon {
+    max-width: 150px;
+    height: auto;
+    border-radius: 27px;
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;   
+}
+.project showcase {
+    flex-direction:row;
+    padding: 100px;
+    gap: 5px;
+    max-width: 150px;
+    height: auto;
+    border-radius: 100px;
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+
+
+.project a {
+    color: #1a85ff;
+    text-decoration: none;
+    font-weight: bold;
+}
+
+.project a:hover {
+    text-decoration: underline;
+}
+
+.contact {
+  background-color: #ffffff;
+  padding: 20px;
+  border-radius: 10px;
+  text-align: center;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.contact {
+    background-color: #ffffff;
+    padding: 20px;
+    border-radius: 10px;
+    text-align: center;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+
+footer {
+    background: #1a1a1a;
+    margin-top: 10px;
+    color: #fff;
+    text-align: center;
+    width: 100%;
+    padding: 20px 0;
+}
+
+footer p {
+    margin: 0;
+    font-size: 0.9em;
+}
+@media (max-width: 600px) {
+    .toc-list {
+        flex-direction: column;
+        align-items: center;  /* Center align items */
+        width: 100%;  /* Use full width of the nav bar */
+    }
+
+    .toc-list li {
+        width: 100%;  /* Full width to align text nicely */
+        text-align: center;  /* Center the text within the list item */
+    }
+
+    .toc-list li a {
+        width: 100%;  /* Full width for easier tap targets */
+        padding: 10px;  /* Increase padding for better tap ability */
+    }
+}
+
+iframe {
+    display: block; /* Ensure iframe does not add extra space */
+    margin: 0; /* Remove any default margin */
+}
+
+
+@media (max-width: 767px) {
+    .project {
+        margin-bottom: 20px;
+    }
+}
+
+@keyframes gradient-animation {
+    0% {
+        filter: hue-rotate(0deg);
+    }
+    75% {
+        filter: hue-rotate(360deg);
+    }
+}
+
+
+.posts-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px; /* Smaller gap */
+  justify-content: flex-start;
+}
+
+.linkedin-post {
+  font-family: Arial, sans-serif;
+  max-width: 600px;
+  max-height: 500px;
+  margin: 0; /* Remove margin to handle spacing via gap */
+  padding: 15px;
+  border: 1px solid #cccccc;
+  border-radius: 8px;
+  background-color: #ffffff;
+}
+
+@media (min-width: 1300px) {
+  .linkedin-post {
+    width: calc(50% - 10px); /* Adjust for new gap */
+  }
+}
+
+.linkedin-post-header {
+  display: flex;
+  align-items: center;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #eeeeee;
+  margin-bottom: 10px;
+}
+
+.linkedin-profile-img {
+  width: 50px;
+  height: 50px;
+  border-radius: 25px;
+  background-color: #000000;
+  margin-right: 10px;
+}
+
+.linkedin-profile-name {
+  font-weight: bold;
+}
+
+.linkedin-profile-info {
+  color: #666666;
+}
+
+.linkedin-post-body {
+  margin-bottom: 10px;
+}
+
+.posts-full-view {
+    align-content: center;
+    align-items: center;
+    justify-content: center;
+}
+
+.linkedin-post-hashtag {
+  color: #0a66c2;
+  text-decoration: none;
+}
+
+.linkedin-post-footer {
+  color: #666666;
+  text-align: right;
+}
+
+

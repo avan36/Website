@@ -159,6 +159,9 @@ section h2 {
     align-items: center;
     transition: transform 0.2s, box-shadow 0.2s; /* Shorthand for transition */
     margin: 20px 0; /* Increase top and bottom margin */
+    max-width: 700px;
+    margin-left: auto;
+    margin-right: auto;
 }
 
 
@@ -340,6 +343,37 @@ iframe {
 .linkedin-post-footer {
   color: #666666;
   text-align: right;
+}
+
+.excerpt {
+    font-size: 1.13em;
+    line-height: 1.8;
+    max-width: 650px;
+    margin: 0 auto 20px auto;
+    color: #222;
+    padding: 0 10px;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+}
+
+.excerpt p {
+    margin-bottom: 1.2em;
+}
+
+.excerpt a {
+    word-break: break-all;
+}
+
+@media (max-width: 800px) {
+    .project {
+        max-width: 98vw;
+        padding: 12px;
+    }
+    .excerpt {
+        max-width: 98vw;
+        font-size: 1em;
+        padding: 0 2vw;
+    }
 }
 
 
