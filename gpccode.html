@@ -1,0 +1,12 @@
+Analysis Details: 
+USPAPI Call:
+__uspapi('getUSPData', 1, (data) => { console.log("USP Data: ", data); });
+GPP Calls: 
+__gpp('ping', (data, success) => {console.log(data, success ); });
+__gpp('getGPPData', (data, success) => {console.log(data, success ); });
+Cookie values: check through Storage → Cookies
+USP cookie value before and after GPC signal
+OptanonConsent cookie value before and after GPC signal
+Well-known data can be verified adding /.well-known/gpc.json to the URL path 
+GPP strings can be decoded at https://iabgpp.com/#
+Note: Crawl and Manual Data are based on different websites loads. In other words, the ground truth for the crawl was not analyzed based on the same data on which the crawl was run.
