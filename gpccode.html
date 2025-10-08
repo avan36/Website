@@ -1,12 +1,72 @@
-Analysis Details: 
-USPAPI Call:
-__uspapi('getUSPData', 1, (data) => { console.log("USP Data: ", data); });
-GPP Calls: 
-__gpp('ping', (data, success) => {console.log(data, success ); });
-__gpp('getGPPData', (data, success) => {console.log(data, success ); });
-Cookie values: check through Storage → Cookies
-USP cookie value before and after GPC signal
-OptanonConsent cookie value before and after GPC signal
-Well-known data can be verified adding /.well-known/gpc.json to the URL path 
-GPP strings can be decoded at https://iabgpp.com/#
-Note: Crawl and Manual Data are based on different websites loads. In other words, the ground truth for the crawl was not analyzed based on the same data on which the crawl was run.
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Analysis Details</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      line-height: 1.6;
+      background-color: #f9f9f9;
+      margin: 20px;
+      color: #333;
+    }
+    h1 {
+      color: #0056b3;
+    }
+    code {
+      background-color: #f4f4f4;
+      padding: 3px 6px;
+      border-radius: 4px;
+      font-family: Consolas, monospace;
+    }
+    pre {
+      background-color: #f4f4f4;
+      padding: 10px;
+      border-radius: 5px;
+      overflow-x: auto;
+    }
+    ul {
+      list-style-type: disc;
+      margin-left: 20px;
+    }
+    .note {
+      background-color: #e9f5ff;
+      border-left: 4px solid #0056b3;
+      padding: 10px;
+      margin-top: 15px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Analysis Details</h1>
+
+  <h2>USPAPI Call</h2>
+  <pre><code>__uspapi('getUSPData', 1, (data) => { console.log("USP Data: ", data); });</code></pre>
+
+  <h2>GPP Calls</h2>
+  <pre><code>__gpp('ping', (data, success) => { console.log(data, success); });</code></pre>
+  <pre><code>__gpp('getGPPData', (data, success) => { console.log(data, success); });</code></pre>
+
+  <h2>Cookie Values</h2>
+  <ul>
+    <li>Check through <strong>Storage → Cookies</strong></li>
+    <li><code>USP</code> cookie value before and after GPC signal</li>
+    <li><code>OptanonConsent</code> cookie value before and after GPC signal</li>
+  </ul>
+
+  <h2>Verification Steps</h2>
+  <ul>
+    <li>Well-known data can be verified by adding <code>/.well-known/gpc.json</code> to the URL path.</li>
+    <li>GPP strings can be decoded at <a href="https://iabgpp.com/#" target="_blank">https://iabgpp.com/#</a>.</li>
+  </ul>
+
+  <div class="note">
+    <strong>Note:</strong> Crawl and Manual Data are based on different website loads. In other words, 
+    the ground truth for the crawl was not analyzed based on the same data on which the crawl was run.
+  </div>
+
+</body>
+</html>
