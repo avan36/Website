@@ -2,21 +2,185 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Blog Feed - Ambrose Portfolio</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=1">
-    <meta name="description" content="Read the latest articles on Ambrose Portfolio's blog feed covering software insights, tutorials, and research updates.">
-    <link rel="alternate" type="application/rss+xml" href="feed.xml" title="Ambrose Portfolio Blog RSS" />
-    <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "Blog",
-      "name": "Ambrose Portfolio Blog",
-      "url": "https://ambrosevannier.com/blog.html",
-      "description": "Latest posts on software future, research, and tutorials.",
-      "blogPost": []
-    }
-    </script>
-    <link rel="stylesheet" href="css/style.css">
+    <title>Blog Feed // Ambrose</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Read the latest articles on Ambrose Portfolio's blog feed.">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@800&display=swap" rel="stylesheet">
+    
+    <style>
+        /* --- SHARED CHAOS STYLES --- */
+        :root {
+            --bg: #050505;
+            --term-bg: #111;
+            --green: #0f0;
+            --purple: #d500f9;
+            --font-main: 'Space Mono', monospace;
+            --font-head: 'Syne', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: #ddd;
+            font-family: var(--font-main);
+            margin: 0;
+            padding: 0;
+            background-image: 
+                linear-gradient(rgba(0, 255, 0, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 0, 0.03) 1px, transparent 1px);
+            background-size: 30px 30px; /* Grid Effect */
+            overflow-x: hidden;
+        }
+
+        a { color: var(--green); text-decoration: none; border-bottom: 1px dashed var(--green); }
+        a:hover { background: var(--green); color: black; }
+
+        /* --- HEADER --- */
+        header {
+            height: 30vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-bottom: 4px solid var(--purple);
+            position: relative;
+            overflow: hidden;
+        }
+
+        #image-container {
+            position: absolute;
+            right: 50px;
+            top: 20px;
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            border: 2px solid var(--green);
+            animation: spin 20s linear infinite;
+        }
+        
+        #image-container img { width: 100%; height: 100%; border-radius: 50%; opacity: 0.8; }
+
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        .header-title {
+            font-family: var(--font-head);
+            font-size: 5rem;
+            text-transform: uppercase;
+            color: transparent;
+            -webkit-text-stroke: 2px var(--green);
+            position: relative;
+        }
+
+        .header-title::before {
+            content: 'BLOG FEED';
+            position: absolute;
+            top: 5px;
+            left: 5px;
+            color: var(--purple);
+            z-index: -1;
+        }
+
+        /* --- NAVIGATION --- */
+        nav {
+            position: sticky;
+            top: 0;
+            background: var(--green);
+            z-index: 100;
+            padding: 10px;
+            border-bottom: 2px solid black;
+        }
+
+        .toc-list {
+            list-style: none;
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            padding: 0;
+            margin: 0;
+        }
+
+        .nav-link {
+            color: black;
+            font-weight: bold;
+            font-size: 1.2rem;
+            border: none;
+            text-transform: uppercase;
+        }
+        .nav-link:hover {
+            color: white;
+            background: black;
+        }
+
+        /* --- MAIN CONTENT --- */
+        main {
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 0 20px;
+        }
+
+        /* The "Terminal" Post Container */
+        article {
+            background: var(--term-bg);
+            border: 2px solid #333;
+            padding: 0;
+            margin-bottom: 5rem;
+            box-shadow: 15px 15px 0px var(--purple);
+            position: relative;
+        }
+
+        /* Terminal Bar */
+        article header {
+            height: auto;
+            min-height: 50px;
+            background: #333;
+            border-bottom: 2px solid #333;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            justify-content: center;
+            padding: 10px 20px;
+        }
+
+        article header time {
+            color: var(--green);
+            font-size: 0.8rem;
+        }
+
+        article h3 {
+            margin: 5px 0 0 0;
+            font-size: 1.8rem;
+            color: white;
+        }
+        article h3 a { border: none; color: white; }
+        article h3 a:hover { background: transparent; color: var(--green); }
+
+        .excerpt {
+            padding: 30px;
+            line-height: 1.8;
+            font-size: 1.1rem;
+        }
+
+        /* Flying Toast Notification (Distraction) */
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: -300px;
+            background: var(--green);
+            color: black;
+            padding: 15px;
+            font-weight: bold;
+            border: 2px solid white;
+            transition: right 0.5s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+            z-index: 999;
+        }
+
+        /* --- FOOTER --- */
+        footer {
+            text-align: center;
+            padding: 40px;
+            border-top: 1px solid #333;
+            margin-top: 50px;
+        }
+
+    </style>
 </head>
 <body>
     <header>
@@ -32,44 +196,81 @@
         <ul class="toc-list">
             <li><a href="index.html#projects" class="nav-link">My Projects</a></li>
             <li><a href="blog.html" class="nav-link">Blog</a></li>
-            <li><a href="index.html#research" class="nav-link">My Research Work</a></li>
+            <li><a href="index.html#research" class="nav-link">Research</a></li>
         </ul>
     </nav>
 
     <main>
         <section id="blog-feed">
-            <h2>Latest Posts</h2>
             
-            <!-- Example Post -->
-            <article class="project" itemscope itemtype="https://schema.org/BlogPosting">
+            <article itemscope itemtype="https://schema.org/BlogPosting">
               <header>
-                <time itemprop="datePublished" datetime="2025-05-08" style="display:block;margin-bottom:8px;color:#888;font-size:1em;">May 8, 2025</time>
-                <h3 itemprop="headline"><a itemprop="url" href="the-future-of-software.html">The future of software</a></h3>
+                <div style="display:flex; gap:5px; margin-bottom:5px;">
+                    <div style="width:12px; height:12px; border-radius:50%; background:#ff5f56;"></div>
+                    <div style="width:12px; height:12px; border-radius:50%; background:#ffbd2e;"></div>
+                    <div style="width:12px; height:12px; border-radius:50%; background:#27c93f;"></div>
+                </div>
+                <time itemprop="datePublished" datetime="2025-05-08">root@ambrose:~/posts/May-08-2025</time>
+                <h3 itemprop="headline"><a itemprop="url" href="#">The future of software</a></h3>
               </header>
               <section class="excerpt" itemprop="description">
-                <p>I've been wondering recently about the future of software as Generative AI has become part of our thinking about the workplace. It seems to me that, throughout software companies' history, their moat has been time and technical know-how. For example, it would take many lifetimes to create the same software that Microsoft offers today, and it would require far more knowledge than any one individual could possess. Consequently, Microsoft has a moat around its products – they're hard and time-consuming to build. But here comes Generative AI, a new technology that can create virtually unlimited lines of code in no time, never gets tired, and knows a remarkable amount about coding.</p>
+                <p>I've been wondering recently about the future of software as Generative AI has become part of our thinking about the workplace. It seems to me that, throughout software companies' history, their moat has been time and technical know-how...</p>
               
-                <p>Of course, it would be impractical right now to, say, replicate a product like Microsoft Word using ChatGPT. How would you even go about that? For example, it's difficult in ChatGPT to handle multiple files, so you'd find yourself copying and pasting back and forth between the AI and the code editor. Of course, you could use a new IDE like Cursor, but even this has significant limitations on what you can build. Despite these current problems, it seems that someday (and we don't know when), AI will be both smart enough and cheap enough to build incredibly complex software all on its own. This software will require no technical expertise and very little time invested – a simple text prompt would suffice, and you could produce a whole application tailored to your needs.</p>
+                <p>For example, it would take many lifetimes to create the same software that Microsoft offers today, and it would require far more knowledge than any one individual could possess. Consequently, Microsoft has a moat around its products – they're hard and time-consuming to build.</p>
+
+                <p style="border-left: 3px solid var(--purple); padding-left: 15px; color: #aaa;">"But here comes Generative AI, a new technology that can create virtually unlimited lines of code in no time..."</p>
               
-                <p>I don't mean to wax hyperbolic or be yet another writer glorifying humanity's "AI future." Instead, I'm speaking from a practical perspective – this technology will get cheaper, faster, and better. And this brings me back to my point: what is the future of software if AI can produce any code and act like an agent? Is there any future in producing code as a software developer if others can come along and essentially replicate your work in an instant?</p>
+                <p>Of course, it would be impractical right now to, say, replicate a product like Microsoft Word using ChatGPT. How would you even go about that? For example, it's difficult in ChatGPT to handle multiple files, so you'd find yourself copying and pasting back and forth between the AI and the code editor. Of course, you could use a new IDE like Cursor, but even this has significant limitations on what you can build. Despite these current problems, it seems that someday (and we don't know when), AI will be both smart enough and cheap enough to build incredibly complex software all on its own.</p>
               
-                <p>I'm reminded of the famous example of GPT-4 producing an HTML/CSS website simply from an image. I've tried this myself, taking screenshots of various websites and asking ChatGPT to replicate them – the results were impressive. Consequently, it seems that multimodal capabilities will accelerate the diminishing value of having source code if it can be reproduced instantly. Soon (and by soon I mean anywhere from 1 to 10 years), I'll be able to take a screen recording of, say, the Duolingo app and get a working demo of it, complete with generated source code. So is there any point in creating your own code? I'm honestly not sure.</p>
+                <p>I don't mean to wax hyperbolic or be yet another writer glorifying humanity's "AI future." Instead, I'm speaking from a practical perspective – this technology will get cheaper, faster, and better. And this brings me back to my point: what is the future of software if AI can produce any code and act like an agent?</p>
               
-                <p>It seems one irreplaceable part of software will be the social features and network effects that have been built around them. For example, simply copying Facebook from a screenshot to create your own version would not be enough, as you wouldn't have all the content and the enormous friend graph from the network that makes a social network useful. Likewise, copying Netflix's user interface would not be useful, as you wouldn't have the actual video content available to stream (unless this content gets replaced by AI-generated video, but that's a tangent for another time). Consequently, some sites seem better suited to copying than others. Apps that merely provide a functional service or are involved in education without strong network effects seem like the first to go. Think apps like Duolingo or apps related to productivity, fitness tracking, or gaming.</p>
+                <p>I'm reminded of the famous example of GPT-4 producing an HTML/CSS website simply from an image. I've tried this myself, taking screenshots of various websites and asking ChatGPT to replicate them – the results were impressive. Soon (and by soon I mean anywhere from 1 to 10 years), I'll be able to take a screen recording of, say, the Duolingo app and get a working demo of it, complete with generated source code.</p>
               
-                <p>GPT-4 Creating a Website from Image: <a href="https://www.reddit.com/r/webdev/comments/11rqaon/gpt4_created_frontend_website_from_image_sketch_i/">https://www.reddit.com/r/webdev/comments/11rqaon/gpt4_created_frontend_website_from_image_sketch_i/</a></p>
-                <!-- <a href="the-future-of-software.html" class="read-more" itemprop="url">Read More →</a> -->
+                <p>It seems one irreplaceable part of software will be the social features and network effects that have been built around them. For example, simply copying Facebook from a screenshot to create your own version would not be enough, as you wouldn't have all the content and the enormous friend graph from the network.</p>
+              
+                <p>>> Link: <a href="https://www.reddit.com/r/webdev/comments/11rqaon/gpt4_created_frontend_website_from_image_sketch_i/">GPT-4 Creating a Website from Image</a></p>
               </section>
             </article>
 
-            <!-- Add new <article> blocks here as you publish -->
         </section>
     </main>
 
+    <div id="toast-container"></div>
+
     <footer>
-        <a style="color:white" href="terms-of-service.html">Terms of service</a>
-        <p>&copy; 2024 Ambrose V</p>
+        <a style="color:gray" href="terms-of-service.html">Terms of service</a>
+        <p>&copy; 2025 Ambrose V</p>
     </footer>
-    <!-- You can later replace static <article> blocks by loading posts from a JSON file via JavaScript here -->
+
+    <script>
+        // --- Random "Toast" Notification Distractions ---
+        const msgs = [
+            "Reading speed: 400wpm",
+            "Incoming Connection...",
+            "System Optimal",
+            "Don't forget to hydrate",
+            "AI is watching",
+            "Code compiled successfully"
+        ];
+
+        function showToast() {
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.innerText = msgs[Math.floor(Math.random() * msgs.length)];
+            document.body.appendChild(toast);
+
+            // Slide in
+            setTimeout(() => { toast.style.right = '20px'; }, 100);
+
+            // Slide out and remove
+            setTimeout(() => {
+                toast.style.right = '-300px';
+                setTimeout(() => toast.remove(), 500);
+            }, 4000);
+        }
+
+        // Trigger random toasts every 5-10 seconds
+        setInterval(showToast, 7000);
+    </script>
 </body>
 </html>

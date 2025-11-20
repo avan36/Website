@@ -2,231 +2,645 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8" />
-    <title>Ambrose Portfolio</title>
+    <title>Ambrose V | Digital Experience</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=1">
-    <meta name="description" content="" />
+    <meta name="description" content="Ambrose Vannier - Creative Developer Portfolio" />
     <link rel="icon" href="https://github.com/avan36/Website/raw/main/Designer-2.ico" type="image/x-icon">
-    <link rel="stylesheet" href="css/style.css"> 
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
 
-    <!-- Basic meta tags for overall content -->
-    <meta property="og:title" content="Ambrose V Portfolio" />
-    <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://www.ambrosevannier.com" />
-    <meta property="og:image" content="https://github.com/avan36/Website/blob/main/Designer-2.png?raw=true" />
-    <meta property="og:description" content="A brief description of your website" />
-    <meta property="og:site_name" content="Ambrose V Portfolio" />
-    <meta property="og:image:width" content="1024" /> <!-- Width of the image in pixels -->
-    <meta property="og:image:height" content="1024" /> <!-- Height of the image in pixels -->
+    <style>
+        /* --- CORE VARIABLES --- */
+        :root {
+            --bg: #050505;
+            --card-bg: rgba(20, 20, 20, 0.6);
+            --accent: #00ffcc; /* Cyber Cyan */
+            --accent-2: #ff0055; /* Cyber Pink */
+            --text: #eeeeee;
+            --text-dim: #888888;
+            --cursor-size: 20px;
+        }
+
+        * {
+            box-sizing: border-box;
+            cursor: none; /* Hiding default cursor for custom one */
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: 'Space Mono', monospace;
+            overflow-x: hidden;
+            width: 100vw;
+        }
+
+        /* --- NOISE OVERLAY --- */
+        .noise {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 9000;
+            opacity: 0.05;
+            background: url('https://grainy-gradients.vercel.app/noise.svg');
+        }
+
+        /* --- CUSTOM CURSOR --- */
+        .cursor-dot,
+        .cursor-outline {
+            position: fixed;
+            top: 0;
+            left: 0;
+            transform: translate(-50%, -50%);
+            border-radius: 50%;
+            z-index: 9999;
+            pointer-events: none;
+        }
+
+        .cursor-dot {
+            width: 8px;
+            height: 8px;
+            background-color: var(--accent);
+        }
+
+        .cursor-outline {
+            width: 40px;
+            height: 40px;
+            border: 1px solid var(--accent);
+            transition: width 0.2s, height 0.2s, background-color 0.2s;
+        }
+
+        body:hover .cursor-outline.hovered {
+            width: 80px;
+            height: 80px;
+            background-color: rgba(0, 255, 204, 0.1);
+            border-color: transparent;
+            mix-blend-mode: difference;
+        }
+
+        /* --- BACKGROUND CANVAS --- */
+        #bg-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+        }
+
+        /* --- TYPOGRAPHY & UTILS --- */
+        h1, h2, h3 {
+            font-family: 'Syne', sans-serif;
+            text-transform: uppercase;
+            margin: 0;
+        }
+
+        a {
+            text-decoration: none;
+            color: inherit;
+            position: relative;
+        }
+
+        /* --- NAV --- */
+        nav {
+            position: fixed;
+            top: 20px;
+            right: 20px; /* Quirky placement on right */
+            z-index: 100;
+            mix-blend-mode: difference;
+        }
+
+        .nav-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column; /* Vertical Nav */
+            gap: 10px;
+            text-align: right;
+        }
+
+        .nav-link {
+            font-weight: bold;
+            font-size: 1.2rem;
+            color: var(--text);
+            transition: 0.3s;
+        }
+
+        .nav-link:hover {
+            color: var(--accent);
+            letter-spacing: 2px;
+            text-shadow: 2px 2px var(--accent-2);
+        }
+
+        /* --- HEADER --- */
+        header {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            position: relative;
+            perspective: 1000px;
+        }
+
+        .profile-img-container {
+            width: 200px;
+            height: 200px;
+            margin-bottom: 2rem;
+            border-radius: 50%;
+            overflow: hidden;
+            border: 2px solid var(--accent);
+            animation: morph 8s ease-in-out infinite;
+            box-shadow: 0 0 50px var(--accent);
+        }
+
+        .profile-img-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scale(1.1);
+            transition: 0.5s;
+        }
+
+        .profile-img-container:hover img {
+            transform: scale(1.2) rotate(5deg);
+            filter: hue-rotate(90deg);
+        }
+
+        @keyframes morph {
+            0% { border-radius: 50%; }
+            25% { border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%; }
+            50% { border-radius: 30% 60% 70% 40% / 50% 60% 30% 60%; }
+            75% { border-radius: 40% 60% 30% 70% / 60% 30% 70% 40%; }
+            100% { border-radius: 50%; }
+        }
+
+        .glitch-text {
+            font-size: 5rem;
+            font-weight: 800;
+            color: var(--text);
+            position: relative;
+            line-height: 0.9;
+        }
+        
+        .subtitle {
+            font-size: 1.5rem;
+            color: var(--accent);
+            margin-top: 1rem;
+        }
+
+        /* --- MAIN CONTENT --- */
+        main {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        section {
+            margin-bottom: 150px;
+        }
+
+        .section-title {
+            font-size: 3rem;
+            margin-bottom: 3rem;
+            border-bottom: 1px solid var(--text-dim);
+            display: inline-block;
+            padding-right: 50px;
+        }
+
+        .section-title span {
+            color: var(--accent-2);
+        }
+
+        /* --- PROJECTS GRID (TILT EFFECT) --- */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 3rem;
+            perspective: 1000px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 2rem;
+            border-radius: 20px;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 0.1s; /* Fast transition for JS tilt */
+            backdrop-filter: blur(10px);
+            overflow: hidden;
+        }
+
+        .card-content {
+            transform: translateZ(30px); /* Pop out effect */
+        }
+
+        .card h3 {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            background: linear-gradient(90deg, #fff, var(--text-dim));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .card .icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+            box-shadow: 5px 5px 0px var(--accent-2);
+        }
+
+        .card p {
+            font-size: 0.9rem;
+            color: var(--text-dim);
+            margin-bottom: 1.5rem;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 10px 20px;
+            background: transparent;
+            border: 1px solid var(--accent);
+            color: var(--accent);
+            font-family: 'Space Mono', monospace;
+            font-weight: bold;
+            text-transform: uppercase;
+            transition: 0.3s;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: var(--accent);
+            transition: 0.3s;
+            z-index: -1;
+        }
+
+        .btn:hover::before {
+            left: 0;
+        }
+
+        .btn:hover {
+            color: #000;
+            box-shadow: 0 0 20px var(--accent);
+        }
+
+        /* --- LINKEDIN / POSTS --- */
+        .linkedin-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+        }
+        
+        .linkedin-post {
+            background: rgba(255,255,255,0.03);
+            padding: 2rem;
+            border-left: 4px solid var(--accent-2);
+        }
+
+        /* --- FLOATING SHAPES --- */
+        .shape {
+            position: absolute;
+            filter: blur(50px);
+            z-index: -1;
+            opacity: 0.4;
+            animation: floatAround 20s infinite linear;
+        }
+        .shape-1 { top: 20%; left: 10%; width: 300px; height: 300px; background: var(--accent-2); border-radius: 40% 60% 70% 30%; }
+        .shape-2 { bottom: 20%; right: 10%; width: 400px; height: 400px; background: var(--accent); border-radius: 60% 40% 30% 70%; }
+
+        @keyframes floatAround {
+            0% { transform: translate(0, 0) rotate(0deg); }
+            33% { transform: translate(50px, -50px) rotate(120deg); }
+            66% { transform: translate(-50px, 50px) rotate(240deg); }
+            100% { transform: translate(0, 0) rotate(360deg); }
+        }
+
+        /* --- RESPONSIVE --- */
+        @media (max-width: 768px) {
+            .glitch-text { font-size: 3rem; }
+            nav { position: relative; top: 0; right: 0; padding: 1rem; text-align: center;}
+            .nav-list { flex-direction: row; justify-content: center; }
+            .linkedin-grid { grid-template-columns: 1fr; }
+            /* Disable custom cursor on touch */
+            .cursor-dot, .cursor-outline { display: none; }
+            * { cursor: auto; }
+        }
+
+    </style>
 </head>
 <body>
-    <header>
-        <div id="image-container">
-            <img id="header-image" src="https://github.com/avan36/Website/blob/main/Images/photo-1604076913837-52ab5629fba9.jpeg?raw=true" alt="Header Image">
-        </div>
-        <div id="header-content">
-            <h1 class = "header-title" >Ambrose Vannier</h1>
-            <h3 class = "header-title" >Computer Science and History Major at Wesleyan University.</h3>
-        </div>
-    </header>
+
+    <div class="noise"></div>
     
-    <nav id="site-nav"> 
-        <ul class="toc-list">
-            <li><a href="#projects" class="nav-link">Home</a></li>
-            <li><a href="blog.html" class="nav-link">Blog</a></li>
-            <li><a href="#research" class="nav-link">My Research Work</a></li>
+    <div class="cursor-dot"></div>
+    <div class="cursor-outline"></div>
+
+    <canvas id="bg-canvas"></canvas>
+
+    <div class="shape shape-1"></div>
+    <div class="shape shape-2"></div>
+
+    <nav>
+        <ul class="nav-list">
+            <li><a href="#projects" class="nav-link data-hover">Projects</a></li>
+            <li><a href="blog.html" class="nav-link data-hover">Intel</a></li>
+            <li><a href="#research" class="nav-link data-hover">Research</a></li>
         </ul>
     </nav>
+
+    <header>
+        <div class="profile-img-container data-hover">
+            <img src="https://github.com/avan36/Website/blob/main/Images/photo-1604076913837-52ab5629fba9.jpeg?raw=true" alt="Ambrose">
+        </div>
+        <h1 class="glitch-text" data-value="AMBROSE VANNIER">AMBROSE VANNIER</h1>
+        <h3 class="subtitle" data-value="CS & HISTORY @ WESLEYAN">CS & HISTORY @ WESLEYAN</h3>
+    </header>
+
     <main>
-        <section id = "projects">
-        <!-- Blog Preview Card -->
-        
-          <h2>My most recent post</h2>
-          <div class="project">
-            <div style="margin-bottom:8px;color:#888;font-size:1em;">May 8, 2025</div>
-            <h3 style="margin-top:0;margin-bottom:10px;"><a href="blog.html" style="color:#1a85ff;text-decoration:none;">The future of software</a></h3>
-            <div style="font-size:1.08em;color:#222;margin-bottom:16px;">
-              I've been wondering recently about the future of software as Generative AI has settled into our thinking about the workplace. It seems to me that, throughout software companies' history, their moat has been time and... <a href="blog.html" style="color:#1a85ff;text-decoration:underline;font-weight:bold;">Read more</a>
+        <section id="latest">
+            <h2 class="section-title">Latest <span>Transmission</span></h2>
+            <div class="card data-tilt">
+                <div style="color:var(--accent); font-size:0.8em; margin-bottom:10px;">// MAY 08, 2025</div>
+                <h3 style="margin-top:0;"><a href="blog.html" class="data-hover">The Future of Software</a></h3>
+                <p>Generative AI has settled into our thinking about the workplace. The moat is no longer code, but time...</p>
+                <a href="blog.html" class="btn data-hover">Access Data</a>
             </div>
-          </div>
-
         </section>
-        <!-- End Blog Preview Card -->
-        <!-- Project Section -->
+
         <section id="projects">
-            <h2>My projects</h2>
-            <div class="project">
-              <img class="icon" src="https://github.com/avan36/Math-Game-iPhone/blob/main/logo.png?raw=true" alt="QuizMate app icon">
-              <br>
-              <h3>QuizMate</h3>
-              
-              <p class="text-alignment">
-                  QuizMate is a fun and social way to sharpen your mind with quick, interactive games and AI-powered lessons. Whether you're practicing math, building your vocabulary, or diving into a new subject, QuizMate keeps learning engaging and competitive.
-              </p>
-              
-              <p class="text-alignment">
-                  Features include:
-                  <ul>
-                      <li><b>Play With Friends:</b> Add friends, compare scores, and challenge each other in real-time.</li>
-                      <li><b>Math Games:</b> Test your skills with multiplication and division games.</li>
-                      <li><b>Word Matching:</b> Improve vocabulary with a fun word-definition game.</li>
-                      <li><b>AI Lessons:</b> Learn anything—from Python to French—with custom AI-generated courses and quizzes.</li>
-                  </ul>
-              </p>
-              
-              <p class="text-alignment">
-                  You can also explore walkthrough GIFs and source code on my GitHub below.
-              </p>
-              
-              <a href="https://apps.apple.com/gb/app/quizmate-learn-with-ai/id6740884440" target="_blank"><b>Download on the App Store</b></a>
-              <br>
-              
-          </div>
-            <div class="project">
-              <img class = "icon" src="https://github.com/avan36/Website/blob/main/logo.png?raw=true" alt="eQoScan Icon">
-              <br>
-              <h3>eQoScan</h3>
-              
-              <p class = "text-alignment">I worked on this Swift/SwiftUI app to reduce packaging waste on campus. When people want to check out a reusable food container,
-                they first scan a location QR code and then their container's box code. They then return this container to get back a credit. I worked on coding the front-end of this app and integrating it with Google Authentication via FirebaseAuth
-                 and Firebase Real-time Database. I also implemented UserDefaults, AppStorage, Apple's location APIs for showing last scanned locations, and more. This was part of a group project, where I collaborated with others who delivered a backend server to generate QR codes.</p>
-              <p class = "text-alignment">We started this project at the WesHack Hackathon <b>and it won the Internship Prize Track.</b> We are continuing this project and trying to get Wesleyan University to implement this system.</p>
-              <a href="https://github.com/avan36/eQoScan">See project</a>
-              <a href="https://youtu.be/HT2pMsUlEv8">See video demo</a>
-              
-          </div>
-          
-            <div class="project">
-              <img class = "icon" src="https://github.com/avan36/TaskManager-React/blob/main/Frame%204.png?raw=true" alt="Activity tracker app icon">
-              <br>
-              <h3>Task Manager</h3>
-              
-              <p class = "text-alignment">This app helps people manage their tasks with due dates and highlights tasks if they are overdue.</p>
-              
-              
-              <p class = "text-alignment">Click the link below to go to the web app.</p>
-              <a href="https://task-manager-react-sepia.vercel.app">See project</a>
-              
-          </div>
-            <div class="project">
-                <img class = "icon" src="https://github.com/avan36/ActivityTracker/blob/main/icon_activity.png?raw=true" alt="Activity tracker app icon">
-                <br>
-                <h3>Activity Tracker for iOS</h3>
-                
-                <p class = "text-alignment">I created this app to help people track their daily activities, using UserDefaults and core SwiftUI components.</p>
-                
-                <p class = "text-alignment">Users can choose their activity type, add a description, title, and select minutes spent in the activity, which are then stored locally on-device.</p>
-                
-                <p class = "text-alignment">On my github link below, I have walkthrough GIFs of the app.</p>
-                <a href="https://github.com/avan36/ActivityTracker">See project and code</a>
-                
-            </div>
-          
-            <div class="project">
-                <img class = "icon" class = "showcase" src="https://github.com/avan36/Website/blob/main/7G3CtXS.png?raw=true" alt="Toothbrushing app icon">
-                <br>
-                <h3>Toothbrushing App</h3>
-                <p class = "text-alignment">I developed this toothbrushing app to help people using manual toothbrushes track their brushing time more easily. Its features include:</p>
-                <ul>
-                    <li>Apple Health Integration</li>
-                    <li>Dynamic island/live activities support</li>
-                    <li>Background timer functionality</li>
-                    <li>Notifications</li>
-                    <li>Logging of brushing time</li>
-                    <li>Manual setting of toothbrushing time</li>
-                </ul>
-                <a href="https://github.com/avan36/ToothBrushing">See project and code</a>
-            </div>
-            <!--<div class="project">
-                <img class = "icon" src="https://github.com/avan36/Website/blob/main/Simulator%20Screenshot%20-%20iPhone%2015%20Pro%20-%202024-02-29%20at%2001.53.35.png?raw=true" alt="Miscellaneous iOS app projects">
-                <h3>Miscellaneous iOS Tutori</h3>
-                <p>I am building various iOS apps to master advanced iOS app skills, such as enabling complex gestures, core data permanence, and SwiftUI animations</p>
-                <a href="https://github.com/avan36/SwiftDevote">See to-do list project </a> <br>
-                <a href="https://github.com/avan36/SwiftRestart">See inspiration app project</a> <br>
-                <a href="https://github.com/avan36/Tinder-like-Honeymoon-Finder-App">See Tinder-like app project</a> <br>
-                <a href="https://github.com/avan36/AvocadosApp">See cooking app project</a> <br>
-            </div>-->
-            <div class="project">
-                <img class = "icon" src="https://github.com/avan36/Website/blob/main/Designer-2-no-gap.png?raw=true" alt="Project 3">
-                <br>
-                <h3>Website Development</h3>
-                <p>I am creating this website to showcase my portfolio while improving my web development skills.</p>
-                <a href="https://github.com/avan36/Website">See project and code</a>
+            <h2 class="section-title">Project <span>Database</span></h2>
+            <div class="grid">
+                <div class="card data-tilt">
+                    <div class="card-content">
+                        <img class="icon" src="https://github.com/avan36/Math-Game-iPhone/blob/main/logo.png?raw=true">
+                        <h3>QuizMate</h3>
+                        <p>PvP Math Games & AI Lessons. A social way to sharpen your mind.</p>
+                        <a href="https://apps.apple.com/gb/app/quizmate-learn-with-ai/id6740884440" class="btn data-hover">App Store</a>
+                    </div>
+                </div>
+
+                <div class="card data-tilt">
+                    <div class="card-content">
+                        <img class="icon" src="https://github.com/avan36/Website/blob/main/logo.png?raw=true">
+                        <h3>eQoScan</h3>
+                        <p>Swift/SwiftUI app reducing packaging waste. <strong>WesHack Winner.</strong></p>
+                        <a href="https://github.com/avan36/eQoScan" class="btn data-hover">Source</a>
+                    </div>
+                </div>
+
+                <div class="card data-tilt">
+                    <div class="card-content">
+                        <img class="icon" src="https://github.com/avan36/TaskManager-React/blob/main/Frame%204.png?raw=true">
+                        <h3>Task Manager</h3>
+                        <p>React web application for task highlighting and management.</p>
+                        <a href="https://task-manager-react-sepia.vercel.app" class="btn data-hover">Deploy</a>
+                    </div>
+                </div>
+
+                <div class="card data-tilt">
+                    <div class="card-content">
+                        <img class="icon" src="https://github.com/avan36/Website/blob/main/7G3CtXS.png?raw=true">
+                        <h3>Hygiene Tracker</h3>
+                        <p>Dynamic Island & Live Activities support for manual brushing.</p>
+                        <a href="https://github.com/avan36/ToothBrushing" class="btn data-hover">Source</a>
+                    </div>
+                </div>
             </div>
         </section>
-        <section id="research"> 
-            <h2>My Research Work</h2>
-            <p>Since Fall 2023, I've been working as a research assistant at the Wesleyan Assessment Lab. We study student use/perceptions of Generative AI and community sense on campus, conducting pop-up focus groups with prizes.</p>
-        </section>
-        
 
-        <section class = "posts-full-view">
-
-            
-                <h2>My LinkedIn <a href = "https://www.linkedin.com/in/ambrosev/"><img src = "https://upload.wikimedia.org/wikipedia/commons/thumb/8/81/LinkedIn_icon.svg/1200px-LinkedIn_icon.svg.png" alt = "LinkedIn Link" style = "width: 30px; border:none;">
-                </a></h2>
-           
-            
-            <div class = "posts-container">
-            <div class="linkedin-post">
-              <div class="linkedin-post-header">
-                <div class="linkedin-profile-img"></div>
-                <div>
-                  <div class="linkedin-profile-name">Ambrose V</div>
-                  <div class="linkedin-profile-info">Student at Wesleyan University</div>
+        <section id="research">
+            <h2 class="section-title">Research <span>Logs</span></h2>
+            <div class="linkedin-grid">
+                <div class="linkedin-post data-tilt">
+                    <div class="card-content">
+                        <h4>Wesleyan Assessment Lab</h4>
+                        <p>Studying student perceptions of Generative AI via pop-up focus groups.</p>
+                    </div>
                 </div>
-              </div>
-              <div class="linkedin-post-body">
-                Today, I was happy to complete my course, Supervised Machine Learning:
-                Regression and Classification. This is a part of my Machine Learning
-                Specialisation from Stanford Online – two more courses to go! I'm happy
-                because I've been researching student use of Generative AI at the Wesleyan
-                Assessment Lab, and now I can implement some machine learning models myself!
-                <br> <br>
-                <a href="https://coursera.org/share/d1cf522987788523354383f50657d70d">Supervised Machine Learning: Regression and Classification certificate</a>
-                <br>
-                <a href="https://coursera.org/share/6b554ab2012f477b58557c8c73d69b52">Advanced Learning Algorithms certificate</a>
-              </div>
-              <div class="linkedin-post-footer">
-                22 July
-              </div>
-            </div>
-          
-            <div class="linkedin-post">
-              <div class="linkedin-post-header">
-                <div class="linkedin-profile-img"></div>
-                <div>
-                  <div class="linkedin-profile-name">Ambrose V</div>
-                  <div class="linkedin-profile-info">Student at Wesleyan University</div>
+                <div class="linkedin-post data-tilt">
+                    <div class="card-content">
+                        <h4>ML Specialization</h4>
+                        <p>Completed Stanford Online's Regression & Classification.</p>
+                        <a href="#" class="btn data-hover" style="font-size:0.7em;">Verify</a>
+                    </div>
                 </div>
-              </div>
-              <div class="linkedin-post-body">
-                I had a lot of fun presenting to Wesleyan's faculty on our research about
-                student use of <a href="https://www.linkedin.com/search/results/all/?keywords=%23GenerativeAI&origin=GLOBAL_SEARCH_HEADER&sid=ox2" class="linkedin-post-hashtag">#GenerativeAI</a> last Thursday with Rena Chen, Veronica Goss,
-                and Sadie Cook! We've been working on this project as part of the Wesleyan
-                Assessment Lab since September under the guidance of Rachael Barlow.
-                <br>
-                <br>
-                We surveyed 82 students from across 48 pop-up focus groups to learn how
-                students are currently using AI in their academic/personal lives (e.g. content
-                creation, revision of their writing) and why some students avoid it (e.g. fear of
-                becoming reliant on it, skepticism about its abilities). Our findings reveal diverse
-                student reactions to AI, and we're excited to work more in this area in the
-                future!
-              </div>
-              <div class="linkedin-post-footer">
-                13 April • Edited
-              </div>
             </div>
-          </div>
         </section>
     </main>
-    <footer>
-        <a style = "color:white" href="terms-of-service.html">Terms of service</a>
-        <p>&copy; 2024 Ambrose V</p>
-       
-    </footer>
-    <script src="script.js"></script>
 
-   
+    <footer>
+        <p style="text-align: center; opacity: 0.5;">&copy; 2025 SYSTEM AMBROSE</p>
+    </footer>
+
+    <script>
+        /* ------------------------------------------------
+           1. HACKER TEXT EFFECT (Decryption Animation)
+        ------------------------------------------------ */
+        const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890#%&@$";
+
+        document.querySelectorAll(".glitch-text, .subtitle").forEach(element => {
+            element.onmouseover = event => {
+                let iteration = 0;
+                clearInterval(event.target.interval);
+
+                event.target.interval = setInterval(() => {
+                    event.target.innerText = event.target.innerText
+                        .split("")
+                        .map((letter, index) => {
+                            if(index < iteration) {
+                                return event.target.dataset.value[index];
+                            }
+                            return letters[Math.floor(Math.random() * 26)];
+                        })
+                        .join("");
+
+                    if(iteration >= event.target.dataset.value.length){ 
+                        clearInterval(event.target.interval);
+                    }
+                    
+                    iteration += 1 / 3;
+                }, 30);
+            }
+            // Trigger once on load
+            element.onmouseover({ target: element });
+        });
+
+        /* ------------------------------------------------
+           2. CUSTOM CURSOR
+        ------------------------------------------------ */
+        const cursorDot = document.querySelector('.cursor-dot');
+        const cursorOutline = document.querySelector('.cursor-outline');
+        
+        window.addEventListener('mousemove', (e) => {
+            const posX = e.clientX;
+            const posY = e.clientY;
+
+            // Dot follows immediately
+            cursorDot.style.left = `${posX}px`;
+            cursorDot.style.top = `${posY}px`;
+
+            // Outline follows with delay (lag)
+            cursorOutline.animate({
+                left: `${posX}px`,
+                top: `${posY}px`
+            }, { duration: 500, fill: "forwards" });
+        });
+
+        // Hover effect for links/buttons
+        document.querySelectorAll('.data-hover, a, .card').forEach(link => {
+            link.addEventListener('mouseenter', () => {
+                cursorOutline.classList.add('hovered');
+            });
+            link.addEventListener('mouseleave', () => {
+                cursorOutline.classList.remove('hovered');
+            });
+        });
+
+        /* ------------------------------------------------
+           3. 3D CARD TILT EFFECT
+        ------------------------------------------------ */
+        const cards = document.querySelectorAll(".data-tilt");
+
+        cards.forEach(card => {
+            card.addEventListener("mousemove", (e) => {
+                const rect = card.getBoundingClientRect();
+                const x = e.clientX - rect.left; // x position within the element.
+                const y = e.clientY - rect.top;  // y position within the element.
+                
+                const centerX = rect.width / 2;
+                const centerY = rect.height / 2;
+                
+                const rotateX = ((y - centerY) / centerY) * -10; // Max rotation deg
+                const rotateY = ((x - centerX) / centerX) * 10;
+
+                card.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.05, 1.05, 1.05)`;
+            });
+
+            card.addEventListener("mouseleave", () => {
+                card.style.transform = "perspective(1000px) rotateX(0) rotateY(0) scale3d(1, 1, 1)";
+            });
+        });
+
+        /* ------------------------------------------------
+           4. PARTICLE CANVAS BACKGROUND
+        ------------------------------------------------ */
+        const canvas = document.getElementById('bg-canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        let particlesArray;
+
+        // Handle Resize
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            init();
+        });
+
+        // Mouse interaction
+        const mouse = { x: null, y: null, radius: 150 };
+        window.addEventListener('mousemove', (event) => {
+            mouse.x = event.x;
+            mouse.y = event.y;
+        });
+
+        class Particle {
+            constructor(x, y, directionX, directionY, size, color) {
+                this.x = x;
+                this.y = y;
+                this.directionX = directionX;
+                this.directionY = directionY;
+                this.size = size;
+                this.color = color;
+            }
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2, false);
+                ctx.fillStyle = '#00ffcc';
+                ctx.fill();
+            }
+            update() {
+                if (this.x > canvas.width || this.x < 0) this.directionX = -this.directionX;
+                if (this.y > canvas.height || this.y < 0) this.directionY = -this.directionY;
+
+                // Check collision with mouse
+                let dx = mouse.x - this.x;
+                let dy = mouse.y - this.y;
+                let distance = Math.sqrt(dx*dx + dy*dy);
+                if (distance < mouse.radius + this.size){
+                    if (mouse.x < this.x && this.x < canvas.width - this.size * 10) this.x += 10;
+                    if (mouse.x > this.x && this.x > this.size * 10) this.x -= 10;
+                    if (mouse.y < this.y && this.y < canvas.height - this.size * 10) this.y += 10;
+                    if (mouse.y > this.y && this.y > this.size * 10) this.y -= 10;
+                }
+
+                this.x += this.directionX;
+                this.y += this.directionY;
+                this.draw();
+            }
+        }
+
+        function init() {
+            particlesArray = [];
+            let numberOfParticles = (canvas.height * canvas.width) / 9000;
+            for (let i = 0; i < numberOfParticles; i++) {
+                let size = (Math.random() * 2) + 1;
+                let x = (Math.random() * ((innerWidth - size * 2) - (size * 2)) + size * 2);
+                let y = (Math.random() * ((innerHeight - size * 2) - (size * 2)) + size * 2);
+                let directionX = (Math.random() * 2) - 1;
+                let directionY = (Math.random() * 2) - 1;
+                let color = '#00ffcc';
+                particlesArray.push(new Particle(x, y, directionX, directionY, size, color));
+            }
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            ctx.clearRect(0, 0, innerWidth, innerHeight);
+            for (let i = 0; i < particlesArray.length; i++) {
+                particlesArray[i].update();
+            }
+            connect();
+        }
+
+        function connect() {
+            let opacityValue = 1;
+            for (let a = 0; a < particlesArray.length; a++) {
+                for (let b = a; b < particlesArray.length; b++) {
+                    let distance = ((particlesArray[a].x - particlesArray[b].x) * (particlesArray[a].x - particlesArray[b].x))
+                    + ((particlesArray[a].y - particlesArray[b].y) * (particlesArray[a].y - particlesArray[b].y));
+                    if (distance < (canvas.width/7) * (canvas.height/7)) {
+                        opacityValue = 1 - (distance/20000);
+                        ctx.strokeStyle = 'rgba(0, 255, 204,' + opacityValue + ')';
+                        ctx.lineWidth = 1;
+                        ctx.beginPath();
+                        ctx.moveTo(particlesArray[a].x, particlesArray[a].y);
+                        ctx.lineTo(particlesArray[b].x, particlesArray[b].y);
+                        ctx.stroke();
+                    }
+                }
+            }
+        }
+
+        init();
+        animate();
+
+    </script>
 </body>
 </html>
