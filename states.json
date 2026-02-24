@@ -1,0 +1,18 @@
+{
+    "Colorado": {
+        "all_sites": "https://drive.google.com/file/d/1cYYJIJnbHJvKHzWwalqxYEZClZoXRqLP/view?usp=drive_link",
+        "noncompliant_sites": "https://drive.google.com/file/d/1VS40mxODvh97p0QzVS40YCCjzsq3FdOa/view?usp=sharing"
+    },
+    "California": {
+        "all_sites": "https://drive.google.com/file/d/1QqRRb7S8HxLZPXMnryp5cCq8UJLpz8D_/view?usp=drive_link",
+        "noncompliant_sites": "https://drive.google.com/file/d/1m2sBvELcr_i6dp2DBoew9gqOyE4h6fQh/view?usp=drive_link"
+    },
+    "New Jersey": {
+        "all_sites": "https://drive.google.com/file/d/1I_fNSOycGnRWX-sZ-mn5C05rw8vsOe9b/view?usp=sharing",
+        "noncompliant_sites": "https://drive.google.com/file/d/13kmrK-731A8kDtGs92XfHHuZTwvZPcrL/view?usp=sharing"
+    },
+    "Connecticut": {
+        "all_sites": "https://drive.google.com/file/d/1POdmV0CPcFvO5jn00KYuMfhhiNtvFC4f/view?usp=sharing",
+        "noncompliant_sites": "https://drive.google.com/file/d/1M_uUaVKQ4aY9IEVy6szV0nJZjYOncZcu/view?usp=sharing"
+    }
+}
