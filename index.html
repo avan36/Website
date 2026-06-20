@@ -266,9 +266,27 @@
       blobs[i].style.transform = `translate3d(${pos[i].x}px, ${pos[i].y}px, 0) scale(${pos[i].scale})`;
       if (isBursting) blobs[i].classList.add('burst-color'); else blobs[i].classList.remove('burst-color');
     }
-    requestAnimationFrame(animate);
+    rafId = requestAnimationFrame(animate);
   }
-  animate();
+
+  let rafId = null;
+  function startAnimation() {
+    if (rafId === null) rafId = requestAnimationFrame(animate);
+  }
+  function stopAnimation() {
+    if (rafId !== null) { cancelAnimationFrame(rafId); rafId = null; }
+  }
+  // Don't burn frames while the tab is in the background.
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) stopAnimation(); else startAnimation();
+  });
+
+  // Respect users who prefer reduced motion — skip the trailing-cursor loop.
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    blobs.forEach(b => b.style.display = 'none');
+  } else {
+    startAnimation();
+  }
 
   // Scroll-reveal
   const revealElements = document.querySelectorAll('.bento-card, .section-header, .hero-copy, .closer');
