@@ -1,646 +1,287 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8" />
-    <title>Ambrose V | Digital Experience</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=1">
-    <meta name="description" content="Ambrose Vannier - Creative Developer Portfolio" />
-    <link rel="icon" href="https://github.com/avan36/Website/raw/main/Designer-2.ico" type="image/x-icon">
-    
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ambrose Vannier — Software Developer</title>
+<meta name="description" content="Ambrose Vannier — software developer. Recently graduated from Wesleyan University (B.A. Computer Science & History). I design and ship iOS apps and privacy tools, from classroom learning to research that holds the web accountable.">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#000000">
+<meta name="author" content="Ambrose Vannier">
 
-    <style>
-        /* --- CORE VARIABLES --- */
-        :root {
-            --bg: #050505;
-            --card-bg: rgba(20, 20, 20, 0.6);
-            --accent: #00ffcc; /* Cyber Cyan */
-            --accent-2: #ff0055; /* Cyber Pink */
-            --text: #eeeeee;
-            --text-dim: #888888;
-            --cursor-size: 20px;
-        }
+<!-- Open Graph -->
+<meta property="og:title" content="Ambrose Vannier — Software Developer">
+<meta property="og:description" content="iOS apps and privacy tools — from classroom learning to research that holds the web accountable.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Ambrose Vannier">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
 
-        * {
-            box-sizing: border-box;
-            cursor: none; /* Hiding default cursor for custom one */
-        }
-
-        body {
-            margin: 0;
-            padding: 0;
-            background-color: var(--bg);
-            color: var(--text);
-            font-family: 'Space Mono', monospace;
-            overflow-x: hidden;
-            width: 100vw;
-        }
-
-        /* --- NOISE OVERLAY --- */
-        .noise {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: 9000;
-            opacity: 0.05;
-            background: url('https://grainy-gradients.vercel.app/noise.svg');
-        }
-
-        /* --- CUSTOM CURSOR --- */
-        .cursor-dot,
-        .cursor-outline {
-            position: fixed;
-            top: 0;
-            left: 0;
-            transform: translate(-50%, -50%);
-            border-radius: 50%;
-            z-index: 9999;
-            pointer-events: none;
-        }
-
-        .cursor-dot {
-            width: 8px;
-            height: 8px;
-            background-color: var(--accent);
-        }
-
-        .cursor-outline {
-            width: 40px;
-            height: 40px;
-            border: 1px solid var(--accent);
-            transition: width 0.2s, height 0.2s, background-color 0.2s;
-        }
-
-        body:hover .cursor-outline.hovered {
-            width: 80px;
-            height: 80px;
-            background-color: rgba(0, 255, 204, 0.1);
-            border-color: transparent;
-            mix-blend-mode: difference;
-        }
-
-        /* --- BACKGROUND CANVAS --- */
-        #bg-canvas {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: -1;
-        }
-
-        /* --- TYPOGRAPHY & UTILS --- */
-        h1, h2, h3 {
-            font-family: 'Syne', sans-serif;
-            text-transform: uppercase;
-            margin: 0;
-        }
-
-        a {
-            text-decoration: none;
-            color: inherit;
-            position: relative;
-        }
-
-        /* --- NAV --- */
-        nav {
-            position: fixed;
-            top: 20px;
-            right: 20px; /* Quirky placement on right */
-            z-index: 100;
-            mix-blend-mode: difference;
-        }
-
-        .nav-list {
-            list-style: none;
-            display: flex;
-            flex-direction: column; /* Vertical Nav */
-            gap: 10px;
-            text-align: right;
-        }
-
-        .nav-link {
-            font-weight: bold;
-            font-size: 1.2rem;
-            color: var(--text);
-            transition: 0.3s;
-        }
-
-        .nav-link:hover {
-            color: var(--accent);
-            letter-spacing: 2px;
-            text-shadow: 2px 2px var(--accent-2);
-        }
-
-        /* --- HEADER --- */
-        header {
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            text-align: center;
-            position: relative;
-            perspective: 1000px;
-        }
-
-        .profile-img-container {
-            width: 200px;
-            height: 200px;
-            margin-bottom: 2rem;
-            border-radius: 50%;
-            overflow: hidden;
-            border: 2px solid var(--accent);
-            animation: morph 8s ease-in-out infinite;
-            box-shadow: 0 0 50px var(--accent);
-        }
-
-        .profile-img-container img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            transform: scale(1.1);
-            transition: 0.5s;
-        }
-
-        .profile-img-container:hover img {
-            transform: scale(1.2) rotate(5deg);
-            filter: hue-rotate(90deg);
-        }
-
-        @keyframes morph {
-            0% { border-radius: 50%; }
-            25% { border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%; }
-            50% { border-radius: 30% 60% 70% 40% / 50% 60% 30% 60%; }
-            75% { border-radius: 40% 60% 30% 70% / 60% 30% 70% 40%; }
-            100% { border-radius: 50%; }
-        }
-
-        .glitch-text {
-            font-size: 5rem;
-            font-weight: 800;
-            color: var(--text);
-            position: relative;
-            line-height: 0.9;
-        }
-        
-        .subtitle {
-            font-size: 1.5rem;
-            color: var(--accent);
-            margin-top: 1rem;
-        }
-
-        /* --- MAIN CONTENT --- */
-        main {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 2rem;
-        }
-
-        section {
-            margin-bottom: 150px;
-        }
-
-        .section-title {
-            font-size: 3rem;
-            margin-bottom: 3rem;
-            border-bottom: 1px solid var(--text-dim);
-            display: inline-block;
-            padding-right: 50px;
-        }
-
-        .section-title span {
-            color: var(--accent-2);
-        }
-
-        /* --- PROJECTS GRID (TILT EFFECT) --- */
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-            gap: 3rem;
-            perspective: 1000px;
-        }
-
-        .card {
-            background: var(--card-bg);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            padding: 2rem;
-            border-radius: 20px;
-            position: relative;
-            transform-style: preserve-3d;
-            transition: transform 0.1s; /* Fast transition for JS tilt */
-            backdrop-filter: blur(10px);
-            overflow: hidden;
-        }
-
-        .card-content {
-            transform: translateZ(30px); /* Pop out effect */
-        }
-
-        .card h3 {
-            font-size: 2rem;
-            margin-bottom: 1rem;
-            background: linear-gradient(90deg, #fff, var(--text-dim));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .card .icon {
-            width: 60px;
-            height: 60px;
-            border-radius: 12px;
-            margin-bottom: 1.5rem;
-            box-shadow: 5px 5px 0px var(--accent-2);
-        }
-
-        .card p {
-            font-size: 0.9rem;
-            color: var(--text-dim);
-            margin-bottom: 1.5rem;
-        }
-
-        .btn {
-            display: inline-block;
-            padding: 10px 20px;
-            background: transparent;
-            border: 1px solid var(--accent);
-            color: var(--accent);
-            font-family: 'Space Mono', monospace;
-            font-weight: bold;
-            text-transform: uppercase;
-            transition: 0.3s;
-            overflow: hidden;
-            position: relative;
-        }
-
-        .btn::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: var(--accent);
-            transition: 0.3s;
-            z-index: -1;
-        }
-
-        .btn:hover::before {
-            left: 0;
-        }
-
-        .btn:hover {
-            color: #000;
-            box-shadow: 0 0 20px var(--accent);
-        }
-
-        /* --- LINKEDIN / POSTS --- */
-        .linkedin-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 2rem;
-        }
-        
-        .linkedin-post {
-            background: rgba(255,255,255,0.03);
-            padding: 2rem;
-            border-left: 4px solid var(--accent-2);
-        }
-
-        /* --- FLOATING SHAPES --- */
-        .shape {
-            position: absolute;
-            filter: blur(50px);
-            z-index: -1;
-            opacity: 0.4;
-            animation: floatAround 20s infinite linear;
-        }
-        .shape-1 { top: 20%; left: 10%; width: 300px; height: 300px; background: var(--accent-2); border-radius: 40% 60% 70% 30%; }
-        .shape-2 { bottom: 20%; right: 10%; width: 400px; height: 400px; background: var(--accent); border-radius: 60% 40% 30% 70%; }
-
-        @keyframes floatAround {
-            0% { transform: translate(0, 0) rotate(0deg); }
-            33% { transform: translate(50px, -50px) rotate(120deg); }
-            66% { transform: translate(-50px, 50px) rotate(240deg); }
-            100% { transform: translate(0, 0) rotate(360deg); }
-        }
-
-        /* --- RESPONSIVE --- */
-        @media (max-width: 768px) {
-            .glitch-text { font-size: 3rem; }
-            nav { position: relative; top: 0; right: 0; padding: 1rem; text-align: center;}
-            .nav-list { flex-direction: row; justify-content: center; }
-            .linkedin-grid { grid-template-columns: 1fr; }
-            /* Disable custom cursor on touch */
-            .cursor-dot, .cursor-outline { display: none; }
-            * { cursor: auto; }
-        }
-
-    </style>
+<link rel="icon" href="media/monogram.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="media/monogram.svg">
+<link rel="stylesheet" href="styles.css">
 </head>
 <body>
+<a class="skip-link" href="#main">Skip to content</a>
 
-    <div class="noise"></div>
-    
-    <div class="cursor-dot"></div>
-    <div class="cursor-outline"></div>
+<div class="page-bg" aria-hidden="true">
+  <div class="noise-overlay"></div>
+  <div class="mesh-blob blob-1"></div>
+  <div class="mesh-blob blob-2"></div>
+  <div class="mesh-blob blob-3"></div>
+  <div class="mesh-blob blob-4"></div>
+</div>
 
-    <canvas id="bg-canvas"></canvas>
-
-    <div class="shape shape-1"></div>
-    <div class="shape shape-2"></div>
-
-    <nav>
-        <ul class="nav-list">
-            <li><a href="#projects" class="nav-link data-hover">Projects</a></li>
-            <li><a href="blog.html" class="nav-link data-hover">Intel</a></li>
-            <li><a href="#research" class="nav-link data-hover">Research</a></li>
-        </ul>
+<header class="site-header">
+  <div class="wrap-wide">
+    <a class="brand" href="/">
+      <img class="brand-icon" src="media/monogram.svg" width="38" height="38" alt="" />
+      Ambrose Vannier
+    </a>
+    <nav class="nav" aria-label="Primary">
+      <a class="nav-extra" href="#work">Work</a>
+      <a href="blog.html">Writing</a>
+      <a href="https://github.com/avan36" rel="noopener">GitHub</a>
     </nav>
+  </div>
+</header>
 
-    <header>
-        <div class="profile-img-container data-hover">
-            <img src="https://github.com/avan36/Website/blob/main/Images/photo-1604076913837-52ab5629fba9.jpeg?raw=true" alt="Ambrose">
+<main id="main">
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="wrap-wide">
+      <div class="hero-copy">
+        <span class="kicker">Ambrose Vannier · Software Developer</span>
+        <h1 class="display">
+          I build software<br>
+          <span class="display-gradient">people can trust.</span>
+        </h1>
+        <p class="lede">Recently graduated from Wesleyan University — B.A. in Computer Science &amp; History, May 2026. I design and ship iOS apps and privacy tools, from classroom learning to research that holds the web accountable.</p>
+        <div class="cta-row">
+          <a class="btn" href="#work">See my work</a>
+          <a class="text-link" href="https://github.com/avan36" rel="noopener">View GitHub →</a>
         </div>
-        <h1 class="glitch-text" data-value="AMBROSE VANNIER">AMBROSE VANNIER</h1>
-        <h3 class="subtitle" data-value="CS & HISTORY @ WESLEYAN">CS & HISTORY @ WESLEYAN</h3>
-    </header>
+      </div>
+    </div>
+  </section>
 
-    <main>
-        <section id="latest">
-            <h2 class="section-title">Latest <span>Transmission</span></h2>
-            <div class="card data-tilt">
-                <div style="color:var(--accent); font-size:0.8em; margin-bottom:10px;">// MAY 08, 2025</div>
-                <h3 style="margin-top:0;"><a href="blog.html" class="data-hover">The Future of Software</a></h3>
-                <p>Generative AI has settled into our thinking about the workplace. The moat is no longer code, but time...</p>
-                <a href="blog.html" class="btn data-hover">Access Data</a>
+  <!-- Featured Work -->
+  <div class="wrap-wide">
+    <section id="work" style="padding-top: 0;">
+      <div class="section-header">
+        <span class="kicker">Selected work</span>
+        <h2 class="section-h">Things I've built.</h2>
+      </div>
+
+      <div class="bento-grid">
+
+        <!-- QuizMate -->
+        <div class="bento-card span-6">
+          <img class="app-tile" src="media/quizmate-icon.png" alt="QuizMate app icon" width="84" height="84" loading="lazy">
+          <span class="kicker" style="color: var(--color-4);">On the App Store</span>
+          <h3>QuizMate</h3>
+          <p>A learning app for the classroom. Teachers build lessons and quizzes in minutes; students practice, compete with classmates, and get feedback the moment they need it.</p>
+          <div class="tag-row">
+            <span class="tag">SwiftUI</span>
+            <span class="tag">iOS</span>
+            <span class="tag">Firebase</span>
+          </div>
+          <div class="link-row">
+            <a class="text-link" href="https://apps.apple.com/gb/app/quizmate-learn-with-ai/id6740884440" rel="noopener">Download on the App Store →</a>
+          </div>
+        </div>
+
+        <!-- eQoScan -->
+        <div class="bento-card span-6">
+          <img class="app-tile" src="media/eqoscan-icon.png" alt="eQoScan app icon" width="84" height="84" loading="lazy">
+          <span class="kicker" style="color: var(--color-3);">WesHack winner</span>
+          <h3>eQoScan</h3>
+          <p>Scan a product, see its packaging footprint. A hackathon-winning iOS app that helps shoppers understand and cut down on the waste they bring home.</p>
+          <div class="tag-row">
+            <span class="tag">Swift</span>
+            <span class="tag">SwiftUI</span>
+            <span class="tag">Hackathon</span>
+          </div>
+          <div class="link-row">
+            <a class="text-link" href="https://github.com/avan36/eQoScan" rel="noopener">View source on GitHub →</a>
+          </div>
+        </div>
+
+        <!-- Mental-health app -->
+        <div class="bento-card span-12 proj-split">
+          <div class="proj-text">
+            <span class="kicker" style="color: var(--color-1);">middle place · iPhone · iPad · Mac</span>
+            <h3 style="font-size: clamp(32px, 4vw, 42px);">A private place to process things.</h3>
+            <p><strong>middle place</strong> is a personal support app for the space between conversations — one continuous, private thread that remembers where you left off, so you never start the story over. Everything stays on your device and in your own iCloud. No accounts, no tracking, nothing sold.</p>
+            <div class="tag-row">
+              <span class="tag">SwiftUI</span>
+              <span class="tag">SwiftData</span>
+              <span class="tag">Local-first</span>
+              <span class="tag tag-accent">Working prototype</span>
             </div>
-        </section>
-
-        <section id="projects">
-            <h2 class="section-title">Project <span>Database</span></h2>
-            <div class="grid">
-                <div class="card data-tilt">
-                    <div class="card-content">
-                        <img class="icon" src="https://github.com/avan36/Math-Game-iPhone/blob/main/logo.png?raw=true">
-                        <h3>QuizMate</h3>
-                        <p>PvP Math Games & AI Lessons. A social way to sharpen your mind.</p>
-                        <a href="https://apps.apple.com/gb/app/quizmate-learn-with-ai/id6740884440" class="btn data-hover">App Store</a>
-                    </div>
-                </div>
-
-                <div class="card data-tilt">
-                    <div class="card-content">
-                        <img class="icon" src="https://github.com/avan36/Website/blob/main/logo.png?raw=true">
-                        <h3>eQoScan</h3>
-                        <p>Swift/SwiftUI app reducing packaging waste. <strong>WesHack Winner.</strong></p>
-                        <a href="https://github.com/avan36/eQoScan" class="btn data-hover">Source</a>
-                    </div>
-                </div>
-
-                <div class="card data-tilt">
-                    <div class="card-content">
-                        <img class="icon" src="https://github.com/avan36/TaskManager-React/blob/main/Frame%204.png?raw=true">
-                        <h3>Task Manager</h3>
-                        <p>React web application for task highlighting and management.</p>
-                        <a href="https://task-manager-react-sepia.vercel.app" class="btn data-hover">Deploy</a>
-                    </div>
-                </div>
-
-                <div class="card data-tilt">
-                    <div class="card-content">
-                        <img class="icon" src="https://github.com/avan36/Website/blob/main/7G3CtXS.png?raw=true">
-                        <h3>Hygiene Tracker</h3>
-                        <p>Dynamic Island & Live Activities support for manual brushing.</p>
-                        <a href="https://github.com/avan36/ToothBrushing" class="btn data-hover">Source</a>
-                    </div>
-                </div>
+          </div>
+          <div class="proj-art" style="min-height: 440px;">
+            <div class="phone" style="max-width: 260px; transform: rotate(-5deg); z-index: 2;">
+              <img src="media/mh-chat.png" alt="The continuous chat thread in middle place." loading="lazy" decoding="async" width="506" height="1100">
             </div>
-        </section>
-
-        <section id="research">
-            <h2 class="section-title">Research <span>Logs</span></h2>
-            <div class="linkedin-grid">
-                <div class="linkedin-post data-tilt">
-                    <div class="card-content">
-                        <h4>Wesleyan Assessment Lab</h4>
-                        <p>Studying student perceptions of Generative AI via pop-up focus groups.</p>
-                    </div>
-                </div>
-                <div class="linkedin-post data-tilt">
-                    <div class="card-content">
-                        <h4>ML Specialization</h4>
-                        <p>Completed Stanford Online's Regression & Classification.</p>
-                        <a href="#" class="btn data-hover" style="font-size:0.7em;">Verify</a>
-                    </div>
-                </div>
+            <div class="phone" style="position: absolute; max-width: 260px; transform: rotate(7deg) translateX(120px) translateY(10px); z-index: 1; opacity: 0.9;">
+              <img src="media/mh-life.jpg" alt="A warm reflection on where you are right now." loading="lazy" decoding="async" width="506" height="1100">
             </div>
-        </section>
-    </main>
+          </div>
+        </div>
 
-    <footer>
-        <p style="text-align: center; opacity: 0.5;">&copy; 2025 SYSTEM AMBROSE</p>
-    </footer>
+        <!-- GPC privacy suite -->
+        <div class="bento-card span-12 proj-split">
+          <div class="proj-text">
+            <span class="kicker" style="color: var(--color-2);">Privacy research · privacy-tech-lab</span>
+            <h3 style="font-size: clamp(32px, 4vw, 42px);">Holding the web accountable.</h3>
+            <p>I contributed to the Privacy Tech Lab's work on Global Privacy Control: <strong>OptMeowt</strong>, a browser extension that automatically tells sites not to sell your data, and a large-scale crawler that measured GPC compliance across <strong>11,000+ websites</strong>. The findings live in an interactive public dashboard.</p>
+            <div class="badge-row">
+              <a href="https://chrome.google.com/webstore/detail/optmeowt/hdbnkdbhglahihjdbodmfefogcjbpgbo" rel="noopener"><img src="media/chrome-web-store-badge.png" alt="Available in the Chrome Web Store" loading="lazy" decoding="async" width="496" height="150"></a>
+              <a href="https://addons.mozilla.org/en-US/firefox/addon/optmeowt/" rel="noopener"><img src="media/firefox-add-ons-badge.png" alt="Get it as a Firefox Add-on" loading="lazy" decoding="async" width="172" height="60"></a>
+            </div>
+            <div class="link-row">
+              <a class="text-link" href="https://gpc-web-ui.vercel.app" rel="noopener">See the live results →</a>
+              <a class="text-link" href="https://github.com/privacy-tech-lab/gpc-web-crawler" rel="noopener">The crawler →</a>
+              <a class="text-link" href="https://github.com/privacy-tech-lab/gpc-optmeowt" rel="noopener">OptMeowt →</a>
+            </div>
+            <div class="cred-strip">
+              <img class="shield" src="media/wesleyan_shield.png" alt="Wesleyan University" loading="lazy" decoding="async" width="200" height="200">
+              <img src="media/plt_logo.png" alt="privacy-tech-lab" loading="lazy" decoding="async" width="200" height="200">
+              <img src="media/nsf.png" alt="National Science Foundation" loading="lazy" decoding="async" width="219" height="220">
+              <span class="cred-label">Research supported by the National Science Foundation.</span>
+            </div>
+          </div>
+          <div class="proj-art">
+            <div class="browser">
+              <img src="media/gpc-arch.png" alt="The crawler architecture: a Selenium-driven browser running the OptMeowt extension, posting analysis to a REST API and database." loading="lazy" decoding="async" width="1120" height="723">
+            </div>
+          </div>
+        </div>
 
-    <script>
-        /* ------------------------------------------------
-           1. HACKER TEXT EFFECT (Decryption Animation)
-        ------------------------------------------------ */
-        const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890#%&@$";
+        <!-- Education / About -->
+        <div class="bento-card span-6" id="about">
+          <span class="kicker" style="color: var(--color-5);">Education</span>
+          <h3>Wesleyan University</h3>
+          <p>B.A. in Computer Science &amp; History, May 2026. Research with the Privacy Tech Lab, and fieldwork with the Assessment Lab studying how students learn alongside new technology.</p>
+          <div class="cred-strip">
+            <img class="shield" src="media/wesleyan_shield.png" alt="Wesleyan University" loading="lazy">
+          </div>
+        </div>
 
-        document.querySelectorAll(".glitch-text, .subtitle").forEach(element => {
-            element.onmouseover = event => {
-                let iteration = 0;
-                clearInterval(event.target.interval);
+        <!-- ML specialization -->
+        <div class="bento-card span-6">
+          <span class="kicker" style="color: var(--color-4);">Coursework</span>
+          <h3>Machine Learning Specialization</h3>
+          <p>Completed Stanford Online &amp; DeepLearning.AI's specialization in supervised learning — regression, classification, and the math underneath.</p>
+          <div class="tag-row">
+            <span class="tag">Python</span>
+            <span class="tag">Stanford Online</span>
+          </div>
+        </div>
 
-                event.target.interval = setInterval(() => {
-                    event.target.innerText = event.target.innerText
-                        .split("")
-                        .map((letter, index) => {
-                            if(index < iteration) {
-                                return event.target.dataset.value[index];
-                            }
-                            return letters[Math.floor(Math.random() * 26)];
-                        })
-                        .join("");
+      </div>
+    </section>
+  </div>
 
-                    if(iteration >= event.target.dataset.value.length){ 
-                        clearInterval(event.target.interval);
-                    }
-                    
-                    iteration += 1 / 3;
-                }, 30);
-            }
-            // Trigger once on load
-            element.onmouseover({ target: element });
-        });
+  <!-- Writing -->
+  <div class="wrap-wide">
+    <section id="writing" style="padding-top: 0;">
+      <div class="bento-card span-12" style="text-align: left;">
+        <span class="kicker" style="color: var(--color-2);">Writing · May 8, 2025</span>
+        <h3 style="font-size: clamp(28px, 4vw, 40px);">The Future of Software</h3>
+        <p style="max-width: 40em;">When anyone can generate code in seconds, the scarce thing is no longer the code — it's the judgment about what to build and the time to build it well. A short essay on where that leaves the people who make software.</p>
+        <div class="link-row">
+          <a class="text-link" href="blog.html">Read the essay →</a>
+        </div>
+      </div>
+    </section>
+  </div>
 
-        /* ------------------------------------------------
-           2. CUSTOM CURSOR
-        ------------------------------------------------ */
-        const cursorDot = document.querySelector('.cursor-dot');
-        const cursorOutline = document.querySelector('.cursor-outline');
-        
-        window.addEventListener('mousemove', (e) => {
-            const posX = e.clientX;
-            const posY = e.clientY;
+  <!-- Closer -->
+  <div class="wrap-wide">
+    <section class="closer">
+      <img class="app-icon-large" src="media/monogram.svg" width="200" height="200" loading="lazy" alt="" />
+      <h2 class="section-h">Let's build something.</h2>
+      <p class="lede" style="margin-bottom: 32px; font-size: 20px;">I'm always glad to talk about software, privacy, or a project you have in mind.</p>
+      <div class="cta-row">
+        <a class="btn" href="https://github.com/avan36" rel="noopener">GitHub</a>
+        <!-- TODO: confirm public contact — add a real mailto / LinkedIn URL here -->
+      </div>
+    </section>
+  </div>
 
-            // Dot follows immediately
-            cursorDot.style.left = `${posX}px`;
-            cursorDot.style.top = `${posY}px`;
+</main>
 
-            // Outline follows with delay (lag)
-            cursorOutline.animate({
-                left: `${posX}px`,
-                top: `${posY}px`
-            }, { duration: 500, fill: "forwards" });
-        });
+<footer class="site-footer">
+  <div class="wrap-wide">
+    <div class="brand-foot">Ambrose Vannier</div>
+    <div class="footer-links" aria-label="Footer">
+      <a href="#work">Work</a>
+      <a href="blog.html">Writing</a>
+      <a href="https://github.com/avan36" rel="noopener">GitHub</a>
+    </div>
+    <div class="copy">© 2026 Ambrose Vannier</div>
+  </div>
+</footer>
 
-        // Hover effect for links/buttons
-        document.querySelectorAll('.data-hover, a, .card').forEach(link => {
-            link.addEventListener('mouseenter', () => {
-                cursorOutline.classList.add('hovered');
-            });
-            link.addEventListener('mouseleave', () => {
-                cursorOutline.classList.remove('hovered');
-            });
-        });
+<div class="cursor-blob"></div>
+<div class="cursor-blob"></div>
+<div class="cursor-blob"></div>
+<div class="cursor-blob"></div>
 
-        /* ------------------------------------------------
-           3. 3D CARD TILT EFFECT
-        ------------------------------------------------ */
-        const cards = document.querySelectorAll(".data-tilt");
+<script>
+  // Playful trailing cursor blobs
+  const blobs = document.querySelectorAll('.cursor-blob');
+  let mouseX = window.innerWidth / 2;
+  let mouseY = window.innerHeight / 2;
+  let isBursting = false;
 
-        cards.forEach(card => {
-            card.addEventListener("mousemove", (e) => {
-                const rect = card.getBoundingClientRect();
-                const x = e.clientX - rect.left; // x position within the element.
-                const y = e.clientY - rect.top;  // y position within the element.
-                
-                const centerX = rect.width / 2;
-                const centerY = rect.height / 2;
-                
-                const rotateX = ((y - centerY) / centerY) * -10; // Max rotation deg
-                const rotateY = ((x - centerX) / centerX) * 10;
+  const pos = Array.from({length: blobs.length}, () => ({x: mouseX, y: mouseY}));
 
-                card.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.05, 1.05, 1.05)`;
-            });
+  window.addEventListener('mousemove', (e) => {
+    mouseX = e.clientX;
+    mouseY = e.clientY;
+  });
+  window.addEventListener('mousedown', () => isBursting = true);
+  window.addEventListener('mouseup', () => isBursting = false);
 
-            card.addEventListener("mouseleave", () => {
-                card.style.transform = "perspective(1000px) rotateX(0) rotateY(0) scale3d(1, 1, 1)";
-            });
-        });
+  function animate() {
+    const targetScale = isBursting ? 1.5 : 1;
+    pos[0].scale = pos[0].scale || 1;
+    pos[0].scale += (targetScale - pos[0].scale) * 0.2;
+    pos[0].x += (mouseX - pos[0].x) * 0.25;
+    pos[0].y += (mouseY - pos[0].y) * 0.25;
+    blobs[0].style.transform = `translate3d(${pos[0].x}px, ${pos[0].y}px, 0) scale(${pos[0].scale})`;
+    if (isBursting) blobs[0].classList.add('burst-color'); else blobs[0].classList.remove('burst-color');
 
-        /* ------------------------------------------------
-           4. PARTICLE CANVAS BACKGROUND
-        ------------------------------------------------ */
-        const canvas = document.getElementById('bg-canvas');
-        const ctx = canvas.getContext('2d');
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
+    for (let i = 1; i < blobs.length; i++) {
+      const baseScale = 1 - i*0.15;
+      const targetS = isBursting ? baseScale * 1.5 : baseScale;
+      pos[i].scale = pos[i].scale || baseScale;
+      pos[i].scale += (targetS - pos[i].scale) * 0.3;
+      pos[i].x += (pos[i-1].x - pos[i].x) * 0.35;
+      pos[i].y += (pos[i-1].y - pos[i].y) * 0.35;
+      blobs[i].style.transform = `translate3d(${pos[i].x}px, ${pos[i].y}px, 0) scale(${pos[i].scale})`;
+      if (isBursting) blobs[i].classList.add('burst-color'); else blobs[i].classList.remove('burst-color');
+    }
+    requestAnimationFrame(animate);
+  }
+  animate();
 
-        let particlesArray;
+  // Scroll-reveal
+  const revealElements = document.querySelectorAll('.bento-card, .section-header, .hero-copy, .closer');
+  const revealObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) entry.target.classList.add('is-revealed');
+    });
+  }, { threshold: 0.05, rootMargin: "0px 0px -50px 0px" });
 
-        // Handle Resize
-        window.addEventListener('resize', () => {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-            init();
-        });
-
-        // Mouse interaction
-        const mouse = { x: null, y: null, radius: 150 };
-        window.addEventListener('mousemove', (event) => {
-            mouse.x = event.x;
-            mouse.y = event.y;
-        });
-
-        class Particle {
-            constructor(x, y, directionX, directionY, size, color) {
-                this.x = x;
-                this.y = y;
-                this.directionX = directionX;
-                this.directionY = directionY;
-                this.size = size;
-                this.color = color;
-            }
-            draw() {
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2, false);
-                ctx.fillStyle = '#00ffcc';
-                ctx.fill();
-            }
-            update() {
-                if (this.x > canvas.width || this.x < 0) this.directionX = -this.directionX;
-                if (this.y > canvas.height || this.y < 0) this.directionY = -this.directionY;
-
-                // Check collision with mouse
-                let dx = mouse.x - this.x;
-                let dy = mouse.y - this.y;
-                let distance = Math.sqrt(dx*dx + dy*dy);
-                if (distance < mouse.radius + this.size){
-                    if (mouse.x < this.x && this.x < canvas.width - this.size * 10) this.x += 10;
-                    if (mouse.x > this.x && this.x > this.size * 10) this.x -= 10;
-                    if (mouse.y < this.y && this.y < canvas.height - this.size * 10) this.y += 10;
-                    if (mouse.y > this.y && this.y > this.size * 10) this.y -= 10;
-                }
-
-                this.x += this.directionX;
-                this.y += this.directionY;
-                this.draw();
-            }
-        }
-
-        function init() {
-            particlesArray = [];
-            let numberOfParticles = (canvas.height * canvas.width) / 9000;
-            for (let i = 0; i < numberOfParticles; i++) {
-                let size = (Math.random() * 2) + 1;
-                let x = (Math.random() * ((innerWidth - size * 2) - (size * 2)) + size * 2);
-                let y = (Math.random() * ((innerHeight - size * 2) - (size * 2)) + size * 2);
-                let directionX = (Math.random() * 2) - 1;
-                let directionY = (Math.random() * 2) - 1;
-                let color = '#00ffcc';
-                particlesArray.push(new Particle(x, y, directionX, directionY, size, color));
-            }
-        }
-
-        function animate() {
-            requestAnimationFrame(animate);
-            ctx.clearRect(0, 0, innerWidth, innerHeight);
-            for (let i = 0; i < particlesArray.length; i++) {
-                particlesArray[i].update();
-            }
-            connect();
-        }
-
-        function connect() {
-            let opacityValue = 1;
-            for (let a = 0; a < particlesArray.length; a++) {
-                for (let b = a; b < particlesArray.length; b++) {
-                    let distance = ((particlesArray[a].x - particlesArray[b].x) * (particlesArray[a].x - particlesArray[b].x))
-                    + ((particlesArray[a].y - particlesArray[b].y) * (particlesArray[a].y - particlesArray[b].y));
-                    if (distance < (canvas.width/7) * (canvas.height/7)) {
-                        opacityValue = 1 - (distance/20000);
-                        ctx.strokeStyle = 'rgba(0, 255, 204,' + opacityValue + ')';
-                        ctx.lineWidth = 1;
-                        ctx.beginPath();
-                        ctx.moveTo(particlesArray[a].x, particlesArray[a].y);
-                        ctx.lineTo(particlesArray[b].x, particlesArray[b].y);
-                        ctx.stroke();
-                    }
-                }
-            }
-        }
-
-        init();
-        animate();
-
-    </script>
+  revealElements.forEach((el) => {
+    el.classList.add('will-reveal');
+    revealObserver.observe(el);
+  });
+</script>
 </body>
 </html>

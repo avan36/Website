@@ -1,276 +1,113 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Blog Feed // Ambrose</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Read the latest articles on Ambrose Portfolio's blog feed.">
-    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@800&display=swap" rel="stylesheet">
-    
-    <style>
-        /* --- SHARED CHAOS STYLES --- */
-        :root {
-            --bg: #050505;
-            --term-bg: #111;
-            --green: #0f0;
-            --purple: #d500f9;
-            --font-main: 'Space Mono', monospace;
-            --font-head: 'Syne', sans-serif;
-        }
-
-        body {
-            background-color: var(--bg);
-            color: #ddd;
-            font-family: var(--font-main);
-            margin: 0;
-            padding: 0;
-            background-image: 
-                linear-gradient(rgba(0, 255, 0, 0.03) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(0, 255, 0, 0.03) 1px, transparent 1px);
-            background-size: 30px 30px; /* Grid Effect */
-            overflow-x: hidden;
-        }
-
-        a { color: var(--green); text-decoration: none; border-bottom: 1px dashed var(--green); }
-        a:hover { background: var(--green); color: black; }
-
-        /* --- HEADER --- */
-        header {
-            height: 30vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-bottom: 4px solid var(--purple);
-            position: relative;
-            overflow: hidden;
-        }
-
-        #image-container {
-            position: absolute;
-            right: 50px;
-            top: 20px;
-            width: 100px;
-            height: 100px;
-            border-radius: 50%;
-            border: 2px solid var(--green);
-            animation: spin 20s linear infinite;
-        }
-        
-        #image-container img { width: 100%; height: 100%; border-radius: 50%; opacity: 0.8; }
-
-        @keyframes spin { 100% { transform: rotate(360deg); } }
-
-        .header-title {
-            font-family: var(--font-head);
-            font-size: 5rem;
-            text-transform: uppercase;
-            color: transparent;
-            -webkit-text-stroke: 2px var(--green);
-            position: relative;
-        }
-
-        .header-title::before {
-            content: 'BLOG FEED';
-            position: absolute;
-            top: 5px;
-            left: 5px;
-            color: var(--purple);
-            z-index: -1;
-        }
-
-        /* --- NAVIGATION --- */
-        nav {
-            position: sticky;
-            top: 0;
-            background: var(--green);
-            z-index: 100;
-            padding: 10px;
-            border-bottom: 2px solid black;
-        }
-
-        .toc-list {
-            list-style: none;
-            display: flex;
-            justify-content: center;
-            gap: 30px;
-            padding: 0;
-            margin: 0;
-        }
-
-        .nav-link {
-            color: black;
-            font-weight: bold;
-            font-size: 1.2rem;
-            border: none;
-            text-transform: uppercase;
-        }
-        .nav-link:hover {
-            color: white;
-            background: black;
-        }
-
-        /* --- MAIN CONTENT --- */
-        main {
-            max-width: 800px;
-            margin: 50px auto;
-            padding: 0 20px;
-        }
-
-        /* The "Terminal" Post Container */
-        article {
-            background: var(--term-bg);
-            border: 2px solid #333;
-            padding: 0;
-            margin-bottom: 5rem;
-            box-shadow: 15px 15px 0px var(--purple);
-            position: relative;
-        }
-
-        /* Terminal Bar */
-        article header {
-            height: auto;
-            min-height: 50px;
-            background: #333;
-            border-bottom: 2px solid #333;
-            display: flex;
-            flex-direction: column;
-            align-items: flex-start;
-            justify-content: center;
-            padding: 10px 20px;
-        }
-
-        article header time {
-            color: var(--green);
-            font-size: 0.8rem;
-        }
-
-        article h3 {
-            margin: 5px 0 0 0;
-            font-size: 1.8rem;
-            color: white;
-        }
-        article h3 a { border: none; color: white; }
-        article h3 a:hover { background: transparent; color: var(--green); }
-
-        .excerpt {
-            padding: 30px;
-            line-height: 1.8;
-            font-size: 1.1rem;
-        }
-
-        /* Flying Toast Notification (Distraction) */
-        .toast {
-            position: fixed;
-            bottom: 20px;
-            right: -300px;
-            background: var(--green);
-            color: black;
-            padding: 15px;
-            font-weight: bold;
-            border: 2px solid white;
-            transition: right 0.5s cubic-bezier(0.68, -0.55, 0.27, 1.55);
-            z-index: 999;
-        }
-
-        /* --- FOOTER --- */
-        footer {
-            text-align: center;
-            padding: 40px;
-            border-top: 1px solid #333;
-            margin-top: 50px;
-        }
-
-    </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Future of Software — Ambrose Vannier</title>
+<meta name="description" content="When anyone can generate code in seconds, what's left that's scarce? A short essay by Ambrose Vannier on where generative tools leave the people who make software.">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#000000">
+<meta name="author" content="Ambrose Vannier">
+<link rel="icon" href="media/monogram.svg" type="image/svg+xml">
+<link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <header>
-        <div id="image-container">
-            <img id="header-image" src="https://github.com/avan36/Website/blob/main/Images/photo-1604076913837-52ab5629fba9.jpeg?raw=true" alt="Header Image">
-        </div>
-        <div id="header-content">
-            <h1 class="header-title">Blog Feed</h1>
-        </div>
-    </header>
+<a class="skip-link" href="#main">Skip to content</a>
 
-    <nav id="site-nav"> 
-        <ul class="toc-list">
-            <li><a href="index.html#projects" class="nav-link">My Projects</a></li>
-            <li><a href="blog.html" class="nav-link">Blog</a></li>
-            <li><a href="index.html#research" class="nav-link">Research</a></li>
-        </ul>
+<div class="page-bg" aria-hidden="true">
+  <div class="noise-overlay"></div>
+  <div class="mesh-blob blob-1"></div>
+  <div class="mesh-blob blob-2"></div>
+  <div class="mesh-blob blob-3"></div>
+  <div class="mesh-blob blob-4"></div>
+</div>
+
+<header class="site-header">
+  <div class="wrap-wide">
+    <a class="brand" href="index.html">
+      <img class="brand-icon" src="media/monogram.svg" width="38" height="38" alt="" />
+      Ambrose Vannier
+    </a>
+    <nav class="nav" aria-label="Primary">
+      <a class="nav-extra" href="index.html#work">Work</a>
+      <a href="blog.html">Writing</a>
+      <a href="https://github.com/avan36" rel="noopener">GitHub</a>
     </nav>
+  </div>
+</header>
 
-    <main>
-        <section id="blog-feed">
-            
-            <article itemscope itemtype="https://schema.org/BlogPosting">
-              <header>
-                <div style="display:flex; gap:5px; margin-bottom:5px;">
-                    <div style="width:12px; height:12px; border-radius:50%; background:#ff5f56;"></div>
-                    <div style="width:12px; height:12px; border-radius:50%; background:#ffbd2e;"></div>
-                    <div style="width:12px; height:12px; border-radius:50%; background:#27c93f;"></div>
-                </div>
-                <time itemprop="datePublished" datetime="2025-05-08">root@ambrose:~/posts/May-08-2025</time>
-                <h3 itemprop="headline"><a itemprop="url" href="#">The future of software</a></h3>
-              </header>
-              <section class="excerpt" itemprop="description">
-                <p>I've been wondering recently about the future of software as Generative AI has become part of our thinking about the workplace. It seems to me that, throughout software companies' history, their moat has been time and technical know-how...</p>
-              
-                <p>For example, it would take many lifetimes to create the same software that Microsoft offers today, and it would require far more knowledge than any one individual could possess. Consequently, Microsoft has a moat around its products – they're hard and time-consuming to build.</p>
+<main id="main">
+  <article class="article" itemscope itemtype="https://schema.org/BlogPosting">
+    <a class="back-link" href="index.html">← Back to home</a>
+    <div class="meta"><time itemprop="datePublished" datetime="2025-05-08">May 8, 2025</time></div>
+    <h1 itemprop="headline">The Future of Software</h1>
+    <div class="article-body" itemprop="articleBody">
+      <p>I've been wondering recently about the future of software as generative tools have become part of how we think about work. It seems to me that, throughout the history of software companies, their moat has been time and technical know-how.</p>
 
-                <p style="border-left: 3px solid var(--purple); padding-left: 15px; color: #aaa;">"But here comes Generative AI, a new technology that can create virtually unlimited lines of code in no time..."</p>
-              
-                <p>Of course, it would be impractical right now to, say, replicate a product like Microsoft Word using ChatGPT. How would you even go about that? For example, it's difficult in ChatGPT to handle multiple files, so you'd find yourself copying and pasting back and forth between the AI and the code editor. Of course, you could use a new IDE like Cursor, but even this has significant limitations on what you can build. Despite these current problems, it seems that someday (and we don't know when), AI will be both smart enough and cheap enough to build incredibly complex software all on its own.</p>
-              
-                <p>I don't mean to wax hyperbolic or be yet another writer glorifying humanity's "AI future." Instead, I'm speaking from a practical perspective – this technology will get cheaper, faster, and better. And this brings me back to my point: what is the future of software if AI can produce any code and act like an agent?</p>
-              
-                <p>I'm reminded of the famous example of GPT-4 producing an HTML/CSS website simply from an image. I've tried this myself, taking screenshots of various websites and asking ChatGPT to replicate them – the results were impressive. Soon (and by soon I mean anywhere from 1 to 10 years), I'll be able to take a screen recording of, say, the Duolingo app and get a working demo of it, complete with generated source code.</p>
-              
-                <p>It seems one irreplaceable part of software will be the social features and network effects that have been built around them. For example, simply copying Facebook from a screenshot to create your own version would not be enough, as you wouldn't have all the content and the enormous friend graph from the network.</p>
-              
-                <p>>> Link: <a href="https://www.reddit.com/r/webdev/comments/11rqaon/gpt4_created_frontend_website_from_image_sketch_i/">GPT-4 Creating a Website from Image</a></p>
-              </section>
-            </article>
+      <p>It would take many lifetimes to create the same software that Microsoft offers today, and far more knowledge than any one person could hold. That's the moat — its products are hard and time-consuming to build.</p>
 
-        </section>
-    </main>
+      <p>But here comes a new technology that can create virtually unlimited lines of code in no time. So the question that keeps returning to me is simple: what is the future of software if a machine can produce any code and act on its own?</p>
 
-    <div id="toast-container"></div>
+      <p>Of course, it would be impractical right now to replicate something like Microsoft Word from a single prompt. How would you even go about it? It's still hard to juggle many files at once, so you'd find yourself copying and pasting back and forth between the model and the editor. Newer tools help, but they have real limits on what you can build. Even so, the trajectory is clear: the technology will get cheaper, faster, and better.</p>
 
-    <footer>
-        <a style="color:gray" href="terms-of-service.html">Terms of service</a>
-        <p>&copy; 2025 Ambrose V</p>
-    </footer>
+      <p>I don't mean to wax hyperbolic or glorify some inevitable "future." I'm speaking practically. And that brings me back to the point — if the code itself becomes cheap, what stays valuable?</p>
 
-    <script>
-        // --- Random "Toast" Notification Distractions ---
-        const msgs = [
-            "Reading speed: 400wpm",
-            "Incoming Connection...",
-            "System Optimal",
-            "Don't forget to hydrate",
-            "AI is watching",
-            "Code compiled successfully"
-        ];
+      <p>I'm reminded of the example of a model producing a working HTML/CSS page from a single image. I've tried it myself, taking screenshots of various sites and asking for a copy — the results were genuinely impressive. Soon, you'll be able to record a few minutes of an app like Duolingo and get a working demo back, source code included.</p>
 
-        function showToast() {
-            const toast = document.createElement('div');
-            toast.className = 'toast';
-            toast.innerText = msgs[Math.floor(Math.random() * msgs.length)];
-            document.body.appendChild(toast);
+      <p>So one irreplaceable part of software turns out to be the things that aren't code at all: the social features and the network effects built around them. Copying Facebook pixel-for-pixel from a screenshot wouldn't get you anywhere — you'd have none of the content and none of the enormous graph of people that makes it matter. The scarce thing was never the code. It was the judgment about what to build, and the people who showed up to use it.</p>
 
-            // Slide in
-            setTimeout(() => { toast.style.right = '20px'; }, 100);
+      <p style="margin-top: 2em;"><a href="https://www.reddit.com/r/webdev/comments/11rqaon/gpt4_created_frontend_website_from_image_sketch_i/" rel="noopener">Related: a website generated from an image sketch →</a></p>
+    </div>
+  </article>
+</main>
 
-            // Slide out and remove
-            setTimeout(() => {
-                toast.style.right = '-300px';
-                setTimeout(() => toast.remove(), 500);
-            }, 4000);
-        }
+<footer class="site-footer">
+  <div class="wrap-wide">
+    <div class="brand-foot">Ambrose Vannier</div>
+    <div class="footer-links" aria-label="Footer">
+      <a href="index.html#work">Work</a>
+      <a href="blog.html">Writing</a>
+      <a href="https://github.com/avan36" rel="noopener">GitHub</a>
+    </div>
+    <div class="copy">© 2026 Ambrose Vannier</div>
+  </div>
+</footer>
 
-        // Trigger random toasts every 5-10 seconds
-        setInterval(showToast, 7000);
-    </script>
+<div class="cursor-blob"></div>
+<div class="cursor-blob"></div>
+<div class="cursor-blob"></div>
+<div class="cursor-blob"></div>
+
+<script>
+  const blobs = document.querySelectorAll('.cursor-blob');
+  let mouseX = window.innerWidth / 2;
+  let mouseY = window.innerHeight / 2;
+  let isBursting = false;
+  const pos = Array.from({length: blobs.length}, () => ({x: mouseX, y: mouseY}));
+  window.addEventListener('mousemove', (e) => { mouseX = e.clientX; mouseY = e.clientY; });
+  window.addEventListener('mousedown', () => isBursting = true);
+  window.addEventListener('mouseup', () => isBursting = false);
+  function animate() {
+    const targetScale = isBursting ? 1.5 : 1;
+    pos[0].scale = pos[0].scale || 1;
+    pos[0].scale += (targetScale - pos[0].scale) * 0.2;
+    pos[0].x += (mouseX - pos[0].x) * 0.25;
+    pos[0].y += (mouseY - pos[0].y) * 0.25;
+    blobs[0].style.transform = `translate3d(${pos[0].x}px, ${pos[0].y}px, 0) scale(${pos[0].scale})`;
+    if (isBursting) blobs[0].classList.add('burst-color'); else blobs[0].classList.remove('burst-color');
+    for (let i = 1; i < blobs.length; i++) {
+      const baseScale = 1 - i*0.15;
+      const targetS = isBursting ? baseScale * 1.5 : baseScale;
+      pos[i].scale = pos[i].scale || baseScale;
+      pos[i].scale += (targetS - pos[i].scale) * 0.3;
+      pos[i].x += (pos[i-1].x - pos[i].x) * 0.35;
+      pos[i].y += (pos[i-1].y - pos[i].y) * 0.35;
+      blobs[i].style.transform = `translate3d(${pos[i].x}px, ${pos[i].y}px, 0) scale(${pos[i].scale})`;
+      if (isBursting) blobs[i].classList.add('burst-color'); else blobs[i].classList.remove('burst-color');
+    }
+    requestAnimationFrame(animate);
+  }
+  animate();
+</script>
 </body>
 </html>
