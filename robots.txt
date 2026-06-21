@@ -1,3 +1,22 @@
+# Allow real search engines to crawl and index the site. Each obeys its own
+# (most-specific) group, opting it out of the blanket "User-agent: * / Disallow: /"
+# block at the bottom. Note: the AI-training variants (Google-Extended,
+# Applebot-Extended, etc.) stay blocked further down — this is search only.
+User-agent: Googlebot
+Allow: /
+
+User-agent: Googlebot-Image
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: DuckDuckBot
+Allow: /
+
+User-agent: Applebot
+Allow: /
+
 User-agent: Perplexity
 Disallow: /
 
@@ -10,9 +29,6 @@ Disallow: /
 User-agent: Claude
 Disallow: /
 
-User-agent: Bingbot
-Disallow: /
-
 User-agent: AhrefsBot
 Disallow: /
 
@@ -23,9 +39,6 @@ User-agent: Moz
 Disallow: /
 
 User-agent: Yandex
-Disallow: /
-
-User-agent: DuckDuckBot
 Disallow: /
 
 User-agent: GPTBot

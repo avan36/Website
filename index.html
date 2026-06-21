@@ -120,6 +120,9 @@
               <span class="tag">Local-first</span>
               <span class="tag tag-accent">Working prototype</span>
             </div>
+            <div class="link-row">
+              <a class="text-link" href="https://middleplace.app" rel="noopener">Visit middleplace.app →</a>
+            </div>
           </div>
           <div class="proj-art" style="min-height: 340px;">
             <div class="phone" style="max-width: 260px; transform: rotate(-5deg); z-index: 2;">
@@ -205,9 +208,38 @@
       <img class="app-icon-large" src="media/monogram.svg" width="200" height="200" loading="lazy" alt="" />
       <h2 class="section-h">Let's build something.</h2>
       <p class="lede" style="margin-bottom: 32px; font-size: 20px;">I'm always glad to talk about software, privacy, or a project you have in mind.</p>
+
       <div class="cta-row">
-        <a class="btn" href="https://github.com/avan36" rel="noopener">GitHub</a>
-        <!-- TODO: confirm public contact — add a real mailto / LinkedIn URL here -->
+        <button class="btn" type="button" id="contact-toggle" aria-expanded="false" aria-controls="contact-reveal">Contact me</button>
+        <a class="text-link" href="https://github.com/avan36" rel="noopener">Or find me on GitHub →</a>
+      </div>
+
+      <!-- Collapsed by default; revealed when "Contact me" is clicked. -->
+      <div class="contact-reveal" id="contact-reveal" inert>
+        <div class="contact-reveal-inner">
+          <form class="contact-form" id="contact-form" novalidate>
+            <div class="contact-grid">
+              <label class="field">
+                <span class="field-label">Name</span>
+                <input class="field-input" type="text" name="name" autocomplete="name" required maxlength="100" placeholder="Your name">
+              </label>
+              <label class="field">
+                <span class="field-label">Email</span>
+                <input class="field-input" type="email" name="email" autocomplete="email" required maxlength="200" placeholder="you@example.com">
+              </label>
+            </div>
+            <label class="field">
+              <span class="field-label">Message</span>
+              <textarea class="field-input" name="message" rows="5" required maxlength="5000" placeholder="What's on your mind?"></textarea>
+            </label>
+            <!-- Honeypot: invisible to people, tempting to bots. Leave empty. -->
+            <input class="hp-field" type="text" name="company" tabindex="-1" autocomplete="off" aria-hidden="true">
+            <div class="contact-actions">
+              <button class="btn" type="submit" id="contact-submit">Send message</button>
+              <p class="form-status" id="form-status" role="status" aria-live="polite"></p>
+            </div>
+          </form>
+        </div>
       </div>
     </section>
   </div>
@@ -300,6 +332,70 @@
     el.classList.add('will-reveal');
     revealObserver.observe(el);
   });
+
+  // Reveal the contact form only when "Contact me" is clicked.
+  const contactToggle = document.getElementById('contact-toggle');
+  const contactReveal = document.getElementById('contact-reveal');
+  if (contactToggle && contactReveal) {
+    contactToggle.addEventListener('click', () => {
+      const open = contactReveal.classList.toggle('is-open');
+      contactToggle.setAttribute('aria-expanded', String(open));
+      contactReveal.inert = !open;            // keep it out of tab/AX order when hidden
+      if (open) {
+        contactReveal.querySelector('input, textarea')?.focus({ preventScroll: true });
+      }
+    });
+  }
+
+  // Contact form — POSTs to the Cloudflare Worker, which emails the message.
+  const contactForm = document.getElementById('contact-form');
+  if (contactForm) {
+    const CONTACT_ENDPOINT = 'https://contact-form.todos-thorax09.workers.dev';
+    const submitBtn = document.getElementById('contact-submit');
+    const status = document.getElementById('form-status');
+
+    contactForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!contactForm.reportValidity()) return;
+
+      const payload = {
+        name: contactForm.name.value.trim(),
+        email: contactForm.email.value.trim(),
+        message: contactForm.message.value.trim(),
+        company: contactForm.company.value, // honeypot
+      };
+
+      submitBtn.disabled = true;
+      const original = submitBtn.textContent;
+      submitBtn.textContent = 'Sending…';
+      status.className = 'form-status';
+      status.textContent = '';
+
+      try {
+        const res = await fetch(CONTACT_ENDPOINT, {
+          method: 'POST',
+          // text/plain keeps this a CORS "simple request" — no preflight.
+          headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.ok) {
+          contactForm.reset();
+          status.classList.add('is-success');
+          status.textContent = 'Thanks — your message is on its way. I’ll be in touch.';
+        } else {
+          status.classList.add('is-error');
+          status.textContent = data.error || 'Something went wrong. Please try again.';
+        }
+      } catch {
+        status.classList.add('is-error');
+        status.textContent = 'Network error. Please try again, or reach me on GitHub.';
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = original;
+      }
+    });
+  }
 </script>
 </body>
 </html>

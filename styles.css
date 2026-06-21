@@ -516,6 +516,89 @@ section { padding: 64px 0; position: relative; z-index: 10; }
   animation: float 8s infinite ease-in-out alternate;
 }
 
+/* Contact form — collapsible reveal */
+.contact-reveal {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  margin-top: 0;
+  transition: max-height 0.55s var(--spring), opacity 0.4s ease, margin-top 0.55s var(--spring);
+}
+.contact-reveal.is-open {
+  max-height: 760px; /* generous upper bound; taller than the form at any width */
+  opacity: 1;
+  margin-top: 40px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .contact-reveal { transition: opacity 0.2s ease; }
+}
+
+.contact-form {
+  max-width: 620px;
+  margin: 0 auto;
+  padding: 6px; /* breathing room so input focus rings aren't clipped by the reveal */
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.contact-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+.field { display: flex; flex-direction: column; gap: 8px; }
+.field-label {
+  font-size: 14px; font-weight: 600;
+  color: var(--text-secondary);
+  letter-spacing: 0.01em;
+}
+.field-input {
+  width: 100%;
+  font-family: inherit;
+  font-size: 17px;
+  color: var(--text-main);
+  background: var(--surface-glass);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  padding: 15px 18px;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease, background 0.3s ease;
+}
+.field-input::placeholder { color: var(--text-faint); }
+.field-input:focus {
+  outline: none;
+  border-color: var(--color-2);
+  box-shadow: 0 0 0 4px rgba(0, 122, 255, 0.18);
+  background: rgba(28, 28, 30, 0.65);
+}
+textarea.field-input { resize: vertical; min-height: 120px; line-height: 1.5; }
+
+/* Honeypot — visually gone, still in the DOM for bots to trip over. */
+.hp-field {
+  position: absolute;
+  left: -9999px;
+  width: 1px; height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.contact-actions {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+.form-status {
+  font-size: 16px;
+  font-weight: 500;
+  margin: 0;
+}
+.form-status.is-success { color: var(--color-3); }
+.form-status.is-error { color: var(--color-1); }
+
 /* Footer */
 .site-footer {
   padding: 80px 0; border-top: 1px solid var(--border);
@@ -535,6 +618,9 @@ section { padding: 64px 0; position: relative; z-index: 10; }
   .bento-card h3 { font-size: 28px; }
   .nav-extra { display: none; }
   .btn { width: 100%; }
+  .contact-grid { grid-template-columns: 1fr; }
+  .contact-actions { flex-direction: column; align-items: stretch; }
+  .contact-actions .form-status { text-align: center; }
 }
 
 /* Scroll Animations */

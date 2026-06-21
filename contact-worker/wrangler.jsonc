@@ -1,0 +1,13 @@
+{
+  // Cloudflare Worker that receives contact-form submissions and emails them
+  // to a verified Email Routing destination. Deploy with: npx wrangler deploy
+  "name": "contact-form",
+  "main": "src/index.js",
+  "compatibility_date": "2025-06-01",
+
+  // Lets the Worker send email. Locked to a single verified destination so the
+  // Worker can never be abused to send mail anywhere else.
+  "send_email": [
+    { "name": "EMAIL", "destination_address": "todos_thorax09@icloud.com" }
+  ]
+}
