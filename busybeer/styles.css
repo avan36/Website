@@ -310,7 +310,7 @@ em.ink { font-style: normal; color: var(--color-1); }
 
 /* Square Motion Cards */
 .square-motion {
-  width: 100%; max-width: 320px;
+  width: 100%; max-width: 420px;
   border-radius: 28px;
   box-shadow: 0 30px 60px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(255,255,255,0.1);
   transform: translateZ(30px);
@@ -341,7 +341,7 @@ em.ink { font-style: normal; color: var(--color-1); }
 .video-card .vc-copy h3 { font-size: 26px; margin-bottom: 8px; }
 .video-card .vc-copy p { color: var(--text-secondary); font-size: 18px; margin-bottom: 32px; }
 .video-card .vc-media { margin: 0; display: flex; justify-content: center; }
-.video-card .vc-media video { width: 100%; max-width: 460px; height: auto; display: block; border-radius: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.3); }
+.video-card .vc-media video { width: 100%; max-width: 560px; height: auto; display: block; border-radius: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.3); }
 
 @media (max-width: 900px) {
   .motion-grid { grid-template-columns: 1fr; }
@@ -377,9 +377,16 @@ em.ink { font-style: normal; color: var(--color-1); }
 @keyframes scroll-x { from { transform: translateX(0); } to { transform: translateX(calc(-100% - 40px)); } }
 
 /* Privacy */
+/* Soft glow that bridges the carousel into the privacy section so the
+   fixed mesh background's dark dead-zone doesn't read as a flat band.
+   Both halves fade over the same pixel distance toward the shared edge,
+   so they meet seamlessly with no horizontal line. */
+#screens {
+  background: radial-gradient(900px 360px at 50% 100%, rgba(88, 86, 214, 0.16), rgba(80, 227, 194, 0.06) 55%, transparent 80%);
+}
 #privacy {
   padding-top: 40px;
-  background: radial-gradient(135% 90% at 50% 0%, rgba(88, 86, 214, 0.14), rgba(80, 227, 194, 0.07) 42%, transparent 72%);
+  background: radial-gradient(900px 360px at 50% 0%, rgba(88, 86, 214, 0.16), rgba(80, 227, 194, 0.06) 55%, transparent 80%);
 }
 .privacy-card { text-align: center; max-width: 820px; margin: 0 auto; padding: 60px 40px; }
 .privacy-card .display { font-size: clamp(40px, 7vw, 76px); margin-bottom: 24px; line-height: 1.1; }
