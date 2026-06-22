@@ -198,22 +198,25 @@ em.ink { font-style: normal; color: var(--accent); }
 @keyframes floaty { from { transform: translateY(0); } to { transform: translateY(-14px); } }
 
 /* ---- Device frames ---- */
+/* Fixed-px radii — NOT percentages. A % border-radius uses %-of-height for the
+   vertical radius, which on a tall phone makes grotesque elliptical corners. */
 .phone {
-  position: relative; padding: 2.1%; border-radius: 13.2%;
+  position: relative; padding: 5px; border-radius: 34px;
   background: linear-gradient(155deg, #54545c 0%, #1c1c20 30%, #0c0c0e 62%, #3a3a42 100%);
   box-shadow: 0 40px 80px -34px rgba(0,0,0,0.55), 0 14px 36px -22px rgba(0,0,0,0.4);
   transition: transform 0.4s var(--ease);
 }
 .phone::after {
-  content: ""; position: absolute; inset: 0; border-radius: 13.2%; pointer-events: none;
+  content: ""; position: absolute; inset: 0; border-radius: 34px; pointer-events: none;
   background: linear-gradient(150deg, rgba(255,255,255,0.30), transparent 26%, transparent 74%, rgba(255,255,255,0.10));
   mix-blend-mode: screen;
 }
-.phone img { display: block; width: 100%; border-radius: 11.4%; background: #000; }
+.phone img { display: block; width: 100%; border-radius: 30px; background: #000; }
 
 /* ---- Bento grid ---- */
 .bento-grid {
   display: grid; grid-template-columns: repeat(12, 1fr); gap: 22px; margin-top: 8px;
+  align-items: start;   /* cards size to their own content — no forced equal-height stretch */
 }
 .bento-card {
   grid-column: span 12;
@@ -243,10 +246,12 @@ em.ink { font-style: normal; color: var(--accent); }
 .row-2 { grid-row: span 2; }
 
 /* card variants */
-.card-split { flex-direction: row; align-items: center; gap: 36px; flex-wrap: wrap; }
-.card-split > .copy { flex: 1; min-width: 280px; }
-.card-split > .bento-art { flex: 1; min-width: 260px; margin: 0; }
-.card-feature .bento-art { margin: 28px -20px -64px; }
+.card-split { flex-direction: row; align-items: center; gap: 32px; flex-wrap: wrap; }
+.card-split > .copy { flex: 1 1 240px; min-width: 220px; }
+.card-split > .bento-art { flex: 0 1 auto; margin: 0; align-items: center; }
+/* phones are shown in full — never clipped */
+.bento-art { overflow: visible; }
+.card-feature .bento-art { margin: 26px 0 0; }
 .card-mini { justify-content: center; min-height: 200px; padding: 36px; }
 .card-mini h3 { font-size: 22px; }
 .card-mini p { font-size: 16px; margin: 0; }
