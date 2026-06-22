@@ -7,8 +7,8 @@
 <meta name="description" content="How busy beer handles your data: Sign in with Apple, your ratings, menu photos, and AI processing — no ads, no trackers, nothing sold.">
 <link rel="canonical" href="https://ambrosevannier.com/busybeer/privacy.html">
 <meta name="robots" content="index, follow">
-<meta name="color-scheme" content="light">
-<meta name="theme-color" content="#f3f3f6">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#0d0d0d">
 <meta property="og:title" content="Privacy Policy — busy beer">
 <meta property="og:description" content="How busy beer handles your data — no ads, no trackers, nothing sold.">
 <meta property="og:type" content="website">
@@ -21,7 +21,13 @@
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
-<div class="page-bg" aria-hidden="true"><div class="field"></div><div class="noise-overlay"></div></div>
+<div class="page-bg" aria-hidden="true">
+  <div class="noise-overlay"></div>
+  <div class="mesh-blob blob-1"></div>
+  <div class="mesh-blob blob-2"></div>
+  <div class="mesh-blob blob-3"></div>
+  <div class="mesh-blob blob-4"></div>
+</div>
 
 <header class="site-header">
   <div class="wrap-wide">
@@ -136,5 +142,53 @@
     <p class="copy">© 2026 busy beer. Please drink responsibly.</p>
   </div>
 </footer>
+
+<div class="cursor-blob"></div>
+<div class="cursor-blob"></div>
+<div class="cursor-blob"></div>
+<div class="cursor-blob"></div>
+
+<script>
+  const hasFinePointer = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+  const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const blobs = document.querySelectorAll('.cursor-blob');
+  if (!hasFinePointer || prefersReducedMotion) {
+    blobs.forEach(b => b.remove());
+  } else {
+    let mouseX = window.innerWidth / 2;
+    let mouseY = window.innerHeight / 2;
+    let isBursting = false;
+    const pos = Array.from({length: blobs.length}, () => ({x: mouseX, y: mouseY}));
+    window.addEventListener('mousemove', (e) => { mouseX = e.clientX; mouseY = e.clientY; });
+    window.addEventListener('mousedown', () => isBursting = true);
+    window.addEventListener('mouseup', () => isBursting = false);
+    function animate() {
+      const targetScale = isBursting ? 1.5 : 1;
+      pos[0].scale = pos[0].scale || 1;
+      pos[0].scale += (targetScale - pos[0].scale) * 0.2;
+      pos[0].x += (mouseX - pos[0].x) * 0.25;
+      pos[0].y += (mouseY - pos[0].y) * 0.25;
+      blobs[0].style.transform = `translate3d(${pos[0].x}px, ${pos[0].y}px, 0) scale(${pos[0].scale})`;
+      if (isBursting) blobs[0].classList.add('burst-color'); else blobs[0].classList.remove('burst-color');
+      for (let i = 1; i < blobs.length; i++) {
+        const baseScale = 1 - i*0.15;
+        const targetS = isBursting ? baseScale * 1.5 : baseScale;
+        pos[i].scale = pos[i].scale || baseScale;
+        pos[i].scale += (targetS - pos[i].scale) * 0.3;
+        pos[i].x += (pos[i-1].x - pos[i].x) * 0.35;
+        pos[i].y += (pos[i-1].y - pos[i].y) * 0.35;
+        blobs[i].style.transform = `translate3d(${pos[i].x}px, ${pos[i].y}px, 0) scale(${pos[i].scale})`;
+        if (isBursting) blobs[i].classList.add('burst-color'); else blobs[i].classList.remove('burst-color');
+      }
+      rafId = requestAnimationFrame(animate);
+    }
+    let rafId = null;
+    animate();
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) { if (rafId !== null) { cancelAnimationFrame(rafId); rafId = null; } } 
+      else if (rafId === null) { animate(); }
+    });
+  }
+</script>
 </body>
 </html>

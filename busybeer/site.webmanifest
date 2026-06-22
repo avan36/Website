@@ -2,7 +2,7 @@
   "name": "busy beer",
   "short_name": "busy beer",
   "description": "An AI taste companion for everything you drink.",
-  "start_url": "/busybeer/",
+  "start_url": "/",
   "display": "standalone",
   "background_color": "#f3f3f6",
   "theme_color": "#5856d6",
