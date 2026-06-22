@@ -1,0 +1,12 @@
+{
+  "name": "busy beer",
+  "short_name": "busy beer",
+  "description": "An AI taste companion for everything you drink.",
+  "start_url": "/busybeer/",
+  "display": "standalone",
+  "background_color": "#f3f3f6",
+  "theme_color": "#5856d6",
+  "icons": [
+    { "src": "app-icon.png", "sizes": "1024x1024", "type": "image/png", "purpose": "any" }
+  ]
+}
