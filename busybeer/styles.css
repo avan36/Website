@@ -423,6 +423,7 @@ em.ink { font-style: normal; color: var(--color-1); }
 .footer-links a { color: var(--text-secondary); text-decoration: none; font-size: 16px; font-weight: 600; transition: color 0.2s; }
 .footer-links a:hover { color: var(--text-main); }
 .copy { color: var(--text-faint); font-size: 14px; width: 100%; font-weight: 500; }
+.site-footer .copy { color: #fff; }
 
 /* Legal Pages */
 .legal { max-width: 840px; padding: 100px 24px; position: relative; z-index: 2; margin-inline: auto; }
