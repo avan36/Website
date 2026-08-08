@@ -214,16 +214,18 @@ em.ink { font-style: normal; color: var(--color-1); }
 /* App Store badge */
 .appstore {
   display: inline-flex; align-items: center; gap: 12px; text-decoration: none;
-  background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12);
-  backdrop-filter: blur(10px); color: var(--text-main);
-  padding: 11px 22px 11px 18px; border-radius: 18px;
-  transition: transform 0.4s var(--spring), background 0.2s, box-shadow 0.4s var(--ease);
+  background: #000; border: 1px solid rgba(255,255,255,0.28);
+  color: #fff;
+  padding: 12px 24px; border-radius: 999px;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+  transition: transform 0.4s var(--spring), box-shadow 0.4s var(--ease);
 }
-.appstore:hover { transform: translateY(-3px) scale(1.02); background: rgba(255,255,255,0.12); box-shadow: 0 14px 30px rgba(0,0,0,0.4); }
-.appstore svg { width: 28px; height: 28px; fill: var(--text-main); }
+.appstore:hover { transform: translateY(-4px) scale(1.02); box-shadow: 0 30px 60px rgba(0,0,0,0.5); color: #fff; }
+.appstore:active { transform: translateY(0) scale(0.98); }
+.appstore svg { flex: 0 0 auto; width: 22px; height: 22px; fill: currentColor; }
 .appstore .as-text { line-height: 1.05; text-align: left; }
-.appstore .as-small { display: block; font-size: 11px; font-weight: 600; opacity: 0.8; letter-spacing: 0.05em; }
-.appstore .as-big   { display: block; font-size: 20px; font-weight: 700; letter-spacing: -0.01em; }
+.appstore .as-small { display: block; font-size: 12px; font-weight: 500; letter-spacing: 0.01em; opacity: 0.92; }
+.appstore .as-big   { display: block; font-size: 21px; font-weight: 600; letter-spacing: -0.02em; }
 
 /* Sections & Bands */
 .band { padding: 120px 0; position: relative; z-index: 10; }
