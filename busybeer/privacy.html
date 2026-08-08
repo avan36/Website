@@ -155,6 +155,8 @@
   if (!hasFinePointer || prefersReducedMotion) {
     blobs.forEach(b => b.remove());
   } else {
+    // Only now is it safe to hide the OS cursor — the orb is taking over.
+    document.documentElement.classList.add('blob-cursor');
     let mouseX = window.innerWidth / 2;
     let mouseY = window.innerHeight / 2;
     let isBursting = false;
@@ -166,8 +168,10 @@
       const targetScale = isBursting ? 1.5 : 1;
       pos[0].scale = pos[0].scale || 1;
       pos[0].scale += (targetScale - pos[0].scale) * 0.2;
-      pos[0].x += (mouseX - pos[0].x) * 0.25;
-      pos[0].y += (mouseY - pos[0].y) * 0.25;
+      // The lead orb *is* the pointer now, so it sits exactly on it — only the
+      // three behind it lag, which is what makes the tail.
+      pos[0].x = mouseX;
+      pos[0].y = mouseY;
       blobs[0].style.transform = `translate3d(${pos[0].x}px, ${pos[0].y}px, 0) scale(${pos[0].scale})`;
       if (isBursting) blobs[0].classList.add('burst-color'); else blobs[0].classList.remove('burst-color');
       for (let i = 1; i < blobs.length; i++) {
