@@ -397,15 +397,15 @@ section { padding: 64px 0; position: relative; z-index: 10; }
 /* Playful Trailing Cursor */
 .cursor-blob {
   position: fixed;
-  top: -100px;
-  left: -100px;
-  width: 200px;
-  height: 200px;
+  top: -55px;
+  left: -55px;
+  width: 110px;
+  height: 110px;
   border-radius: 50%;
   pointer-events: none;
   z-index: 9999;
   mix-blend-mode: screen;
-  filter: blur(28px);
+  filter: blur(16px);
   will-change: transform;
   transform: translateZ(0);
   opacity: 0;
@@ -423,8 +423,13 @@ section { padding: 64px 0; position: relative; z-index: 10; }
 .cursor-blob:nth-of-type(4) { background: var(--color-4); }
 
 .cursor-blob.burst-color {
-  filter: blur(25px) brightness(1.5);
+  filter: blur(14px) brightness(1.5);
 }
+
+/* When the trail is live it *is* the pointer, so hide the OS cursor. The
+   class is only set by JS once the effect is actually running, so touch and
+   reduced-motion visitors (who get no blobs) keep their normal cursor. */
+html.blob-cursor, html.blob-cursor * { cursor: none; }
 
 /* Device Frames - Apple Style */
 .phone {
