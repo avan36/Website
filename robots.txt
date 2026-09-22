@@ -2,6 +2,7 @@
 # (most-specific) group, opting it out of the blanket "User-agent: * / Disallow: /"
 # block at the bottom. Note: the AI-training variants (Google-Extended,
 # Applebot-Extended, etc.) stay blocked further down — this is search only.
+# Every blocked bot is still allowed to read the blog (/blog.html and /blog/).
 User-agent: Googlebot
 Allow: /
 
@@ -19,122 +20,202 @@ Allow: /
 
 User-agent: Perplexity
 Disallow: /
+Allow: /blog.html
+Allow: /blog/
 
 User-agent: OpenAI
 Disallow: /
+Allow: /blog.html
+Allow: /blog/
 
 User-agent: GPT-3
 Disallow: /
+Allow: /blog.html
+Allow: /blog/
 
 User-agent: Claude
 Disallow: /
+Allow: /blog.html
+Allow: /blog/
 
 User-agent: AhrefsBot
 Disallow: /
+Allow: /blog.html
+Allow: /blog/
 
 User-agent: SemrushBot
 Disallow: /
+Allow: /blog.html
+Allow: /blog/
 
 User-agent: Moz
 Disallow: /
+Allow: /blog.html
+Allow: /blog/
 
 User-agent: Yandex
 Disallow: /
+Allow: /blog.html
+Allow: /blog/
 
 User-agent: GPTBot
 Disallow: /
+Allow: /blog.html
+Allow: /blog/
 
 User-agent: Amazonbot
 Disallow: /
+Allow: /blog.html
+Allow: /blog/
 
 User-agent: anthropic-ai
 Disallow: /
+Allow: /blog.html
+Allow: /blog/
 
 User-agent: Applebot-Extended
 Disallow: /
+Allow: /blog.html
+Allow: /blog/
 
 User-agent: AwarioRssBot
 User-agent: AwarioSmartBot
 Disallow: /
+Allow: /blog.html
+Allow: /blog/
 
 User-agent: Bytespider
 Disallow: /
+Allow: /blog.html
+Allow: /blog/
 
 User-agent: CCBot
 Disallow: /
+Allow: /blog.html
+Allow: /blog/
 
 User-agent: ChatGPT-User
 Disallow: /
+Allow: /blog.html
+Allow: /blog/
 
 User-agent: ClaudeBot
 Disallow: /
+Allow: /blog.html
+Allow: /blog/
 
 User-agent: Claude-Web
 Disallow: /
+Allow: /blog.html
+Allow: /blog/
 
 User-agent: cohere-ai
 Disallow: /
+Allow: /blog.html
+Allow: /blog/
 
 User-agent: DataForSeoBot
 Disallow: /
+Allow: /blog.html
+Allow: /blog/
 
 User-agent: Diffbot
 Disallow: /
+Allow: /blog.html
+Allow: /blog/
 
 User-agent: FacebookBot
 Disallow: /
+Allow: /blog.html
+Allow: /blog/
 
 User-agent: FriendlyCrawler
 Disallow: /
+Allow: /blog.html
+Allow: /blog/
 
 User-agent: Google-CloudVertexBot
 Disallow: /
+Allow: /blog.html
+Allow: /blog/
 
 User-agent: Google-Extended
 Disallow: /
+Allow: /blog.html
+Allow: /blog/
 
 User-agent: GPTBot
 Disallow: /
+Allow: /blog.html
+Allow: /blog/
 
 User-agent: ImagesiftBot
 Disallow: /
+Allow: /blog.html
+Allow: /blog/
 
 User-agent: magpie-crawler
 Disallow: /
+Allow: /blog.html
+Allow: /blog/
 
 User-agent: Meta-ExternalAgent
 User-agent: meta-externalagent
 Disallow: /
+Allow: /blog.html
+Allow: /blog/
 
 User-agent: NewsNow
 Disallow: /
+Allow: /blog.html
+Allow: /blog/
 
 User-agent: news-please
 Disallow: /
+Allow: /blog.html
+Allow: /blog/
 
 User-agent: OAI-SearchBot
 Disallow: /
+Allow: /blog.html
+Allow: /blog/
 
 User-agent: omgili
 Disallow: /
+Allow: /blog.html
+Allow: /blog/
 
 User-agent: omgilibot
 Disallow: /
+Allow: /blog.html
+Allow: /blog/
 
 User-agent: peer39_crawler
 Disallow: /
+Allow: /blog.html
+Allow: /blog/
 
 User-agent: PerplexityBot
 Disallow: /
+Allow: /blog.html
+Allow: /blog/
 
 User-agent: Quora-Bot
 Disallow: /
+Allow: /blog.html
+Allow: /blog/
 
 User-agent: Scrapy
 Disallow: /
+Allow: /blog.html
+Allow: /blog/
 
 User-agent: TurnitinBot
 Disallow: /
+Allow: /blog.html
+Allow: /blog/
 
 User-agent: *
 Disallow: /
+Allow: /blog.html
+Allow: /blog/
