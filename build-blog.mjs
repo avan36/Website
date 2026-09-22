@@ -160,4 +160,21 @@ ${posts.map((p) => `      <li>
   </div>`,
 }));
 
+// Point the home page's Writing card at the newest post.
+const latest = posts[0];
+if (latest) {
+  const home = fs.readFileSync('index.html', 'utf8');
+  fs.writeFileSync('index.html', home.replace(
+    /(<!-- latest-post[^>]*-->)[\s\S]*?(<!-- \/latest-post -->)/,
+    (_, open, close) => `${open}
+        <span class="kicker" style="color: var(--color-2);">Writing · ${latest.pretty}</span>
+        <h3 style="font-size: clamp(28px, 4vw, 40px);">${esc(latest.title)}</h3>
+        <p style="max-width: 40em;">${esc(latest.description)}</p>
+        <div class="link-row">
+          <a class="text-link" href="blog/${latest.slug}.html">Read the essay →</a>
+        </div>
+        ${close}`,
+  ));
+}
+
 console.log(`Built ${posts.length} post(s).`);

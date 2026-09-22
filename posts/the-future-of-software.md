@@ -1,7 +1,7 @@
 ---
 title: The Future of Software
 date: 2025-05-08
-description: When anyone can generate code in seconds, what's left that's scarce? A short essay by Ambrose Vannier on where generative tools leave the people who make software.
+description: When anyone can generate code in seconds, the scarce thing is no longer the code — it's the judgment about what to build and the time to build it well. A short essay on where that leaves the people who make software.
 ---
 
 I've been wondering recently about the future of software as generative tools have become part of how we think about work. It seems to me that, throughout the history of software companies, their moat has been time and technical know-how.
