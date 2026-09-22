@@ -1,0 +1,22 @@
+# Editor at /admin. Publishing commits a Markdown file to posts/ on main,
+# which triggers a Vercel deploy that runs build-blog.mjs.
+backend:
+  name: github
+  repo: avan36/Website
+  branch: main
+
+media_folder: media/blog
+public_folder: /media/blog
+
+collections:
+  - name: posts
+    label: Posts
+    label_singular: Post
+    folder: posts
+    create: true
+    slug: "{{slug}}"
+    fields:
+      - { label: Title, name: title, widget: string }
+      - { label: Date, name: date, widget: datetime, format: YYYY-MM-DD, time_format: false }
+      - { label: Summary, name: description, widget: text, hint: Shown on the Writing page and in search results. }
+      - { label: Body, name: body, widget: markdown }
