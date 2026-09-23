@@ -1,5 +1,5 @@
 ---
-title: My thoughts on the new iPhone 18 Pro Max
+title: My thoughts on the iPhone 18 Pro Event
 date: 2026-09-22
 description: My thoughts on the new iPhone 18 Pro
 ---
