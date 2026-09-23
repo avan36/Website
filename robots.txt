@@ -1,8 +1,6 @@
 # Allow real search engines to crawl and index the site. Each obeys its own
 # (most-specific) group, opting it out of the blanket "User-agent: * / Disallow: /"
-# block at the bottom. Note: the AI-training variants (Google-Extended,
-# Applebot-Extended, etc.) stay blocked further down — this is search only.
-# Every blocked bot is still allowed to read the blog (/blog.html and /blog/).
+# block at the bottom.
 User-agent: Googlebot
 Allow: /
 
@@ -18,26 +16,97 @@ Allow: /
 User-agent: Applebot
 Allow: /
 
+# AI answer engines: they retrieve a page to answer a question and link back,
+# so they get the blog (/blog.html and /blog/) and nothing else.
+User-agent: OAI-SearchBot
+Disallow: /
+Allow: /blog.html
+Allow: /blog/
+
+User-agent: ChatGPT-User
+Disallow: /
+Allow: /blog.html
+Allow: /blog/
+
 User-agent: Perplexity
 Disallow: /
 Allow: /blog.html
 Allow: /blog/
 
-User-agent: OpenAI
+User-agent: PerplexityBot
 Disallow: /
 Allow: /blog.html
 Allow: /blog/
+
+User-agent: Amazonbot
+Disallow: /
+Allow: /blog.html
+Allow: /blog/
+
+User-agent: Google-CloudVertexBot
+Disallow: /
+Allow: /blog.html
+Allow: /blog/
+
+# AI training and dataset crawlers: blocked everywhere, blog included. No
+# Allow lines here — that is the whole point of this section.
+User-agent: GPTBot
+Disallow: /
+
+User-agent: OpenAI
+Disallow: /
 
 User-agent: GPT-3
 Disallow: /
-Allow: /blog.html
-Allow: /blog/
 
 User-agent: Claude
 Disallow: /
-Allow: /blog.html
-Allow: /blog/
 
+User-agent: ClaudeBot
+Disallow: /
+
+User-agent: Claude-Web
+Disallow: /
+
+User-agent: anthropic-ai
+Disallow: /
+
+User-agent: Google-Extended
+Disallow: /
+
+User-agent: Applebot-Extended
+Disallow: /
+
+User-agent: Meta-ExternalAgent
+User-agent: meta-externalagent
+Disallow: /
+
+User-agent: Bytespider
+Disallow: /
+
+User-agent: CCBot
+Disallow: /
+
+User-agent: cohere-ai
+Disallow: /
+
+User-agent: Diffbot
+Disallow: /
+
+User-agent: FriendlyCrawler
+Disallow: /
+
+User-agent: ImagesiftBot
+Disallow: /
+
+User-agent: omgili
+Disallow: /
+
+User-agent: omgilibot
+Disallow: /
+
+# SEO, scraping and media-monitoring bots: not search, not training. Same deal
+# as the AI answer engines — blog only.
 User-agent: AhrefsBot
 Disallow: /
 Allow: /blog.html
@@ -58,58 +127,8 @@ Disallow: /
 Allow: /blog.html
 Allow: /blog/
 
-User-agent: GPTBot
-Disallow: /
-Allow: /blog.html
-Allow: /blog/
-
-User-agent: Amazonbot
-Disallow: /
-Allow: /blog.html
-Allow: /blog/
-
-User-agent: anthropic-ai
-Disallow: /
-Allow: /blog.html
-Allow: /blog/
-
-User-agent: Applebot-Extended
-Disallow: /
-Allow: /blog.html
-Allow: /blog/
-
 User-agent: AwarioRssBot
 User-agent: AwarioSmartBot
-Disallow: /
-Allow: /blog.html
-Allow: /blog/
-
-User-agent: Bytespider
-Disallow: /
-Allow: /blog.html
-Allow: /blog/
-
-User-agent: CCBot
-Disallow: /
-Allow: /blog.html
-Allow: /blog/
-
-User-agent: ChatGPT-User
-Disallow: /
-Allow: /blog.html
-Allow: /blog/
-
-User-agent: ClaudeBot
-Disallow: /
-Allow: /blog.html
-Allow: /blog/
-
-User-agent: Claude-Web
-Disallow: /
-Allow: /blog.html
-Allow: /blog/
-
-User-agent: cohere-ai
 Disallow: /
 Allow: /blog.html
 Allow: /blog/
@@ -119,48 +138,12 @@ Disallow: /
 Allow: /blog.html
 Allow: /blog/
 
-User-agent: Diffbot
-Disallow: /
-Allow: /blog.html
-Allow: /blog/
-
 User-agent: FacebookBot
 Disallow: /
 Allow: /blog.html
 Allow: /blog/
 
-User-agent: FriendlyCrawler
-Disallow: /
-Allow: /blog.html
-Allow: /blog/
-
-User-agent: Google-CloudVertexBot
-Disallow: /
-Allow: /blog.html
-Allow: /blog/
-
-User-agent: Google-Extended
-Disallow: /
-Allow: /blog.html
-Allow: /blog/
-
-User-agent: GPTBot
-Disallow: /
-Allow: /blog.html
-Allow: /blog/
-
-User-agent: ImagesiftBot
-Disallow: /
-Allow: /blog.html
-Allow: /blog/
-
 User-agent: magpie-crawler
-Disallow: /
-Allow: /blog.html
-Allow: /blog/
-
-User-agent: Meta-ExternalAgent
-User-agent: meta-externalagent
 Disallow: /
 Allow: /blog.html
 Allow: /blog/
@@ -175,27 +158,7 @@ Disallow: /
 Allow: /blog.html
 Allow: /blog/
 
-User-agent: OAI-SearchBot
-Disallow: /
-Allow: /blog.html
-Allow: /blog/
-
-User-agent: omgili
-Disallow: /
-Allow: /blog.html
-Allow: /blog/
-
-User-agent: omgilibot
-Disallow: /
-Allow: /blog.html
-Allow: /blog/
-
 User-agent: peer39_crawler
-Disallow: /
-Allow: /blog.html
-Allow: /blog/
-
-User-agent: PerplexityBot
 Disallow: /
 Allow: /blog.html
 Allow: /blog/
