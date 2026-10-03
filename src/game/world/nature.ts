@@ -233,7 +233,7 @@ function instanced(geo: BufferGeometry, mats: { mat: MeshStandardMaterial; depth
   return mesh;
 }
 
-export function buildNature(uniforms: SharedUniforms) {
+export function buildNature(uniforms: SharedUniforms, lite = false) {
   const group = new Group();
   group.name = 'nature';
   const rand = rng(7);
@@ -275,8 +275,8 @@ export function buildNature(uniforms: SharedUniforms) {
     all,
     [0.6, 1.5],
   );
-  const tufts = scatter(230, rand, (x, z, h) => h > 0.7 && isOpenGround(x, z, -0.7), 0.6, [], [0.8, 1.4]);
-  const flowers = scatter(120, rand, (x, z, h) => h > 0.85 && isOpenGround(x, z, -0.5) && rockiness(x, z) < 0.3, 0.45, [], [0.8, 1.25]);
+  const tufts = scatter(lite ? 120 : 230, rand, (x, z, h) => h > 0.7 && isOpenGround(x, z, -0.7), 0.6, [], [0.8, 1.4]);
+  const flowers = scatter(lite ? 80 : 120, rand, (x, z, h) => h > 0.85 && isOpenGround(x, z, -0.5) && rockiness(x, z) < 0.3, 0.45, [], [0.8, 1.25]);
 
   const palmM = swayMaterials(uniforms, 0.0045, 1.1);
   const treeM = swayMaterials(uniforms, 0.006, 1.3);

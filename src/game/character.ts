@@ -23,7 +23,7 @@ import { groundAt, isWalkable } from './world/shape';
 
 const SPEED = 5.4;
 const BODY_R = 0.5;
-const SCALE = 1.35;
+const SCALE = 1.6;
 
 export class Explorer {
   readonly root = new Group();

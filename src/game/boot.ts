@@ -103,7 +103,10 @@ async function startGame() {
           fallbackToList();
         },
       });
-      (window as unknown as { __island?: GameHandle }).__island = game;
+      // Test/debug handle: dev builds, or production with ?debug in the URL.
+      if (import.meta.env.DEV || new URLSearchParams(location.search).has('debug')) {
+        (window as unknown as { __island?: GameHandle }).__island = game;
+      }
     } catch (err) {
       console.warn('Island could not start, showing the list view instead.', err);
       game = null;
@@ -153,11 +156,12 @@ document.querySelectorAll<HTMLButtonElement>('[data-isl-play]').forEach((b) =>
     $<HTMLElement>('[data-isl-list]')?.focus({ preventScroll: true });
   }),
 );
-document.querySelectorAll<HTMLButtonElement>('[data-isl-sound]').forEach((b) =>
+const soundButtons = document.querySelectorAll<HTMLButtonElement>('[data-isl-sound]');
+soundButtons.forEach((b) =>
   b.addEventListener('click', () => {
     const on = !sound.on;
     sound.setOn(on);
-    b.setAttribute('aria-pressed', String(on));
+    soundButtons.forEach((x) => x.setAttribute('aria-pressed', String(on)));
   }),
 );
 card?.querySelector('[data-isl-card-toggle]')?.addEventListener('click', () => collapseCard(!card.classList.contains('is-collapsed')));

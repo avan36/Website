@@ -27,7 +27,9 @@ export function buildAmbient() {
     const s = 0.9 + rand() * 0.8;
     g.scale.setScalar(s);
     group.add(g);
-    clouds.push({ g, r: i < 4 ? 14 + rand() * 18 : 38 + rand() * 40, a: rand() * Math.PI * 2, s: 0.012 + rand() * 0.012, y: 17 + rand() * 9 });
+    // Near clouds float above the play camera (they sail past during the intro
+    // and cast drifting shadows); far ones ring the horizon.
+    clouds.push({ g, r: i < 4 ? 12 + rand() * 18 : 50 + rand() * 40, a: rand() * Math.PI * 2, s: 0.012 + rand() * 0.012, y: i < 4 ? 40 + rand() * 6 : 14 + rand() * 10 });
   }
 
   // Gulls: a body and two wings that flap.

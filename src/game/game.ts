@@ -56,7 +56,7 @@ export interface GameHandle {
   resume(): void;
   destroy(): void;
   /** For tests and debugging. */
-  debug: { state: () => string; player: () => { x: number; z: number }; near: () => string | null; frames: () => number };
+  debug: { state: () => string; player: () => { x: number; z: number }; near: () => string | null; frames: () => number; places: () => { id: string; x: number; z: number; stand: { x: number; z: number } }[]; teleport: (x: number, z: number) => void; screen: (id: string) => { x: number; y: number } | null };
 }
 
 type State = 'intro' | 'play' | 'entering';
@@ -113,7 +113,7 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
   island.name = 'island';
   scene.add(island);
   island.add(buildTerrain());
-  const nature = buildNature(uniforms);
+  const nature = buildNature(uniforms, mobile);
   island.add(nature.group);
   const height = buildHeightTexture();
   const water = buildWater(height, sunDir);
@@ -161,6 +161,7 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
   let viewW = 1;
   let viewH = 1;
   let baseDist = 24;
+  let basePitch = 0.68;
   const resize = () => {
     const r = stage.getBoundingClientRect();
     viewW = Math.max(1, Math.round(r.width));
@@ -168,10 +169,12 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     renderer.setSize(viewW, viewH, false);
     const aspect = viewW / viewH;
     camera.aspect = aspect;
-    camera.fov = aspect < 0.8 ? 40 : aspect < 1.2 ? 36 : 31;
+    camera.fov = aspect < 0.8 ? 50 : aspect < 1.2 ? 40 : 32;
     camera.updateProjectionMatrix();
     // Keep a similar amount of island in view whatever the shape of the screen.
-    baseDist = aspect < 0.8 ? 46 : aspect < 1.2 ? 42 : 39;
+    // Portrait looks down more steeply so the narrow view still spans the island.
+    baseDist = aspect < 0.8 ? 47 : aspect < 1.2 ? 48 : 47;
+    basePitch = aspect < 0.8 ? 0.86 : aspect < 1.2 ? 0.74 : 0.68;
   };
   resize();
   const ro = new ResizeObserver(resize);
@@ -236,6 +239,7 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     else player.place(SPAWN.x, SPAWN.z, 0);
     rig.target.set(player.pos.x, player.pos.y + 0.8, player.pos.z);
     rig.dist = baseDist;
+    rig.pitch = basePitch;
     if (p) {
       dismissedId = p.id; // don't pop the prompt the moment you come back out
     }
@@ -500,6 +504,7 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
   let last = performance.now();
   let running = false;
   let frames = 0;
+  const avoid: { l: number; t: number; r: number; b: number }[] = [];
 
   const updateIntro = (dt: number) => {
     introT += dt * introSpeed;
@@ -525,8 +530,8 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     const k = easeInOutCubic(clamp(t / (INTRO - 0.1)));
     const tgt = camGoal.set(lerp(0, player.pos.x, k), lerp(0.5, player.pos.y + 0.8, k), lerp(-2, player.pos.z, k));
     rig.target.copy(tgt);
-    rig.dist = lerp(95, baseDist, k);
-    rig.pitch = lerp(0.95, 0.62, k);
+    rig.dist = lerp(110, baseDist, k);
+    rig.pitch = lerp(1.0, basePitch, k);
     rig.yaw = lerp(-0.85, 0, k);
     if (t >= INTRO) {
       state = 'play';
@@ -639,8 +644,8 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
       rig.target.x = damp(rig.target.x, camGoal.x, 3.2, dt);
       rig.target.y = damp(rig.target.y, camGoal.y, 3.2, dt);
       rig.target.z = damp(rig.target.z, camGoal.z, 3.2, dt);
-      rig.dist = damp(rig.dist, baseDist * (near ? 0.78 : 1), 2.2, dt);
-      rig.pitch = damp(rig.pitch, near ? 0.55 : 0.62, 2.2, dt);
+      rig.dist = damp(rig.dist, baseDist * (near ? 0.74 : 1), 2.2, dt);
+      rig.pitch = damp(rig.pitch, basePitch - (near ? 0.08 : 0), 2.2, dt);
       rig.yaw = damp(rig.yaw, rig.parallax.x * 0.035, 3, dt);
     } else if (state === 'entering' && enteringId) {
       const l = byId.get(enteringId)!;
@@ -661,8 +666,17 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     }
     placeCamera(rig.target, rig.dist, rig.pitch, rig.yaw);
 
-    // Labels
+    // Labels (kept out of the HUD's way)
+    if (frames % 15 === 1) {
+      avoid.length = 0;
+      o.stage.querySelectorAll<HTMLElement>('.isl-top > *, .isl-card, .isl-sound-fab, .isl-hint').forEach((el) => {
+        const r = el.getBoundingClientRect();
+        const cs = getComputedStyle(el);
+        if (r.width > 0 && cs.display !== 'none' && +cs.opacity > 0.05) avoid.push({ l: r.left - 6, t: r.top - 6, r: r.right + 6, b: r.bottom + 6 });
+      });
+    }
     labels.update(camera, anchors, viewW, viewH, {
+      avoid,
       visible: state === 'play',
       nearId: nearId && nearId !== dismissedId ? nearId : null,
       hoverId,
@@ -760,6 +774,17 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
       player: () => ({ x: player.pos.x, z: player.pos.z }),
       near: () => nearId,
       frames: () => frames,
+      places: () => PLACES.map((p) => ({ id: p.id, x: p.x, z: p.z, stand: p.stand })),
+      teleport: (x: number, z: number) => {
+        player.place(x, z, 0);
+        walkTarget = null;
+      },
+      screen: (id: string) => {
+        const l = byId.get(id);
+        if (!l) return null;
+        const v = l.focus(new Vector3()).project(camera);
+        return { x: (v.x * 0.5 + 0.5) * viewW, y: (-v.y * 0.5 + 0.5) * viewH };
+      },
     },
   };
 }
