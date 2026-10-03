@@ -1,0 +1,49 @@
+---
+// The quiet side of the site: header, one centered reading column, footer.
+// No client JavaScript, no motion. Pages put their content in the default slot
+// and anything extra for <head> (like JSON-LD) in the "head" slot.
+import Base from './Base.astro';
+import SiteHeader from '../components/SiteHeader.astro';
+import SiteFooter from '../components/SiteFooter.astro';
+
+interface Props {
+  title: string;
+  description: string;
+  image?: string;
+  type?: 'website' | 'article';
+}
+
+const { title, description, image, type = 'website' } = Astro.props;
+---
+<Base title={title} description={description} image={image} type={type} bodyClass="reading">
+  <slot name="head" slot="head" />
+  <SiteHeader current="writing" />
+  <main id="main" class="reading-main">
+    <div class="reading-col">
+      <slot />
+    </div>
+  </main>
+  <SiteFooter />
+</Base>
+
+<style is:global>
+  /* Reading-only tokens, derived from the shared ones so they follow the theme.
+     --link: the accent pulled toward the ink so body links pass WCAG AA on the
+     cream background (the raw accent is ~2.9:1) and stay warm in the dark.
+     --muted: small meta text; --ink-3 alone is just under 4.5:1 on cream. */
+  body.reading {
+    --link: color-mix(in srgb, var(--accent) 72%, var(--ink));
+    --muted: color-mix(in srgb, var(--ink-3) 55%, var(--ink-2));
+    --rule: var(--line-strong);
+  }
+</style>
+
+<style>
+  .reading-main {
+    padding-block: clamp(var(--space-7), 8vw, var(--space-9)) 0;
+  }
+  .reading-col {
+    width: min(100% - 2 * var(--gutter), var(--max-read));
+    margin-inline: auto;
+  }
+</style>
