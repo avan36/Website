@@ -1,0 +1,35 @@
+---
+// Slim header for every page except the island (which draws its own HUD).
+interface Props { current?: 'work' | 'writing' | 'contact' }
+const { current } = Astro.props;
+---
+<header class="site-header">
+  <div class="wrap site-header__row">
+    <a class="site-header__brand" href="/" aria-label="Ambrose Vannier — back to the island">
+      <img src="/media/monogram.svg" width="32" height="32" alt="" />
+      <span>Ambrose Vannier</span>
+    </a>
+    <nav aria-label="Primary">
+      <a href="/#work" aria-current={current === 'work' ? 'page' : undefined}>Work</a>
+      <a href="/blog" aria-current={current === 'writing' ? 'page' : undefined}>Writing</a>
+      <a href="/contact" aria-current={current === 'contact' ? 'page' : undefined}>Contact</a>
+    </nav>
+  </div>
+</header>
+
+<style>
+  .site-header { padding-block: var(--space-5); }
+  .site-header__row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-5); }
+  .site-header__brand {
+    display: inline-flex; align-items: center; gap: var(--space-3);
+    font-family: var(--font-display); font-weight: 700; font-size: var(--step-1);
+    letter-spacing: -0.02em; text-decoration: none;
+  }
+  .site-header__brand img { border-radius: 9px; transition: transform var(--dur-3) var(--ease-spring); }
+  .site-header__brand:hover img { transform: rotate(-10deg) scale(1.08); }
+  nav { display: flex; gap: clamp(var(--space-4), 3vw, var(--space-6)); font-weight: 600; }
+  nav a { text-decoration: none; color: var(--ink-2); }
+  nav a:hover, nav a[aria-current='page'] { color: var(--ink); }
+  nav a[aria-current='page'] { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 6px; }
+  @media (max-width: 480px) { .site-header__brand span { display: none; } }
+</style>

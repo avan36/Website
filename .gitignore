@@ -3,5 +3,5 @@
 .wrangler/
 node_modules/
 .vercel
-blog.html
-blog/
+dist/
+.astro/

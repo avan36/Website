@@ -1,35 +1,10 @@
-// Turns posts/*.md into blog/<slug>.html plus the blog.html index.
-// Runs on every Vercel deploy (`npm run build`); run it locally to preview.
-import fs from 'node:fs';
-import path from 'node:path';
-import matter from 'gray-matter';
-import { marked } from 'marked';
-
-const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
-
-const posts = fs.readdirSync('posts')
-  .filter((f) => f.endsWith('.md'))
-  .map((file) => {
-    const { data, content } = matter(fs.readFileSync(path.join('posts', file), 'utf8'));
-    const date = new Date(data.date);
-    return {
-      slug: path.basename(file, '.md'),
-      title: data.title,
-      description: data.description,
-      iso: date.toISOString().slice(0, 10),
-      pretty: date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' }),
-      html: marked.parse(content),
-    };
-  })
-  .sort((a, b) => b.iso.localeCompare(a.iso));
-
-const page = ({ title, description, main }) => `<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${esc(title)}</title>
-<meta name="description" content="${esc(description)}">
+<title>My thoughts on the iPhone 18 Pro Event — Ambrose Vannier</title>
+<meta name="description" content="My thoughts on the new iPhone 18 Pro">
 <meta name="color-scheme" content="dark">
 <meta name="theme-color" content="#000000">
 <meta name="author" content="Ambrose Vannier">
@@ -65,7 +40,29 @@ const page = ({ title, description, main }) => `<!DOCTYPE html>
 </header>
 
 <main id="main">
-${main}
+  <article class="article" itemscope itemtype="https://schema.org/BlogPosting">
+    <a class="back-link" href="/blog.html">← All writing</a>
+    <div class="meta"><time itemprop="datePublished" datetime="2026-09-22">September 22, 2026</time></div>
+    <h1 itemprop="headline">My thoughts on the iPhone 18 Pro Event</h1>
+    <div class="article-body" itemprop="articleBody">
+<p><strong>My favorite parts are the following:</strong></p>
+<ul>
+<li>The A20 Pro chip – it seems so much faster</li>
+<li>The next-generation vapor chamber cooling – this seems like a genuine upgrade over my iPhone 17 Pro Max</li>
+<li>The new Photographic Styles – do these really have to be limited to the new iPhone 18 Pro models? I don&#39;t see any reason for limiting them other than just wanting us to upgrade</li>
+<li>Showing three Live Activities at once on the Dynamic Island seems awesome</li>
+<li>Apple Reference Image – Apple&#39;s new verification that a photo is 100% real and not AI-generated – seems awesome, although it&#39;s so technically complicated and fiddly that it&#39;s unclear if everyday people would actually use it. This seems more like something that&#39;s going to appeal to 1% of people.</li>
+<li>Better battery life – my iPhone 17 Pro Max battery dies so quickly, although I&#39;m not sure if this is going to be a big enough increase to assuage my battery anxiety</li>
+</ul>
+<p><strong>I&#39;m not as excited about the following:</strong></p>
+<ul>
+<li>The variable aperture lens – what&#39;s the point of this on such a small camera sensor? This feels more like a gimmick to me, although seeing it open and close in person is awesome.</li>
+<li>The Qualcomm modem in the US Pro Max – the C2 is supposed to be more power-efficient. It&#39;s a shame the US Pro Max is stuck with the same Qualcomm modem as last year, while the 18 Pro and the rest of the world get the C2.</li>
+<li>The colors are nice but not as nice as last year&#39;s – I still love my orange iPhone 17 Pro Max, which I&#39;ve started using without a case now that it&#39;s older and I&#39;m not as worried about dropping it.</li>
+</ul>
+
+    </div>
+  </article>
 </main>
 
 <footer class="site-footer">
@@ -76,7 +73,7 @@ ${main}
       <a href="/blog.html">Writing</a>
       <a href="https://github.com/avan36" rel="noopener">GitHub</a>
     </div>
-    <div class="copy">© ${new Date().getFullYear()} Ambrose Vannier</div>
+    <div class="copy">© 2026 Ambrose Vannier</div>
   </div>
 </footer>
 
@@ -100,7 +97,7 @@ ${main}
     pos[0].scale += (targetScale - pos[0].scale) * 0.2;
     pos[0].x = mouseX;
     pos[0].y = mouseY;
-    blobs[0].style.transform = \`translate3d(\${pos[0].x}px, \${pos[0].y}px, 0) scale(\${pos[0].scale})\`;
+    blobs[0].style.transform = `translate3d(${pos[0].x}px, ${pos[0].y}px, 0) scale(${pos[0].scale})`;
     if (isBursting) blobs[0].classList.add('burst-color'); else blobs[0].classList.remove('burst-color');
     for (let i = 1; i < blobs.length; i++) {
       const baseScale = 1 - i*0.15;
@@ -109,7 +106,7 @@ ${main}
       pos[i].scale += (targetS - pos[i].scale) * 0.3;
       pos[i].x += (pos[i-1].x - pos[i].x) * 0.35;
       pos[i].y += (pos[i-1].y - pos[i].y) * 0.35;
-      blobs[i].style.transform = \`translate3d(\${pos[i].x}px, \${pos[i].y}px, 0) scale(\${pos[i].scale})\`;
+      blobs[i].style.transform = `translate3d(${pos[i].x}px, ${pos[i].y}px, 0) scale(${pos[i].scale})`;
       if (isBursting) blobs[i].classList.add('burst-color'); else blobs[i].classList.remove('burst-color');
     }
     requestAnimationFrame(animate);
@@ -124,57 +121,3 @@ ${main}
 </script>
 </body>
 </html>
-`;
-
-fs.rmSync('blog', { recursive: true, force: true });
-fs.mkdirSync('blog');
-
-for (const p of posts) {
-  fs.writeFileSync(path.join('blog', `${p.slug}.html`), page({
-    title: `${p.title} — Ambrose Vannier`,
-    description: p.description,
-    main: `  <article class="article" itemscope itemtype="https://schema.org/BlogPosting">
-    <a class="back-link" href="/blog.html">← All writing</a>
-    <div class="meta"><time itemprop="datePublished" datetime="${p.iso}">${p.pretty}</time></div>
-    <h1 itemprop="headline">${esc(p.title)}</h1>
-    <div class="article-body" itemprop="articleBody">
-${p.html}
-    </div>
-  </article>`,
-  }));
-}
-
-fs.writeFileSync('blog.html', page({
-  title: 'Writing — Ambrose Vannier',
-  description: 'Essays by Ambrose Vannier.',
-  main: `  <div class="article">
-    <a class="back-link" href="/index.html">← Back to home</a>
-    <h1>Writing</h1>
-    <ul class="post-list">
-${posts.map((p) => `      <li>
-        <div class="meta"><time datetime="${p.iso}">${p.pretty}</time></div>
-        <h2><a href="/blog/${p.slug}.html">${esc(p.title)}</a></h2>
-        <p>${esc(p.description)}</p>
-      </li>`).join('\n')}
-    </ul>
-  </div>`,
-}));
-
-// Point the home page's Writing card at the newest post.
-const latest = posts[0];
-if (latest) {
-  const home = fs.readFileSync('index.html', 'utf8');
-  fs.writeFileSync('index.html', home.replace(
-    /(<!-- latest-post[^>]*-->)[\s\S]*?(<!-- \/latest-post -->)/,
-    (_, open, close) => `${open}
-        <span class="kicker" style="color: var(--color-2);">Writing · ${latest.pretty}</span>
-        <h3 style="font-size: clamp(28px, 4vw, 40px);">${esc(latest.title)}</h3>
-        <p style="max-width: 40em;">${esc(latest.description)}</p>
-        <div class="link-row">
-          <a class="text-link" href="blog/${latest.slug}.html">Read the essay →</a>
-        </div>
-        ${close}`,
-  ));
-}
-
-console.log(`Built ${posts.length} post(s).`);
