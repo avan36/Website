@@ -1,7 +1,7 @@
 ---
 // Small line icons for each island place, used in the list view.
 interface Props {
-  kind: 'cabin' | 'taproom' | 'tree' | 'lighthouse' | 'schoolhouse' | 'depot' | 'pier' | 'bottle';
+  kind: 'cabin' | 'taproom' | 'tree' | 'library' | 'lighthouse' | 'schoolhouse' | 'depot' | 'pier' | 'bottle';
   size?: number;
 }
 const { kind, size = 28 } = Astro.props;
@@ -39,6 +39,13 @@ const { kind, size = 28 } = Astro.props;
       <path d="M12 21v-7" />
       <path d="M12 14l-3-2.5M12 15.5l3-2.5" />
       <path d="M7.5 15A4.5 4.5 0 0 1 6 6.5 6 6 0 0 1 17.5 6 4.5 4.5 0 0 1 16.5 15Z" />
+    </>
+  )}
+  {kind === 'library' && (
+    <>
+      <path d="M12 6.5C10 5 7 4.5 3.5 5v13c3.5-.5 6.5 0 8.5 1.5 2-1.5 5-2 8.5-1.5V5C17 4.5 14 5 12 6.5Z" />
+      <path d="M12 6.5v13" />
+      <path d="M6.5 9c1.3-.1 2.5.1 3.5.6M6.5 12c1.3-.1 2.5.1 3.5.6M14 9.6c1-.5 2.2-.7 3.5-.6" />
     </>
   )}
   {kind === 'lighthouse' && (

@@ -7,7 +7,7 @@ import { projects } from '../../data/projects';
 import { fbm, noise2 } from '../util/noise';
 import { clamp, lerp, smoothstep, wrapAngle } from '../util/math';
 
-export type PlaceKind = 'cabin' | 'taproom' | 'tree' | 'lighthouse' | 'schoolhouse' | 'depot' | 'pier' | 'bottle';
+export type PlaceKind = 'cabin' | 'taproom' | 'tree' | 'library' | 'lighthouse' | 'schoolhouse' | 'depot' | 'pier' | 'bottle';
 
 export interface Place {
   /** Project slug, or 'blog' / 'contact'. */
@@ -87,15 +87,19 @@ function rawHeight(x: number, z: number) {
 
 // ---------- Places ----------
 
-type Spot = { x: number; z: number; radius: number; pad: number; labelY: number; hitR: number; hitH: number };
+/** `bend` curves the path from the plaza, alternating sides so they fan out. */
+type Spot = { x: number; z: number; radius: number; pad: number; labelY: number; hitR: number; hitH: number; bend: number };
 const SPOTS: Record<Exclude<PlaceKind, 'pier' | 'bottle'>, Spot> = {
-  tree: { ...TREE, radius: 1.7, pad: 4.5, labelY: 8.6, hitR: 4.2, hitH: 10.5 },
-  cabin: { x: -13, z: -3, radius: 2.7, pad: 4.6, labelY: 3.5, hitR: 3.2, hitH: 4.8 },
-  schoolhouse: { x: -11, z: 9.5, radius: 2.6, pad: 4.4, labelY: 4.3, hitR: 3.0, hitH: 6.2 },
-  taproom: { x: 12.5, z: 7.5, radius: 2.7, pad: 4.6, labelY: 3.7, hitR: 3.2, hitH: 4.6 },
-  depot: { x: 12, z: -5.5, radius: 2.5, pad: 4.4, labelY: 3.1, hitR: 3.2, hitH: 4.0 },
-  lighthouse: { ...LIGHTHOUSE, radius: 1.7, pad: 3.2, labelY: 8.2, hitR: 2.4, hitH: 10 },
+  tree: { ...TREE, radius: 1.7, pad: 4.5, labelY: 8.6, hitR: 4.2, hitH: 10.5, bend: -0.12 },
+  cabin: { x: -13, z: -3, radius: 2.7, pad: 4.6, labelY: 3.5, hitR: 3.2, hitH: 4.8, bend: -0.12 },
+  schoolhouse: { x: -11, z: 9.5, radius: 2.6, pad: 4.4, labelY: 4.3, hitR: 3.0, hitH: 6.2, bend: -0.12 },
+  taproom: { x: 12.5, z: 7.5, radius: 2.7, pad: 4.6, labelY: 3.7, hitR: 3.2, hitH: 4.6, bend: 0.12 },
+  depot: { x: 12, z: -5.5, radius: 2.5, pad: 4.4, labelY: 3.1, hitR: 3.2, hitH: 4.0, bend: 0.12 },
+  // The old library: the quiet north-west corner, between the cabin and the ancient tree.
+  library: { x: -9.6, z: -11.6, radius: 2.7, pad: 4.2, labelY: 5.4, hitR: 3.2, hitH: 7.4, bend: -0.12 },
+  lighthouse: { ...LIGHTHOUSE, radius: 1.7, pad: 3.2, labelY: 8.2, hitR: 2.4, hitH: 10, bend: 0.12 },
 };
+const PIER_BEND = -0.12;
 
 const padHeights = new Map<string, number>();
 for (const [k, s] of Object.entries(SPOTS)) padHeights.set(k, rawHeight(s.x, s.z));
@@ -245,12 +249,10 @@ const SEGMENTS: Seg[] = (() => {
       pz = z;
     }
   };
-  let i = 0;
   for (const p of PLACES) {
-    const tx = p.kind === 'pier' ? PIER.x : p.stand.x;
-    const tz = p.kind === 'pier' ? PIER.start + 0.6 : p.stand.z;
     if (p.kind === 'bottle') continue; // the bottle is off the beaten track
-    curve(PLAZA.x, PLAZA.z, tx, tz, i++ % 2 ? 0.12 : -0.12);
+    if (p.kind === 'pier') curve(PLAZA.x, PLAZA.z, PIER.x, PIER.start + 0.6, PIER_BEND);
+    else curve(PLAZA.x, PLAZA.z, p.stand.x, p.stand.z, SPOTS[p.kind].bend);
   }
   return segs;
 })();

@@ -316,6 +316,20 @@ import SiteFooter from '../SiteFooter.astro';
   }
   .lv-card:hover .lv-card__arrow { transform: translateX(4px); background: var(--c); color: #fff; }
 
+  /* A last card that would sit alone on its row spans the row instead, laid
+     out sideways with its colored band one column wide. */
+  .lv-grid { container-type: inline-size; }
+  @container (min-width: 664px) and (max-width: 1007.98px) {
+    .lv-card:last-child:nth-child(2n + 1) { grid-column: 1 / -1; flex-direction: row; }
+    .lv-card:last-child:nth-child(2n + 1) .lv-card__top { flex: 0 0 calc((100% - var(--space-5)) / 2); }
+    .lv-card:last-child:nth-child(2n + 1) .lv-card__body { flex: 1; align-content: center; }
+  }
+  @container (min-width: 1008px) {
+    .lv-card:last-child:nth-child(3n + 1) { grid-column: 1 / -1; flex-direction: row; }
+    .lv-card:last-child:nth-child(3n + 1) .lv-card__top { flex: 0 0 calc((100% - 2 * var(--space-5)) / 3); }
+    .lv-card:last-child:nth-child(3n + 1) .lv-card__body { flex: 1; align-content: center; }
+  }
+
   .lv-more { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: var(--space-5); padding-top: var(--space-8); }
   .lv-more__card {
     display: flex;
