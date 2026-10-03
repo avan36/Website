@@ -121,7 +121,10 @@ export const projects: Project[] = [
       { label: 'Explore Etymon', href: 'https://avan36.github.io/Etymology/', kind: 'primary' },
       { label: 'View source on GitHub', href: 'https://github.com/avan36/Etymology', kind: 'text' },
     ],
-    shots: [],
+    shots: [
+      { src: '/media/etymon-river.webp', alt: 'The River of English: 1,500 years of new words as one river, with a stream for each source language and a glint for every word, from water and world to selfie and rizz.', width: 1440, height: 900, frame: 'browser' },
+      { src: '/media/etymon-word.webp', alt: "A word page: disaster's 4,500 km journey on a map, from Proto-Indo-European through Ancient Greek, Italian and Middle French to English.", width: 1440, height: 900, frame: 'browser' },
+    ],
   },
   {
     slug: 'privacy-research',

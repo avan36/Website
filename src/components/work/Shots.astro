@@ -98,6 +98,7 @@ const address =
 
   /* ---------- Browser ---------- */
   .browser { margin: 0 auto; max-width: 1000px; }
+  .browser + .browser { margin-top: clamp(var(--space-7), 6vw, var(--space-8)); }
   .browser__window {
     border-radius: clamp(12px, 1.6vw, 18px);
     overflow: hidden;
