@@ -211,7 +211,8 @@ import SiteFooter from '../SiteFooter.astro';
     padding: 9px 16px;
     border: 0;
     border-radius: var(--r-pill);
-    background: var(--accent);
+    /* A shade deeper than the accent so white text clears AA (5:1). */
+    background: color-mix(in srgb, var(--accent) 88%, #000);
     color: var(--accent-ink);
     font-weight: 700;
     cursor: pointer;

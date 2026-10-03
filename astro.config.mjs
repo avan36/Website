@@ -12,6 +12,10 @@ export default defineConfig({
     // Code blocks follow the reader's light/dark theme (see blog Prose styles).
     shikiConfig: { themes: { light: 'github-light', dark: 'github-dark' }, defaultColor: false },
   },
+  vite: {
+    // three.js is one deliberately large, lazy-loaded chunk for the island.
+    build: { chunkSizeWarningLimit: 700 },
+  },
   integrations: [
     sitemap({
       // The app sub-sites keep their own hand-written pages.

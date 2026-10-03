@@ -11,7 +11,7 @@
   --bg-sunken: #f3ecdf;
   --ink: #1d1a16;
   --ink-2: #4a443c;
-  --ink-3: #7a7267;
+  --ink-3: #6f675c; /* 5.2:1 on --bg: AA for small text */
   --line: rgba(29, 26, 22, 0.1);
   --line-strong: rgba(29, 26, 22, 0.18);
 
@@ -22,7 +22,7 @@
   --sun: #ffb347;
   --coral: #ff6b5b;
   --leaf: #4caf6a;
-  --accent: #ff5a36; /* links, focus, primary buttons */
+  --accent: #d9461f; /* links, focus, primary buttons: 4:1 on --bg */
   --accent-ink: #ffffff;
 
   /* Per-project accents (also used for the island landmarks) */
