@@ -243,7 +243,9 @@ export function buildNature(uniforms: SharedUniforms) {
   const nearPlaza = (x: number, z: number) => Math.hypot(x - PLAZA.x, z - PLAZA.z) < 7;
   // Tall things stay out of the strip between each place and the camera.
   const blocksView = (x: number, z: number) =>
-    PLACES.some((p) => z > p.z && z - p.z < 9 && Math.abs(x - p.x) < 4.5) || (Math.abs(x) < 6 && z > 0 && z < 16);
+    PLACES.some((p) => z > p.z && z - p.z < 9 && Math.abs(x - p.x) < 4.5) ||
+    (Math.abs(x) < 6 && z > 0 && z < 16) ||
+    Math.hypot(x - PLACES.find((p) => p.kind === 'tree')!.x, z - PLACES.find((p) => p.kind === 'tree')!.z) < 8.5;
 
   const palms = scatter(
     17,

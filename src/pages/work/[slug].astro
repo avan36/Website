@@ -167,7 +167,7 @@ const isExternal = (href: string) => /^https?:/.test(href);
     list-style: none; margin: 0; padding: 0;
     display: flex; flex-wrap: wrap; gap: var(--space-3) var(--space-6);
   }
-  .about__text-links .text-link { white-space: nowrap; }
+  .about__text-links .text-link { white-space: nowrap; display: inline-block; padding-block: 12px; margin-block: -12px; }
   .arrow { display: inline-block; margin-left: 0.3em; transition: transform var(--dur-2) var(--ease-spring); text-decoration: none; }
   .text-link:hover .arrow { transform: translate(2px, -1px); }
 

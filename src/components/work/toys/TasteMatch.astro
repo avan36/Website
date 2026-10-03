@@ -64,7 +64,7 @@ const labelPos = AXES.map((_, i) => {
               aria-valuenow={START[i]}
               aria-valuetext={`${START[i]} out of 10`}
             >
-              <circle class="handle__hit" r="22" />
+              <circle class="handle__hit" r="28" />
               <circle class="handle__ping" r="9" />
               <circle class="handle__ring" r="15" />
               <circle class="handle__knob" r="8.5" />
@@ -213,7 +213,8 @@ const labelPos = AXES.map((_, i) => {
   .presets { display: flex; flex-wrap: wrap; gap: var(--space-2); justify-content: center; }
   .preset {
     border: 0;
-    padding: 7px 14px;
+    min-height: 44px;
+    padding: 7px 16px;
     border-radius: var(--r-pill);
     background: var(--bg-raised);
     box-shadow: inset 0 0 0 1px var(--line-strong);

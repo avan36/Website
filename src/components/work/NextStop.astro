@@ -129,7 +129,8 @@ const pad = (n: number) => String(n).padStart(2, '0');
   }
   .ticket:hover .ticket__go { transform: translateX(5px); background: rgba(255, 255, 255, 0.36); }
 
-  .next__home { text-align: center; margin-top: var(--space-6); color: var(--ink-2); font-size: var(--step--1); }
+  .next__home a { display: inline-block; padding-block: 12px; }
+  .next__home { text-align: center; margin-top: var(--space-3); color: var(--ink-2); font-size: var(--step--1); }
 
   @media (max-width: 520px) {
     .ticket__go { width: 38px; height: 38px; }
