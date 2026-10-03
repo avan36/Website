@@ -259,7 +259,7 @@ document.addEventListener('pointerdown', (e) => {
   if (viewsMenu && !viewsMenu.hidden && !(e.target as HTMLElement).closest('.isl-views')) setMenu(false);
 });
 viewsMenu?.addEventListener('keydown', (e) => {
-  const items = [...viewsMenu.querySelectorAll<HTMLElement>('.isl-views__item, .isl-views__json')];
+  const items = [...viewsMenu.querySelectorAll<HTMLElement>('.isl-views__item, .isl-views__json a')];
   const i = items.indexOf(document.activeElement as HTMLElement);
   if (e.key === 'Escape') setMenu(false), viewsToggle?.focus();
   if (e.key === 'ArrowDown') e.preventDefault(), items[(i + 1) % items.length]?.focus();

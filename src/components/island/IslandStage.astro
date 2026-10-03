@@ -53,7 +53,7 @@ const VIEWS = [
                 <span class="isl-views__text"><span class="isl-views__name">{v.name}</span><span class="isl-views__note">{v.note}</span></span>
               </button>
             ))}
-            <a class="isl-views__json" href="/world.json">Every view is drawn from <code>/world.json</code></a>
+            <p class="isl-views__json">Every view draws the same <a href="/world.json"><code>world.json</code></a>. <a href="/colophon">How it works</a></p>
           </div>
         </div>
         <button type="button" class="isl-chip isl-hoard-top" data-hoard-open aria-label="Word hoard">
@@ -412,8 +412,8 @@ const VIEWS = [
     color: var(--ink-3);
     text-decoration: none;
   }
-  .isl-views__json code { font-family: var(--font-mono); font-size: 12.5px; color: var(--ink-2); }
-  .isl-views__json:hover code { text-decoration: underline; }
+  .isl-views__json a { color: var(--ink-2); font-weight: 650; text-underline-offset: 0.2em; }
+  .isl-views__json code { font-family: var(--font-mono); font-size: 12.5px; }
 
   /* ---------- Word hoard ---------- */
   .isl-hoard__count { font-variant-numeric: tabular-nums; }
