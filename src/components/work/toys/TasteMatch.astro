@@ -10,11 +10,11 @@ const top = ranked[0];
 
 const rings = [10, 7.5, 5, 2.5];
 const labelPos = AXES.map((_, i) => {
-  const [x, y] = point(i, 10, RADIUS + 26);
-  const anchor = Math.abs(x) < 4 ? 'middle' : x > 0 ? 'start' : 'end';
-  // Nudge the top label up and the bottom ones down so they clear the vertices.
-  const dy = i === 0 ? -14 : y > 40 ? 6 : -6;
-  return { x, y: y + dy, anchor };
+  const [x, y] = point(i, 10, RADIUS + 22);
+  // Top label sits above its vertex, the side ones beside, the bottom ones below.
+  if (i === 0) return { x: 0, y: y - 22, anchor: 'middle' };
+  if (i === 1 || i === 4) return { x, y: y - 6, anchor: x > 0 ? 'start' : 'end' };
+  return { x: x * 0.92, y: y + 12, anchor: 'middle' };
 });
 ---
 <ToyFrame
@@ -26,7 +26,7 @@ const labelPos = AXES.map((_, i) => {
 >
   <div class="taste" data-taste>
     <div class="taste__chart">
-      <svg class="radar" viewBox="-200 -172 400 336" width="400" height="336" role="group" aria-label="Your palate. Each flavor is a slider from 0 to 10.">
+      <svg class="radar" viewBox="-192 -178 384 336" width="384" height="336" role="group" aria-label="Your palate. Each flavor is a slider from 0 to 10.">
         <g class="radar__grid" aria-hidden="true">
           {rings.map((r) => <polygon points={polygon(AXES.map(() => r))} />)}
           {AXES.map((_, i) => {
@@ -40,14 +40,14 @@ const labelPos = AXES.map((_, i) => {
           {AXES.map((name, i) => (
             <text x={labelPos[i].x.toFixed(1)} y={labelPos[i].y.toFixed(1)} text-anchor={labelPos[i].anchor}>
               <tspan class="ax-name">{name}</tspan>
-              <tspan class="ax-val" dx="6">{START[i]}</tspan>
+              <tspan class="ax-val" x={labelPos[i].x.toFixed(1)} dy="1.15em">{START[i]}</tspan>
             </text>
           ))}
         </g>
         <g class="radar__nudge" aria-hidden="true">
-          <path d="M 58 -96 C 44 -104, 28 -98, 18 -86" />
-          <path d="M 24 -90 L 17 -85 L 25 -82" />
-          <text x="64" y="-92">drag me</text>
+          <path d="M 50 -104 C 38 -110, 24 -104, 16 -93" />
+          <path d="M 22 -97 L 15 -92 L 23 -89" />
+          <text x="55" y="-99">drag me</text>
         </g>
         {AXES.map((name, i) => {
           const [x, y] = point(i, START[i]);
@@ -133,7 +133,7 @@ const labelPos = AXES.map((_, i) => {
   .taste__chart { display: grid; justify-items: center; gap: var(--space-5); }
   .radar {
     width: 100%;
-    max-width: 460px;
+    max-width: 480px;
     height: auto;
     overflow: visible;
     touch-action: pan-y;

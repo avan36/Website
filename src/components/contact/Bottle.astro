@@ -1,0 +1,49 @@
+---
+// A message in a bottle, bobbing in a little round patch of sea. The island
+// sends people to /contact from its own bottle, and the wipe lands here.
+---
+<div class="bottle" data-wipe-target aria-hidden="true">
+  <svg viewBox="0 0 120 120" class="bottle__svg">
+    <g class="bottle__bob">
+      <g transform="translate(60 64) scale(0.78) rotate(-28) translate(-60 -60)">
+        <rect x="40" y="46" width="40" height="52" rx="15" class="bottle__glass" />
+        <path d="M52 47 V30 Q52 26 56 26 H64 Q68 26 68 30 V47" class="bottle__glass" />
+        <rect x="53.5" y="15" width="13" height="13" rx="3.5" fill="#c98f55" />
+        <rect x="53.5" y="15" width="13" height="4" rx="2" fill="#e0ad77" />
+        <rect x="47" y="56" width="26" height="33" rx="4" fill="#fff6df" />
+        <path d="M51 63 H69 M51 69 H66 M51 75 H68 M51 81 H62" stroke="#c9b48c" stroke-width="2" stroke-linecap="round" />
+        <rect x="58" y="54" width="4" height="37" rx="2" fill="#ff6b5b" />
+        <path d="M45 54 Q44 70 46 90" class="bottle__shine" />
+      </g>
+    </g>
+    <g class="bottle__waves">
+      <path class="bottle__wave bottle__wave--back" d="M-60 86 q15 -7 30 0 t30 0 t30 0 t30 0 t30 0 t30 0 t30 0 t30 0 V130 H-60 Z" />
+      <path class="bottle__wave bottle__wave--front" d="M-60 92 q15 -7 30 0 t30 0 t30 0 t30 0 t30 0 t30 0 t30 0 t30 0 V130 H-60 Z" />
+    </g>
+  </svg>
+</div>
+
+<style>
+  .bottle {
+    width: clamp(112px, 14vw, 148px);
+    aspect-ratio: 1;
+    border-radius: 50%;
+    overflow: hidden;
+    background:
+      radial-gradient(circle at 30% 25%, color-mix(in oklab, var(--sky) 80%, #fff), transparent 60%),
+      linear-gradient(180deg, var(--sky), var(--sea));
+    box-shadow: 0 22px 50px -14px color-mix(in oklab, var(--sea) 70%, transparent), inset 0 -10px 24px rgba(0, 0, 0, 0.12);
+  }
+  .bottle__svg { width: 100%; height: 100%; overflow: visible; }
+  .bottle__glass { fill: rgba(255, 255, 255, 0.32); stroke: #fff; stroke-width: 3; }
+  .bottle__shine { fill: none; stroke: rgba(255, 255, 255, 0.85); stroke-width: 3; stroke-linecap: round; }
+  .bottle__bob { transform-box: view-box; transform-origin: 60px 80px; animation: bob 3.6s ease-in-out infinite; }
+  @keyframes bob {
+    0%, 100% { transform: translateY(0) rotate(-4deg); }
+    50% { transform: translateY(5px) rotate(5deg); }
+  }
+  .bottle__wave { animation: drift 4s linear infinite; }
+  .bottle__wave--back { fill: color-mix(in oklab, var(--sea) 70%, #fff); opacity: 0.8; animation-duration: 6s; animation-direction: reverse; }
+  .bottle__wave--front { fill: var(--sea-deep); opacity: 0.9; }
+  @keyframes drift { to { transform: translateX(60px); } }
+</style>

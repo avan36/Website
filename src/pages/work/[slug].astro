@@ -86,7 +86,7 @@ const isExternal = (href: string) => /^https?:/.test(href);
                 {textLinks.map((l) => (
                   <li>
                     <a class="text-link" href={l.href} rel={isExternal(l.href) ? 'noopener' : undefined}>
-                      {l.label}<span class="arrow" aria-hidden="true">{isExternal(l.href) ? ' ↗' : ' →'}</span>
+                      {l.label}<span class="arrow" aria-hidden="true">{isExternal(l.href) ? '↗' : '→'}</span>
                     </a>
                   </li>
                 ))}
@@ -168,7 +168,7 @@ const isExternal = (href: string) => /^https?:/.test(href);
     display: flex; flex-wrap: wrap; gap: var(--space-3) var(--space-6);
   }
   .about__text-links .text-link { white-space: nowrap; }
-  .arrow { display: inline-block; transition: transform var(--dur-2) var(--ease-spring); text-decoration: none; }
+  .arrow { display: inline-block; margin-left: 0.3em; transition: transform var(--dur-2) var(--ease-spring); text-decoration: none; }
   .text-link:hover .arrow { transform: translate(2px, -1px); }
 
   .facts dl {

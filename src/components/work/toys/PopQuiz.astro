@@ -1,3 +1,291 @@
 ---
+// QuizMate: a three-question pop quiz. Right answers flip the card (with
+// confetti); wrong ones give it a little shake and a nudge.
+import ToyFrame from '../ToyFrame.astro';
+
+const questions = [
+  {
+    q: "Which letter doesn't appear in any U.S. state's name?",
+    options: ['J', 'Q', 'X', 'Z'],
+    answer: 1,
+    hints: ['Nope, New Jersey has a J. Try again!', '', 'Nope, Texas and New Mexico both have an X.', 'Nope, Arizona has a Z.'],
+    fact: 'Q is the only letter missing from all 50. J only just makes it, thanks to New Jersey.',
+  },
+  {
+    q: 'How many hearts does an octopus have?',
+    options: ['One', 'Two', 'Three', 'Eight'],
+    answer: 2,
+    hints: ['More than that. Try again!', 'So close. Count again!', '', "That's the arms, not the hearts."],
+    fact: 'Three: two pump blood through the gills, and one sends it around the body.',
+  },
+  {
+    q: 'Which of these mammals can truly fly?',
+    options: ['Flying squirrel', 'Bat', 'Sugar glider', 'Colugo'],
+    answer: 1,
+    hints: ["Flying squirrels glide. They can't flap their way up.", '', 'Sugar gliders glide on flaps of skin.', 'Colugos are champion gliders, but still gliders.'],
+    fact: 'Bats are the only mammals capable of true, powered flight.',
+  },
+];
+const first = questions[0];
 ---
-<div>TODO PopQuiz</div>
+<ToyFrame
+  id="quiz"
+  label="Try it"
+  title="Pop quiz"
+  lede="One question at a time, with feedback the moment you answer. Get it wrong and you get a nudge, not a red X."
+  note="Sample questions written for this page. In QuizMate, teachers write their own."
+  layout="split"
+>
+  <div class="quiz" data-quiz data-questions={JSON.stringify(questions)}>
+    <div class="quiz__card">
+      <div class="quiz__inner">
+        <div class="quiz__face quiz__front">
+          <div class="quiz__meta">
+            <p class="quiz__progress" data-progress>Question 1 of {questions.length}</p>
+            <ol class="quiz__dots" aria-hidden="true">
+              {questions.map((_, i) => <li class:list={{ 'is-on': i === 0 }}></li>)}
+            </ol>
+          </div>
+          <h3 class="quiz__q" tabindex="-1" data-q>{first.q}</h3>
+          <div class="quiz__options" role="group" aria-label="Answers">
+            {first.options.map((o, i) => (
+              <button type="button" class="opt" data-opt={i}>
+                <span class="opt__key" aria-hidden="true">{'ABCD'[i]}</span>
+                <span class="opt__text">{o}</span>
+              </button>
+            ))}
+          </div>
+          <p class="quiz__hint" aria-live="polite" data-hint></p>
+        </div>
+        <div class="quiz__face quiz__back" inert>
+          <p class="quiz__yay" tabindex="-1" data-yay>Correct!</p>
+          <p class="quiz__fact" data-fact></p>
+          <button type="button" class="btn quiz__next" data-next-q>Next question <span aria-hidden="true">→</span></button>
+        </div>
+      </div>
+    </div>
+    <div class="quiz__confetti" aria-hidden="true"></div>
+  </div>
+</ToyFrame>
+
+<style>
+  .quiz { position: relative; display: grid; justify-items: center; }
+  .quiz__card { width: min(100%, 480px); perspective: 1400px; }
+  .quiz__inner {
+    display: grid;
+    transform-style: preserve-3d;
+    transition: transform 760ms var(--ease-spring);
+  }
+  .quiz.is-flipped .quiz__inner { transform: rotateY(180deg); }
+  .quiz__face {
+    grid-area: 1 / 1;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    min-height: 370px;
+    padding: clamp(22px, 4vw, 34px);
+    border-radius: var(--r-lg);
+    background: var(--bg-raised);
+    box-shadow: var(--shadow-2), inset 0 0 0 1px var(--line);
+  }
+  .quiz__front { display: grid; align-content: start; gap: var(--space-5); }
+  .quiz__back {
+    transform: rotateY(180deg);
+    display: grid;
+    align-content: center;
+    justify-items: center;
+    gap: var(--space-4);
+    text-align: center;
+    background:
+      radial-gradient(120% 80% at 50% 0%, color-mix(in oklab, var(--p) 22%, transparent), transparent 70%),
+      var(--bg-raised);
+  }
+  .quiz__meta { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); }
+  .quiz__progress { font-size: var(--step--1); font-weight: 650; color: var(--ink-3); }
+  .quiz__dots { display: flex; gap: 6px; list-style: none; margin: 0; padding: 0; }
+  .quiz__dots li { width: 22px; height: 6px; border-radius: 3px; background: var(--line-strong); transition: background var(--dur-3); }
+  .quiz__dots li.is-on { background: var(--p); }
+  .quiz__q {
+    font-size: var(--step-2);
+    font-weight: 700;
+    line-height: 1.15;
+    letter-spacing: -0.025em;
+    outline: none;
+  }
+  .quiz__options { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
+  .opt {
+    display: flex; align-items: center; gap: var(--space-3);
+    min-height: 54px;
+    padding: 10px 14px 10px 10px;
+    border: 0;
+    border-radius: var(--r-md);
+    background: var(--bg);
+    box-shadow: inset 0 0 0 1.5px var(--line-strong);
+    text-align: left;
+    font-weight: 650;
+    cursor: pointer;
+    transition: box-shadow var(--dur-2), background var(--dur-2), transform var(--dur-2) var(--ease-spring), opacity var(--dur-2);
+  }
+  .opt:hover:not(:disabled) { box-shadow: inset 0 0 0 2px var(--p); transform: translateY(-2px); }
+  .opt:active:not(:disabled) { transform: scale(0.97); }
+  .opt__key {
+    flex: none;
+    display: grid; place-items: center;
+    width: 30px; height: 30px;
+    border-radius: 9px;
+    background: color-mix(in oklab, var(--p) 14%, var(--bg-raised));
+    color: color-mix(in oklab, var(--p) 75%, var(--ink));
+    font-size: 13px;
+    font-weight: 750;
+  }
+  .opt.is-wrong { cursor: default; opacity: 0.55; box-shadow: inset 0 0 0 1.5px color-mix(in oklab, var(--coral) 60%, transparent); }
+  .opt.is-wrong .opt__text { text-decoration: line-through; text-decoration-color: var(--coral); text-decoration-thickness: 2px; }
+  .opt.is-wrong .opt__key { background: color-mix(in oklab, var(--coral) 20%, var(--bg-raised)); color: var(--coral); }
+  .opt.is-right { background: color-mix(in oklab, var(--p) 16%, var(--bg-raised)); box-shadow: inset 0 0 0 2px var(--p); }
+  .opt.is-right .opt__key { background: var(--p); color: #fff; }
+  .quiz__hint { min-height: 1.6em; font-size: var(--step--1); color: var(--ink-2); font-weight: 600; }
+
+  .quiz__yay {
+    font-family: var(--font-display);
+    font-size: clamp(2.6rem, 2rem + 3vw, 3.6rem);
+    font-weight: 750;
+    letter-spacing: -0.04em;
+    line-height: 1;
+    color: color-mix(in oklab, var(--p) 80%, var(--ink));
+    outline: none;
+  }
+  .quiz__fact { max-width: 30ch; font-family: var(--font-read); font-size: var(--step-1); line-height: 1.45; color: var(--ink); }
+  .quiz__next { margin-top: var(--space-3); }
+
+  .quiz__confetti { position: absolute; inset: 0; pointer-events: none; overflow: visible; }
+  .quiz__confetti :global(i) { position: absolute; left: 0; top: 0; width: 8px; height: 12px; border-radius: 2px; }
+
+  @media (max-width: 420px) {
+    .quiz__options { grid-template-columns: 1fr; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .quiz__inner { transform: none !important; }
+    .quiz__face { backface-visibility: visible; transition: opacity 200ms; }
+    .quiz__back { transform: none; opacity: 0; }
+    .quiz.is-flipped .quiz__back { opacity: 1; }
+    .quiz.is-flipped .quiz__front { opacity: 0; }
+  }
+</style>
+
+<script>
+  import { reducedMotion } from '../lib';
+
+  type Q = { q: string; options: string[]; answer: number; hints: string[]; fact: string };
+  const COLORS = ['#6c5ce7', '#ffb347', '#ff6b5b', '#4caf6a', '#2b8fb8', '#f2c94c'];
+
+  for (const root of document.querySelectorAll<HTMLElement>('[data-quiz]')) {
+    const qs = JSON.parse(root.dataset.questions || '[]') as Q[];
+    const front = root.querySelector<HTMLElement>('.quiz__front')!;
+    const back = root.querySelector<HTMLElement>('.quiz__back')!;
+    const qEl = root.querySelector<HTMLElement>('[data-q]')!;
+    const progress = root.querySelector<HTMLElement>('[data-progress]')!;
+    const dots = [...root.querySelectorAll<HTMLElement>('.quiz__dots li')];
+    const hint = root.querySelector<HTMLElement>('[data-hint]')!;
+    const yay = root.querySelector<HTMLElement>('[data-yay]')!;
+    const fact = root.querySelector<HTMLElement>('[data-fact]')!;
+    const next = root.querySelector<HTMLButtonElement>('[data-next-q]')!;
+    const opts = [...root.querySelectorAll<HTMLButtonElement>('[data-opt]')];
+    const card = root.querySelector<HTMLElement>('.quiz__card')!;
+    const confetti = root.querySelector<HTMLElement>('.quiz__confetti')!;
+    let at = 0;
+
+    function show(i: number) {
+      at = i;
+      const q = qs[i];
+      qEl.textContent = q.q;
+      progress.textContent = `Question ${i + 1} of ${qs.length}`;
+      dots.forEach((d, j) => d.classList.toggle('is-on', j <= i));
+      opts.forEach((b, j) => {
+        b.querySelector('.opt__text')!.textContent = q.options[j];
+        b.classList.remove('is-wrong', 'is-right');
+        b.disabled = false;
+        b.removeAttribute('aria-label');
+      });
+      hint.textContent = '';
+    }
+
+    function flip(toBack: boolean) {
+      root.classList.toggle('is-flipped', toBack);
+      back.inert = !toBack;
+      front.inert = toBack;
+    }
+
+    function burst(from: HTMLElement) {
+      if (reducedMotion()) return;
+      const box = root.getBoundingClientRect();
+      const b = from.getBoundingClientRect();
+      const ox = b.left + b.width / 2 - box.left, oy = b.top + b.height / 2 - box.top;
+      for (let i = 0; i < 42; i++) {
+        const p = document.createElement('i');
+        p.style.background = COLORS[i % COLORS.length];
+        if (i % 3 === 0) p.style.borderRadius = '50%';
+        confetti.appendChild(p);
+        const ang = -Math.PI / 2 + (Math.random() - 0.5) * Math.PI * 1.3;
+        const v = 120 + Math.random() * 190;
+        const dx = Math.cos(ang) * v, dy = Math.sin(ang) * v;
+        const spin = (Math.random() - 0.5) * 900;
+        p.animate(
+          [
+            { transform: `translate(${ox}px, ${oy}px) rotate(0deg) scale(0.6)`, opacity: 1 },
+            { transform: `translate(${ox + dx * 0.75}px, ${oy + dy * 0.75}px) rotate(${spin * 0.6}deg) scale(1)`, opacity: 1, offset: 0.45 },
+            { transform: `translate(${ox + dx}px, ${oy + dy + 220}px) rotate(${spin}deg) scale(0.9)`, opacity: 0 },
+          ],
+          { duration: 1100 + Math.random() * 500, easing: 'cubic-bezier(.2,.7,.4,1)', fill: 'forwards' },
+        ).onfinish = () => p.remove();
+      }
+    }
+
+    opts.forEach((b, j) => {
+      b.addEventListener('click', () => {
+        const q = qs[at];
+        if (b.disabled) return;
+        if (j === q.answer) {
+          b.classList.add('is-right');
+          opts.forEach((o) => (o.disabled = true));
+          hint.textContent = '';
+          burst(b);
+          fact.textContent = q.fact;
+          const last = at === qs.length - 1;
+          next.firstChild!.textContent = last ? 'Play again ' : 'Next question ';
+          setTimeout(() => {
+            flip(true);
+            yay.focus({ preventScroll: true });
+          }, reducedMotion() ? 0 : 380);
+        } else {
+          b.classList.add('is-wrong');
+          b.disabled = true;
+          b.setAttribute('aria-label', `${q.options[j]}, not quite`);
+          hint.textContent = q.hints[j] || 'Not quite. Try another one!';
+          if (!reducedMotion()) {
+            card.animate(
+              [
+                { transform: 'translateX(0)' },
+                { transform: 'translateX(-10px) rotate(-1deg)' },
+                { transform: 'translateX(9px) rotate(1deg)' },
+                { transform: 'translateX(-6px)' },
+                { transform: 'translateX(4px)' },
+                { transform: 'translateX(0)' },
+              ],
+              { duration: 420, easing: 'ease-out' },
+            );
+          }
+          // Keep keyboard focus somewhere useful once the button disables itself.
+          (opts.find((o) => !o.disabled) ?? qEl).focus();
+        }
+      });
+    });
+
+    next.addEventListener('click', () => {
+      flip(false);
+      // Swap the question while the card is turned away.
+      setTimeout(() => {
+        show((at + 1) % qs.length);
+        qEl.focus({ preventScroll: true });
+      }, reducedMotion() ? 0 : 200);
+    });
+  }
+</script>

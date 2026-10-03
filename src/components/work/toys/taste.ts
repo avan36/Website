@@ -38,7 +38,7 @@ export function match(a: readonly number[], b: readonly number[]): number {
   return Math.max(1, 100 * Math.exp(-d2 / 72));
 }
 
-export const RADIUS = 110;
+export const RADIUS = 120;
 
 export function point(axis: number, value: number, r = RADIUS): [number, number] {
   const a = ((-90 + axis * 72) * Math.PI) / 180;

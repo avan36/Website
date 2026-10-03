@@ -17,7 +17,7 @@ import {
   type WebGLProgramParametersWithUniforms,
 } from 'three';
 import { Kit } from './kit';
-import { heightAt, isOpenGround, rockiness, PLAZA } from './shape';
+import { heightAt, isOpenGround, rockiness, PLAZA, PLACES } from './shape';
 import { rng } from '../util/math';
 
 export interface SharedUniforms {
@@ -240,28 +240,31 @@ export function buildNature(uniforms: SharedUniforms) {
   const colliders: Collider[] = [];
   const all: Spot[] = [];
   // Keep a clear sight line in front of each landmark (the camera looks from +z).
-  const nearPlaza = (x: number, z: number) => Math.hypot(x - PLAZA.x, z - PLAZA.z) < 6;
+  const nearPlaza = (x: number, z: number) => Math.hypot(x - PLAZA.x, z - PLAZA.z) < 7;
+  // Tall things stay out of the strip between each place and the camera.
+  const blocksView = (x: number, z: number) =>
+    PLACES.some((p) => z > p.z && z - p.z < 9 && Math.abs(x - p.x) < 4.5) || (Math.abs(x) < 6 && z > 0 && z < 16);
 
   const palms = scatter(
     17,
     rand,
-    (x, z, h) => h > 0.42 && h < 1.05 && rockiness(x, z) < 0.25 && isOpenGround(x, z, 0.6),
+    (x, z, h) => h > 0.42 && h < 1.05 && rockiness(x, z) < 0.25 && isOpenGround(x, z, 0.6) && !(z > 10 && Math.abs(x - 2) < 7),
     3.4,
     all,
     [0.85, 1.15],
   );
   all.push(...palms);
   const trees = scatter(
-    20,
+    16,
     rand,
-    (x, z, h) => h > 1.0 && rockiness(x, z) < 0.3 && isOpenGround(x, z, 1.4) && !nearPlaza(x, z) && z < 14,
-    3.6,
+    (x, z, h) => h > 1.0 && rockiness(x, z) < 0.3 && isOpenGround(x, z, 1.4) && !nearPlaza(x, z) && !blocksView(x, z),
+    4.2,
     all,
   );
   all.push(...trees);
-  const pines = scatter(9, rand, (x, z, h) => h > 1.0 && z < -2 && rockiness(x, z) < 0.5 && isOpenGround(x, z, 1.2), 3, all, [0.9, 1.3]);
+  const pines = scatter(9, rand, (x, z, h) => h > 1.0 && z < -2 && rockiness(x, z) < 0.5 && isOpenGround(x, z, 1.2) && !blocksView(x, z), 3, all, [0.9, 1.3]);
   all.push(...pines);
-  const bushes = scatter(42, rand, (x, z, h) => h > 0.75 && isOpenGround(x, z, 0.2) && !nearPlaza(x, z), 1.6, all, [0.7, 1.3]);
+  const bushes = scatter(30, rand, (x, z, h) => h > 0.75 && isOpenGround(x, z, 0.4) && !nearPlaza(x, z), 1.8, all, [0.7, 1.3]);
   const rocks = scatter(
     34,
     rand,
@@ -270,8 +273,8 @@ export function buildNature(uniforms: SharedUniforms) {
     all,
     [0.6, 1.5],
   );
-  const tufts = scatter(360, rand, (x, z, h) => h > 0.7 && isOpenGround(x, z, -0.7), 0.6, [], [0.8, 1.4]);
-  const flowers = scatter(170, rand, (x, z, h) => h > 0.85 && isOpenGround(x, z, -0.5) && rockiness(x, z) < 0.3, 0.45, [], [0.8, 1.25]);
+  const tufts = scatter(230, rand, (x, z, h) => h > 0.7 && isOpenGround(x, z, -0.7), 0.6, [], [0.8, 1.4]);
+  const flowers = scatter(120, rand, (x, z, h) => h > 0.85 && isOpenGround(x, z, -0.5) && rockiness(x, z) < 0.3, 0.45, [], [0.8, 1.25]);
 
   const palmM = swayMaterials(uniforms, 0.0045, 1.1);
   const treeM = swayMaterials(uniforms, 0.006, 1.3);

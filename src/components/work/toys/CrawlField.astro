@@ -1,3 +1,173 @@
 ---
+// Global Privacy Control: a lighthouse beam sweeps a field of ~11,000 dots,
+// one per website the crawler visited. Only the 11,000+ figure is real; the
+// dots carry no per-site result.
+import ToyFrame from '../ToyFrame.astro';
+import Replay from '../Replay.astro';
 ---
-<div>TODO CrawlField</div>
+<ToyFrame
+  id="crawl"
+  label="See it"
+  title="One dot, one website"
+  lede="The crawler visited each site with Global Privacy Control switched on, then checked whether the site respected it. Here's what that many websites looks like."
+  note="Each dot stands for one site crawled. The dots don't show individual results."
+>
+  <div class="crawl" data-crawl>
+    <div class="crawl__head">
+      <p class="crawl__count">
+        <span class="crawl__num" data-crawl-num>11,000+</span>
+        <span class="crawl__unit">websites</span>
+      </p>
+      <Replay attr="data-crawl-replay" />
+    </div>
+    <div class="crawl__field">
+      <canvas aria-hidden="true"></canvas>
+      <span class="crawl__beam" aria-hidden="true"></span>
+    </div>
+  </div>
+</ToyFrame>
+
+<style>
+  .crawl { display: grid; gap: var(--space-5); }
+  .crawl__head { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--space-4); flex-wrap: wrap; }
+  .crawl__count { display: flex; align-items: baseline; gap: var(--space-3); flex-wrap: wrap; }
+  .crawl__num {
+    font-family: var(--font-display);
+    font-size: clamp(3rem, 2rem + 4.5vw, 5.5rem);
+    font-weight: 700;
+    line-height: 0.95;
+    letter-spacing: -0.045em;
+    font-variant-numeric: tabular-nums;
+    color: color-mix(in oklab, var(--p) 85%, var(--ink));
+    min-width: 6.2ch;
+  }
+  .crawl__unit { font-size: var(--step-1); font-weight: 650; color: var(--ink-2); }
+  .crawl__field {
+    position: relative;
+    height: clamp(220px, 30vw, 340px);
+    border-radius: var(--r-md);
+    overflow: hidden;
+    background: color-mix(in oklab, var(--bg-raised) 75%, transparent);
+    box-shadow: inset 0 0 0 1px var(--line);
+  }
+  .crawl__field canvas { position: absolute; inset: 10px; width: calc(100% - 20px); height: calc(100% - 20px); }
+  .crawl__beam {
+    position: absolute;
+    top: -10%; bottom: -10%;
+    left: 0;
+    width: 160px;
+    margin-left: -80px;
+    background: linear-gradient(90deg, transparent, color-mix(in oklab, var(--p) 22%, transparent) 45%, color-mix(in oklab, #fff 55%, transparent) 50%, color-mix(in oklab, var(--p) 22%, transparent) 55%, transparent);
+    opacity: 0;
+    pointer-events: none;
+    mix-blend-mode: plus-lighter;
+  }
+</style>
+
+<script>
+  import { cssVar, easeInOutCubic, fitCanvas, onSchemeChange, reducedMotion, whenVisible } from '../lib';
+
+  const N = 11000;
+
+  for (const root of document.querySelectorAll<HTMLElement>('[data-crawl]')) {
+    const canvas = root.querySelector('canvas')!;
+    const field = root.querySelector<HTMLElement>('.crawl__field')!;
+    const beam = root.querySelector<HTMLElement>('.crawl__beam')!;
+    const num = root.querySelector<HTMLElement>('[data-crawl-num]')!;
+    const replay = root.querySelector<HTMLButtonElement>('[data-crawl-replay]');
+
+    let dots: { x: number; y: number; a: number }[] = [];
+    let size = 1;
+    let lit = 0;
+    let started = false;
+    let raf = 0;
+    let ctx: CanvasRenderingContext2D;
+    let W = 0, H = 0;
+
+    function layout() {
+      ({ ctx, w: W, h: H } = fitCanvas(canvas));
+      // Pick a grid with at least N cells that fills the box.
+      const s = Math.sqrt((W * H) / N);
+      const cols = Math.max(1, Math.floor(W / s));
+      const rows = Math.ceil(N / cols);
+      const sx = W / cols, sy = H / rows;
+      size = Math.max(1, Math.min(sx, sy) * 0.62);
+      dots = [];
+      for (let i = 0; i < N; i++) {
+        const c = i % cols, r = Math.floor(i / cols);
+        dots.push({ x: c * sx + (sx - size) / 2, y: r * sy + (sy - size) / 2, a: 0.45 + Math.random() * 0.55 });
+      }
+      // Light them in a wavefront from left to right, ragged at the edge.
+      const key = dots.map((d) => d.x / W + Math.random() * 0.12);
+      const idx = dots.map((_, i) => i).sort((a, b) => key[a] - key[b]);
+      dots = idx.map((i) => dots[i]);
+    }
+
+    function paint(from: number, to: number) {
+      const color = cssVar(root, '--p') || '#e5484d';
+      ctx.fillStyle = color;
+      for (let i = from; i < to; i++) {
+        const d = dots[i];
+        ctx.globalAlpha = d.a;
+        ctx.fillRect(d.x, d.y, size, size);
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    function base() {
+      ctx.clearRect(0, 0, W, H);
+      ctx.fillStyle = cssVar(root, '--line-strong') || 'rgba(0,0,0,.15)';
+      for (const d of dots) ctx.fillRect(d.x, d.y, size, size);
+    }
+
+    const fmt = (n: number) => n.toLocaleString('en-US');
+
+    function play() {
+      cancelAnimationFrame(raf);
+      started = true;
+      base();
+      lit = 0;
+      if (reducedMotion()) {
+        paint(0, N);
+        lit = N;
+        num.textContent = '11,000+';
+        return;
+      }
+      num.textContent = '0';
+      const t0 = performance.now();
+      const dur = 2800;
+      const frame = (now: number) => {
+        const t = Math.min(1, (now - t0) / dur);
+        const e = easeInOutCubic(t);
+        const next = Math.round(N * e);
+        paint(lit, next);
+        lit = next;
+        num.textContent = t < 1 ? fmt(Math.floor(next / 10) * 10) : '11,000+';
+        beam.style.opacity = String(Math.min(1, t * 6, (1 - t) * 6));
+        beam.style.transform = `translateX(${(e * 1.08 * field.clientWidth).toFixed(1)}px)`;
+        if (t < 1) raf = requestAnimationFrame(frame);
+      };
+      raf = requestAnimationFrame(frame);
+    }
+
+    function redraw() {
+      if (!started) return;
+      layout();
+      base();
+      paint(0, lit);
+    }
+
+    layout();
+    base();
+    // Until it plays, the number reads in full (no-JS and screen readers see it too).
+    replay?.addEventListener('click', play);
+    whenVisible(root, play, 0.4);
+    let lastW = field.clientWidth;
+    new ResizeObserver(() => {
+      if (field.clientWidth === lastW) return;
+      lastW = field.clientWidth;
+      redraw();
+    }).observe(field);
+    onSchemeChange(redraw);
+  }
+</script>

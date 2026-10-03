@@ -89,12 +89,12 @@ function rawHeight(x: number, z: number) {
 
 type Spot = { x: number; z: number; radius: number; pad: number; labelY: number; hitR: number; hitH: number };
 const SPOTS: Record<Exclude<PlaceKind, 'pier' | 'bottle'>, Spot> = {
-  tree: { ...TREE, radius: 1.7, pad: 4.5, labelY: 11.2, hitR: 4.2, hitH: 10.5 },
-  cabin: { x: -13, z: -3, radius: 2.7, pad: 4.6, labelY: 5.1, hitR: 3.2, hitH: 4.8 },
-  schoolhouse: { x: -11, z: 9.5, radius: 2.6, pad: 4.4, labelY: 6.6, hitR: 3.0, hitH: 6.2 },
-  taproom: { x: 12.5, z: 7.5, radius: 2.7, pad: 4.6, labelY: 4.9, hitR: 3.2, hitH: 4.6 },
-  depot: { x: 12, z: -5.5, radius: 2.5, pad: 4.4, labelY: 4.2, hitR: 3.2, hitH: 4.0 },
-  lighthouse: { ...LIGHTHOUSE, radius: 1.7, pad: 3.2, labelY: 10.4, hitR: 2.4, hitH: 10 },
+  tree: { ...TREE, radius: 1.7, pad: 4.5, labelY: 10.9, hitR: 4.2, hitH: 10.5 },
+  cabin: { x: -13, z: -3, radius: 2.7, pad: 4.6, labelY: 4.9, hitR: 3.2, hitH: 4.8 },
+  schoolhouse: { x: -11, z: 9.5, radius: 2.6, pad: 4.4, labelY: 6.3, hitR: 3.0, hitH: 6.2 },
+  taproom: { x: 12.5, z: 7.5, radius: 2.7, pad: 4.6, labelY: 4.6, hitR: 3.2, hitH: 4.6 },
+  depot: { x: 12, z: -5.5, radius: 2.5, pad: 4.4, labelY: 3.6, hitR: 3.2, hitH: 4.0 },
+  lighthouse: { ...LIGHTHOUSE, radius: 1.7, pad: 3.2, labelY: 9.8, hitR: 2.4, hitH: 10 },
 };
 
 const padHeights = new Map<string, number>();

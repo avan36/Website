@@ -1,0 +1,72 @@
+---
+import Base from '../layouts/Base.astro';
+import SiteHeader from '../components/SiteHeader.astro';
+import SiteFooter from '../components/SiteFooter.astro';
+import EntranceReveal from '../components/work/EntranceReveal.astro';
+import Bottle from '../components/contact/Bottle.astro';
+import ContactForm from '../components/contact/ContactForm.astro';
+import { person } from '../data/projects';
+---
+<Base title="Contact · Ambrose Vannier" description="Say hello to Ambrose Vannier, a software developer who builds apps people love and tools that keep the web honest.">
+  <EntranceReveal slug="contact" />
+  <SiteHeader current="contact" />
+
+  <main id="main" class="contact">
+    <div class="wrap contact__grid">
+      <div class="contact__intro">
+        <Bottle />
+        <p class="kicker rise" style="--i:0">Contact</p>
+        <h1 class="contact__title rise" style="--i:1">Drop me a line.</h1>
+        <p class="contact__lede rise" style="--i:2">
+          I'm always glad to talk about software, privacy, or a project you have in mind. Messages land straight in my inbox.
+        </p>
+        <p class="contact__elsewhere rise" style="--i:3">
+          <a class="text-link" href={person.github} rel="noopener">Or find me on GitHub <span aria-hidden="true">↗</span></a>
+        </p>
+      </div>
+      <div class="contact__form rise" style="--i:2">
+        <ContactForm />
+      </div>
+    </div>
+  </main>
+
+  <SiteFooter />
+</Base>
+
+<style>
+  .contact {
+    position: relative;
+    isolation: isolate;
+    overflow-x: clip;
+    padding-top: clamp(var(--space-5), 5vw, var(--space-8));
+  }
+  .contact::before {
+    content: '';
+    position: absolute;
+    z-index: -1;
+    top: -380px; left: -260px;
+    width: 900px; aspect-ratio: 1;
+    background: radial-gradient(closest-side, color-mix(in oklab, var(--sky) 40%, transparent), transparent 72%);
+    pointer-events: none;
+  }
+  .contact__grid { display: grid; gap: var(--space-7); align-items: start; }
+  .contact__intro { display: grid; gap: var(--space-4); justify-items: start; max-width: 30rem; }
+  .contact__intro :global(.bottle) { margin-bottom: var(--space-4); }
+  .contact__title {
+    font-size: clamp(2.75rem, 1.6rem + 4.6vw, 5.25rem);
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: -0.04em;
+  }
+  .contact__lede { font-family: var(--font-read); font-size: clamp(1.2rem, 1.08rem + 0.5vw, 1.45rem); line-height: 1.5; color: var(--ink-2); }
+  .contact__elsewhere { margin-top: var(--space-2); }
+
+  @media (min-width: 920px) {
+    .contact__grid { grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: var(--space-9); }
+    .contact__intro { position: sticky; top: var(--space-6); padding-top: var(--space-4); }
+  }
+
+  .rise { animation: rise 900ms var(--ease-out) both; animation-delay: calc(var(--i) * 80ms + var(--wipe-delay, 60ms)); }
+  :global(html.is-wiping) .rise { --wipe-delay: 520ms; }
+  @keyframes rise { from { opacity: 0; transform: translateY(14px); } }
+</style>

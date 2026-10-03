@@ -1,0 +1,86 @@
+---
+// Small line icons for each island place, used in the list view.
+interface Props {
+  kind: 'cabin' | 'taproom' | 'tree' | 'lighthouse' | 'schoolhouse' | 'depot' | 'pier' | 'bottle';
+  size?: number;
+}
+const { kind, size = 28 } = Astro.props;
+---
+<svg
+  class="landmark-icon"
+  width={size}
+  height={size}
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="1.8"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+  aria-hidden="true"
+>
+  {kind === 'cabin' && (
+    <>
+      <path d="M3 11.5 12 4l9 7.5" />
+      <path d="M5.5 9.8V20h13V9.8" />
+      <path d="M10 20v-5h4v5" />
+      <path d="M16 6.2V3.5h2v4.3" />
+    </>
+  )}
+  {kind === 'taproom' && (
+    <>
+      <path d="M6 8h9v11a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V8Z" />
+      <path d="M15 10.5h2a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2h-2" />
+      <path d="M6 8c0-2 1.4-3 3-3 .6-1.2 1.6-2 3-2 1.8 0 3 1.4 3 3 1 0 1.5.8 1.5 2" />
+      <path d="M9.5 12v5M12 12v5" />
+    </>
+  )}
+  {kind === 'tree' && (
+    <>
+      <path d="M12 21v-7" />
+      <path d="M12 14l-3-2.5M12 15.5l3-2.5" />
+      <path d="M7.5 15A4.5 4.5 0 0 1 6 6.5 6 6 0 0 1 17.5 6 4.5 4.5 0 0 1 16.5 15Z" />
+    </>
+  )}
+  {kind === 'lighthouse' && (
+    <>
+      <path d="M9 21l1.2-12h3.6L15 21Z" />
+      <path d="M9.5 6h5v3h-5Z" />
+      <path d="M12 3v3" />
+      <path d="M9.7 14h4.6" />
+      <path d="M17.5 6.5 21 5M17.5 8.5 21 10M6.5 6.5 3 5M6.5 8.5 3 10" />
+      <path d="M6 21h12" />
+    </>
+  )}
+  {kind === 'schoolhouse' && (
+    <>
+      <path d="M12 3a4 4 0 0 1 4 4v4.5l1.5 2.5h-11L8 11.5V7a4 4 0 0 1 4-4Z" />
+      <path d="M10.5 17a1.5 1.5 0 0 0 3 0" />
+      <path d="M4 20h16" />
+    </>
+  )}
+  {kind === 'depot' && (
+    <>
+      <path d="M8.5 6.5 10.6 3h2.8l2.3 4" />
+      <path d="M14 5.5l1.7 1.5.6-2.3" />
+      <path d="M18.6 11l1.5 2.6-1.4 2.4h-4.3" />
+      <path d="M16.1 17.6l-1.7-1.6 2.1-.8" />
+      <path d="M9 17.5H4.6l-1.4-2.4 2.2-3.8" />
+      <path d="M4.2 13.4l1.2-2.1 2.1.6" />
+    </>
+  )}
+  {kind === 'pier' && (
+    <>
+      <path d="M4 12h16" />
+      <path d="M6 12v8M12 12v8M18 12v8" />
+      <path d="M13 9V4h5a2 2 0 0 1 2 2v3Z" />
+      <path d="M15 4v-.5" />
+      <path d="M2 20c1.5 0 1.5-1 3-1s1.5 1 3 1 1.5-1 3-1 1.5 1 3 1 1.5-1 3-1 1.5 1 3 1" />
+    </>
+  )}
+  {kind === 'bottle' && (
+    <>
+      <path d="M10 2.8h4M10.5 3v3.2c-2 .9-3 2.6-3 4.6V19a2 2 0 0 0 2 2h5a2 2 0 0 0 2-2v-8.2c0-2-1-3.7-3-4.6V3" />
+      <path d="M10 12.5h4.5M10 15h3" />
+    </>
+  )}
+</svg>

@@ -1,3 +1,267 @@
 ---
+// middle place: a short journal exchange that types itself out, to show a
+// journal that remembers. Scripted, not real model output.
+import ToyFrame from '../ToyFrame.astro';
+import Replay from '../Replay.astro';
+
+const script = [
+  { who: 'me', text: 'Long day. I finally called Grandma back, though.' },
+  { who: 'memory', text: 'From March 3: “I keep meaning to ask Grandma about her garden.”' },
+  { who: 'journal', text: "I'm glad you called. You'd been meaning to ask about her garden for a while. Did the tomatoes come in?" },
+  { who: 'me', text: "They did! She's mailing me a jar of sauce." },
+  { who: 'journal', text: 'That sounds like her. You seem lighter tonight than you did on Sunday.' },
+];
 ---
-<div>TODO JournalChat</div>
+<ToyFrame
+  id="journal"
+  label="See it"
+  title="A journal that remembers"
+  lede="You write a line. It answers like someone who was there last time, picking up the people and threads you mentioned weeks ago."
+  note="An illustration of a middle place conversation, written for this page. Not real app output."
+  layout="split"
+>
+  <div slot="intro" class="intro-actions"><Replay attr="data-journal-replay" /></div>
+
+  <div class="jchat" data-journal data-script={JSON.stringify(script)}>
+    <div class="jchat__phone">
+      <div class="jchat__screen">
+        <div class="jchat__top" aria-hidden="true">
+          <span class="jchat__island"></span>
+          <p class="jchat__app">middle place</p>
+          <p class="jchat__when">Tuesday, 9:41 PM</p>
+        </div>
+        <div class="jchat__thread" aria-hidden="true"></div>
+        <div class="jchat__composer" aria-hidden="true">
+          <p class="jchat__input"><span class="jchat__typed"></span><span class="jchat__caret"></span><span class="jchat__placeholder">Write something…</span></p>
+          <span class="jchat__send">
+            <svg width="16" height="16" viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" /></svg>
+          </span>
+        </div>
+      </div>
+    </div>
+    <ol class="visually-hidden" aria-label="The conversation">
+      {script.map((m) => (
+        <li>{m.who === 'me' ? 'You: ' : m.who === 'journal' ? 'Journal: ' : 'Remembered: '}{m.text}</li>
+      ))}
+    </ol>
+  </div>
+</ToyFrame>
+
+<style>
+  .intro-actions { margin-top: var(--space-3); }
+</style>
+
+<style is:global>
+  .jchat { display: grid; justify-items: center; }
+  .jchat__phone {
+    width: min(100%, 318px);
+    padding: 9px;
+    border-radius: 50px;
+    background: linear-gradient(150deg, #3a3631, #121110 55%);
+    box-shadow: var(--shadow-3), inset 0 0 0 1.5px rgba(255, 255, 255, 0.14), inset 0 0 0 4px #0b0a09;
+  }
+  .jchat__screen {
+    --mp: #2e9c8f;
+    --paper: #fbf8f2;
+    --ink-j: #26231f;
+    position: relative;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    height: 590px;
+    border-radius: 41px;
+    overflow: hidden;
+    background: var(--paper);
+    color: var(--ink-j);
+    font-size: 14.5px;
+    line-height: 1.42;
+  }
+  .jchat__top { padding: 14px 18px 10px; text-align: center; border-bottom: 1px solid rgba(38, 35, 31, 0.07); }
+  .jchat__island { display: block; width: 92px; height: 26px; margin: 0 auto 12px; border-radius: 20px; background: #0b0a09; }
+  .jchat__app { font-family: var(--font-read); font-style: italic; font-size: 18px; font-weight: 500; }
+  .jchat__when { font-size: 11.5px; color: #8b8378; letter-spacing: 0.02em; }
+
+  .jchat__thread {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    gap: 9px;
+    padding: 14px 14px 10px;
+    overflow: hidden;
+  }
+  .jmsg {
+    max-width: 84%;
+    padding: 9px 13px;
+    border-radius: 19px;
+    overflow-wrap: anywhere;
+  }
+  .jmsg--me {
+    align-self: flex-end;
+    background: var(--mp);
+    color: #fff;
+    border-bottom-right-radius: 6px;
+  }
+  .jmsg--journal {
+    align-self: flex-start;
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(38, 35, 31, 0.08), 0 0 0 1px rgba(38, 35, 31, 0.05);
+    border-bottom-left-radius: 6px;
+    font-family: var(--font-read);
+    font-size: 15.5px;
+    line-height: 1.4;
+  }
+  .jmsg--journal .w { opacity: 0; filter: blur(3px); transition: opacity 500ms ease, filter 500ms ease; }
+  .jmsg--journal .w.on { opacity: 1; filter: none; }
+  .jmsg--memory {
+    align-self: flex-start;
+    display: flex; gap: 7px; align-items: flex-start;
+    max-width: 90%;
+    padding: 7px 11px;
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--mp) 11%, #fff);
+    border: 1px dashed color-mix(in srgb, var(--mp) 45%, transparent);
+    color: #2a5e57;
+    font-size: 12px;
+    line-height: 1.35;
+  }
+  .jmsg--memory svg { flex: none; margin-top: 1px; }
+  .jmsg--typing { align-self: flex-start; display: flex; gap: 4px; padding: 13px 14px; background: #fff; border-radius: 19px; border-bottom-left-radius: 6px; box-shadow: 0 0 0 1px rgba(38, 35, 31, 0.05); }
+  .jmsg--typing i { width: 7px; height: 7px; border-radius: 50%; background: #b3aca2; animation: jdot 1.1s ease-in-out infinite; }
+  .jmsg--typing i:nth-child(2) { animation-delay: 0.15s; }
+  .jmsg--typing i:nth-child(3) { animation-delay: 0.3s; }
+  @keyframes jdot { 0%, 60%, 100% { transform: none; opacity: 0.5; } 30% { transform: translateY(-4px); opacity: 1; } }
+  .jmsg.enter { animation: jin 520ms var(--ease-out) both; }
+  .jmsg--me.enter { transform-origin: 100% 100%; }
+  .jmsg--journal.enter, .jmsg--memory.enter, .jmsg--typing.enter { transform-origin: 0 100%; }
+  @keyframes jin { from { opacity: 0; transform: translateY(10px) scale(0.94); } }
+
+  .jchat__composer {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 12px 22px;
+    border-top: 1px solid rgba(38, 35, 31, 0.07);
+    background: #fff;
+  }
+  .jchat__input {
+    flex: 1;
+    min-height: 38px;
+    padding: 8px 14px;
+    border-radius: 19px;
+    background: #f4f0e8;
+    font-size: 14px;
+    line-height: 22px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    direction: ltr;
+  }
+  .jchat__placeholder { color: #a39b90; }
+  .jchat__typed:not(:empty) ~ .jchat__placeholder { display: none; }
+  .jchat__caret { display: none; width: 1.5px; height: 17px; margin-left: 1px; vertical-align: -3px; background: var(--mp); animation: jblink 1s steps(1) infinite; }
+  .jchat.is-typing .jchat__caret { display: inline-block; }
+  .jchat.is-typing .jchat__placeholder { display: none; }
+  @keyframes jblink { 50% { opacity: 0; } }
+  .jchat__send {
+    flex: none;
+    display: grid; place-items: center;
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    background: #d9d3c9;
+    color: #fff;
+    transition: background 200ms, transform 200ms var(--ease-spring);
+  }
+  .jchat.can-send .jchat__send { background: var(--mp); }
+  .jchat.sent .jchat__send { transform: scale(0.86); }
+</style>
+
+<script>
+  import { reducedMotion, sleep, whenVisible } from '../lib';
+
+  type Line = { who: 'me' | 'journal' | 'memory'; text: string };
+
+  const MEMORY_ICON =
+    '<svg width="13" height="13" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5M12 8v4l3 2" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+  for (const root of document.querySelectorAll<HTMLElement>('[data-journal]')) {
+    const script = JSON.parse(root.dataset.script || '[]') as Line[];
+    const thread = root.querySelector<HTMLElement>('.jchat__thread')!;
+    const typed = root.querySelector<HTMLElement>('.jchat__typed')!;
+    const replay = root.closest('.toy')?.querySelector<HTMLButtonElement>('[data-journal-replay]');
+    let run = 0;
+
+    const bubble = (cls: string) => {
+      const el = document.createElement('div');
+      el.className = `jmsg jmsg--${cls} enter`;
+      thread.appendChild(el);
+      return el;
+    };
+
+    function showAll() {
+      thread.textContent = '';
+      typed.textContent = '';
+      root.classList.remove('is-typing', 'can-send');
+      for (const line of script) {
+        const el = bubble(line.who);
+        el.classList.remove('enter');
+        if (line.who === 'memory') el.innerHTML = MEMORY_ICON;
+        el.append(document.createTextNode(line.text));
+      }
+    }
+
+    async function play() {
+      const id = ++run;
+      const alive = () => id === run;
+      if (reducedMotion()) return showAll();
+      thread.textContent = '';
+      typed.textContent = '';
+      await sleep(500);
+      for (const line of script) {
+        if (!alive()) return;
+        if (line.who === 'me') {
+          root.classList.add('is-typing');
+          for (const ch of line.text) {
+            if (!alive()) return;
+            typed.textContent += ch;
+            root.classList.add('can-send');
+            await sleep(ch === ' ' ? 55 : 28 + Math.random() * 46);
+          }
+          await sleep(380);
+          if (!alive()) return;
+          root.classList.add('sent');
+          typed.textContent = '';
+          root.classList.remove('is-typing', 'can-send');
+          bubble('me').textContent = line.text;
+          await sleep(160);
+          root.classList.remove('sent');
+          await sleep(650);
+        } else if (line.who === 'memory') {
+          const el = bubble('memory');
+          el.innerHTML = MEMORY_ICON;
+          el.append(document.createTextNode(line.text));
+          await sleep(1100);
+        } else {
+          const dots = bubble('typing');
+          dots.innerHTML = '<i></i><i></i><i></i>';
+          await sleep(1300);
+          if (!alive()) return;
+          dots.remove();
+          const el = bubble('journal');
+          const words = line.text.split(' ').map((w, i) => {
+            const s = document.createElement('span');
+            s.className = 'w';
+            s.textContent = (i ? ' ' : '') + w;
+            el.appendChild(s);
+            return s;
+          });
+          for (const w of words) {
+            if (!alive()) return;
+            w.classList.add('on');
+            await sleep(75);
+          }
+          await sleep(1200);
+        }
+      }
+    }
+
+    replay?.addEventListener('click', () => void play());
+    whenVisible(root, () => void play(), 0.45);
+  }
+</script>

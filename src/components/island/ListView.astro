@@ -1,0 +1,345 @@
+---
+// The plain-HTML home page: server rendered, fully readable without JS or
+// WebGL, and the default for reduced motion. Also reachable from the HUD.
+import { person, projects } from '../../data/projects';
+import LandmarkIcon from './LandmarkIcon.astro';
+import SiteFooter from '../SiteFooter.astro';
+---
+<div class="isl-list" id="list-view">
+  <header class="lv-header wrap">
+    <a class="lv-brand" href="/" aria-label={`${person.name}, home`}>
+      <img src="/media/monogram.svg" width="40" height="40" alt="" />
+      <span class="lv-brand__text">
+        <span class="lv-brand__name">{person.name}</span>
+        <span class="lv-brand__role">{person.role}</span>
+      </span>
+    </a>
+    <nav class="lv-nav" aria-label="Primary">
+      <button type="button" class="lv-play lv-navplay" data-isl-play>
+        <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15a1 1 0 0 0 1.5.9l12-7.5a1 1 0 0 0 0-1.8l-12-7.5A1 1 0 0 0 7 4.5Z" fill="currentColor" /></svg>
+        Play the island
+      </button>
+      <a href="#work">Work</a>
+      <a href="/blog">Writing</a>
+      <a href="/contact">Contact</a>
+    </nav>
+  </header>
+
+  <section class="lv-hero wrap" aria-labelledby="list-top">
+    <div class="lv-hero__copy">
+      <p class="kicker">{person.role}</p>
+      <h1 id="list-top" tabindex="-1">Hi, I'm Ambrose.</h1>
+      <p class="lv-lede">{person.intro}</p>
+      <div class="lv-actions">
+        <a class="btn" href="#work">See my work</a>
+        <button type="button" class="btn btn-ghost lv-play" data-isl-play>
+          <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15a1 1 0 0 0 1.5.9l12-7.5a1 1 0 0 0 0-1.8l-12-7.5A1 1 0 0 0 7 4.5Z" fill="currentColor" /></svg>
+          Play the island
+        </button>
+      </div>
+      <p class="lv-note lv-play-note">This site is also a tiny island you can walk around. Every place on it is something I've made.</p>
+    </div>
+    <figure class="lv-art" aria-hidden="true">
+      <svg viewBox="0 0 480 400" width="480" height="400">
+        <defs>
+          <linearGradient id="lv-sky" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#79c3ea" />
+            <stop offset="0.55" stop-color="#c4e6f2" />
+            <stop offset="1" stop-color="#ffd7b5" />
+          </linearGradient>
+          <linearGradient id="lv-sea" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#5fd0c6" />
+            <stop offset="0.35" stop-color="#2b8fb8" />
+            <stop offset="1" stop-color="#135a7a" />
+          </linearGradient>
+          <clipPath id="lv-clip"><rect x="20" y="20" width="440" height="360" rx="44" /></clipPath>
+        </defs>
+        <g clip-path="url(#lv-clip)">
+          <rect x="0" y="0" width="480" height="400" fill="url(#lv-sky)" />
+          <circle cx="360" cy="96" r="30" fill="#ffc46b" />
+          <circle cx="360" cy="96" r="46" fill="#ffc46b" opacity="0.25" />
+          <g class="lv-cloud" fill="#fff">
+            <ellipse cx="110" cy="92" rx="38" ry="16" />
+            <ellipse cx="135" cy="82" rx="26" ry="18" />
+            <ellipse cx="90" cy="86" rx="18" ry="12" />
+          </g>
+          <g class="lv-cloud lv-cloud--slow" fill="#fff" opacity="0.9">
+            <ellipse cx="300" cy="150" rx="30" ry="11" />
+            <ellipse cx="318" cy="143" rx="18" ry="12" />
+          </g>
+          <rect x="0" y="262" width="480" height="140" fill="url(#lv-sea)" />
+          <!-- island -->
+          <ellipse cx="240" cy="272" rx="182" ry="34" fill="#9fe6d8" opacity="0.7" />
+          <ellipse cx="240" cy="266" rx="160" ry="26" fill="#f2dcaa" />
+          <path d="M100 262c20-44 70-64 140-64s120 20 140 64c-40 10-90 14-140 14s-100-4-140-14Z" fill="#8fd16a" />
+          <path d="M150 256c20-26 50-38 90-38 50 0 76 14 96 38-30 8-62 10-96 10s-64-2-90-10Z" fill="#6cbf5a" />
+          <!-- cabin -->
+          <g transform="translate(140 206)">
+            <rect x="0" y="16" width="44" height="30" rx="4" fill="#b98352" />
+            <path d="M-6 18 22 -4l28 22Z" fill="#2e9c8f" />
+            <rect x="17" y="28" width="11" height="18" rx="2" fill="#6b4228" />
+            <rect x="4" y="24" width="9" height="8" rx="1.5" fill="#ffd27a" />
+            <rect x="32" y="-2" width="7" height="14" fill="#a1998e" />
+          </g>
+          <!-- lighthouse -->
+          <g transform="translate(330 168)">
+            <path d="M4 82 9 12h14l5 70Z" fill="#fff6ec" />
+            <path d="M5.4 62 6.8 42h18.4l1.4 20ZM8 28l.7-10h14.6l.7 10Z" fill="#e5484d" />
+            <rect x="8" y="2" width="16" height="11" rx="2" fill="#ffe08a" />
+            <path d="M5 3 16 -8 27 3Z" fill="#e5484d" />
+            <g class="lv-beam"><path d="M24 7 92 -14v38Z" fill="#fff3b0" opacity="0.55" /></g>
+          </g>
+          <!-- tree -->
+          <g transform="translate(232 150)">
+            <rect x="10" y="30" width="12" height="38" rx="5" fill="#8b5e3c" />
+            <circle cx="16" cy="24" r="30" fill="#4caf6a" />
+            <circle cx="-4" cy="34" r="18" fill="#3f9a4f" />
+            <circle cx="36" cy="34" r="18" fill="#3f9a4f" />
+            <circle cx="22" cy="8" r="16" fill="#73cc72" />
+          </g>
+          <!-- palm -->
+          <g class="lv-palm" transform="translate(392 238)">
+            <path d="M0 30C2 14 6 2 14 -12" stroke="#a77a4c" stroke-width="6" fill="none" stroke-linecap="round" />
+            <g transform="translate(14 -12)" fill="#4fb84f">
+              <path d="M0 0c-14-8-28-6-36 4 12-4 24-4 36-4Z" />
+              <path d="M0 0c12-10 26-10 34-2-12-2-22-1-34 2Z" />
+              <path d="M0 0c-4-14 2-24 12-28-6 9-9 18-12 28Z" />
+              <path d="M0 0c-10 6-14 16-12 26 3-10 7-18 12-26Z" />
+            </g>
+          </g>
+          <!-- explorer -->
+          <g class="lv-explorer" transform="translate(222 222)">
+            <ellipse cx="14" cy="36" rx="13" ry="3" fill="#3a2a1a" opacity="0.18" />
+            <circle cx="14" cy="20" r="15" fill="#fffaf1" />
+            <circle cx="9" cy="17" r="2.2" fill="#1f1a17" />
+            <circle cx="19" cy="17" r="2.2" fill="#1f1a17" />
+            <ellipse cx="6" cy="22" rx="2.4" ry="1.4" fill="#ff9e9e" />
+            <ellipse cx="22" cy="22" rx="2.4" ry="1.4" fill="#ff9e9e" />
+            <path d="M2 27c8 4 16 4 24 0v4c-8 4-16 4-24 0Z" fill="#ff5a36" />
+            <path d="M14 5c0-3 1-5 3-6-1 2 0 3 2 3" stroke="#57c15a" stroke-width="2" fill="none" stroke-linecap="round" />
+          </g>
+          <!-- waves -->
+          <g class="lv-waves" stroke="#e8fbff" stroke-width="3" fill="none" stroke-linecap="round" opacity="0.8">
+            <path d="M40 318q12-8 24 0t24 0" />
+            <path d="M330 340q12-8 24 0t24 0" />
+            <path d="M150 366q12-8 24 0t24 0" />
+          </g>
+          <!-- boat -->
+          <g class="lv-boat" transform="translate(60 268)">
+            <path d="M0 10h40l-6 9H6Z" fill="#fffaf0" />
+            <path d="M20 -22v32" stroke="#7d5134" stroke-width="2" />
+            <path d="M22 -20c8 6 12 14 13 26H22Z" fill="#fffaf0" />
+            <path d="M18 -14c-5 4-8 10-9 18h9Z" fill="#ff5a36" />
+          </g>
+        </g>
+      </svg>
+    </figure>
+  </section>
+
+  <section id="work" class="lv-work wrap" aria-labelledby="work-title">
+    <div class="lv-section-head">
+      <h2 id="work-title">Things I've made</h2>
+      <p>Apps, research and tools. Each one is a place on the island.</p>
+    </div>
+    <ul class="lv-grid" role="list">
+      {projects.map((p) => (
+        <li class="lv-card" style={`--c: ${p.hex}`}>
+          <div class="lv-card__top">
+            <span class="lv-card__glyph"><LandmarkIcon kind={p.landmark} size={26} /></span>
+            <span class="lv-card__place">{p.landmarkName}</span>
+            {p.icon && <img class="lv-card__icon" src={p.icon} width="52" height="52" alt="" loading="lazy" decoding="async" />}
+          </div>
+          <div class="lv-card__body">
+            <h3><a class="lv-card__link" href={`/work/${p.slug}`}>{p.name}</a></h3>
+            <p class="lv-card__blurb">{p.blurb}</p>
+            <p class="lv-card__meta">{p.platforms}</p>
+          </div>
+          <span class="lv-card__arrow" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+          </span>
+        </li>
+      ))}
+    </ul>
+  </section>
+
+  <section class="lv-more wrap" aria-label="More">
+    <a class="lv-more__card" href="/blog" style="--c: #2b8fb8">
+      <span class="lv-card__glyph"><LandmarkIcon kind="pier" size={26} /></span>
+      <span>
+        <span class="lv-more__title">Writing</span>
+        <span class="lv-more__text">Notes and essays, posted from the end of the pier.</span>
+      </span>
+    </a>
+    <a class="lv-more__card" href="/contact" style="--c: #ff5a36">
+      <span class="lv-card__glyph"><LandmarkIcon kind="bottle" size={26} /></span>
+      <span>
+        <span class="lv-more__title">Contact</span>
+        <span class="lv-more__text">Say hello. I read every message.</span>
+      </span>
+    </a>
+  </section>
+
+  <SiteFooter />
+</div>
+
+<style>
+  .isl-list { min-height: 100dvh; }
+  .lv-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-5);
+    padding-block: var(--space-5);
+  }
+  .lv-brand { display: inline-flex; align-items: center; gap: var(--space-3); text-decoration: none; }
+  .lv-brand img { border-radius: 12px; transition: transform var(--dur-3) var(--ease-spring); }
+  .lv-brand:hover img { transform: rotate(-10deg) scale(1.08); }
+  .lv-brand__text { display: grid; line-height: 1.15; }
+  .lv-brand__name { font-family: var(--font-display); font-weight: 700; font-size: var(--step-1); letter-spacing: -0.02em; }
+  .lv-brand__role { font-size: var(--step--1); color: var(--ink-3); font-weight: 550; }
+  .lv-nav { display: flex; align-items: center; gap: clamp(var(--space-3), 2.4vw, var(--space-6)); font-weight: 600; }
+  .lv-nav a { text-decoration: none; color: var(--ink-2); }
+  .lv-nav a:hover { color: var(--ink); }
+
+  .lv-play { display: none !important; }
+  :global(html.isl-gl) .lv-play { display: inline-flex !important; }
+  :global(html.isl-gl) .lv-play-note { display: block; }
+  .lv-play-note { display: none; }
+  .lv-navplay {
+    align-items: center;
+    gap: 8px;
+    padding: 9px 16px;
+    border: 0;
+    border-radius: var(--r-pill);
+    background: var(--accent);
+    color: var(--accent-ink);
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: var(--shadow-1);
+    transition: transform var(--dur-2) var(--ease-spring), box-shadow var(--dur-2);
+  }
+  .lv-navplay:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); }
+
+  .lv-hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+    align-items: center;
+    gap: var(--space-7);
+    padding-block: clamp(var(--space-6), 6vw, var(--space-9)) var(--space-8);
+  }
+  .lv-hero h1 { font-size: var(--step-5); font-weight: 750; letter-spacing: -0.04em; margin-top: var(--space-3); }
+  .lv-hero h1:focus { outline: none; }
+  .lv-lede { margin-top: var(--space-5); font-size: var(--step-1); line-height: 1.5; color: var(--ink-2); max-width: 34ch; }
+  .lv-actions { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-top: var(--space-6); }
+  .lv-actions .btn-ghost { align-items: center; }
+  .lv-note { margin-top: var(--space-4); color: var(--ink-3); font-size: var(--step--1); max-width: 40ch; }
+  .lv-art { margin: 0; }
+  .lv-art svg { width: 100%; height: auto; filter: drop-shadow(0 30px 40px rgba(60, 40, 10, 0.16)); }
+  .lv-cloud { animation: lv-drift 14s ease-in-out infinite alternate; }
+  .lv-cloud--slow { animation-duration: 20s; animation-direction: alternate-reverse; }
+  .lv-palm { animation: lv-sway 4s ease-in-out infinite; transform-box: fill-box; transform-origin: 0 100%; }
+  .lv-waves { animation: lv-lap 3s ease-in-out infinite; }
+  .lv-boat { animation: lv-bob 3s ease-in-out infinite; }
+  .lv-explorer { animation: lv-hop 2.4s var(--ease-out) infinite; }
+  .lv-beam { animation: lv-beam 3.2s ease-in-out infinite; transform-box: fill-box; transform-origin: 0 50%; }
+  @keyframes lv-drift { to { transform: translateX(26px); } }
+  @keyframes lv-sway { 50% { transform: translate(392px, 238px) rotate(4deg); } 0%, 100% { transform: translate(392px, 238px) rotate(-2deg); } }
+  @keyframes lv-lap { 50% { transform: translateX(8px); opacity: 0.4; } }
+  @keyframes lv-bob { 50% { transform: translate(64px, 264px) rotate(-3deg); } 0%, 100% { transform: translate(60px, 268px) rotate(2deg); } }
+  @keyframes lv-hop { 0%, 60%, 100% { transform: translate(222px, 222px); } 70% { transform: translate(222px, 210px); } 80% { transform: translate(222px, 222px) scale(1.04, 0.95); } }
+  @keyframes lv-beam { 50% { opacity: 0.2; } }
+
+  .lv-work { padding-top: var(--space-6); scroll-margin-top: var(--space-5); }
+  .lv-section-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--space-3) var(--space-6); margin-bottom: var(--space-6); }
+  .lv-section-head h2 { font-size: var(--step-3); font-weight: 750; }
+  .lv-section-head p { color: var(--ink-3); }
+
+  .lv-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: var(--space-5); }
+  .lv-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    border-radius: var(--r-lg);
+    background: var(--bg-raised);
+    box-shadow: var(--shadow-1), inset 0 0 0 1px var(--line);
+    overflow: hidden;
+    transition: transform var(--dur-3) var(--ease-spring), box-shadow var(--dur-3) var(--ease-out);
+  }
+  .lv-card:hover { transform: translateY(-4px) rotate(-0.4deg); box-shadow: var(--shadow-3), inset 0 0 0 1px var(--line); }
+  .lv-card:focus-within { box-shadow: var(--shadow-2), 0 0 0 3px var(--accent); }
+  .lv-card__top {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    min-height: 92px;
+    padding: var(--space-5);
+    background:
+      radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--c) 30%, transparent), transparent 60%),
+      color-mix(in srgb, var(--c) 13%, var(--bg-raised));
+  }
+  .lv-card__glyph {
+    display: inline-grid;
+    place-items: center;
+    width: 48px;
+    height: 48px;
+    flex: none;
+    border-radius: 16px;
+    background: var(--c);
+    color: #fff;
+    box-shadow: 0 6px 16px color-mix(in srgb, var(--c) 40%, transparent);
+    transition: transform var(--dur-3) var(--ease-spring);
+  }
+  .lv-card:hover .lv-card__glyph { transform: rotate(-8deg) scale(1.08); }
+  .lv-card__place { font-size: var(--step--1); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: color-mix(in srgb, var(--c) 55%, var(--ink)); }
+  .lv-card__icon { margin-left: auto; width: 52px; height: 52px; border-radius: 14px; box-shadow: var(--shadow-2); }
+  .lv-card__body { padding: var(--space-5); padding-right: var(--space-8); display: grid; gap: var(--space-2); }
+  .lv-card h3 { font-size: var(--step-2); font-weight: 720; letter-spacing: -0.03em; }
+  .lv-card__link { text-decoration: none; }
+  .lv-card__link::after { content: ''; position: absolute; inset: 0; border-radius: inherit; }
+  .lv-card__link:focus-visible { outline: none; }
+  .lv-card__blurb { color: var(--ink-2); }
+  .lv-card__meta { margin-top: var(--space-2); font-size: var(--step--1); color: var(--ink-3); font-weight: 550; }
+  .lv-card__arrow {
+    position: absolute;
+    right: var(--space-5);
+    bottom: var(--space-5);
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--bg-sunken);
+    color: var(--ink);
+    transition: transform var(--dur-3) var(--ease-spring), background var(--dur-2), color var(--dur-2);
+  }
+  .lv-card:hover .lv-card__arrow { transform: translateX(4px); background: var(--c); color: #fff; }
+
+  .lv-more { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: var(--space-5); padding-top: var(--space-8); }
+  .lv-more__card {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    padding: var(--space-5);
+    border-radius: var(--r-lg);
+    background: color-mix(in srgb, var(--c) 9%, var(--bg-raised));
+    box-shadow: inset 0 0 0 1px var(--line);
+    text-decoration: none;
+    transition: transform var(--dur-3) var(--ease-spring), box-shadow var(--dur-3);
+  }
+  .lv-more__card:hover { transform: translateY(-3px); box-shadow: var(--shadow-2), inset 0 0 0 1px var(--line); }
+  .lv-more__card > span:last-child { display: grid; gap: 2px; }
+  .lv-more__title { font-family: var(--font-display); font-weight: 720; font-size: var(--step-1); letter-spacing: -0.02em; }
+  .lv-more__text { color: var(--ink-2); }
+
+  @media (max-width: 860px) {
+    .lv-hero { grid-template-columns: 1fr; gap: var(--space-6); }
+    .lv-art { order: -1; max-width: 420px; }
+  }
+  @media (max-width: 560px) {
+    .lv-nav a:not([href='/contact']):not([href='/blog']) { display: none; }
+    .lv-brand__role { display: none; }
+    .lv-navplay { padding: 8px 12px; font-size: var(--step--1); }
+    .lv-header { flex-wrap: wrap; gap: var(--space-3); }
+  }
+</style>

@@ -1,3 +1,249 @@
 ---
+// eQoScan: a laser sweeps a cereal box's barcode, then the packaging
+// footprint card slides in. Qualitative only, no invented numbers.
+import ToyFrame from '../ToyFrame.astro';
+import Replay from '../Replay.astro';
+const bars = [3, 1, 1, 2, 1, 3, 2, 1, 1, 1, 3, 1, 2, 2, 1, 1, 3, 1, 1, 2, 1, 3, 1, 1, 2, 1, 1, 3, 2, 1];
+let x = 0;
+const rects = bars.map((w, i) => {
+  const r = { x, w, ink: i % 2 === 0 };
+  x += w;
+  return r;
+});
 ---
-<div>TODO PackScan</div>
+<ToyFrame
+  id="scan"
+  label="Try it"
+  title="Scan it"
+  lede="Point the camera at a barcode and eQoScan breaks down what the packaging is made of, so you can pick the option with less waste."
+  note="An example product, simplified. Recycling rules vary by town."
+  layout="split"
+>
+  <div slot="intro" class="intro-actions"><Replay attr="data-scan-replay" label="Scan again" /></div>
+
+  <div class="scan" data-scan>
+    <div class="scan__product">
+      <div class="pack" aria-hidden="true">
+        <div class="pack__side"></div>
+        <div class="pack__front">
+          <p class="pack__brand">Oat<br />Crunch</p>
+          <p class="pack__sub">whole grain cereal</p>
+          <svg class="pack__bowl" viewBox="0 0 80 44" width="80" height="44">
+            <circle cx="24" cy="15" r="7" fill="#f3d27a" stroke="#c88a2a" stroke-width="2" />
+            <circle cx="40" cy="11" r="7" fill="#f3d27a" stroke="#c88a2a" stroke-width="2" />
+            <circle cx="56" cy="15" r="7" fill="#f3d27a" stroke="#c88a2a" stroke-width="2" />
+            <path d="M4 18 H76 A36 24 0 0 1 4 18 Z" fill="#fff" />
+            <path d="M10 24 H70" stroke="#2b8fb8" stroke-width="3" stroke-linecap="round" />
+          </svg>
+          <div class="barcode">
+            <svg viewBox={`0 0 ${x} 30`} preserveAspectRatio="none" class="barcode__bars">
+              {rects.filter((r) => r.ink).map((r) => <rect x={r.x} y="0" width={r.w} height="30" />)}
+            </svg>
+            <p class="barcode__digits">0 41234 56789 3</p>
+            <span class="barcode__laser"></span>
+            <span class="barcode__ok">
+              <svg width="18" height="18" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" /></svg>
+            </span>
+            <span class="vf vf--tl"></span><span class="vf vf--tr"></span><span class="vf vf--bl"></span><span class="vf vf--br"></span>
+          </div>
+        </div>
+      </div>
+      <span class="scan__shadow" aria-hidden="true"></span>
+    </div>
+
+    <div class="foot">
+      <p class="foot__kicker">Packaging footprint</p>
+      <p class="foot__name">Oat Crunch cereal</p>
+      <ul class="foot__rows">
+        <li class="foot__row" style="--d:0">
+          <span class="foot__ic" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24"><path d="M3.5 7.5 12 3l8.5 4.5v9L12 21l-8.5-4.5zM3.5 7.5 12 12l8.5-4.5M12 12v9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" /></svg>
+          </span>
+          <span class="foot__what"><b>Box</b>Cardboard</span>
+          <span class="chip chip--ok">Recyclable</span>
+        </li>
+        <li class="foot__row" style="--d:1">
+          <span class="foot__ic" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24"><path d="M6 3h12l-1 3 1.5 15h-13L7 6z M7 6h10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" /></svg>
+          </span>
+          <span class="foot__what"><b>Inner bag</b>Plastic film</span>
+          <span class="chip chip--warn">Not curbside</span>
+        </li>
+      </ul>
+      <div class="foot__verdict" style="--d:2">
+        <span class="meter" aria-hidden="true"><i class="on"></i><i class="on"></i><i></i></span>
+        <span><b>Mostly recyclable</b></span>
+      </div>
+      <p class="foot__tip" style="--d:3">Flatten the box for the bin. The film bag can often go to a store drop-off instead.</p>
+    </div>
+  </div>
+</ToyFrame>
+
+<style>
+  .intro-actions { margin-top: var(--space-3); }
+  .scan {
+    display: grid;
+    justify-items: center;
+    align-items: center;
+    gap: var(--space-6);
+  }
+  @media (min-width: 620px) {
+    .scan { grid-template-columns: auto minmax(0, 340px); justify-content: center; gap: var(--space-7); }
+  }
+
+  /* ---------- The box ---------- */
+  .scan__product { position: relative; padding: 10px 34px 26px 6px; }
+  .pack { position: relative; width: 176px; height: 236px; transform: rotate(-4deg); }
+  .pack__front {
+    position: absolute; inset: 0;
+    display: grid;
+    grid-template-rows: auto auto 1fr auto;
+    justify-items: start;
+    padding: 18px 16px 14px;
+    border-radius: 6px 4px 4px 6px;
+    background:
+      radial-gradient(120% 70% at 20% 0%, #ffe08a, transparent 70%),
+      linear-gradient(170deg, #ffc94d, #f5a52b);
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06), inset -3px 0 0 rgba(0, 0, 0, 0.06);
+    color: #5a2a00;
+    overflow: hidden;
+  }
+  .pack__side {
+    position: absolute;
+    top: 0; left: 100%;
+    width: 28px; height: 100%;
+    background: linear-gradient(90deg, #d98a1c, #c27615);
+    transform-origin: 0 0;
+    transform: skewY(-28deg);
+    border-radius: 0 4px 4px 0;
+  }
+  .pack__brand {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 30px;
+    line-height: 0.9;
+    letter-spacing: -0.04em;
+    color: #fff;
+    text-shadow: 0 2px 0 #c9661a;
+  }
+  .pack__sub { margin-top: 6px; font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; opacity: 0.8; }
+  .pack__bowl { align-self: center; justify-self: center; margin-top: 4px; }
+  .scan__shadow {
+    position: absolute; left: 6%; right: 6%; bottom: 4px; height: 18px;
+    border-radius: 50%;
+    background: radial-gradient(closest-side, rgba(40, 25, 5, 0.28), transparent);
+    z-index: -1;
+  }
+
+  .barcode {
+    position: relative;
+    justify-self: stretch;
+    padding: 7px 8px 4px;
+    border-radius: 4px;
+    background: #fff;
+  }
+  .barcode__bars { display: block; width: 100%; height: 30px; fill: #1d1a16; }
+  .barcode__digits { margin-top: 2px; font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.08em; text-align: center; color: #1d1a16; }
+  .barcode__laser {
+    position: absolute;
+    left: -10px; right: -10px; top: 8px;
+    height: 2px;
+    border-radius: 2px;
+    background: #ff2d2d;
+    box-shadow: 0 0 6px 2px rgba(255, 45, 45, 0.65), 0 0 18px 4px rgba(255, 45, 45, 0.3);
+    opacity: 0;
+  }
+  .barcode__ok {
+    position: absolute; inset: 0;
+    display: grid; place-items: center;
+    border-radius: 4px;
+    background: color-mix(in oklab, var(--p) 72%, transparent);
+    color: #fff;
+    opacity: 0;
+    transform: scale(0.9);
+    transition: opacity 260ms, transform 360ms var(--ease-spring);
+  }
+  .vf { position: absolute; width: 12px; height: 12px; border: 0 solid var(--p); opacity: 0; transition: opacity 240ms, transform 360ms var(--ease-spring); }
+  .vf--tl { left: -8px; top: -8px; border-width: 3px 0 0 3px; border-top-left-radius: 4px; transform: translate(-6px, -6px); }
+  .vf--tr { right: -8px; top: -8px; border-width: 3px 3px 0 0; border-top-right-radius: 4px; transform: translate(6px, -6px); }
+  .vf--bl { left: -8px; bottom: -8px; border-width: 0 0 3px 3px; border-bottom-left-radius: 4px; transform: translate(-6px, 6px); }
+  .vf--br { right: -8px; bottom: -8px; border-width: 0 3px 3px 0; border-bottom-right-radius: 4px; transform: translate(6px, 6px); }
+
+  .scan.is-scanning .vf, .scan.is-done .vf { opacity: 1; transform: none; }
+  .scan.is-scanning .barcode__laser { opacity: 1; animation: sweep 760ms ease-in-out 2 alternate; }
+  @keyframes sweep { from { transform: translateY(0); } to { transform: translateY(36px); } }
+  .scan.is-done .barcode__ok { opacity: 1; transform: none; }
+
+  /* ---------- Footprint card ---------- */
+  .foot {
+    width: min(100%, 340px);
+    display: grid;
+    gap: var(--space-3);
+    padding: var(--space-5);
+    border-radius: var(--r-lg);
+    background: var(--bg-raised);
+    box-shadow: var(--shadow-2), inset 0 0 0 1px var(--line);
+    opacity: 0;
+    transform: translateX(28px) scale(0.97);
+    transition: opacity 420ms var(--ease-out), transform 620ms var(--ease-spring);
+  }
+  @media (max-width: 619px) { .foot { transform: translateY(20px) scale(0.97); } }
+  .scan.is-done .foot { opacity: 1; transform: none; }
+  .foot__kicker { font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: color-mix(in oklab, var(--p) 70%, var(--ink)); }
+  .foot__name { font-family: var(--font-display); font-size: var(--step-1); font-weight: 700; letter-spacing: -0.02em; margin-top: -4px; }
+  .foot__rows { list-style: none; margin: var(--space-2) 0 0; padding: 0; display: grid; gap: var(--space-2); }
+  .foot__row {
+    display: grid;
+    grid-template-columns: 36px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--space-3);
+    padding: 8px 10px 8px 8px;
+    border-radius: var(--r-sm);
+    background: var(--bg);
+  }
+  .foot__ic { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 10px; background: var(--bg-raised); color: var(--ink-2); box-shadow: inset 0 0 0 1px var(--line); }
+  .foot__what { display: grid; font-size: var(--step--1); color: var(--ink-3); line-height: 1.3; }
+  .foot__what b { color: var(--ink); font-size: var(--step-0); font-weight: 650; }
+  .chip { padding: 3px 9px; border-radius: var(--r-pill); font-size: 12px; font-weight: 700; white-space: nowrap; }
+  .chip--ok { background: color-mix(in oklab, var(--p) 18%, var(--bg-raised)); color: color-mix(in oklab, var(--p) 65%, var(--ink)); }
+  .chip--warn { background: color-mix(in oklab, var(--sun) 26%, var(--bg-raised)); color: color-mix(in oklab, #b26a00 80%, var(--ink)); }
+  .foot__verdict { display: flex; align-items: center; gap: var(--space-3); margin-top: var(--space-2); }
+  .meter { display: flex; gap: 4px; }
+  .meter i { width: 18px; height: 8px; border-radius: 4px; background: var(--line-strong); }
+  .meter i.on { background: var(--p); }
+  .foot__tip { font-size: var(--step--1); color: var(--ink-2); line-height: 1.45; }
+
+  .foot__row, .foot__verdict, .foot__tip { opacity: 0; transform: translateY(6px); transition: opacity 400ms var(--ease-out), transform 500ms var(--ease-out); transition-delay: calc(240ms + var(--d) * 110ms); }
+  .scan.is-done .foot__row, .scan.is-done .foot__verdict, .scan.is-done .foot__tip { opacity: 1; transform: none; }
+</style>
+
+<script>
+  import { reducedMotion, sleep, whenVisible } from '../lib';
+
+  for (const root of document.querySelectorAll<HTMLElement>('[data-scan]')) {
+    const replay = root.closest('.toy')?.querySelector<HTMLButtonElement>('[data-scan-replay]');
+    let run = 0;
+
+    async function scan() {
+      const id = ++run;
+      if (reducedMotion()) {
+        root.classList.remove('is-scanning');
+        root.classList.add('is-done');
+        return;
+      }
+      if (root.classList.contains('is-done')) {
+        root.classList.remove('is-done');
+        await sleep(450);
+      }
+      if (id !== run) return;
+      root.classList.add('is-scanning');
+      await sleep(400 + 760 * 2);
+      if (id !== run) return;
+      root.classList.remove('is-scanning');
+      root.classList.add('is-done');
+    }
+
+    replay?.addEventListener('click', () => void scan());
+    whenVisible(root, () => void scan(), 0.45);
+  }
+</script>
