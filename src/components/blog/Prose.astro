@@ -99,8 +99,11 @@
   /* A bold line introducing a list reads as a small label, so tighten the gap */
   .prose p:has(> strong:only-child) + :is(ul, ol) { margin-block-start: 0.6em; }
 
-  @media (max-width: 760px) {
-    .prose ul, .prose ol { padding-inline-start: 1.25em; }
+  /* With room to spare, top-level markers hang in the margin and list text
+     keeps the paragraph edge. */
+  @media (min-width: 880px) {
+    .prose > ul,
+    .prose > ol { padding-inline-start: 0; }
   }
 
   .prose blockquote {

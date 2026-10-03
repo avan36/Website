@@ -42,8 +42,10 @@ const { title, description, image, type = 'website' } = Astro.props;
   .reading-main {
     padding-block: clamp(var(--space-7), 8vw, var(--space-9)) 0;
   }
+  /* 37.5rem, not the shared --max-read (680px): at 21px Newsreader that
+     gives ~69 characters a line instead of ~79. */
   .reading-col {
-    width: min(100% - 2 * var(--gutter), var(--max-read));
+    width: min(100% - 2 * var(--gutter), 37.5rem);
     margin-inline: auto;
   }
 </style>

@@ -1,0 +1,190 @@
+---
+import Reading from '../../layouts/Reading.astro';
+import { getPosts, isoDate, formatDayMonth, yearOf, postUrl, type Post } from '../../components/blog/posts';
+
+const posts = await getPosts();
+
+// Group by year, newest first (posts are already sorted).
+const years: { year: number; posts: Post[] }[] = [];
+for (const post of posts) {
+  const year = yearOf(post.data.date);
+  const last = years.at(-1);
+  if (last?.year === year) last.posts.push(post);
+  else years.push({ year, posts: [post] });
+}
+---
+<Reading title="Writing — Ambrose Vannier" description="Essays and notes by Ambrose Vannier on software, technology and the things he builds.">
+  <header class="index-head">
+    <h1 class="index-title">Writing</h1>
+    <p class="index-intro">
+      Essays and notes on software, technology, and whatever I’m thinking about.
+    </p>
+  </header>
+
+  {years.length === 0 && <p class="index-empty">Nothing here yet.</p>}
+
+  {years.map(({ year, posts }) => (
+    <section class="year" aria-labelledby={`y${year}`}>
+      <h2 class="year__label" id={`y${year}`}>{year}</h2>
+      <ol class="year__list">
+        {posts.map((post) => (
+          <li class="entry">
+            <time class="entry__date" datetime={isoDate(post.data.date)}>{formatDayMonth(post.data.date)}</time>
+            <h3 class="entry__title"><a href={postUrl(post)}>{post.data.title}</a></h3>
+            {post.data.description && <p class="entry__desc">{post.data.description}</p>}
+          </li>
+        ))}
+      </ol>
+    </section>
+  ))}
+
+  <p class="index-feed">
+    <a href="/rss.xml">Follow along by RSS</a>
+  </p>
+</Reading>
+
+<style>
+  .index-head {
+    margin-block-end: clamp(var(--space-7), 7vw, var(--space-8));
+  }
+  .index-title {
+    font-family: var(--font-display);
+    font-size: clamp(2.6rem, 1.6rem + 4vw, 4.5rem);
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: -0.04em;
+  }
+  .index-intro {
+    margin-block-start: var(--space-4);
+    max-width: 34ch;
+    font-family: var(--font-read);
+    font-optical-sizing: auto;
+    font-style: italic;
+    font-size: clamp(1.2rem, 1.08rem + 0.5vw, 1.45rem);
+    line-height: 1.4;
+    color: var(--ink-2);
+  }
+
+  /* A year is a hairline with its number sitting on it; on wide screens the
+     number hangs in the left margin so the titles keep one clean edge. */
+  .year { position: relative; }
+  .year + .year { margin-block-start: var(--space-6); }
+  .year__label {
+    padding-block-end: var(--space-3);
+    border-block-end: 1px solid var(--rule);
+    font-family: var(--font-ui);
+    font-size: var(--step--1);
+    font-weight: 650;
+    letter-spacing: 0.04em;
+    font-variant-numeric: tabular-nums lining-nums;
+    color: var(--muted);
+  }
+
+  .year__list { list-style: none; margin: 0; padding: 0; }
+
+  .entry {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: var(--space-6);
+    align-items: baseline;
+    padding-block: var(--space-6);
+    border-block-end: 1px solid var(--line);
+  }
+  .entry:last-child { border-block-end: 0; }
+
+  .entry__title {
+    grid-column: 1; grid-row: 1;
+    font-family: var(--font-display);
+    font-size: var(--step-2);
+    font-weight: 650;
+    line-height: 1.12;
+    letter-spacing: -0.022em;
+    text-wrap: balance;
+  }
+  .entry__title a {
+    color: var(--ink);
+    text-decoration-line: underline;
+    text-decoration-thickness: 2px;
+    text-underline-offset: 0.16em;
+    text-decoration-color: transparent;
+  }
+  /* The whole entry is the click target; only the title changes on hover. */
+  .entry__title a::after { content: ''; position: absolute; inset: 0; }
+  .entry:hover .entry__title a,
+  .entry__title a:focus-visible { text-decoration-color: var(--link); }
+  .entry__title a:focus-visible { outline: none; }
+  .entry:has(a:focus-visible) {
+    outline: 3px solid var(--accent);
+    outline-offset: 6px;
+    border-radius: 6px;
+  }
+
+  .entry__date {
+    grid-column: 2; grid-row: 1;
+    font-family: var(--font-ui);
+    font-size: var(--step--1);
+    font-weight: 500;
+    font-variant-numeric: tabular-nums lining-nums;
+    white-space: nowrap;
+    color: var(--muted);
+  }
+
+  .entry__desc {
+    grid-column: 1; grid-row: 2;
+    margin-block-start: var(--space-3);
+    max-width: 58ch;
+    font-family: var(--font-read);
+    font-optical-sizing: auto;
+    font-size: clamp(1.06rem, 1rem + 0.3vw, 1.2rem);
+    line-height: 1.5;
+    color: var(--ink-2);
+    text-wrap: pretty;
+  }
+
+  .index-feed {
+    margin-block-start: clamp(var(--space-8), 8vw, var(--space-9));
+    font-family: var(--font-ui);
+    font-size: var(--step--1);
+    font-weight: 600;
+    color: var(--muted);
+  }
+  .index-feed a {
+    color: inherit;
+    text-decoration-line: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.25em;
+    text-decoration-color: var(--rule);
+  }
+  .index-feed a:hover { color: var(--ink); text-decoration-color: currentColor; }
+
+  .index-empty { font-family: var(--font-read); font-style: italic; color: var(--ink-2); }
+
+  @media (min-width: 1080px) {
+    .year__label {
+      position: absolute;
+      inset-inline-end: calc(100% + var(--space-7));
+      inset-block-start: calc(var(--space-6) + 1px);
+      padding: 0;
+      border: 0;
+      line-height: 1.12;
+    }
+    /* An invisible strut at the title's size gives the label the same line box
+       as the first title, so their baselines line up at any viewport width. */
+    .year__label::before {
+      content: '\200b';
+      font-family: var(--font-display);
+      font-size: var(--step-2);
+      font-weight: 650;
+      line-height: 1.12;
+    }
+    .year__list { border-block-start: 1px solid var(--rule); }
+  }
+
+  @media (max-width: 560px) {
+    .entry { grid-template-columns: minmax(0, 1fr); padding-block: var(--space-5); }
+    .entry__date { grid-column: 1; grid-row: 1; margin-block-end: var(--space-2); }
+    .entry__title { grid-row: 2; }
+    .entry__desc { grid-row: 3; }
+  }
+</style>
