@@ -5,7 +5,7 @@ backend:
   repo: avan36/Website
   branch: main
 
-media_folder: media/blog
+media_folder: public/media/blog
 public_folder: /media/blog
 
 collections:

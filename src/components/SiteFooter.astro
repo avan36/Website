@@ -1,0 +1,23 @@
+---
+const year = new Date().getFullYear();
+---
+<footer class="site-footer">
+  <div class="wrap site-footer__row">
+    <p>© {year} Ambrose Vannier</p>
+    <nav aria-label="Footer">
+      <a href="/">The island</a>
+      <a href="/blog">Writing</a>
+      <a href="/contact">Contact</a>
+      <a href="https://github.com/avan36" rel="noopener">GitHub</a>
+      <a href="/rss.xml">RSS</a>
+    </nav>
+  </div>
+</footer>
+
+<style>
+  .site-footer { margin-top: var(--space-10); padding-block: var(--space-7); border-top: 1px solid var(--line); color: var(--ink-3); font-size: var(--step--1); }
+  .site-footer__row { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--space-4); }
+  nav { display: flex; flex-wrap: wrap; gap: var(--space-5); row-gap: var(--space-6); }
+  nav a { text-decoration: none; display: inline-block; padding-block: 12px; margin-block: -12px; }
+  nav a:hover { color: var(--ink); }
+</style>

@@ -1,0 +1,182 @@
+---
+import type { Project } from '../../data/projects';
+import Landmark from './Landmark.astro';
+interface Props { project: Project }
+const { project } = Astro.props;
+---
+<section class="hero">
+  <div class="wrap">
+    <a class="back" href="/">
+      <span class="back__arrow" aria-hidden="true">←</span>
+      Back to the island
+    </a>
+
+    <div class="hero__grid">
+      <div class="hero__text">
+        <p class="kicker hero__kicker rise" style="--i:0">{project.platforms}</p>
+        <h1 class="hero__title">
+          <span class="hero__name rise" style="--i:1">{project.name}<span class="visually-hidden">: </span></span>
+          <span class="hero__headline rise" style="--i:2">{project.headline}</span>
+        </h1>
+      </div>
+
+      <div class="hero__stage">
+        <div class="sun" data-wipe-target>
+          <span class="sun__ripple" aria-hidden="true"></span>
+          <span class="sun__ripple sun__ripple--2" aria-hidden="true"></span>
+          {project.icon
+            ? <img class="sun__icon" src={project.icon} width="256" height="256" alt="" />
+            : <span class="sun__landmark"><Landmark kind={project.landmark} /></span>}
+        </div>
+        <p class="sign">
+          <svg width="14" height="18" viewBox="0 0 14 18" aria-hidden="true"><path d="M7 0C3.1 0 0 3 0 6.9 0 12 7 18 7 18s7-6 7-11.1C14 3 10.9 0 7 0Zm0 9.6a2.6 2.6 0 1 1 0-5.2 2.6 2.6 0 0 1 0 5.2Z" fill="currentColor" /></svg>
+          <span><span class="visually-hidden">On the island: </span>{project.landmarkName}</span>
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .hero {
+    position: relative;
+    padding-block: var(--space-2) clamp(var(--space-7), 7vw, var(--space-9));
+    overflow-x: clip;
+    isolation: isolate;
+  }
+  /* A soft wash of the project color behind the whole hero. */
+  .hero::before {
+    content: '';
+    position: absolute;
+    z-index: -1;
+    inset: -30% -20% auto auto;
+    width: min(1100px, 120vw);
+    aspect-ratio: 1;
+    background: radial-gradient(closest-side, color-mix(in oklab, var(--p) 22%, transparent), transparent 72%);
+    pointer-events: none;
+  }
+
+  .back {
+    display: inline-flex; align-items: center; gap: var(--space-2);
+    min-height: 44px;
+    padding: 8px 16px 8px 12px;
+    margin-left: -4px;
+    border-radius: var(--r-pill);
+    font-size: var(--step--1);
+    font-weight: 650;
+    color: var(--ink-2);
+    text-decoration: none;
+    background: color-mix(in oklab, var(--bg-raised) 70%, transparent);
+    box-shadow: inset 0 0 0 1px var(--line);
+    transition: color var(--dur-2), box-shadow var(--dur-2);
+  }
+  .back:hover { color: var(--ink); box-shadow: inset 0 0 0 1px var(--line-strong); }
+  .back__arrow { display: inline-block; transition: transform var(--dur-2) var(--ease-spring); }
+  .back:hover .back__arrow { transform: translateX(-3px); }
+
+  .hero__grid {
+    display: grid;
+    gap: var(--space-6);
+    margin-top: clamp(var(--space-6), 5vw, var(--space-8));
+  }
+  .hero__text { display: grid; gap: var(--space-4); align-content: center; }
+  .hero__title { display: grid; gap: var(--space-3); }
+  .hero__name {
+    font-size: var(--step-2);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: color-mix(in oklab, var(--p) 72%, var(--ink));
+  }
+  .hero__headline {
+    font-size: clamp(2.5rem, 1.3rem + 4.4vw, 5.25rem);
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: -0.035em;
+    max-width: 13ch;
+    text-wrap: balance;
+  }
+
+  .hero__stage {
+    order: -1;
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+  }
+  .sun {
+    --size: 92px;
+    position: relative;
+    flex: none;
+    width: var(--size);
+    aspect-ratio: 1;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background:
+      radial-gradient(circle at 32% 28%, color-mix(in oklab, var(--p) 55%, #fff) 0%, transparent 58%),
+      var(--p);
+    box-shadow:
+      0 24px 60px -12px color-mix(in oklab, var(--p) 60%, transparent),
+      inset 0 -10px 24px color-mix(in oklab, var(--p) 70%, #000 30%);
+  }
+  .sun__ripple {
+    position: absolute;
+    inset: -14%;
+    border-radius: 50%;
+    border: 1.5px solid color-mix(in oklab, var(--p) 40%, transparent);
+    animation: ripple 5s var(--ease-out) infinite;
+    pointer-events: none;
+  }
+  .sun__ripple--2 { animation-delay: 2.5s; }
+  @keyframes ripple {
+    0% { transform: scale(0.9); opacity: 0; }
+    20% { opacity: 1; }
+    100% { transform: scale(1.35); opacity: 0; }
+  }
+  .sun__icon {
+    width: 56%;
+    border-radius: 23%;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22), 0 0 0 1px rgba(255, 255, 255, 0.35);
+    transform: rotate(-7deg);
+    transition: transform var(--dur-3) var(--ease-spring);
+  }
+  .sun:hover .sun__icon { transform: rotate(4deg) scale(1.06); }
+  .sun__landmark { width: 56%; aspect-ratio: 1; transition: transform var(--dur-3) var(--ease-spring); }
+  .sun:hover .sun__landmark { transform: translateY(-3px) scale(1.05); }
+
+  .sign {
+    display: inline-flex; align-items: center; gap: var(--space-2);
+    padding: 6px 14px 6px 11px;
+    border-radius: var(--r-pill);
+    background: var(--bg-raised);
+    box-shadow: var(--shadow-1), inset 0 0 0 1px var(--line);
+    font-size: var(--step--1);
+    font-weight: 650;
+    color: var(--ink-2);
+    white-space: nowrap;
+  }
+  .sign svg { color: var(--p); }
+
+  @media (min-width: 860px) {
+    .hero__grid {
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: var(--space-8);
+    }
+    .hero__stage {
+      order: 0;
+      flex-direction: column;
+      gap: var(--space-5);
+      padding-inline: var(--space-6) var(--space-4);
+    }
+    .sun { --size: clamp(220px, 24vw, 320px); }
+    .sun__ripple { inset: -9%; }
+  }
+
+  /* Entrance: a gentle rise, held back a beat while the island's wipe clears. */
+  .rise { animation: rise 900ms var(--ease-out) both; animation-delay: calc(var(--i) * 80ms + var(--wipe-delay, 60ms)); }
+  :global(html.is-wiping) .rise { --wipe-delay: 520ms; }
+  @keyframes rise { from { opacity: 0; transform: translateY(14px); } }
+  /* The disc is where the wipe lands, so it only pops in when there's no wipe. */
+  :global(html:not(.is-wiping)) .sun { animation: sun-in 900ms var(--ease-spring) 120ms both; }
+  @keyframes sun-in { from { opacity: 0; transform: scale(0.82); } }
+</style>

@@ -1,0 +1,69 @@
+---
+// The tinted card every project toy sits in: a short intro, the toy, and a
+// small honest note about what's real and what's illustrative.
+interface Props {
+  id: string;
+  label?: string;
+  title: string;
+  lede: string;
+  note: string;
+  /** 'split' puts the intro beside the toy on wide screens; 'stack' above it. */
+  layout?: 'split' | 'stack';
+}
+const { id, label = 'Try it', title, lede, note, layout = 'stack' } = Astro.props;
+---
+<section class:list={['toy', `toy--${layout}`]} aria-labelledby={`${id}-title`}>
+  <div class="toy__intro">
+    <p class="toy__label"><span class="toy__spark" aria-hidden="true"></span>{label}</p>
+    <h2 class="toy__title" id={`${id}-title`}>{title}</h2>
+    <p class="toy__lede">{lede}</p>
+    <slot name="intro" />
+    <p class="toy__note toy__note--intro">{note}</p>
+  </div>
+  <div class="toy__stage">
+    <slot />
+  </div>
+  <p class="toy__note toy__note--foot">{note}</p>
+</section>
+
+<style>
+  .toy {
+    --tint: color-mix(in oklab, var(--p) 9%, var(--bg-raised));
+    position: relative;
+    display: grid;
+    gap: clamp(var(--space-6), 4vw, var(--space-7));
+    padding: clamp(22px, 4.5vw, 64px);
+    border-radius: clamp(22px, 3vw, 36px);
+    background:
+      radial-gradient(120% 90% at 100% 0%, color-mix(in oklab, var(--p) 12%, transparent), transparent 60%),
+      var(--tint);
+    box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--p) 16%, transparent);
+    isolation: isolate;
+  }
+  .toy__intro { display: grid; gap: var(--space-3); align-content: start; max-width: 34rem; }
+  .toy__label {
+    display: inline-flex; align-items: center; gap: var(--space-2);
+    font-size: var(--step--1); font-weight: 650; letter-spacing: 0.08em; text-transform: uppercase;
+    color: color-mix(in oklab, var(--p) 62%, var(--ink));
+  }
+  .toy__spark {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--p);
+    box-shadow: 0 0 0 4px color-mix(in oklab, var(--p) 22%, transparent);
+  }
+  .toy__title { font-size: var(--step-3); font-weight: 700; }
+  .toy__lede { color: var(--ink-2); font-size: var(--step-0); max-width: 32rem; }
+  .toy__note { font-size: var(--step--1); color: var(--ink-3); }
+  .toy__note::before { content: 'ⓘ '; font-weight: 600; }
+  .toy__note--intro { display: none; }
+  .toy__stage { min-width: 0; }
+
+  @media (min-width: 900px) {
+    .toy--split {
+      grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+      align-items: center;
+    }
+    .toy--split .toy__note--intro { display: block; margin-top: var(--space-4); }
+    .toy--split .toy__note--foot { display: none; }
+  }
+</style>

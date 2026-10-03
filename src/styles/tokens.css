@@ -1,0 +1,113 @@
+/* Design tokens — the single source of truth for color, type, space and motion.
+   Light is the default; dark follows the OS unless the page pins a theme with
+   <html data-theme="light|dark">. */
+
+:root {
+  color-scheme: light dark;
+
+  /* Surfaces & ink — warm "sun on sand" neutrals, never pure white or black */
+  --bg: #fbf6ec;
+  --bg-raised: #ffffff;
+  --bg-sunken: #f3ecdf;
+  --ink: #1d1a16;
+  --ink-2: #4a443c;
+  --ink-3: #6f675c; /* 5.2:1 on --bg: AA for small text */
+  --line: rgba(29, 26, 22, 0.1);
+  --line-strong: rgba(29, 26, 22, 0.18);
+
+  /* Brand */
+  --sea: #2b8fb8;
+  --sea-deep: #135a7a;
+  --sky: #9fd8f0;
+  --sun: #ffb347;
+  --coral: #ff6b5b;
+  --leaf: #4caf6a;
+  --accent: #d9461f; /* links, focus, primary buttons: 4:1 on --bg */
+  --accent-ink: #ffffff;
+
+  /* Per-project accents (also used for the island landmarks) */
+  --c-middle-place: #2e9c8f;
+  --c-busy-beer: #f29a1f;
+  --c-map-of-evolution: #4caf6a;
+  --c-privacy: #e5484d;
+  --c-quizmate: #6c5ce7;
+  --c-eqoscan: #20a464;
+
+  /* Type */
+  --font-display: 'Bricolage Grotesque Variable', ui-rounded, system-ui, sans-serif;
+  --font-ui: 'Bricolage Grotesque Variable', system-ui, -apple-system, sans-serif;
+  --font-read: 'Newsreader Variable', 'Iowan Old Style', Georgia, serif;
+  --font-mono: ui-monospace, 'SF Mono', Menlo, monospace;
+
+  --step--1: clamp(0.83rem, 0.8rem + 0.15vw, 0.94rem);
+  --step-0: clamp(1rem, 0.96rem + 0.2vw, 1.13rem);
+  --step-1: clamp(1.2rem, 1.1rem + 0.45vw, 1.5rem);
+  --step-2: clamp(1.44rem, 1.25rem + 0.9vw, 2rem);
+  --step-3: clamp(1.73rem, 1.4rem + 1.6vw, 2.75rem);
+  --step-4: clamp(2.07rem, 1.5rem + 2.8vw, 3.9rem);
+  --step-5: clamp(2.5rem, 1.6rem + 4.5vw, 5.5rem);
+
+  /* Space */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+  --space-9: 96px;
+  --space-10: 144px;
+  --gutter: clamp(16px, 4vw, 40px);
+  --max-wide: 1180px;
+  --max-read: 680px;
+
+  /* Shape & depth */
+  --r-sm: 10px;
+  --r-md: 18px;
+  --r-lg: 28px;
+  --r-pill: 999px;
+  --shadow-1: 0 1px 2px rgba(60, 40, 10, 0.06), 0 2px 8px rgba(60, 40, 10, 0.06);
+  --shadow-2: 0 2px 6px rgba(60, 40, 10, 0.06), 0 12px 32px rgba(60, 40, 10, 0.1);
+  --shadow-3: 0 6px 16px rgba(60, 40, 10, 0.08), 0 30px 70px rgba(60, 40, 10, 0.16);
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --dur-1: 120ms;
+  --dur-2: 240ms;
+  --dur-3: 480ms;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --bg: #12100d;
+    --bg-raised: #1c1915;
+    --bg-sunken: #0c0a08;
+    --ink: #f4eee4;
+    --ink-2: #c9c1b4;
+    --ink-3: #8f877b;
+    --line: rgba(244, 238, 228, 0.1);
+    --line-strong: rgba(244, 238, 228, 0.18);
+    --accent: #ff7a5c;
+    --accent-ink: #1d0f0a;
+    --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-2: 0 2px 6px rgba(0, 0, 0, 0.3), 0 12px 32px rgba(0, 0, 0, 0.35);
+    --shadow-3: 0 6px 16px rgba(0, 0, 0, 0.35), 0 30px 70px rgba(0, 0, 0, 0.5);
+  }
+}
+:root[data-theme='dark'] {
+  --bg: #12100d;
+  --bg-raised: #1c1915;
+  --bg-sunken: #0c0a08;
+  --ink: #f4eee4;
+  --ink-2: #c9c1b4;
+  --ink-3: #8f877b;
+  --line: rgba(244, 238, 228, 0.1);
+  --line-strong: rgba(244, 238, 228, 0.18);
+  --accent: #ff7a5c;
+  --accent-ink: #1d0f0a;
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-2: 0 2px 6px rgba(0, 0, 0, 0.3), 0 12px 32px rgba(0, 0, 0, 0.35);
+  --shadow-3: 0 6px 16px rgba(0, 0, 0, 0.35), 0 30px 70px rgba(0, 0, 0, 0.5);
+}

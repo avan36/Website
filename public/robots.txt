@@ -17,34 +17,40 @@ User-agent: Applebot
 Allow: /
 
 # AI answer engines: they retrieve a page to answer a question and link back,
-# so they get the blog (/blog.html and /blog/) and nothing else.
+# so they get the blog (/blog and /blog/<post>) and nothing else.
 User-agent: OAI-SearchBot
 Disallow: /
+Allow: /blog$
 Allow: /blog.html
 Allow: /blog/
 
 User-agent: ChatGPT-User
 Disallow: /
+Allow: /blog$
 Allow: /blog.html
 Allow: /blog/
 
 User-agent: Perplexity
 Disallow: /
+Allow: /blog$
 Allow: /blog.html
 Allow: /blog/
 
 User-agent: PerplexityBot
 Disallow: /
+Allow: /blog$
 Allow: /blog.html
 Allow: /blog/
 
 User-agent: Amazonbot
 Disallow: /
+Allow: /blog$
 Allow: /blog.html
 Allow: /blog/
 
 User-agent: Google-CloudVertexBot
 Disallow: /
+Allow: /blog$
 Allow: /blog.html
 Allow: /blog/
 
@@ -109,76 +115,93 @@ Disallow: /
 # as the AI answer engines — blog only.
 User-agent: AhrefsBot
 Disallow: /
+Allow: /blog$
 Allow: /blog.html
 Allow: /blog/
 
 User-agent: SemrushBot
 Disallow: /
+Allow: /blog$
 Allow: /blog.html
 Allow: /blog/
 
 User-agent: Moz
 Disallow: /
+Allow: /blog$
 Allow: /blog.html
 Allow: /blog/
 
 User-agent: Yandex
 Disallow: /
+Allow: /blog$
 Allow: /blog.html
 Allow: /blog/
 
 User-agent: AwarioRssBot
 User-agent: AwarioSmartBot
 Disallow: /
+Allow: /blog$
 Allow: /blog.html
 Allow: /blog/
 
 User-agent: DataForSeoBot
 Disallow: /
+Allow: /blog$
 Allow: /blog.html
 Allow: /blog/
 
 User-agent: FacebookBot
 Disallow: /
+Allow: /blog$
 Allow: /blog.html
 Allow: /blog/
 
 User-agent: magpie-crawler
 Disallow: /
+Allow: /blog$
 Allow: /blog.html
 Allow: /blog/
 
 User-agent: NewsNow
 Disallow: /
+Allow: /blog$
 Allow: /blog.html
 Allow: /blog/
 
 User-agent: news-please
 Disallow: /
+Allow: /blog$
 Allow: /blog.html
 Allow: /blog/
 
 User-agent: peer39_crawler
 Disallow: /
+Allow: /blog$
 Allow: /blog.html
 Allow: /blog/
 
 User-agent: Quora-Bot
 Disallow: /
+Allow: /blog$
 Allow: /blog.html
 Allow: /blog/
 
 User-agent: Scrapy
 Disallow: /
+Allow: /blog$
 Allow: /blog.html
 Allow: /blog/
 
 User-agent: TurnitinBot
 Disallow: /
+Allow: /blog$
 Allow: /blog.html
 Allow: /blog/
 
 User-agent: *
 Disallow: /
+Allow: /blog$
 Allow: /blog.html
 Allow: /blog/
+
+Sitemap: https://ambrosevannier.com/sitemap-index.xml

@@ -1,0 +1,330 @@
+---
+// The contact form. Posts to the same Cloudflare Worker as the old site, with
+// the same payload, honeypot and text/plain body (a CORS "simple request").
+// On success a sheet of paper folds into a plane and flies off.
+---
+<div class="cf" data-contact>
+  <form class="cf__form" novalidate>
+    <div class="cf__row">
+      <div class="field">
+        <label for="cf-name">Name</label>
+        <input id="cf-name" type="text" name="name" autocomplete="name" required maxlength="100" placeholder="Your name" aria-describedby="cf-name-err" />
+        <p class="field__err" id="cf-name-err"></p>
+      </div>
+      <div class="field">
+        <label for="cf-email">Email</label>
+        <input id="cf-email" type="email" name="email" autocomplete="email" required maxlength="200" placeholder="you@example.com" aria-describedby="cf-email-err" />
+        <p class="field__err" id="cf-email-err"></p>
+      </div>
+    </div>
+    <div class="field">
+      <label for="cf-message">Message</label>
+      <textarea id="cf-message" name="message" rows="6" required maxlength="5000" placeholder="What's on your mind?" aria-describedby="cf-message-err"></textarea>
+      <p class="field__err" id="cf-message-err"></p>
+    </div>
+    <!-- Honeypot: invisible to people, tempting to bots. Leave empty. -->
+    <input class="hp-field" type="text" name="company" tabindex="-1" autocomplete="off" aria-hidden="true" />
+    <div class="cf__actions">
+      <button class="btn cf__submit" type="submit">
+        <span class="cf__label">Send message</span>
+        <svg class="cf__icon" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M21.5 2.5 10.5 13.5M21.5 2.5l-7 19-4-8-8-4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" /></svg>
+        <span class="cf__spinner" aria-hidden="true"></span>
+      </button>
+      <p class="cf__status" role="status" aria-live="polite"></p>
+    </div>
+  </form>
+
+  <div class="cf__sent" hidden>
+    <svg class="cf__plane" viewBox="0 0 120 120" width="190" height="190" aria-hidden="true">
+      <defs>
+        <mask id="cf-trail-mask" maskUnits="userSpaceOnUse" x="-200" y="-400" width="800" height="800">
+          <path class="cf__trail-reveal" d="M50 62 C 36 70, 90 60, 170 2 S 330 -140, 370 -168" pathLength="1" />
+        </mask>
+      </defs>
+      <path class="cf__trail" d="M50 62 C 36 70, 90 60, 170 2 S 330 -140, 370 -168" mask="url(#cf-trail-mask)" />
+      <g class="cf__plane-g">
+        <polygon class="pp pp--r" points="70,22 90,22 90,98 70,98" />
+        <polygon class="pp pp--m" points="50,22 70,22 70,98 50,98" />
+        <polygon class="pp pp--l" points="30,22 50,22 50,98 30,98" />
+      </g>
+    </svg>
+    <div class="cf__thanks">
+      <span class="cf__badge" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" /></svg></span>
+      <h2 class="cf__thanks-title" tabindex="-1">Message sent!</h2>
+      <p class="cf__thanks-text" data-thanks>Thanks for writing. I'll get back to you soon.</p>
+      <button type="button" class="btn btn-ghost cf__again">Send another</button>
+    </div>
+  </div>
+</div>
+
+<style>
+  .cf {
+    position: relative;
+    padding: clamp(22px, 4vw, 40px);
+    border-radius: var(--r-lg);
+    background: var(--bg-raised);
+    box-shadow: var(--shadow-2), inset 0 0 0 1px var(--line);
+  }
+  .cf__form { display: grid; gap: var(--space-5); transition: opacity 260ms var(--ease-out), transform 360ms var(--ease-out); }
+  .cf.is-sent .cf__form { opacity: 0; transform: scale(0.97); pointer-events: none; }
+  .cf__row { display: grid; gap: var(--space-5); }
+  @media (min-width: 640px) { .cf__row { grid-template-columns: 1fr 1fr; } }
+
+  .field { display: grid; gap: var(--space-2); }
+  .field label { font-size: var(--step--1); font-weight: 650; color: var(--ink-2); }
+  .field input, .field textarea {
+    width: 100%;
+    padding: 13px 16px;
+    border: 0;
+    border-radius: 14px;
+    background: var(--bg);
+    color: var(--ink);
+    font: inherit;
+    font-size: var(--step-0);
+    box-shadow: inset 0 0 0 1.5px var(--line-strong);
+    transition: box-shadow var(--dur-2), background var(--dur-2);
+  }
+  .field textarea { resize: vertical; min-height: 150px; line-height: 1.5; }
+  .field input::placeholder, .field textarea::placeholder { color: var(--ink-3); opacity: 0.8; }
+  .field input:hover, .field textarea:hover { box-shadow: inset 0 0 0 1.5px color-mix(in oklab, var(--ink) 30%, transparent); }
+  .field input:focus, .field textarea:focus { outline: none; background: var(--bg-raised); box-shadow: inset 0 0 0 2px var(--accent), 0 0 0 4px color-mix(in oklab, var(--accent) 18%, transparent); }
+  .field input[aria-invalid='true'], .field textarea[aria-invalid='true'] { box-shadow: inset 0 0 0 2px var(--coral); }
+  .field__err { min-height: 0; font-size: var(--step--1); font-weight: 600; color: color-mix(in oklab, var(--coral) 80%, var(--ink)); }
+  .field__err:empty { display: none; }
+
+  .hp-field { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+
+  .cf__actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-4); }
+  .cf__submit { position: relative; }
+  .cf__icon { transition: transform var(--dur-3) var(--ease-spring); }
+  .cf__submit:hover .cf__icon { transform: translate(3px, -3px) rotate(-6deg); }
+  .cf__spinner {
+    display: none;
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    animation: spin 700ms linear infinite;
+  }
+  .cf.is-sending .cf__icon { display: none; }
+  .cf.is-sending .cf__spinner { display: inline-block; }
+  .cf.is-sending .cf__submit { opacity: 0.8; cursor: progress; }
+  @keyframes spin { to { transform: rotate(1turn); } }
+  .cf__status { flex: 1 1 220px; font-size: var(--step--1); font-weight: 600; color: var(--ink-2); }
+  .cf__status.is-error {
+    padding: 10px 14px;
+    border-radius: 12px;
+    background: color-mix(in oklab, var(--coral) 12%, var(--bg-raised));
+    color: color-mix(in oklab, var(--coral) 70%, var(--ink));
+    box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--coral) 30%, transparent);
+  }
+
+  /* ---------- Sent ---------- */
+  .cf__sent {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    align-content: center;
+    gap: var(--space-4);
+    padding: var(--space-6);
+    text-align: center;
+  }
+  .cf__sent[hidden] { display: none; }
+  .cf__plane { position: absolute; left: 50%; top: 44%; translate: -50% -50%; overflow: visible; }
+  .cf__plane-g { transform-box: view-box; transform-origin: 60px 60px; }
+  .pp { stroke: color-mix(in oklab, var(--ink) 35%, transparent); stroke-width: 1.4; stroke-linejoin: round; }
+  .pp--l { fill: #ffffff; }
+  .pp--m { fill: #f1ebdf; }
+  .pp--r { fill: #e6dfd1; }
+  .cf__thanks { display: grid; justify-items: center; gap: var(--space-3); opacity: 0; transform: translateY(12px); transition: opacity 500ms var(--ease-out), transform 600ms var(--ease-out); }
+  .cf.is-thanked .cf__thanks { opacity: 1; transform: none; }
+  .cf__trail { fill: none; stroke: color-mix(in oklab, var(--ink) 30%, transparent); stroke-width: 1.6; stroke-dasharray: 3 6; stroke-linecap: round; transition: opacity 500ms; }
+  .cf__trail-reveal { fill: none; stroke: #fff; stroke-width: 8; stroke-dasharray: 1; stroke-dashoffset: 1; }
+  .cf.is-thanked .cf__trail { opacity: 0; }
+  .cf__badge { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; background: var(--sea); color: #fff; box-shadow: 0 0 0 8px color-mix(in oklab, var(--sea) 18%, transparent); margin-bottom: var(--space-2); }
+  .cf__thanks-title { font-size: var(--step-3); font-weight: 750; letter-spacing: -0.035em; outline: none; }
+  .cf__thanks-text { max-width: 34ch; color: var(--ink-2); font-size: var(--step-1); }
+  .cf__again { margin-top: var(--space-4); }
+</style>
+
+<script>
+  import { reducedMotion, sleep } from '../work/lib';
+
+  const CONTACT_ENDPOINT = 'https://contact-form.todos-thorax09.workers.dev';
+
+  type Pt = [number, number];
+  // Three panels of one sheet of paper, as 4-point polygons, at each step of the fold.
+  const N: Pt = [106, 54], A: Pt = [14, 30], C: Pt = [46, 62], B: Pt = [26, 84], K: Pt = [54, 80];
+  const STAGES: Record<'l' | 'm' | 'r', Pt[][]> = {
+    l: [
+      [[30, 22], [50, 22], [50, 98], [30, 98]],
+      [[60, 22], [30, 52], [30, 98], [50, 98]],
+      [N, A, C, C],
+    ],
+    m: [
+      [[50, 22], [70, 22], [70, 98], [50, 98]],
+      [[60, 22], [60, 22], [70, 98], [50, 98]],
+      [N, C, K, K],
+    ],
+    r: [
+      [[70, 22], [90, 22], [90, 98], [70, 98]],
+      [[60, 22], [90, 52], [90, 98], [70, 98]],
+      [N, C, B, B],
+    ],
+  };
+  const lerp = (a: Pt[], b: Pt[], t: number) =>
+    a.map((p, i) => `${(p[0] + (b[i][0] - p[0]) * t).toFixed(2)},${(p[1] + (b[i][1] - p[1]) * t).toFixed(2)}`).join(' ');
+  const ease = (t: number) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
+
+  for (const root of document.querySelectorAll<HTMLElement>('[data-contact]')) {
+    const form = root.querySelector<HTMLFormElement>('form')!;
+    const submit = root.querySelector<HTMLButtonElement>('.cf__submit')!;
+    const label = root.querySelector<HTMLElement>('.cf__label')!;
+    const status = root.querySelector<HTMLElement>('.cf__status')!;
+    const sent = root.querySelector<HTMLElement>('.cf__sent')!;
+    const planeG = root.querySelector<SVGGElement>('.cf__plane-g')!;
+    const trail = root.querySelector<SVGPathElement>('.cf__trail-reveal')!;
+    const polys = {
+      l: root.querySelector<SVGPolygonElement>('.pp--l')!,
+      m: root.querySelector<SVGPolygonElement>('.pp--m')!,
+      r: root.querySelector<SVGPolygonElement>('.pp--r')!,
+    };
+    const thanksTitle = root.querySelector<HTMLElement>('.cf__thanks-title')!;
+    const thanksText = root.querySelector<HTMLElement>('[data-thanks]')!;
+    const again = root.querySelector<HTMLButtonElement>('.cf__again')!;
+    const field = (n: string) => form.elements.namedItem(n) as HTMLInputElement | HTMLTextAreaElement;
+
+    const MESSAGES: Record<string, (el: HTMLInputElement | HTMLTextAreaElement) => string> = {
+      name: () => 'Please add your name.',
+      email: (el) => (el.validity.valueMissing ? 'I need an email to write back to.' : "That email doesn't look quite right."),
+      message: () => "Don't forget the message!",
+    };
+
+    function check(el: HTMLInputElement | HTMLTextAreaElement): boolean {
+      const err = root.querySelector<HTMLElement>(`#${el.getAttribute('aria-describedby')}`)!;
+      const trimmedEmpty = el.required && !el.value.trim();
+      const ok = el.checkValidity() && !trimmedEmpty;
+      el.setAttribute('aria-invalid', String(!ok));
+      err.textContent = ok ? '' : MESSAGES[el.name](el);
+      return ok;
+    }
+
+    const fields = ['name', 'email', 'message'].map(field);
+    // Once a field has complained, re-check it as the visitor fixes it.
+    fields.forEach((el) => el.addEventListener('input', () => { if (el.getAttribute('aria-invalid') === 'true') check(el); }));
+
+    function setPlane(stage: number, t: number) {
+      (['l', 'm', 'r'] as const).forEach((k) => polys[k].setAttribute('points', lerp(STAGES[k][stage], STAGES[k][stage + 1] ?? STAGES[k][stage], t)));
+    }
+
+    function tween(ms: number, fn: (t: number) => void) {
+      return new Promise<void>((resolve) => {
+        const t0 = performance.now();
+        const step = (now: number) => {
+          const t = Math.min(1, (now - t0) / ms);
+          fn(ease(t));
+          if (t < 1) requestAnimationFrame(step);
+          else resolve();
+        };
+        requestAnimationFrame(step);
+      });
+    }
+
+    async function celebrate(name: string) {
+      thanksText.textContent = `Thanks${name ? `, ${name.split(/\s+/)[0]}` : ''}! Your message is on its way. I'll get back to you soon.`;
+      form.inert = true;
+      sent.hidden = false;
+      root.classList.add('is-sent');
+      setPlane(0, 0);
+      planeG.style.opacity = '1';
+      planeG.style.transform = '';
+      if (reducedMotion()) {
+        planeG.style.opacity = '0';
+      } else {
+        planeG.animate([{ transform: 'scale(0.6)', opacity: 0 }, { transform: 'scale(1)', opacity: 1 }], { duration: 280, easing: 'cubic-bezier(.34,1.56,.64,1)' });
+        await sleep(320);
+        await tween(420, (t) => setPlane(0, t));
+        await sleep(90);
+        await tween(480, (t) => setPlane(1, t));
+        await sleep(160);
+        const fly = planeG.animate(
+          [
+            { transform: 'translate(0, 0) rotate(0deg) scale(1)', opacity: 1 },
+            { transform: 'translate(-14px, 8px) rotate(6deg) scale(1)', opacity: 1, offset: 0.18 },
+            { transform: 'translate(120px, -60px) rotate(-14deg) scale(0.85)', opacity: 1, offset: 0.55 },
+            { transform: 'translate(320px, -230px) rotate(-26deg) scale(0.5)', opacity: 0 },
+          ],
+          { duration: 950, easing: 'cubic-bezier(.45,0,.2,1)', fill: 'forwards' },
+        );
+        trail.animate([{ strokeDashoffset: 1 }, { strokeDashoffset: 0 }], { duration: 950, easing: 'cubic-bezier(.45,0,.2,1)', fill: 'forwards' });
+        await fly.finished.catch(() => undefined);
+      }
+      root.classList.add('is-thanked');
+      thanksTitle.focus({ preventScroll: true });
+    }
+
+    function reset() {
+      root.classList.remove('is-thanked', 'is-sent');
+      planeG.getAnimations().forEach((a) => a.cancel());
+      trail.getAnimations().forEach((a) => a.cancel());
+      sent.hidden = true;
+      form.inert = false;
+      status.textContent = '';
+      status.className = 'cf__status';
+      field('name').focus();
+    }
+    again.addEventListener('click', reset);
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (root.classList.contains('is-sending')) return;
+      const results = fields.map(check);
+      if (results.includes(false)) {
+        fields[results.indexOf(false)].focus();
+        status.className = 'cf__status';
+        status.textContent = '';
+        return;
+      }
+
+      const payload = {
+        name: field('name').value.trim(),
+        email: field('email').value.trim(),
+        message: field('message').value.trim(),
+        company: field('company').value, // honeypot
+      };
+
+      root.classList.add('is-sending');
+      submit.disabled = true;
+      label.textContent = 'Sending…';
+      status.className = 'cf__status';
+      status.textContent = '';
+
+      try {
+        const res = await fetch(CONTACT_ENDPOINT, {
+          method: 'POST',
+          // text/plain keeps this a CORS "simple request": no preflight.
+          headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
+          body: JSON.stringify(payload),
+        });
+        const data = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+        if (res.ok && data.ok) {
+          form.reset();
+          fields.forEach((el) => el.removeAttribute('aria-invalid'));
+          status.textContent = 'Message sent.';
+          void celebrate(payload.name);
+        } else {
+          status.className = 'cf__status is-error';
+          status.textContent = data.error || "Something went wrong on my end. Please try again in a moment.";
+        }
+      } catch {
+        status.className = 'cf__status is-error';
+        status.textContent = "Couldn't reach the mail server. Check your connection and try again, or find me on GitHub.";
+      } finally {
+        root.classList.remove('is-sending');
+        submit.disabled = false;
+        label.textContent = 'Send message';
+      }
+    });
+  }
+</script>
