@@ -17,7 +17,7 @@ export type Project = {
   /** Hex of the same accent, for WebGL. */
   hex: string;
   /** The island landmark that stands for this project. */
-  landmark: 'cabin' | 'taproom' | 'tree' | 'lighthouse' | 'schoolhouse' | 'depot';
+  landmark: 'cabin' | 'taproom' | 'tree' | 'library' | 'lighthouse' | 'schoolhouse' | 'depot';
   landmarkName: string;
   icon?: string;
   body: string[];
@@ -99,6 +99,31 @@ export const projects: Project[] = [
     ],
     shots: [
       { src: '/media/moe-tree.webp', alt: "Map of Evolution's radial tree of life, with branches for bacteria, plants and animals and a timeline from 4 billion years ago to today.", width: 1200, height: 769, frame: 'browser' },
+    ],
+  },
+  {
+    slug: 'etymon',
+    name: 'Etymon',
+    headline: 'Where every English word came from.',
+    blurb: 'An animated history of English, one word at a time.',
+    platforms: 'Web',
+    color: 'var(--c-etymon)',
+    hex: '#3a6fd8',
+    landmark: 'library',
+    landmarkName: 'The old library',
+    body: [
+      "Etymon is an interactive, animated history of English: where words came from, how they changed on the way, how popular they've been, and the words we lost.",
+      'Watch 1,500 years of vocabulary flow as one river with a tributary for each source language, follow any word stage by stage from its ancient root to today on a timeline and a map, grow the family tree of a single root into dozens of modern words, or wander a museum of words English dropped, like wanhope and overmorrow.',
+      "Words that aren't in the curated data are looked up live on Wiktionary, in about 50 languages, and turned into the same journey view.",
+    ],
+    tags: ['React', 'TypeScript', 'D3', 'Framer Motion'],
+    links: [
+      { label: 'Explore Etymon', href: 'https://avan36.github.io/Etymology/', kind: 'primary' },
+      { label: 'View source on GitHub', href: 'https://github.com/avan36/Etymology', kind: 'text' },
+    ],
+    shots: [
+      { src: '/media/etymon-river.webp', alt: 'The River of English: 1,500 years of new words as one river, with a stream for each source language and a glint for every word, from water and world to selfie and rizz.', width: 1440, height: 900, frame: 'browser' },
+      { src: '/media/etymon-word.webp', alt: "A word page: disaster's 4,500 km journey on a map, from Proto-Indo-European through Ancient Greek, Italian and Middle French to English.", width: 1440, height: 900, frame: 'browser' },
     ],
   },
   {

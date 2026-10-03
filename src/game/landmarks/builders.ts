@@ -23,10 +23,10 @@ import {
   Vector2,
   Vector3,
 } from 'three';
-import { Kit, litMaterial } from '../world/kit';
+import { Kit, litMaterial, type V3 } from '../world/kit';
 import type { Puffs } from '../world/particles';
 import { PIER } from '../world/shape';
-import { Spring } from '../util/math';
+import { easeOutBack, Spring } from '../util/math';
 
 export interface LandmarkCtx {
   t: number;
@@ -718,6 +718,418 @@ export function buildDepot(color: string): Built {
   };
 }
 
+// ---------------------------------------------------------------- library
+
+const SANDSTONE = '#dccaa6';
+const SANDSTONE_DARK = '#c3ad88';
+const BOOK_COLORS = ['#e5484d', '#ffbe0b', '#2e9c8f', '#fff3df', '#7d5134', '#ff8fab', '#6c5ce7', '#4caf6a'];
+
+/** An arched window: stone surround, warm glass with a round top, one mullion and a sill. */
+function archWindow(k: Kit, x: number, y: number, z: number, opts: { w?: number; h?: number; ry?: number; glow?: string; frame?: string } = {}) {
+  const w = opts.w ?? 0.56;
+  const h = opts.h ?? 0.8; // height of the straight part; the arch sits on top
+  const ry = opts.ry ?? 0;
+  const frame = opts.frame ?? SANDSTONE_DARK;
+  const nx = Math.sin(ry);
+  const nz = Math.cos(ry);
+  const at = (d: number): V3 => [x + nx * d, y, z + nz * d];
+  const top = (d: number): V3 => [x + nx * d, y + h / 2, z + nz * d];
+  // Half-discs, axis along +z, flat side down.
+  const half = (r: number, depth: number) => {
+    const g = new CylinderGeometry(r, r, depth, 12, 1, false, Math.PI / 2, Math.PI);
+    g.rotateX(Math.PI / 2);
+    return g;
+  };
+  k.box(w + 0.2, h, 0.12, frame, { p: at(0), r: [0, ry, 0] });
+  k.add(half(w / 2 + 0.1, 0.12), frame, { p: top(0), r: [0, ry, 0] });
+  k.addGlow(new BoxGeometry(w, h, 0.06), opts.glow ?? GLOW, { p: at(0.05), r: [0, ry, 0] });
+  k.addGlow(half(w / 2, 0.06), opts.glow ?? GLOW, { p: top(0.05), r: [0, ry, 0] });
+  k.box(0.05, h + w / 2 - 0.04, 0.04, frame, { p: [x + nx * 0.09, y + w / 4 - 0.02, z + nz * 0.09], r: [0, ry, 0] });
+  k.box(w, 0.05, 0.04, frame, { p: [x + nx * 0.09, y + h * 0.1, z + nz * 0.09], r: [0, ry, 0] });
+  k.box(w + 0.34, 0.1, 0.24, frame, { p: [x + nx * 0.08, y - h / 2 - 0.05, z + nz * 0.08], r: [0, ry, 0] });
+}
+
+/** Little 3D letters for the idle animation: A, E, O and the Old English thorn (Þ). */
+function letterGeometries() {
+  const T = 0.07;
+  const make = (f: (q: Kit) => void) => {
+    const q = new Kit(901);
+    f(q);
+    return q.geometry();
+  };
+  return [
+    make((q) => {
+      q.box(T, 0.46, T, '#ffffff', { p: [-0.085, 0, 0], r: [0, 0, -0.36], jitter: 0 });
+      q.box(T, 0.46, T, '#ffffff', { p: [0.085, 0, 0], r: [0, 0, 0.36], jitter: 0 });
+      q.box(0.18, T * 0.9, T, '#ffffff', { p: [0, -0.06, 0], jitter: 0 });
+    }),
+    make((q) => {
+      q.box(T, 0.44, T, '#ffffff', { p: [-0.09, 0, 0], jitter: 0 });
+      q.box(0.24, T, T, '#ffffff', { p: [0.03, 0.185, 0], jitter: 0 });
+      q.box(0.18, T, T, '#ffffff', { p: [0, 0, 0], jitter: 0 });
+      q.box(0.24, T, T, '#ffffff', { p: [0.03, -0.185, 0], jitter: 0 });
+    }),
+    make((q) => {
+      q.torus(0.15, 0.042, '#ffffff', { s: [0.85, 1.2, 1], jitter: 0 }, 4, 14);
+    }),
+    make((q) => {
+      q.box(T, 0.5, T, '#ffffff', { p: [-0.09, -0.02, 0], jitter: 0 });
+      q.torus(0.095, 0.036, '#ffffff', { p: [-0.07, 0.02, 0], r: [0, 0, -Math.PI / 2], s: [1.25, 1, 1], jitter: 0 }, 4, 10, Math.PI);
+    }),
+  ];
+}
+
+export function buildLibrary(color: string): Built {
+  const k = new Kit(909);
+  const W = 4.0;
+  const D = 3.2;
+  const WALL = 2.5;
+  const base = 0.36;
+  const top = base + WALL;
+  const slate = shade(color, -0.1);
+  const slateLight = shade(color, 0.08);
+
+  // Plinth and stone walls with darker quoins at the corners.
+  k.rbox(W + 0.5, base, D + 0.5, 0.08, STONE, { p: [0, base / 2, 0] });
+  k.rbox(W, WALL, D, 0.05, SANDSTONE, { p: [0, base + WALL / 2, 0], jitter: 0.03 });
+  for (const x of [-W / 2, W / 2]) for (const z of [-D / 2, D / 2]) {
+    for (let i = 0; i < 5; i++) {
+      const long = i % 2 === 0;
+      k.box(long ? 0.34 : 0.22, 0.42, long ? 0.22 : 0.34, SANDSTONE_DARK, { p: [x + (long ? Math.sign(x) * -0.04 : 0), base + 0.25 + i * 0.5, z + (long ? 0 : Math.sign(z) * -0.04)] });
+    }
+  }
+  // A few proud stones so the walls read as masonry, kept clear of the door, window and noticeboard.
+  const busy = (x: number, y: number) =>
+    Math.abs(x) < 0.85 || x < -1.15 || (x > 0.95 && x < 1.75 && y > base + 0.65) || (x < -0.55 && y > base + 0.55 && y < base + 1.35);
+  for (let i = 0, n = 0; i < 80 && n < 8; i++) {
+    const x = (k.rand() - 0.5) * (W - 0.5);
+    const y = base + 0.2 + k.rand() * (WALL - 0.45);
+    if (busy(x, y)) continue;
+    n++;
+    k.box(0.28 + k.rand() * 0.18, 0.15, 0.05, n % 2 ? SANDSTONE_DARK : '#e8d9ba', { p: [x, y, D / 2 + 0.02] });
+  }
+  for (const [side, y, z] of [[1, 0.6, 0.65], [1, 2.45, -0.5], [1, 2.5, 1.05], [-1, 0.6, -1.1], [-1, 2.45, -0.25], [-1, 0.65, -0.15]]) {
+    k.box(0.05, 0.15, 0.32, z > 0 ? '#e8d9ba' : SANDSTONE_DARK, { p: [side * (W / 2 + 0.02), y, z] });
+  }
+  // A band of darker stone under the eaves.
+  k.box(W + 0.12, 0.14, D + 0.12, SANDSTONE_DARK, { p: [0, top - 0.07, 0] });
+
+  // Buttresses down the sides.
+  for (const [x, z] of [[W / 2, -0.15], [W / 2, -D / 2 + 0.35], [-W / 2, -0.55]] as [number, number][]) {
+    const s = Math.sign(x);
+    k.box(0.34, 1.6, 0.42, SANDSTONE_DARK, { p: [x + s * 0.17, base + 0.8, z] });
+    k.box(0.26, 0.9, 0.36, SANDSTONE_DARK, { p: [x + s * 0.13, base + 1.9, z], r: [0, 0, s * 0.18] });
+  }
+
+  // Front gable roof in blue slate, with rows of slates picked out.
+  const RH = 1.7;
+  const over = 0.45;
+  const thick = 0.22;
+  const RD = D + 0.7;
+  k.gable(W, RH, D, SANDSTONE, { p: [0, top, 0] });
+  k.roof(W, RH, RD, top, color, { overhang: over, thick });
+  const a = Math.atan2(RH, W / 2);
+  for (const s of [-1, 1]) {
+    const ex = s * (W / 2 + over * Math.cos(a));
+    const ey = top - over * Math.sin(a);
+    for (const t of [0.2, 0.42, 0.64, 0.84]) {
+      const px = ex + (0 - ex) * t + s * Math.sin(a) * (thick + 0.02);
+      const py = ey + (top + RH - ey) * t + Math.cos(a) * (thick + 0.02);
+      k.box(0.1, 0.05, RD - 0.1, t > 0.5 ? slateLight : slate, { p: [px, py, 0], r: [0, 0, -s * a], jitter: 0.02 });
+    }
+  }
+  // Chimney at the back (the letters drift out of it).
+  k.box(0.62, 1.9, 0.62, SANDSTONE_DARK, { p: [1.3, top + 1.1, -0.95] });
+  k.box(0.78, 0.2, 0.78, STONE_DARK, { p: [1.3, top + 2.1, -0.95] });
+
+  // Rose window in the front gable.
+  const rz = D / 2 + 0.03;
+  const ry0 = top + 0.66;
+  k.cyl(0.46, 0.46, 0.1, SANDSTONE_DARK, { p: [0, ry0, rz], r: [Math.PI / 2, 0, 0] }, 16);
+  k.addGlow(new CylinderGeometry(0.36, 0.36, 0.06, 16), '#ffd58a', { p: [0, ry0, rz + 0.04], r: [Math.PI / 2, 0, 0] });
+  for (let i = 0; i < 4; i++) k.box(0.72, 0.05, 0.04, SANDSTONE_DARK, { p: [0, ry0, rz + 0.08], r: [0, 0, (i * Math.PI) / 4], jitter: 0 });
+  k.cyl(0.09, 0.09, 0.06, SANDSTONE_DARK, { p: [0, ry0, rz + 0.1], r: [Math.PI / 2, 0, 0] }, 8);
+
+  // Arched double door with a stone surround and steps.
+  const dz = D / 2;
+  const doorH = 1.15;
+  const doorW = 1.0;
+  k.box(doorW + 0.32, doorH + 0.1, 0.16, SANDSTONE_DARK, { p: [0, base + doorH / 2 + 0.05, dz + 0.02] });
+  k.cyl(doorW / 2 + 0.16, doorW / 2 + 0.16, 0.16, SANDSTONE_DARK, { p: [0, base + doorH + 0.05, dz + 0.02], r: [Math.PI / 2, 0, 0] }, 14);
+  k.box(doorW, doorH, 0.12, '#5b3a24', { p: [0, base + doorH / 2, dz + 0.08] });
+  k.cyl(doorW / 2, doorW / 2, 0.12, '#5b3a24', { p: [0, base + doorH, dz + 0.08], r: [Math.PI / 2, 0, 0] }, 14);
+  k.box(0.04, doorH + doorW / 2 - 0.06, 0.04, '#3f2818', { p: [0, base + (doorH + doorW / 2) / 2, dz + 0.15], jitter: 0 });
+  for (const y of [0.45, 1.05]) k.box(doorW - 0.08, 0.06, 0.03, '#3d3a36', { p: [0, base + y, dz + 0.155], jitter: 0 });
+  k.sphere(0.055, '#f2c14e', { p: [-0.13, base + 0.72, dz + 0.18] }, 6, 4);
+  k.sphere(0.055, '#f2c14e', { p: [0.13, base + 0.72, dz + 0.18] }, 6, 4);
+  k.rbox(1.7, 0.18, 0.55, 0.04, STONE, { p: [0, 0.27, dz + 0.5] });
+  k.rbox(1.5, 0.18, 0.42, 0.04, STONE_DARK, { p: [0, 0.1, dz + 0.9] });
+  // Lanterns either side of the door.
+  for (const x of [-0.92, 0.92]) {
+    k.box(0.05, 0.05, 0.22, '#3d3a36', { p: [x, base + 1.55, dz + 0.12] });
+    k.box(0.16, 0.05, 0.16, '#3d3a36', { p: [x, base + 1.58, dz + 0.24] });
+    k.addGlow(new BoxGeometry(0.12, 0.2, 0.12), '#ffd27a', { p: [x, base + 1.45, dz + 0.24] });
+    k.add(new ConeGeometry(0.12, 0.12, 4), '#3d3a36', { p: [x, base + 1.66, dz + 0.24], r: [0, Math.PI / 4, 0] });
+  }
+
+  // Windows: one on the front, tall arches down both sides.
+  archWindow(k, 1.35, base + 1.2, dz + 0.02, { w: 0.56, h: 0.85 });
+  archWindow(k, W / 2 + 0.02, base + 1.2, 0.62, { ry: Math.PI / 2 });
+  archWindow(k, W / 2 + 0.02, base + 1.2, -0.95, { ry: Math.PI / 2 });
+  archWindow(k, -W / 2 - 0.02, base + 1.2, -1.2, { ry: -Math.PI / 2 });
+  archWindow(k, -W / 2 - 0.02, base + 1.2, 0.2, { ry: -Math.PI / 2 });
+  // A noticeboard of pinned pages between the tower and the door.
+  k.box(0.5, 0.62, 0.06, WOOD, { p: [-0.92, base + 0.95, dz + 0.04] });
+  for (const [x, y, r] of [[-1.03, 1.05, 0.08], [-0.83, 1.08, -0.1], [-0.95, 0.83, 0.04], [-0.8, 0.86, 0.12]] as V3[]) {
+    k.box(0.16, 0.2, 0.02, '#fffaf0', { p: [x, base + y, dz + 0.08], r: [0, 0, r], jitter: 0 });
+  }
+
+  // Round tower on the front-left corner, with a tall slate cone.
+  const tx = -W / 2 - 0.05;
+  const tz = D / 2 - 0.85;
+  const TR = 0.95;
+  const TH = 4.1;
+  k.cyl(TR + 0.1, TR + 0.16, 0.42, STONE, { p: [tx, 0.21, tz] }, 14);
+  k.cyl(TR, TR + 0.04, TH, SANDSTONE, { p: [tx, 0.4 + TH / 2, tz], jitter: 0.03 }, 14);
+  k.cyl(TR + 0.08, TR + 0.08, 0.14, SANDSTONE_DARK, { p: [tx, 0.4 + 2.35, tz] }, 14);
+  k.cyl(TR + 0.14, TR + 0.08, 0.22, SANDSTONE_DARK, { p: [tx, 0.4 + TH + 0.06, tz] }, 14);
+  k.cone(TR + 0.38, 1.85, color, { p: [tx, 0.4 + TH + 1.07, tz] }, 14);
+  k.cyl(0.03, 0.03, 0.45, '#3d3a36', { p: [tx, 0.4 + TH + 2.18, tz] }, 4);
+  k.sphere(0.1, '#f2c14e', { p: [tx, 0.4 + TH + 2.05, tz] }, 8, 6);
+  // Tower windows face front and to the side; a slit lower down.
+  const tw = (ang: number, y: number, w: number, h: number) =>
+    archWindow(k, tx + Math.sin(ang) * (TR - 0.01), y, tz + Math.cos(ang) * (TR - 0.01), { w, h, ry: ang });
+  tw(0.35, 0.4 + 3.2, 0.42, 0.5);
+  tw(-1.1, 0.4 + 3.2, 0.42, 0.5);
+  tw(0.15, 0.4 + 1.45, 0.3, 0.55);
+  // Ivy climbing the tower.
+  for (const [ang, y, s] of [[-0.95, 0.7, 1.1], [-0.7, 1.2, 0.9], [-1.15, 1.55, 0.8], [-0.85, 2.0, 0.7], [-1.3, 2.3, 0.6], [1.6, 0.6, 0.9], [1.3, 1.0, 0.7]] as V3[]) {
+    k.ico(0.26 * s, ang > 1 ? '#4fae55' : '#5cb85a', { p: [tx + Math.sin(ang) * (TR + 0.05), y, tz + Math.cos(ang) * (TR + 0.05)], s: [1, 1, 0.6], r: [0, ang, 0] });
+  }
+
+  // Bench by the tower with a stack of books.
+  const bx = -1.3;
+  const bz = D / 2 + 1.25;
+  k.rbox(1.3, 0.09, 0.42, 0.03, WOOD, { p: [bx, 0.5, bz] });
+  k.box(1.3, 0.34, 0.07, WOOD, { p: [bx, 0.78, bz - 0.2], r: [-0.12, 0, 0] });
+  for (const x of [-0.5, 0.5]) {
+    k.box(0.08, 0.46, 0.36, WOOD_DARK, { p: [bx + x, 0.23, bz] });
+  }
+  const stack: [string, number, number][] = [['#e5484d', 0.48, 0.1], [color, 0.42, -0.15], ['#ffbe0b', 0.38, 0.25]];
+  stack.forEach(([c, w, r], i) => {
+    k.box(w, 0.09, w * 0.72, c, { p: [bx - 0.3, 0.6 + i * 0.09, bz + 0.02], r: [0, r, 0] });
+    k.box(w - 0.06, 0.07, w * 0.72 - 0.04, '#fff7e6', { p: [bx - 0.29, 0.6 + i * 0.09, bz + 0.03], r: [0, r, 0], jitter: 0 });
+  });
+  // ...and one left open, face down.
+  for (const s of [-1, 1]) k.box(0.26, 0.03, 0.34, '#2e9c8f', { p: [bx + 0.3 + s * 0.11, 0.58, bz + 0.03], r: [0, 0, -s * 0.35] });
+
+  // A little outdoor bookshelf in front of the tower, open at the front.
+  const sx = -W / 2 - 0.75;
+  const sz = D / 2 + 0.75;
+  const sYaw = 0.35;
+  const sc = Math.cos(sYaw);
+  const ss = Math.sin(sYaw);
+  const sp = (x: number, y: number, z: number): V3 => [sx + x * sc + z * ss, y, sz - x * ss + z * sc];
+  k.box(0.07, 1.5, 0.42, WOOD_DARK, { p: sp(-0.44, 0.75, 0), r: [0, sYaw, 0] });
+  k.box(0.07, 1.5, 0.42, WOOD_DARK, { p: sp(0.44, 0.75, 0), r: [0, sYaw, 0] });
+  k.box(0.95, 0.06, 0.42, WOOD_DARK, { p: sp(0, 1.47, 0), r: [0, sYaw, 0] });
+  k.box(0.88, 1.44, 0.05, '#5b3a24', { p: sp(0, 0.75, -0.19), r: [0, sYaw, 0] });
+  k.add(new ConeGeometry(0.75, 0.34, 4), color, { p: sp(0, 1.66, 0), r: [0, Math.PI / 4 + sYaw, 0], s: [1, 1, 0.48] });
+  for (let row = 0; row < 3; row++) {
+    const y0 = 0.08 + row * 0.46;
+    k.box(0.82, 0.05, 0.38, WOOD, { p: sp(0, y0, 0), r: [0, sYaw, 0] });
+    let x = -0.38;
+    let i = row * 3;
+    while (x < 0.3) {
+      const w = 0.07 + ((i * 37) % 5) * 0.012;
+      const h = 0.26 + ((i * 53) % 4) * 0.03;
+      const lean = i % 7 === 3 ? 0.25 : 0;
+      k.box(w, h, 0.28, BOOK_COLORS[(i * 5) % BOOK_COLORS.length], { p: sp(x + w / 2, y0 + 0.025 + h / 2, 0.02), r: [0, sYaw, -lean] });
+      x += w + 0.015 + lean * 0.3;
+      i++;
+    }
+  }
+
+  // A giant open book on a stone lectern: its pages turn, and letters lift off them.
+  const lx = 1.5;
+  const lz = D / 2 + 1.75;
+  k.rbox(0.62, 0.62, 0.5, 0.06, STONE, { p: [lx, 0.31, lz] });
+  k.box(0.4, 0.34, 0.32, STONE_DARK, { p: [lx, 0.78, lz] });
+  const book = new Group();
+  book.position.set(lx, 1.02, lz);
+  book.rotation.set(0.42, -0.2, 0);
+  const PW = 0.7;
+  const PD = 0.92;
+  const bkK = new Kit(911);
+  for (const s of [-1, 1]) {
+    bkK.box(PW + 0.06, 0.06, PD + 0.08, color, { p: [s * (PW / 2 + 0.02), 0, 0], r: [0, 0, s * 0.12] });
+    bkK.box(PW - 0.04, 0.1, PD - 0.04, '#fff3df', { p: [s * (PW / 2 + 0.01), 0.07, 0], r: [0, 0, s * 0.12], jitter: 0.01 });
+    for (let l = 0; l < 5; l++) {
+      bkK.box(PW * (l === 4 ? 0.4 : 0.66), 0.012, 0.035, '#6f6457', { p: [s * (PW / 2 + 0.02) - (l === 4 ? s * 0.1 : 0), 0.125 + s * 0.0, -PD / 2 + 0.2 + l * 0.13], r: [0, 0, s * 0.12], jitter: 0 });
+    }
+  }
+  bkK.box(0.08, 0.08, PD + 0.1, shade(color, -0.15), { p: [0, -0.02, 0] });
+  // A ribbon bookmark hanging over the edge.
+  bkK.box(0.05, 0.01, 0.3, '#e5484d', { p: [0.08, 0.13, PD / 2 + 0.08], r: [0.9, 0, 0], jitter: 0 });
+  book.add(bkK.build());
+  // The turning leaf: two hinged halves so it curls as it turns.
+  const leaf = new Group();
+  leaf.position.set(0, 0.12, 0);
+  const leafA = new Group();
+  const leafB = new Group();
+  const lk = new Kit(912);
+  lk.box(PW * 0.5, 0.012, PD - 0.06, '#fffaf0', { p: [PW * 0.25, 0, 0], jitter: 0 });
+  lk.box(PW * 0.3, 0.006, 0.03, '#8a7e70', { p: [PW * 0.28, 0.008, -0.15], jitter: 0 });
+  lk.box(PW * 0.3, 0.006, 0.03, '#8a7e70', { p: [PW * 0.28, 0.008, 0.05], jitter: 0 });
+  leafA.add(lk.build({ castShadow: false }));
+  const lk2 = new Kit(913);
+  lk2.box(PW * 0.48, 0.012, PD - 0.06, '#fffaf0', { p: [PW * 0.24, 0, 0], jitter: 0 });
+  lk2.box(PW * 0.3, 0.006, 0.03, '#8a7e70', { p: [PW * 0.2, 0.008, -0.15], jitter: 0 });
+  lk2.box(PW * 0.3, 0.006, 0.03, '#8a7e70', { p: [PW * 0.2, 0.008, 0.05], jitter: 0 });
+  leafB.add(lk2.build({ castShadow: false }));
+  leafB.position.x = PW * 0.5;
+  leafA.add(leafB);
+  leaf.add(leafA);
+  book.add(leaf);
+
+  const glow = glowMat();
+  const group = k.build({ glowMaterial: glow });
+  group.add(book);
+
+  // Floating letters: one instanced mesh per glyph, popping in and shrinking away like the puffs.
+  const glyphs = letterGeometries();
+  const PER = 6;
+  const letterMat = litMaterial();
+  const meshes = glyphs.map((g) => {
+    const m = new InstancedMesh(g, letterMat, PER);
+    m.castShadow = false;
+    m.frustumCulled = false;
+    group.add(m);
+    return m;
+  });
+  const palette = ['#fff3df', '#f2c14e', '#ffffff', shade(color, 0.22)].map((c) => new Color(c));
+  type Letter = { alive: boolean; age: number; life: number; x: number; y: number; z: number; vx: number; vy: number; vz: number; wind: number; spin: number; phase: number; size: number };
+  const letters: Letter[][] = glyphs.map(() => Array.from({ length: PER }, () => ({ alive: false, age: 0, life: 1, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, wind: 0, spin: 0, phase: 0, size: 1 })));
+  const o = new Object3D();
+  const hide = () => {
+    o.position.set(0, -50, 0);
+    o.scale.setScalar(0);
+    o.updateMatrix();
+  };
+  hide();
+  meshes.forEach((m) => {
+    for (let i = 0; i < PER; i++) {
+      m.setMatrixAt(i, o.matrix);
+      m.setColorAt(i, palette[i % palette.length]);
+    }
+  });
+  let nextGlyph = 0;
+  const spawn = (x: number, y: number, z: number, o2: { vy: number; spread: number; life: number; size: number; wind?: number }) => {
+    nextGlyph = (nextGlyph + 1 + Math.floor(Math.random() * 2)) % glyphs.length;
+    const pool = letters[nextGlyph];
+    const i = pool.findIndex((l) => !l.alive);
+    if (i < 0) return;
+    const l = pool[i];
+    const a = Math.random() * Math.PI * 2;
+    Object.assign(l, {
+      alive: true, age: 0, life: o2.life * (0.85 + Math.random() * 0.3),
+      x, y, z,
+      vx: Math.cos(a) * o2.spread, vy: o2.vy * (0.85 + Math.random() * 0.3), vz: Math.sin(a) * o2.spread, wind: o2.wind ?? 0,
+      spin: (Math.random() - 0.5) * 2.4, phase: Math.random() * 6, size: o2.size * (0.85 + Math.random() * 0.3),
+    });
+    meshes[nextGlyph].setColorAt(i, palette[Math.floor(Math.random() * palette.length)]);
+    if (meshes[nextGlyph].instanceColor) meshes[nextGlyph].instanceColor!.needsUpdate = true;
+  };
+  const chimney = new Vector3(1.3, top + 2.25, -0.95);
+  const page = new Vector3(lx, 1.25, lz);
+  const fromBook = (n: number) => {
+    for (let i = 0; i < n; i++) spawn(page.x + (Math.random() - 0.5) * 0.6, page.y, page.z + (Math.random() - 0.5) * 0.3, { vy: 0.75, spread: 0.22, life: 2.6, size: 1.1 });
+  };
+
+  let chimT = 0.4;
+  let bookT = 1.2;
+  let turnT = -1;
+  let nextTurn = 2.5;
+  const base0 = new Color('#ffffff');
+  const turn = (t: number) => {
+    // 0..1 → the leaf sweeps from the right-hand page to the left, curling as it goes.
+    const e = t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2;
+    leafA.rotation.z = 0.12 + e * (Math.PI - 0.24);
+    leafB.rotation.z = -Math.sin(e * Math.PI) * 0.55;
+    leaf.position.y = 0.12 + Math.sin(e * Math.PI) * 0.03;
+  };
+  turn(0);
+  return {
+    group,
+    bouncy: group,
+    onNear: () => {
+      if (turnT < 0) turnT = 0;
+      fromBook(5);
+    },
+    update: (c) => {
+      // Letters drift out of the chimney like smoke, and lift off the open book.
+      chimT -= c.dt;
+      if (chimT <= 0) {
+        chimT = 0.75 + Math.random() * 0.35;
+        spawn(chimney.x + (Math.random() - 0.5) * 0.2, chimney.y, chimney.z, { vy: 0.8, spread: 0.1, life: 3.6, size: 1.5, wind: 0.45 });
+      }
+      bookT -= c.dt * (c.near || c.hover ? 2.2 : 1);
+      if (bookT <= 0) {
+        bookT = 1.3 + Math.random() * 0.6;
+        fromBook(1);
+      }
+      // Turn a page every few seconds (more often when someone is close).
+      if (turnT < 0) {
+        nextTurn -= c.dt * (c.near || c.hover ? 2 : 1);
+        if (nextTurn <= 0) turnT = 0;
+      } else {
+        turnT += c.dt / 1.5;
+        if (turnT >= 1) {
+          turnT = -1;
+          nextTurn = 4 + Math.random() * 2;
+          turn(0); // the turned leaf is now part of the left page; start a fresh one on the right
+          fromBook(2);
+        } else turn(turnT);
+      }
+
+      const wv = new Vector3();
+      for (let g = 0; g < glyphs.length; g++) {
+        const pool = letters[g];
+        const m = meshes[g];
+        for (let i = 0; i < PER; i++) {
+          const l = pool[i];
+          if (!l.alive) continue;
+          l.age += c.dt;
+          const t = l.age / l.life;
+          if (t >= 1) {
+            l.alive = false;
+            hide();
+            m.setMatrixAt(i, o.matrix);
+            continue;
+          }
+          l.x += (l.vx + l.wind + Math.sin(c.t * 1.7 + l.phase) * 0.25) * c.dt;
+          l.y += l.vy * c.dt;
+          l.z += (l.vz + Math.cos(c.t * 1.3 + l.phase) * 0.18) * c.dt;
+          l.vx *= 1 - c.dt * 0.6;
+          l.vz *= 1 - c.dt * 0.6;
+          const sIn = easeOutBack(Math.min(1, t * 5), 2.2);
+          const sOut = 1 - Math.max(0, (t - 0.55) / 0.45) ** 2;
+          wv.set(l.x, l.y, l.z);
+          o.position.copy(wv);
+          o.rotation.set(Math.sin(c.t * 2 + l.phase) * 0.35, l.phase + l.age * l.spin, Math.sin(c.t * 1.6 + l.phase) * 0.25);
+          o.scale.setScalar(Math.max(0.0001, l.size * sIn * sOut));
+          o.updateMatrix();
+          m.setMatrixAt(i, o.matrix);
+        }
+        m.instanceMatrix.needsUpdate = true;
+      }
+      // Reading-lamp glow, breathing gently.
+      const f = 0.94 + 0.06 * Math.sin(c.t * 1.3) * Math.sin(c.t * 2.9 + 1);
+      glow.color.copy(base0).multiplyScalar(f);
+    },
+  };
+}
+
 // ---------------------------------------------------------------- pier
 
 export function buildPier(color: string): Built {
@@ -869,6 +1281,7 @@ export const BUILDERS = {
   cabin: buildCabin,
   taproom: buildTaproom,
   tree: buildTree,
+  library: buildLibrary,
   lighthouse: buildLighthouse,
   schoolhouse: buildSchoolhouse,
   depot: buildDepot,

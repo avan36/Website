@@ -42,7 +42,21 @@ const { kind } = Astro.props;
       <rect class="lm-fill" x="16" y="55" width="32" height="3" rx="1.5" />
     </g>
   )}
-  {kind !== 'cabin' && kind !== 'tree' && kind !== 'lighthouse' && (
+  {kind === 'library' && (
+    <g>
+      <path class="lm-fill" d="M7 25 L32 10 L57 25 Z" />
+      <path class="lm-cut" d="M17 22 L32 13.5 L47 22 Z" />
+      <circle class="lm-glow" cx="32" cy="18.6" r="2.4" />
+      <rect class="lm-fill" x="9" y="25" width="46" height="4" rx="1" />
+      <rect class="lm-fill" x="12" y="30.5" width="40" height="21" />
+      <path class="lm-glow" d="M16.5 47 V38.5 a3.5 3.5 0 0 1 7 0 V47 Z" />
+      <path class="lm-glow" d="M40.5 47 V38.5 a3.5 3.5 0 0 1 7 0 V47 Z" />
+      <path class="lm-cut" d="M27.5 51.5 V38 a4.5 4.5 0 0 1 9 0 V51.5 Z" />
+      <rect class="lm-fill" x="9" y="51" width="46" height="3" rx="1" />
+      <rect class="lm-fill" x="6" y="55" width="52" height="3" rx="1.5" />
+    </g>
+  )}
+  {kind !== 'cabin' && kind !== 'tree' && kind !== 'lighthouse' && kind !== 'library' && (
     <g>
       <path class="lm-fill" d="M10 30 L32 13 L54 30 Z" />
       <rect class="lm-fill" x="15" y="29" width="34" height="24" rx="2" />

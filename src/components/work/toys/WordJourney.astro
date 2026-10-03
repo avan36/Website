@@ -1,0 +1,681 @@
+---
+// Etymon: a word travels from its oldest known form to today's English, stage
+// by stage. Letters that survive glide into place, new ones ink in (tinted by
+// the stream they arrived through, then drying to ink), lost ones blur away.
+// The journeys are Etymon's own data; see wordJourney.ts.
+import ToyFrame from '../ToyFrame.astro';
+import Replay from '../Replay.astro';
+import { JOURNEYS, LANGS, MAX_STAGES, displayForm, formatYear, ringParts, spanLabel, spokenYear } from './wordJourney';
+
+const first = JOURNEYS[0];
+const end = first.path.length - 1;
+const endStage = first.path[end];
+---
+<ToyFrame
+  id="wj"
+  label="Try it · Demo"
+  title="Every word is a time machine"
+  lede="Pick a word and watch it travel from its oldest known form to the English you speak today. Letters that survive glide into place, new ones ink in, and the ones English dropped fade away."
+  note="A pocket version of Etymon's word journeys. Data from Etymon, based on the OED, Etymonline and Wiktionary. Years are approximate; * marks a reconstructed form that was never written down."
+>
+  <div class="wj" data-wj data-journeys={JSON.stringify(JOURNEYS)} data-langs={JSON.stringify(LANGS)} style={`--max:${MAX_STAGES}`}>
+    <div class="wj__bar">
+      <div class="wj__chips" role="group" aria-label="Pick a word">
+        {JOURNEYS.map((j, i) => (
+          <button type="button" class="wj__chip" data-pick={i} aria-pressed={i === 0 ? 'true' : 'false'}>{j.word}</button>
+        ))}
+      </div>
+      <Replay attr="data-wj-replay" label="Play again" />
+    </div>
+
+    <div class="wj__card" style={`--glow:${LANGS[endStage.lang].color}`}>
+      <span class="wj__glow" aria-hidden="true"></span>
+      <p class="wj__eyebrow" aria-hidden="true">
+        <span class="wj__rule"></span>
+        <span>Tracing <em data-wj-name>{first.word}</em></span>
+        <span class="wj__sep">·</span>
+        <span data-wj-span>{spanLabel(first)}</span>
+        <span class="wj__rule"></span>
+      </p>
+
+      <div class="wj__now" aria-hidden="true">
+        <p class="wj__caption" data-wj-caption>
+          <i class="wj__swatch"></i>
+          <span data-wj-lang>{LANGS[endStage.lang].name}</span>
+          <span class="wj__sep">·</span>
+          <span data-wj-year>{formatYear(endStage.year)}</span>
+          <span class="wj__native" data-wj-native></span>
+        </p>
+        <div class="wj__wordbox" data-wj-box>
+          <span class="wj__word" data-wj-glyphs>{displayForm(endStage.form).text}</span>
+          <span class="wj__measure" data-wj-measure></span>
+        </div>
+        <p class="wj__meaning" data-wj-meaning>{endStage.meaning ? `‘${endStage.meaning}’` : ''}</p>
+      </div>
+
+      <div class="wj__lines">
+        {JOURNEYS.map((j, wi) => (
+          <ol
+            class:list={['wj__line', { 'is-active': wi === 0 }]}
+            data-line={wi}
+            style={`--n:${j.path.length};--prog:${wi === 0 ? 1 : 0}`}
+            aria-label={`The journey of ${j.word}, oldest first`}
+            inert={wi !== 0}
+          >
+            {j.path.map((s, i) => {
+              const d = displayForm(s.form);
+              const state = wi === 0 ? (i === end ? 'current' : 'past') : 'future';
+              return (
+                <li class="wj__item" data-state={state}>
+                  <button
+                    type="button"
+                    class="wj__stop"
+                    data-stop={i}
+                    aria-current={wi === 0 && i === end ? 'step' : undefined}
+                    aria-label={`${d.native ?? d.text}, ${LANGS[s.lang].name}, ${spokenYear(s.year)}${s.meaning ? `, meaning ${s.meaning}` : ''}`}
+                  >
+                    <span class="wj__node" aria-hidden="true"></span>
+                    <span class="wj__form" aria-hidden="true">{ringParts(d.native ?? d.text).map((p) => (p.ring ? <span class="ring">{p.t}</span> : p.t))}</span>
+                    <span class="wj__meta" aria-hidden="true">
+                      <span class="wj__lang">{LANGS[s.lang].name}</span>
+                      <span class="wj__year">{formatYear(s.year)}</span>
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ol>
+        ))}
+      </div>
+    </div>
+
+    <div class="wj__stories">
+      {JOURNEYS.map((j, wi) => (
+        <p class:list={['wj__story', { 'is-active': wi === 0 }]} data-story={wi} aria-hidden={wi !== 0 ? 'true' : undefined}>{ringParts(j.story).map((p) => (p.ring ? <span class="ring">{p.t}</span> : p.t))}</p>
+      ))}
+    </div>
+    <p class="visually-hidden" aria-live="polite" data-wj-live></p>
+  </div>
+</ToyFrame>
+
+<style>
+  .wj {
+    --wj-size: clamp(3.4rem, 1.4rem + 6.6vw, 7.4rem);
+    --row: 62px;
+    display: grid;
+    gap: var(--space-5);
+  }
+
+  /* ---------- Picker ---------- */
+  .wj__bar { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); flex-wrap: wrap; }
+  .wj__chips { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+  .wj__chip {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 6px 18px 8px;
+    border: 0;
+    border-radius: var(--r-pill);
+    background: var(--bg-raised);
+    box-shadow: inset 0 0 0 1px var(--line-strong);
+    font-family: var(--font-read);
+    font-size: 1.12rem;
+    font-style: italic;
+    font-weight: 500;
+    color: var(--ink);
+    cursor: pointer;
+    transition: box-shadow var(--dur-2), background var(--dur-2), color var(--dur-2), transform var(--dur-2) var(--ease-spring);
+  }
+  @media (hover: hover) { .wj__chip:hover { box-shadow: inset 0 0 0 1.5px var(--p); } }
+  .wj__chip:active { transform: scale(0.96); }
+  .wj__chip[aria-pressed='true'] {
+    background: var(--p);
+    color: #fff;
+    box-shadow: 0 4px 14px -6px color-mix(in oklab, var(--p) 70%, transparent);
+  }
+
+  /* ---------- The card ---------- */
+  .wj__card {
+    position: relative;
+    display: grid;
+    gap: clamp(var(--space-5), 3vw, var(--space-6));
+    padding: clamp(22px, 4vw, 44px) clamp(14px, 3.4vw, 44px) clamp(18px, 3vw, 36px);
+    border-radius: var(--r-lg);
+    background: color-mix(in oklab, var(--bg-raised) 88%, var(--bg));
+    box-shadow: var(--shadow-1), inset 0 0 0 1px var(--line);
+    overflow: hidden;
+    isolation: isolate;
+  }
+  /* A soft wash of the current stream's color behind the word. */
+  .wj__glow {
+    position: absolute;
+    z-index: -1;
+    left: 50%; top: 4%;
+    width: min(620px, 80%);
+    height: 54%;
+    translate: -50% 0;
+    border-radius: 50%;
+    background: var(--glow);
+    opacity: 0.16;
+    filter: blur(56px);
+    transition: background-color 1.2s var(--ease-out);
+    pointer-events: none;
+  }
+  :global(:root[data-theme='dark']) .wj__glow { opacity: 0.2; }
+  @media (prefers-color-scheme: dark) {
+    :global(:root:not([data-theme='light'])) .wj__glow { opacity: 0.2; }
+  }
+
+  .wj__eyebrow,
+  .wj__caption {
+    display: flex; align-items: center; justify-content: center; flex-wrap: wrap;
+    gap: 2px 10px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  .wj__eyebrow em {
+    font-family: var(--font-read);
+    font-size: 1.35em;
+    font-style: italic;
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--ink);
+  }
+  .wj__rule { width: 28px; height: 1px; background: currentColor; opacity: 0.5; }
+  .wj__sep { opacity: 0.6; }
+
+  .wj__now { display: grid; justify-items: center; gap: var(--space-2); text-align: center; }
+  .wj__caption { color: var(--ink-2); height: 2em; line-height: 1.2; transition: opacity 260ms var(--ease-out); }
+  .wj__caption.is-swapping { opacity: 0; }
+  .wj__swatch {
+    width: 9px; height: 9px; border-radius: 50%;
+    background: var(--glow);
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--glow) 22%, transparent);
+    transition: background-color 600ms;
+  }
+  .wj__native { font-family: var(--font-read); font-size: 1.3em; line-height: 1; letter-spacing: 0; text-transform: none; color: var(--ink-2); }
+  .wj__native:empty { display: none; }
+
+  .wj__wordbox {
+    position: relative;
+    width: 100%;
+    height: calc(var(--wj-size) * 1.32);
+    display: grid;
+    place-items: center;
+    font-family: var(--font-read);
+    font-size: var(--wj-size);
+    font-weight: 400;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    font-variation-settings: 'opsz' 72;
+    color: var(--ink);
+  }
+  .wj__word {
+    position: relative;
+    display: inline-flex;
+    align-items: baseline;
+    white-space: pre;
+    font-size: calc(1em * var(--fit, 1));
+  }
+  .wj__word :global(.g) { display: inline-block; white-space: pre; will-change: transform; }
+  .wj__word :global(.g.is-mark) { color: var(--ink-3); }
+  .wj__word :global(.g.is-star) { font-size: 0.6em; align-self: flex-start; margin: 0.1em 0.04em 0 0; }
+  /* Subscript digits (the laryngeal in *seh₂l-): the fallback glyph is nearly full size. */
+  .wj__word :global(.g.is-sub) { position: relative; top: 0.14em; font-size: 0.4em; }
+  /* r̥: the ring drawn in CSS, centered under its letter. */
+  .wj__word :global(.g.has-ring),
+  .ring { position: relative; }
+  .wj__word :global(.g.has-ring)::after,
+  .ring::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    width: 0.14em;
+    height: 0.14em;
+    translate: -50% 0;
+    border: max(1px, 0.032em) solid currentColor;
+    border-radius: 50%;
+    box-sizing: border-box;
+  }
+  .wj__word :global(.g.has-ring)::after { bottom: 0.03em; left: 40%; }
+  .ring { display: inline-block; line-height: 1; }
+  .ring::after { bottom: 0.02em; }
+  .wj__measure { position: absolute; visibility: hidden; white-space: pre; pointer-events: none; }
+  .wj__meaning {
+    height: 1.5em;
+    line-height: 1.45;
+    font-family: var(--font-read);
+    font-size: var(--step-1);
+    font-style: italic;
+    color: var(--ink-2);
+    transition: opacity 320ms var(--ease-out);
+  }
+  .wj__meaning.is-swapping { opacity: 0; }
+
+  /* ---------- Timeline (horizontal) ---------- */
+  .wj__lines { display: grid; }
+  .wj__line {
+    grid-area: 1 / 1;
+    position: relative;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(var(--n), minmax(0, 1fr));
+    visibility: hidden;
+  }
+  .wj__line.is-active { visibility: visible; }
+  .wj__line::before,
+  .wj__line::after {
+    content: '';
+    position: absolute;
+    top: 21px;
+    left: calc(50% / var(--n));
+    width: calc(100% * (var(--n) - 1) / var(--n));
+    height: 2px;
+    border-radius: 2px;
+    background: var(--line-strong);
+    transform-origin: left center;
+  }
+  .wj__line::after {
+    background: var(--p);
+    transform: scaleX(var(--prog));
+    transition: transform 900ms var(--ease-out);
+  }
+  .wj__stop {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    height: 100%;
+    min-height: 44px;
+    display: grid;
+    justify-items: center;
+    align-content: start;
+    gap: 3px;
+    padding: 12px 4px 8px;
+    border: 0;
+    border-radius: var(--r-md);
+    background: none;
+    text-align: center;
+    color: inherit;
+    cursor: pointer;
+    transition: background var(--dur-2);
+  }
+  @media (hover: hover) { .wj__stop:hover { background: color-mix(in oklab, var(--p) 7%, transparent); } }
+  .wj__node {
+    width: 20px; height: 20px;
+    margin-bottom: 8px;
+    display: grid; place-items: center;
+  }
+  .wj__node::before {
+    content: '';
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--bg-raised);
+    box-shadow: inset 0 0 0 2px var(--line-strong);
+    transition: transform 500ms var(--ease-spring), background 400ms, box-shadow 400ms;
+  }
+  .wj__form {
+    font-family: var(--font-read);
+    font-size: clamp(1.05rem, 0.9rem + 0.6vw, 1.45rem);
+    line-height: 1.15;
+    color: var(--ink-3);
+    overflow-wrap: anywhere;
+    transition: color 400ms;
+  }
+  .wj__meta { display: grid; gap: 2px; }
+  .wj__lang { font-size: var(--step--1); font-weight: 650; line-height: 1.25; color: var(--ink-3); text-wrap: balance; transition: color 400ms; }
+  .wj__year { font-family: var(--font-mono); font-size: 11.5px; letter-spacing: 0.06em; color: var(--ink-3); }
+
+  .wj__item[data-state='past'] .wj__node::before { background: var(--p); box-shadow: none; }
+  .wj__item[data-state='past'] .wj__form { color: var(--ink-2); }
+  .wj__item[data-state='past'] .wj__lang { color: var(--ink-2); }
+  .wj__item[data-state='current'] .wj__node::before {
+    background: var(--p);
+    box-shadow: 0 0 0 5px color-mix(in oklab, var(--p) 22%, transparent);
+    transform: scale(1.5);
+  }
+  .wj__item[data-state='current'] .wj__form { color: var(--ink); }
+  .wj__item[data-state='current'] .wj__lang { color: color-mix(in oklab, var(--p) 72%, var(--ink)); }
+
+  /* ---------- Timeline (vertical, phones) ---------- */
+  @media (max-width: 640px) {
+    .wj__line {
+      grid-template-columns: 1fr;
+      grid-auto-rows: var(--row);
+      min-height: calc(var(--row) * var(--max));
+      align-content: start;
+    }
+    .wj__line::before,
+    .wj__line::after {
+      top: calc(var(--row) / 2);
+      left: 21px;
+      width: 2px;
+      height: calc(var(--row) * (var(--n) - 1));
+      transform-origin: center top;
+    }
+    .wj__line::after { transform: scaleY(var(--prog)); }
+    /* One row per stage: form and year on top, language beneath. */
+    .wj__stop {
+      grid-template-columns: 24px auto minmax(0, 1fr);
+      grid-template-rows: auto auto;
+      justify-items: start;
+      align-items: baseline;
+      align-content: center;
+      column-gap: 12px;
+      row-gap: 1px;
+      padding: 6px 10px;
+      text-align: left;
+    }
+    .wj__node { grid-row: 1 / 3; grid-column: 1; align-self: center; margin: 0; }
+    .wj__form { grid-row: 1; grid-column: 2; font-size: 1.2rem; }
+    .wj__meta { display: contents; }
+    .wj__year { grid-row: 1; grid-column: 3; }
+    .wj__lang { grid-row: 2; grid-column: 2 / 4; }
+    .wj__eyebrow .wj__rule,
+    .wj__eyebrow .wj__sep { display: none; }
+    .wj__eyebrow { flex-direction: column; gap: 4px; }
+    /* Captions and meanings can wrap here: reserve two lines so nothing below jumps. */
+    .wj__caption { height: 3.2em; align-content: center; }
+    .wj__meaning { height: 2.7em; display: grid; place-items: center; line-height: 1.3; }
+  }
+
+  /* ---------- Story ---------- */
+  .wj__stories { display: grid; }
+  .wj__story {
+    grid-area: 1 / 1;
+    max-width: 62ch;
+    font-family: var(--font-read);
+    font-size: var(--step-0);
+    line-height: 1.55;
+    color: var(--ink-2);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 500ms var(--ease-out), visibility 0s 500ms;
+  }
+  .wj__story.is-active { opacity: 1; visibility: visible; transition: opacity 500ms var(--ease-out) 150ms, visibility 0s; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .wj__line::after,
+    .wj__node::before,
+    .wj__glow { transition: none; }
+  }
+</style>
+
+<script>
+  import { reducedMotion, sleep, whenVisible } from '../lib';
+  import { align, displayForm, formatYear, graphemes, hasRing, spanLabel, spokenYear, stripRing, type Journey } from './wordJourney';
+
+  type Lang = { name: string; color: string };
+  type Glyph = { el: HTMLSpanElement; ch: string };
+
+  const SUBS = '₀₁₂₃₄₅₆₇₈₉';
+  const isMark = (ch: string, i: number, n: number) => ch === '*' || (ch === '-' && (i === 0 || i === n - 1));
+
+  for (const root of document.querySelectorAll<HTMLElement>('[data-wj]')) {
+    const journeys = JSON.parse(root.dataset.journeys || '[]') as Journey[];
+    const langs = JSON.parse(root.dataset.langs || '{}') as Record<string, Lang>;
+    const card = root.querySelector<HTMLElement>('.wj__card')!;
+    const chips = [...root.querySelectorAll<HTMLButtonElement>('[data-pick]')];
+    const lines = [...root.querySelectorAll<HTMLOListElement>('[data-line]')];
+    const stories = [...root.querySelectorAll<HTMLElement>('[data-story]')];
+    const box = root.querySelector<HTMLElement>('[data-wj-box]')!;
+    const word = root.querySelector<HTMLElement>('[data-wj-glyphs]')!;
+    const measure = root.querySelector<HTMLElement>('[data-wj-measure]')!;
+    const caption = root.querySelector<HTMLElement>('[data-wj-caption]')!;
+    const langEl = root.querySelector<HTMLElement>('[data-wj-lang]')!;
+    const yearEl = root.querySelector<HTMLElement>('[data-wj-year]')!;
+    const nativeEl = root.querySelector<HTMLElement>('[data-wj-native]')!;
+    const meaningEl = root.querySelector<HTMLElement>('[data-wj-meaning]')!;
+    const nameEl = root.querySelector<HTMLElement>('[data-wj-name]')!;
+    const spanEl = root.querySelector<HTMLElement>('[data-wj-span]')!;
+    const live = root.querySelector<HTMLElement>('[data-wj-live]')!;
+    const replay = root.querySelector<HTMLButtonElement>('[data-wj-replay]');
+
+    let wi = 0; // current word
+    let glyphs: Glyph[] = [];
+    let run = 0; // bumps to cancel a playing journey
+    let started = false;
+
+    const stagesOf = (j: Journey) => j.path.map((s) => ({ ...s, ...displayForm(s.form) }));
+
+    /* ---- fitting: one size per word, so it never jumps between stages ---- */
+    function fit() {
+      const avail = box.clientWidth * 0.94;
+      let widest = 1;
+      for (const s of stagesOf(journeys[wi])) {
+        measure.textContent = s.text;
+        widest = Math.max(widest, measure.getBoundingClientRect().width);
+      }
+      word.style.setProperty('--fit', Math.min(1, avail / widest).toFixed(3));
+    }
+
+    /* ---- letters ---- */
+    function dress(el: HTMLSpanElement, ch: string, i: number, n: number) {
+      el.className = 'g';
+      if (isMark(ch, i, n)) el.classList.add('is-mark');
+      if (ch === '*') el.classList.add('is-star');
+      if (hasRing(ch)) el.classList.add('has-ring');
+      const sub = SUBS.indexOf(ch);
+      if (sub >= 0) el.classList.add('is-sub');
+      el.textContent = sub >= 0 ? String(sub) : stripRing(ch);
+    }
+
+    function makeGlyph(ch: string, i: number, n: number): Glyph {
+      const el = document.createElement('span');
+      dress(el, ch, i, n);
+      return { el, ch };
+    }
+
+    function setWord(text: string, color: string, mode: 'fresh' | 'morph' | 'instant') {
+      const next = graphemes(text);
+      const calm = reducedMotion();
+
+      if (mode === 'instant' || calm || !glyphs.length) {
+        for (const g of glyphs) g.el.getAnimations().forEach((a) => a.cancel());
+        word.replaceChildren();
+        glyphs = next.map((ch, i) => makeGlyph(ch, i, next.length));
+        word.append(...glyphs.map((g) => g.el));
+        if (mode !== 'instant') word.animate([{ opacity: 0 }, { opacity: 1 }], { duration: calm ? 420 : 600, easing: 'ease-out' });
+        return;
+      }
+
+      // Settle anything still mid-flight, and drop letters still fading out.
+      word.querySelectorAll('.g.is-leaving').forEach((el) => el.remove());
+      for (const g of glyphs) g.el.getAnimations().forEach((a) => a.finish());
+
+      const map = mode === 'fresh' ? next.map(() => -1) : align(glyphs.map((g) => g.ch), next);
+      const before = new Map(glyphs.map((g) => [g.el, g.el.getBoundingClientRect()]));
+      const kept = new Set<number>(map.filter((k) => k >= 0));
+      const leaving = glyphs.filter((_, k) => !kept.has(k));
+
+      const nextGlyphs: Glyph[] = next.map((ch, j) => {
+        const k = map[j];
+        if (k < 0) return makeGlyph(ch, j, next.length);
+        const g = glyphs[k];
+        if (g.ch !== ch) g.el.dataset.changed = '1';
+        dress(g.el, ch, j, next.length);
+        return { el: g.el, ch };
+      });
+
+      word.replaceChildren(...nextGlyphs.map((g) => g.el), ...leaving.map((g) => g.el));
+      const host = word.getBoundingClientRect();
+
+      // Lost letters: pinned where they were, then blurred away.
+      for (const g of leaving) {
+        const r = before.get(g.el)!;
+        g.el.classList.add('is-leaving');
+        Object.assign(g.el.style, { position: 'absolute', left: `${r.left - host.left}px`, top: `${r.top - host.top}px` });
+        g.el.animate(
+          [
+            { opacity: 1, transform: 'none', filter: 'blur(0)' },
+            { opacity: 0, transform: 'translateY(-0.28em) scale(1.06)', filter: 'blur(10px)' },
+          ],
+          { duration: 460, easing: 'cubic-bezier(.4,0,1,1)' },
+        ).onfinish = () => g.el.remove();
+      }
+
+      let fresh = 0;
+      nextGlyphs.forEach((g) => {
+        const r0 = before.get(g.el);
+        const ink = getComputedStyle(g.el).color;
+        if (r0) {
+          // Survivors glide from where they stood.
+          const r1 = g.el.getBoundingClientRect();
+          const dx = r0.left - r1.left, dy = r0.top - r1.top;
+          const scale = r0.height ? r0.height / r1.height : 1;
+          if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5 || Math.abs(scale - 1) > 0.01) {
+            g.el.animate(
+              [{ transform: `translate(${dx}px, ${dy}px) scale(${scale})` }, { transform: 'none' }],
+              { duration: 820, easing: 'cubic-bezier(.3,1.22,.5,1)' },
+            );
+          }
+          if (g.el.dataset.changed) {
+            delete g.el.dataset.changed;
+            g.el.animate([{ color }, { color, offset: 0.3 }, { color: ink }], { duration: 1500, easing: 'ease-out' });
+          }
+        } else {
+          // Newcomers ink in, tinted by their stream, then dry to ink.
+          const delay = 90 + fresh++ * 55;
+          g.el.animate(
+            [
+              { opacity: 0, transform: 'translateY(0.32em) scale(0.92)', filter: 'blur(12px)', color },
+              { opacity: 1, transform: 'none', filter: 'blur(0)', color, offset: 0.35 },
+              { opacity: 1, transform: 'none', filter: 'blur(0)', color: ink },
+            ],
+            { duration: 2000, delay, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'backwards' },
+          );
+        }
+      });
+      glyphs = nextGlyphs;
+    }
+
+    /* ---- one stage ---- */
+    function swapText(el: HTMLElement, apply: () => void) {
+      if (reducedMotion() || !started) return apply();
+      el.classList.add('is-swapping');
+      setTimeout(() => {
+        apply();
+        el.classList.remove('is-swapping');
+      }, 200);
+    }
+
+    function setStage(i: number, mode: 'fresh' | 'morph' | 'instant') {
+      const stages = stagesOf(journeys[wi]);
+      const s = stages[i];
+      const lang = langs[s.lang];
+      card.style.setProperty('--glow', lang.color);
+      swapText(caption, () => {
+        langEl.textContent = lang.name;
+        yearEl.textContent = formatYear(s.year);
+        nativeEl.textContent = s.native ?? '';
+      });
+      const meaning = s.meaning ? `‘${s.meaning}’` : '';
+      if (meaningEl.textContent !== meaning) swapText(meaningEl, () => (meaningEl.textContent = meaning));
+
+      const line = lines[wi];
+      line.style.setProperty('--prog', String(stages.length > 1 ? i / (stages.length - 1) : 1));
+      line.querySelectorAll<HTMLElement>('.wj__item').forEach((li, k) => {
+        li.dataset.state = k < i ? 'past' : k === i ? 'current' : 'future';
+        const b = li.querySelector('button')!;
+        if (k === i) b.setAttribute('aria-current', 'step');
+        else b.removeAttribute('aria-current');
+      });
+
+      if (s.text === glyphs.map((g) => g.ch).join('') && mode === 'morph') return;
+      setWord(s.text, lang.color, mode);
+    }
+
+    function selectWord(next: number) {
+      wi = next;
+      const j = journeys[wi];
+      chips.forEach((c, k) => c.setAttribute('aria-pressed', String(k === wi)));
+      lines.forEach((l, k) => {
+        l.classList.toggle('is-active', k === wi);
+        l.inert = k !== wi;
+      });
+      stories.forEach((p, k) => {
+        p.classList.toggle('is-active', k === wi);
+        if (k === wi) p.removeAttribute('aria-hidden');
+        else p.setAttribute('aria-hidden', 'true');
+      });
+      nameEl.textContent = j.word;
+      spanEl.textContent = spanLabel(j);
+      fit();
+    }
+
+    function describe(j: Journey) {
+      const a = j.path[0], b = j.path[j.path.length - 1];
+      return `${j.word}: ${j.path.length} stages, from ${langs[a.lang].name} ${displayForm(a.form).native ?? displayForm(a.form).text}, ${spokenYear(a.year)}, to ${langs[b.lang].name} ${b.form}, ${spokenYear(b.year)}.`;
+    }
+
+    /* ---- the journey ---- */
+    async function play(next = wi) {
+      const me = ++run;
+      started = true;
+      selectWord(next);
+      const n = journeys[wi].path.length;
+      setStage(0, 'fresh');
+      const calm = reducedMotion();
+      for (let i = 1; i < n; i++) {
+        const prev = stagesOf(journeys[wi])[i - 1];
+        const same = prev.text === stagesOf(journeys[wi])[i].text;
+        await sleep((i === 1 ? 1500 : same ? 1350 : 1750) * (calm ? 1.2 : 1));
+        if (me !== run) return;
+        setStage(i, 'morph');
+      }
+    }
+
+    /** Show a word's journey already finished (reduced motion, before it plays). */
+    function showEnd(next = wi) {
+      ++run;
+      selectWord(next);
+      setStage(journeys[wi].path.length - 1, 'instant');
+    }
+
+    chips.forEach((c, k) =>
+      c.addEventListener('click', () => {
+        live.textContent = describe(journeys[k]);
+        if (reducedMotion() && k !== wi) {
+          started = true;
+          showEnd(k);
+        } else play(k);
+      }),
+    );
+
+    lines.forEach((line) =>
+      line.addEventListener('click', (e) => {
+        const b = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-stop]');
+        if (!b) return;
+        ++run; // stop the autoplay; the visitor is driving now
+        started = true;
+        setStage(Number(b.dataset.stop), 'morph');
+        live.textContent = b.getAttribute('aria-label') ?? '';
+      }),
+    );
+
+    replay?.addEventListener('click', () => play(wi));
+
+    // Until it plays: no JS shows the finished journey; with JS, wait at the start.
+    word.textContent = '';
+    if (reducedMotion()) showEnd(0);
+    else {
+      selectWord(0);
+      setStage(0, 'instant');
+    }
+    whenVisible(root, () => {
+      if (started || reducedMotion()) return;
+      play(0);
+    }, 0.45);
+
+    let lastW = box.clientWidth;
+    new ResizeObserver(() => {
+      if (box.clientWidth === lastW) return;
+      lastW = box.clientWidth;
+      fit();
+    }).observe(box);
+    document.fonts?.ready.then(fit);
+  }
+</script>

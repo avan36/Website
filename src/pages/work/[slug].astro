@@ -15,6 +15,7 @@ import CrawlField from '../../components/work/toys/CrawlField.astro';
 import TreeOfLife from '../../components/work/toys/TreeOfLife.astro';
 import PopQuiz from '../../components/work/toys/PopQuiz.astro';
 import PackScan from '../../components/work/toys/PackScan.astro';
+import WordJourney from '../../components/work/toys/WordJourney.astro';
 import { projects, type Project } from '../../data/projects';
 
 export function getStaticPaths() {
@@ -32,6 +33,7 @@ const toys: Record<string, (props: Record<string, never>) => unknown> = {
   'middle-place': JournalChat,
   'privacy-research': CrawlField,
   'map-of-evolution': TreeOfLife,
+  etymon: WordJourney,
   quizmate: PopQuiz,
   eqoscan: PackScan,
 };
