@@ -409,6 +409,7 @@ const labelPos = AXES.map((_, i) => {
 
     let dragAxis = -1;
     let tween = 0;
+    let tap: { axis: number; x: number; y: number; p: { x: number; y: number } } | null = null;
     svg.addEventListener('pointerdown', (e) => {
       if (e.pointerType === 'mouse' && e.button !== 0) return;
       const handle = (e.target as Element).closest<SVGGElement>('.handle');
@@ -426,6 +427,12 @@ const labelPos = AXES.map((_, i) => {
           const dot = (p.x * ux + p.y * uy) / r;
           if (dot > best) { best = dot; axis = i; }
         });
+      }
+      // A finger landing on the web (not a dot) might just be scrolling the
+      // page: only treat it as a tap once it lifts without moving.
+      if (!handle && e.pointerType !== 'mouse') {
+        tap = { axis, x: e.clientX, y: e.clientY, p };
+        return;
       }
       e.preventDefault();
       cancelAnimationFrame(tween);
@@ -447,8 +454,16 @@ const labelPos = AXES.map((_, i) => {
       dragAxis = -1;
       root.classList.remove('is-dragging');
     };
-    svg.addEventListener('pointerup', end);
-    svg.addEventListener('pointercancel', end);
+    svg.addEventListener('pointerup', (e) => {
+      if (tap && Math.hypot(e.clientX - tap.x, e.clientY - tap.y) < 10) {
+        cancelAnimationFrame(tween);
+        touched();
+        setFrom(tap.axis, tap.p);
+      }
+      tap = null;
+      end();
+    });
+    svg.addEventListener('pointercancel', () => { tap = null; end(); });
     svg.addEventListener('lostpointercapture', end);
     // Belt and braces for iOS: a touch that starts on a dot never scrolls.
     handles.forEach((h) => h.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false }));

@@ -31,6 +31,7 @@ import Replay from '../Replay.astro';
     box-shadow: inset 0 0 0 1px var(--line);
   }
   .tol__canvas canvas { width: 100%; height: 100%; }
+  @media (max-width: 600px) { .tol__canvas { height: auto; aspect-ratio: 1.45; } }
   .tol__foot { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); flex-wrap: wrap; }
   .tol__legend { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--step--1); color: var(--ink-2); font-weight: 600; }
   .tol__you { width: 12px; height: 12px; border-radius: 50%; background: var(--p); box-shadow: 0 0 0 4px color-mix(in oklab, var(--p) 25%, transparent); }
@@ -191,10 +192,10 @@ import Replay from '../Replay.astro';
           ctx.fillText(p.n.label, lx, ly);
         } else {
           ctx.textAlign = 'right';
-          ctx.textBaseline = 'bottom';
+          ctx.textBaseline = 'top';
           ctx.fillStyle = ink3;
           ctx.font = `italic 500 ${small ? 12 : 14}px ${cssVar(root, '--font-read') || 'Georgia'}`;
-          ctx.fillText(p.n.label, x - 6, y - 6);
+          ctx.fillText(p.n.label, x - 8, y + 7);
         }
         ctx.globalAlpha = 1;
       }

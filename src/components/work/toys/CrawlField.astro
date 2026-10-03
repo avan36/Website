@@ -16,7 +16,7 @@ import Replay from '../Replay.astro';
     <div class="crawl__head">
       <p class="crawl__count">
         <span class="crawl__num" data-crawl-num>11,000+</span>
-        <span class="crawl__unit">websites</span>
+        <span class="crawl__unit">websites crawled</span>
       </p>
       <Replay attr="data-crawl-replay" />
     </div>
@@ -30,7 +30,7 @@ import Replay from '../Replay.astro';
 <style>
   .crawl { display: grid; gap: var(--space-5); }
   .crawl__head { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--space-4); flex-wrap: wrap; }
-  .crawl__count { display: flex; align-items: baseline; gap: var(--space-3); flex-wrap: wrap; }
+  .crawl__count { display: grid; gap: var(--space-1); }
   .crawl__num {
     font-family: var(--font-display);
     font-size: clamp(3rem, 2rem + 4.5vw, 5.5rem);
@@ -39,7 +39,6 @@ import Replay from '../Replay.astro';
     letter-spacing: -0.045em;
     font-variant-numeric: tabular-nums;
     color: color-mix(in oklab, var(--p) 85%, var(--ink));
-    min-width: 6.2ch;
   }
   .crawl__unit { font-size: var(--step-1); font-weight: 650; color: var(--ink-2); }
   .crawl__field {

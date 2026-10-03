@@ -221,9 +221,9 @@ const script = [
             if (!alive()) return;
             typed.textContent += ch;
             root.classList.add('can-send');
-            await sleep(ch === ' ' ? 55 : 28 + Math.random() * 46);
+            await sleep(ch === ' ' ? 45 : 20 + Math.random() * 30);
           }
-          await sleep(380);
+          await sleep(320);
           if (!alive()) return;
           root.classList.add('sent');
           typed.textContent = '';
@@ -231,16 +231,16 @@ const script = [
           bubble('me').textContent = line.text;
           await sleep(160);
           root.classList.remove('sent');
-          await sleep(650);
+          await sleep(550);
         } else if (line.who === 'memory') {
           const el = bubble('memory');
           el.innerHTML = MEMORY_ICON;
           el.append(document.createTextNode(line.text));
-          await sleep(1100);
+          await sleep(950);
         } else {
           const dots = bubble('typing');
           dots.innerHTML = '<i></i><i></i><i></i>';
-          await sleep(1300);
+          await sleep(1050);
           if (!alive()) return;
           dots.remove();
           const el = bubble('journal');
@@ -254,9 +254,9 @@ const script = [
           for (const w of words) {
             if (!alive()) return;
             w.classList.add('on');
-            await sleep(75);
+            await sleep(60);
           }
-          await sleep(1200);
+          await sleep(950);
         }
       }
     }
