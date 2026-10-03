@@ -1,4 +1,5 @@
 // Seeded 2D value noise with fbm. Plenty for gentle hills and color patches.
+// Shared by the world geometry and every renderer that wants texture.
 
 function hash(ix: number, iy: number, seed: number) {
   let h = Math.imul(ix, 374761393) + Math.imul(iy, 668265263) + Math.imul(seed, 982451653);

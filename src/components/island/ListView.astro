@@ -15,7 +15,7 @@ import SiteFooter from '../SiteFooter.astro';
       </span>
     </a>
     <nav class="lv-nav" aria-label="Primary">
-      <button type="button" class="lv-play lv-navplay" data-isl-play>
+      <button type="button" class="lv-play lv-navplay" data-view-set="island">
         <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15a1 1 0 0 0 1.5.9l12-7.5a1 1 0 0 0 0-1.8l-12-7.5A1 1 0 0 0 7 4.5Z" fill="currentColor" /></svg>
         Play the island
       </button>
@@ -32,12 +32,12 @@ import SiteFooter from '../SiteFooter.astro';
       <p class="lv-lede">{person.intro}</p>
       <div class="lv-actions">
         <a class="btn" href="#work">See my work</a>
-        <button type="button" class="btn btn-ghost lv-play" data-isl-play>
+        <button type="button" class="btn btn-ghost lv-play" data-view-set="island">
           <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15a1 1 0 0 0 1.5.9l12-7.5a1 1 0 0 0 0-1.8l-12-7.5A1 1 0 0 0 7 4.5Z" fill="currentColor" /></svg>
           Play the island
         </button>
       </div>
-      <p class="lv-note lv-play-note">This site is also a tiny island you can walk around. Every place on it is something I've made.</p>
+      <p class="lv-note lv-play-note">This site is also a tiny island you can walk around. Every place on it is something I've made. You can explore it as a <button type="button" class="lv-inline" data-view-set="map">pixel map</button> or a <button type="button" class="lv-inline" data-view-set="text">text adventure</button>, too.</p>
     </div>
     <figure class="lv-art" aria-hidden="true">
       <svg viewBox="0 0 480 400" width="480" height="400">
@@ -197,13 +197,27 @@ import SiteFooter from '../SiteFooter.astro';
   .lv-brand__text { display: grid; line-height: 1.15; }
   .lv-brand__name { font-family: var(--font-display); font-weight: 700; font-size: var(--step-1); letter-spacing: -0.02em; }
   .lv-brand__role { font-size: var(--step--1); color: var(--ink-3); font-weight: 550; }
+  .lv-inline {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    font-weight: 650;
+    text-decoration: underline;
+    text-decoration-thickness: 1.5px;
+    text-underline-offset: 0.2em;
+    text-decoration-color: color-mix(in srgb, currentColor 35%, transparent);
+    cursor: pointer;
+  }
+  .lv-inline:hover { text-decoration-color: currentColor; }
   .lv-nav { display: flex; align-items: center; gap: clamp(var(--space-3), 2.4vw, var(--space-6)); font-weight: 600; }
   .lv-nav a { text-decoration: none; color: var(--ink-2); }
   .lv-nav a:hover { color: var(--ink); }
 
   .lv-play { display: none !important; }
   :global(html.isl-gl) .lv-play { display: inline-flex !important; }
-  :global(html.isl-gl) .lv-play-note { display: block; }
+  :global(html.isl-js) .lv-play-note { display: block; }
   .lv-play-note { display: none; }
   .lv-navplay {
     align-items: center;

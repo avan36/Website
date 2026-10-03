@@ -25,7 +25,7 @@ import {
 import { Explorer } from './character';
 import { Landmark } from './landmarks';
 import { Labels } from './labels';
-import type { Sound } from './audio';
+import type { SoundName } from '../types';
 import { buildAmbient } from './world/ambient';
 import { resetSharedMaterials } from './world/kit';
 import { buildNature, type Collider, type SharedUniforms } from './world/nature';
@@ -38,13 +38,16 @@ import { clamp, damp, easeInOutCubic, easeOutBack, easeOutCubic, lerp } from './
 
 export interface GameOptions {
   stage: HTMLElement;
+  /** The page's HUD, so labels can keep out of its way. */
+  hud: HTMLElement;
   labelsHost: HTMLElement;
-  wipe: HTMLElement;
+  /** Open a place's page, wiping in from (x, y) on screen. */
+  go: (id: string, from: { x: number; y: number }) => void;
   cover: HTMLElement | null;
   returnTo: string | null;
   reducedMotion: boolean;
   touch: boolean;
-  sound: Sound;
+  sound: { play(name: SoundName): void };
   onReady: () => void;
   onFirstMove: () => void;
   onIntroDone: () => void;
@@ -453,29 +456,13 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     player.hop(7);
     l.bounce(1.4);
     o.sound.play('whoosh');
-    try {
-      sessionStorage.setItem('island:wipe', JSON.stringify({ slug: id, color: l.place.color }));
-      sessionStorage.setItem('island:return', id);
-    } catch {
-      /* storage blocked: the destination just won't animate */
-    }
   }
 
   const startWipe = (l: Landmark) => {
     const v = l.focus(new Vector3()).project(camera);
     const x = (v.x * 0.5 + 0.5) * viewW;
     const y = (-v.y * 0.5 + 0.5) * viewH;
-    const R = Math.hypot(Math.max(x, viewW - x), Math.max(y, viewH - y)) + 20;
-    const el = o.wipe;
-    el.style.background = l.place.color;
-    el.hidden = false;
-    const anim = el.animate(
-      [{ clipPath: `circle(0px at ${x}px ${y}px)` }, { clipPath: `circle(${R}px at ${x}px ${y}px)` }],
-      { duration: o.reducedMotion ? 10 : 620, easing: 'cubic-bezier(.7,0,.25,1)', fill: 'forwards' },
-    );
-    anim.onfinish = () => {
-      window.location.assign(l.place.href);
-    };
+    o.go(l.place.id, { x, y });
   };
 
   // ---------- Return reveal ----------
@@ -669,7 +656,7 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     // Labels (kept out of the HUD's way)
     if (frames % 15 === 1) {
       avoid.length = 0;
-      o.stage.querySelectorAll<HTMLElement>('.isl-top > *, .isl-card, .isl-sound-fab, .isl-hint').forEach((el) => {
+      o.hud.querySelectorAll<HTMLElement>('.isl-top > *, .isl-card, .isl-sound-fab, .isl-hoard-fab, .isl-hint').forEach((el) => {
         const r = el.getBoundingClientRect();
         const cs = getComputedStyle(el);
         if (r.width > 0 && cs.display !== 'none' && +cs.opacity > 0.05) avoid.push({ l: r.left - 6, t: r.top - 6, r: r.right + 6, b: r.bottom + 6 });

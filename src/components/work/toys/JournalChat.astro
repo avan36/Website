@@ -66,6 +66,8 @@ const script = [
     --ink-j: #26231f;
     position: relative;
     display: grid;
+    /* minmax(0, 1fr): a long draft must never widen the column (and the whole screen) */
+    grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto 1fr auto;
     height: 590px;
     border-radius: 41px;
@@ -135,23 +137,22 @@ const script = [
   @keyframes jin { from { opacity: 0; transform: translateY(10px) scale(0.94); } }
 
   .jchat__composer {
-    display: flex; align-items: center; gap: 8px;
+    display: flex; align-items: flex-end; gap: 8px;
     padding: 10px 12px 22px;
     border-top: 1px solid rgba(38, 35, 31, 0.07);
     background: #fff;
   }
   .jchat__input {
     flex: 1;
+    min-width: 0;
     min-height: 38px;
     padding: 8px 14px;
     border-radius: 19px;
     background: #f4f0e8;
     font-size: 14px;
     line-height: 22px;
-    overflow: hidden;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-    direction: ltr;
+    /* Wrap like a real composer: it grows a line taller and the thread scrolls up. */
+    overflow-wrap: anywhere;
   }
   .jchat__placeholder { color: #a39b90; }
   .jchat__typed:not(:empty) ~ .jchat__placeholder { display: none; }
@@ -163,6 +164,7 @@ const script = [
     flex: none;
     display: grid; place-items: center;
     width: 34px; height: 34px;
+    margin-bottom: 2px;
     border-radius: 50%;
     background: #d9d3c9;
     color: #fff;
