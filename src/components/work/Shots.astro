@@ -1,0 +1,144 @@
+---
+// Screenshots in device frames: phones fan out as a pair, web shots sit in a
+// browser window.
+import type { Project } from '../../data/projects';
+interface Props { project: Project }
+const { project } = Astro.props;
+
+const phones = project.shots.filter((s) => s.frame === 'phone');
+const browsers = project.shots.filter((s) => s.frame === 'browser');
+
+// What the browser's address bar should say. The GPC shot is the crawler's
+// architecture diagram, so it belongs to the crawler repo, not the dashboard.
+const urlOverride: Record<string, string> = {
+  'privacy-research': 'github.com/privacy-tech-lab/gpc-web-crawler',
+};
+const firstExternal = project.links.find((l) => /^https?:/.test(l.href));
+const address =
+  urlOverride[project.slug] ??
+  (firstExternal ? firstExternal.href.replace(/^https?:\/\//, '').replace(/\/$/, '') : '');
+---
+{project.shots.length > 0 && (
+  <section class="shots" aria-labelledby="shots-title">
+    <div class="wrap">
+      <h2 class="kicker shots__title" id="shots-title">{phones.length ? 'In the app' : 'On the web'}</h2>
+
+      {phones.length > 0 && (
+        <div class:list={['phones', { 'phones--pair': phones.length > 1 }]}>
+          {phones.map((s, i) => (
+            <figure class="phone" style={`--i:${i}`}>
+              <div class="phone__screen">
+                <img src={s.src} alt={s.alt} width={s.width} height={s.height} loading="lazy" decoding="async" />
+              </div>
+            </figure>
+          ))}
+        </div>
+      )}
+
+      {browsers.map((s) => (
+        <figure class="browser">
+          <div class="browser__window">
+            <div class="browser__bar" aria-hidden="true">
+              <span class="browser__dots"><i></i><i></i><i></i></span>
+              {address && <span class="browser__url">{address}</span>}
+              <span class="browser__spacer"></span>
+            </div>
+            <img src={s.src} alt={s.alt} width={s.width} height={s.height} loading="lazy" decoding="async" />
+          </div>
+          <figcaption>{s.alt}</figcaption>
+        </figure>
+      ))}
+    </div>
+  </section>
+)}
+
+<style>
+  .shots { margin-top: clamp(var(--space-8), 9vw, var(--space-10)); }
+  .shots__title { text-align: center; margin-bottom: clamp(var(--space-6), 4vw, var(--space-7)); }
+
+  /* ---------- Phones ---------- */
+  .phones {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    padding-block: var(--space-4) var(--space-6);
+    isolation: isolate;
+  }
+  .phones::before {
+    content: '';
+    position: absolute;
+    z-index: -1;
+    left: 50%; top: 52%;
+    width: min(620px, 92vw);
+    aspect-ratio: 1;
+    translate: -50% -50%;
+    border-radius: 50%;
+    background: radial-gradient(closest-side, color-mix(in oklab, var(--p) 26%, transparent), color-mix(in oklab, var(--p) 8%, transparent) 70%, transparent);
+  }
+  .phone {
+    --w: clamp(150px, 24vw, 272px);
+    margin: 0;
+    width: var(--w);
+    padding: calc(var(--w) * 0.035);
+    border-radius: calc(var(--w) * 0.17);
+    background: linear-gradient(150deg, #3a3631, #121110 55%);
+    box-shadow:
+      var(--shadow-3),
+      inset 0 0 0 1.5px rgba(255, 255, 255, 0.14),
+      inset 0 0 0 4px #0b0a09;
+    transition: transform 700ms var(--ease-spring);
+  }
+  .phone__screen { border-radius: calc(var(--w) * 0.14); overflow: hidden; background: #fff; }
+  .phone__screen img { width: 100%; }
+
+  .phones--pair .phone:nth-child(1) { transform: rotate(-6deg) translate(8%, 2%); z-index: 2; }
+  .phones--pair .phone:nth-child(2) { transform: rotate(5deg) translate(-8%, 9%); z-index: 1; }
+  .phones--pair:hover .phone:nth-child(1) { transform: rotate(-3deg) translate(2%, 0); }
+  .phones--pair:hover .phone:nth-child(2) { transform: rotate(3deg) translate(-2%, 6%); }
+
+  /* ---------- Browser ---------- */
+  .browser { margin: 0 auto; max-width: 1000px; }
+  .browser__window {
+    border-radius: clamp(12px, 1.6vw, 18px);
+    overflow: hidden;
+    background: #fff;
+    box-shadow: var(--shadow-3), 0 0 0 1px var(--line);
+  }
+  .browser__bar {
+    display: flex; align-items: center; gap: var(--space-3);
+    padding: 10px 14px;
+    background: var(--bg-sunken);
+    border-bottom: 1px solid var(--line);
+  }
+  .browser__dots { display: flex; gap: 7px; flex: 1 1 0; }
+  .browser__dots i { width: 11px; height: 11px; border-radius: 50%; background: #ff5f57; }
+  .browser__dots i:nth-child(2) { background: #febc2e; }
+  .browser__dots i:nth-child(3) { background: #28c840; }
+  .browser__url {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding: 4px 14px;
+    border-radius: var(--r-pill);
+    background: var(--bg-raised);
+    font-size: 12px;
+    color: var(--ink-3);
+    box-shadow: inset 0 0 0 1px var(--line);
+  }
+  .browser__spacer { flex: 1 1 0; }
+  .browser img { width: 100%; }
+  .browser figcaption {
+    max-width: 60ch;
+    margin: var(--space-4) auto 0;
+    text-align: center;
+    font-size: var(--step--1);
+    color: var(--ink-3);
+  }
+  @media (max-width: 520px) {
+    .browser__dots i { width: 9px; height: 9px; }
+    .browser__dots, .browser__spacer { flex: 0 0 auto; }
+    .browser__spacer { display: none; }
+  }
+</style>

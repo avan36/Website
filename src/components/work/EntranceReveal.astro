@@ -1,0 +1,81 @@
+---
+// Entrance reveal, the other half of the island's circular color wipe.
+//
+// Contract with the island: before navigating, it stores
+//   sessionStorage['island:wipe'] = JSON.stringify({ slug, color })
+// If the slug matches this page we start under a full-screen sheet of that
+// color and shrink it away as a circle, into the element marked
+// [data-wipe-target] (the hero's accent disc) when there is one. No key, no
+// overlay, no flash.
+//
+// Place this as the FIRST child of <Base>'s default slot: it's a parser-
+// blocking inline script, so the sheet exists before anything after it paints.
+interface Props { slug: string }
+const { slug } = Astro.props;
+---
+<script is:inline define:vars={{ slug }}>
+  (function () {
+    var data;
+    try {
+      var raw = sessionStorage.getItem('island:wipe');
+      if (!raw) return;
+      sessionStorage.removeItem('island:wipe');
+      data = JSON.parse(raw);
+    } catch (e) {
+      return;
+    }
+    if (!data || data.slug !== slug) return;
+
+    var root = document.documentElement;
+    var o = document.createElement('div');
+    o.setAttribute('aria-hidden', 'true');
+    o.style.position = 'fixed';
+    o.style.inset = '0';
+    o.style.zIndex = '2147483000';
+    o.style.pointerEvents = 'none';
+    o.style.background = 'var(--accent)';
+    if (typeof data.color === 'string' && data.color.length < 80) o.style.background = data.color;
+    document.body.appendChild(o);
+    root.classList.add('is-wiping');
+
+    var finished = false;
+    function done() {
+      if (finished) return;
+      finished = true;
+      o.remove();
+      root.classList.remove('is-wiping');
+    }
+    // Belt and braces: never leave the sheet up, whatever happens.
+    setTimeout(done, 3500);
+
+    function run() {
+      if (!o.animate) return done();
+      if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        o.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 260, easing: 'ease-out', fill: 'forwards' }).onfinish = done;
+        return;
+      }
+      var vw = innerWidth, vh = innerHeight;
+      var cx = vw / 2, cy = vh * 0.4, r = 0;
+      var t = document.querySelector('[data-wipe-target]');
+      if (t) {
+        var b = t.getBoundingClientRect();
+        if (b.width > 0 && b.bottom > 0 && b.top < vh) {
+          cx = b.left + b.width / 2;
+          cy = b.top + b.height / 2;
+          r = Math.min(b.width, b.height) / 2;
+        }
+      }
+      var R = Math.hypot(Math.max(cx, vw - cx), Math.max(cy, vh - cy)) + 4;
+      var at = 'px at ' + cx + 'px ' + cy + 'px)';
+      var shrink = o.animate(
+        [{ clipPath: 'circle(' + R + at }, { clipPath: 'circle(' + r + at }],
+        { duration: 820, delay: 90, easing: 'cubic-bezier(.7,0,.2,1)', fill: 'forwards' }
+      );
+      shrink.onfinish = function () {
+        o.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 240, easing: 'ease-out', fill: 'forwards' }).onfinish = done;
+      };
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run);
+    else run();
+  })();
+</script>

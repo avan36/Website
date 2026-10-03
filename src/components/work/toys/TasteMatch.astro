@@ -1,0 +1,500 @@
+---
+// busy beer: drag a five-axis palate and watch a little menu re-rank itself.
+import ToyFrame from '../ToyFrame.astro';
+import { AXES, DRINKS, PRESETS, START, match, point, polygon, RADIUS } from './taste';
+
+const ranked = [...DRINKS]
+  .map((d) => ({ ...d, pct: match(START, d.taste) }))
+  .sort((a, b) => Math.round(b.pct) - Math.round(a.pct));
+const top = ranked[0];
+
+const rings = [10, 7.5, 5, 2.5];
+const labelPos = AXES.map((_, i) => {
+  const [x, y] = point(i, 10, RADIUS + 26);
+  const anchor = Math.abs(x) < 4 ? 'middle' : x > 0 ? 'start' : 'end';
+  // Nudge the top label up and the bottom ones down so they clear the vertices.
+  const dy = i === 0 ? -14 : y > 40 ? 6 : -6;
+  return { x, y: y + dy, anchor };
+});
+---
+<ToyFrame
+  id="taste"
+  label="Try it · Demo"
+  title="Taste match"
+  lede="Drag the dots to set your palate. The menu re-ranks itself as you go, the same way busy beer ranks a real drinks list against your taste."
+  note="A demo of how the app ranks a menu. Six generic styles with rough flavor profiles, not real ratings."
+>
+  <div class="taste" data-taste>
+    <div class="taste__chart">
+      <svg class="radar" viewBox="-200 -172 400 336" width="400" height="336" role="group" aria-label="Your palate. Each flavor is a slider from 0 to 10.">
+        <g class="radar__grid" aria-hidden="true">
+          {rings.map((r) => <polygon points={polygon(AXES.map(() => r))} />)}
+          {AXES.map((_, i) => {
+            const [x, y] = point(i, 10);
+            return <line x1="0" y1="0" x2={x.toFixed(2)} y2={y.toFixed(2)} />;
+          })}
+        </g>
+        <polygon class="radar__ghost" points={polygon(top.taste)} aria-hidden="true" />
+        <polygon class="radar__you" points={polygon(START)} aria-hidden="true" />
+        <g class="radar__labels" aria-hidden="true">
+          {AXES.map((name, i) => (
+            <text x={labelPos[i].x.toFixed(1)} y={labelPos[i].y.toFixed(1)} text-anchor={labelPos[i].anchor}>
+              <tspan class="ax-name">{name}</tspan>
+              <tspan class="ax-val" dx="6">{START[i]}</tspan>
+            </text>
+          ))}
+        </g>
+        <g class="radar__nudge" aria-hidden="true">
+          <path d="M 58 -96 C 44 -104, 28 -98, 18 -86" />
+          <path d="M 24 -90 L 17 -85 L 25 -82" />
+          <text x="64" y="-92">drag me</text>
+        </g>
+        {AXES.map((name, i) => {
+          const [x, y] = point(i, START[i]);
+          return (
+            <g
+              class="handle"
+              data-axis={i}
+              transform={`translate(${x.toFixed(2)} ${y.toFixed(2)})`}
+              tabindex="0"
+              role="slider"
+              aria-label={name}
+              aria-valuemin="0"
+              aria-valuemax="10"
+              aria-valuenow={START[i]}
+              aria-valuetext={`${START[i]} out of 10`}
+            >
+              <circle class="handle__hit" r="22" />
+              <circle class="handle__ping" r="9" />
+              <circle class="handle__ring" r="15" />
+              <circle class="handle__knob" r="8.5" />
+            </g>
+          );
+        })}
+      </svg>
+
+      <div class="taste__controls">
+        <div class="legend" aria-hidden="true">
+          <span><i class="legend__you"></i>You</span>
+          <span><i class="legend__ghost"></i>Top match</span>
+        </div>
+        <div class="presets" role="group" aria-label="Try a preset palate">
+          {PRESETS.map((p, i) => <button type="button" class="preset" data-preset={i}>{p.label}</button>)}
+        </div>
+      </div>
+    </div>
+
+    <div class="menu-card">
+      <div class="menu-card__head">
+        <p class="menu-card__title">Tonight's menu</p>
+        <p class="menu-card__sub">Ranked for you</p>
+      </div>
+      <ol class="menu" aria-label="Drinks, best match first">
+        {ranked.map((d, i) => (
+          <li class:list={['drink', { 'is-top': i === 0 }]} data-id={d.id}>
+            <svg class="drink__glass" viewBox="0 0 24 32" width="24" height="32" aria-hidden="true">
+              <path d="M4.4 7 H19.6 L17.9 28.6 Q17.7 30.4 15.9 30.4 H8.1 Q6.3 30.4 6.1 28.6 Z" fill={d.hue} />
+              <path d="M3.6 4.2 Q5.6 1.4 8.6 2.8 Q12 0.6 15.4 2.8 Q18.6 1.2 20.4 4.2 L19.8 8.4 H4.2 Z" class="drink__foam" />
+              <path d="M3.8 4 H20.2 L18 28.8 Q17.8 30.6 15.9 30.6 H8.1 Q6.2 30.6 6 28.8 Z" class="drink__outline" />
+            </svg>
+            <span class="drink__text">
+              <span class="drink__name">{d.name}<span class="drink__badge">Top match</span></span>
+              <span class="drink__notes">{d.notes}</span>
+            </span>
+            <span class="score">
+              <svg class="score__ring" viewBox="0 0 44 44" width="44" height="44" aria-hidden="true">
+                <circle class="score__track" cx="22" cy="22" r="19" />
+                <circle class="score__arc" cx="22" cy="22" r="19" pathLength="100" stroke-dasharray="100" style={`stroke-dashoffset:${(100 - d.pct).toFixed(1)}`} />
+              </svg>
+              <span class="score__num">{Math.round(d.pct)}</span><span class="visually-hidden">% match</span>
+            </span>
+          </li>
+        ))}
+      </ol>
+    </div>
+    <p class="visually-hidden" aria-live="polite" data-live></p>
+  </div>
+</ToyFrame>
+
+<style>
+  .taste {
+    display: grid;
+    gap: var(--space-6);
+  }
+  @media (min-width: 880px) {
+    .taste {
+      grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+      align-items: center;
+      gap: clamp(var(--space-6), 5vw, var(--space-9));
+    }
+  }
+
+  /* ---------- Radar ---------- */
+  .taste__chart { display: grid; justify-items: center; gap: var(--space-5); }
+  .radar {
+    width: 100%;
+    max-width: 460px;
+    height: auto;
+    overflow: visible;
+    touch-action: pan-y;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .radar__grid polygon { fill: none; stroke: var(--line-strong); stroke-width: 1; }
+  .radar__grid polygon:first-of-type { fill: color-mix(in oklab, var(--bg-raised) 70%, transparent); stroke: color-mix(in oklab, var(--ink) 22%, transparent); }
+  .radar__grid line { stroke: var(--line); stroke-width: 1; }
+  .radar__ghost {
+    fill: none;
+    stroke: var(--ink-3);
+    stroke-width: 1.5;
+    stroke-dasharray: 4 5;
+    stroke-linejoin: round;
+  }
+  .radar__you {
+    fill: color-mix(in oklab, var(--p) 30%, transparent);
+    stroke: var(--p);
+    stroke-width: 3;
+    stroke-linejoin: round;
+  }
+  .radar__labels text { font-family: var(--font-ui); font-size: 15px; fill: var(--ink); }
+  .ax-name { font-weight: 650; }
+  .ax-val { font-weight: 600; fill: var(--ink-3); font-variant-numeric: tabular-nums; }
+
+  .radar__nudge { color: var(--ink-2); transition: opacity var(--dur-3) var(--ease-out); }
+  .radar__nudge path { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+  .radar__nudge text { font-family: var(--font-read); font-style: italic; font-size: 17px; fill: currentColor; }
+  .taste.is-touched .radar__nudge { opacity: 0; }
+
+  .handle { cursor: grab; outline: none; touch-action: none; }
+  .taste.is-dragging .radar, .taste.is-dragging .handle { cursor: grabbing; }
+  .handle__hit { fill: transparent; }
+  .handle__knob {
+    fill: var(--bg-raised);
+    stroke: var(--p);
+    stroke-width: 3.5;
+    transform-box: fill-box;
+    transform-origin: center;
+    transition: transform var(--dur-2) var(--ease-spring);
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.18));
+  }
+  .handle:hover .handle__knob, .handle.is-active .handle__knob { transform: scale(1.25); }
+  .handle__ring {
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 2.5;
+    opacity: 0;
+  }
+  .handle:focus-visible .handle__ring { opacity: 1; }
+  .handle__ping {
+    fill: none;
+    stroke: var(--p);
+    stroke-width: 2;
+    opacity: 0;
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+  .taste.is-hinting:not(.is-touched) .handle[data-axis='0'] .handle__ping {
+    animation: ping 1.8s var(--ease-out) 3 0.4s;
+  }
+  @keyframes ping {
+    0% { transform: scale(1); opacity: 0.9; }
+    80%, 100% { transform: scale(3.2); opacity: 0; }
+  }
+
+  .taste__controls {
+    display: flex; flex-wrap: wrap; align-items: center; justify-content: center;
+    gap: var(--space-4) var(--space-5);
+  }
+  .legend { display: flex; gap: var(--space-4); font-size: var(--step--1); color: var(--ink-3); }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend i { display: inline-block; width: 18px; height: 0; border-top: 3px solid var(--p); border-radius: 2px; }
+  .legend .legend__ghost { border-top: 2px dashed var(--ink-3); }
+  .presets { display: flex; flex-wrap: wrap; gap: var(--space-2); justify-content: center; }
+  .preset {
+    border: 0;
+    padding: 7px 14px;
+    border-radius: var(--r-pill);
+    background: var(--bg-raised);
+    box-shadow: inset 0 0 0 1px var(--line-strong);
+    font-size: var(--step--1);
+    font-weight: 600;
+    color: var(--ink-2);
+    cursor: pointer;
+    transition: transform var(--dur-2) var(--ease-spring), box-shadow var(--dur-2), color var(--dur-2);
+  }
+  .preset:hover { color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--p); transform: translateY(-1px); }
+  .preset:active { transform: scale(0.96); }
+
+  /* ---------- Menu ---------- */
+  .menu-card {
+    background: var(--bg-raised);
+    border-radius: var(--r-lg);
+    padding: var(--space-3);
+    box-shadow: var(--shadow-2);
+  }
+  .menu-card__head {
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding: var(--space-3) var(--space-3) var(--space-4);
+  }
+  .menu-card__title { font-family: var(--font-display); font-weight: 700; font-size: var(--step-1); letter-spacing: -0.02em; }
+  .menu-card__sub { font-size: var(--step--1); color: var(--ink-3); font-weight: 600; }
+  .menu { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+  .drink {
+    display: grid;
+    grid-template-columns: 24px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--space-4);
+    min-height: 68px;
+    padding: 10px 12px 10px 14px;
+    border-radius: var(--r-md);
+    position: relative;
+    transition: background-color var(--dur-3) var(--ease-out), box-shadow var(--dur-3) var(--ease-out);
+    will-change: transform;
+  }
+  .drink.is-top {
+    background: color-mix(in oklab, var(--p) 13%, var(--bg-raised));
+    box-shadow: inset 0 0 0 1.5px color-mix(in oklab, var(--p) 55%, transparent);
+  }
+  .drink__glass { overflow: visible; }
+  .drink__foam { fill: #fffaf0; }
+  .drink__outline { fill: none; stroke: var(--ink); stroke-opacity: 0.22; stroke-width: 1; }
+  .drink__text { display: grid; min-width: 0; }
+  .drink__name {
+    display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap;
+    font-weight: 650; line-height: 1.25;
+  }
+  .drink__notes { font-size: var(--step--1); color: var(--ink-3); line-height: 1.35; }
+  .drink__badge {
+    display: none;
+    padding: 1px 8px;
+    border-radius: var(--r-pill);
+    background: var(--p);
+    color: #2a1600;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .drink.is-top .drink__badge { display: inline-block; animation: pop 420ms var(--ease-spring); }
+  @keyframes pop { from { transform: scale(0.6); opacity: 0; } }
+
+  .score { position: relative; width: 44px; height: 44px; display: grid; place-items: center; }
+  .score__ring { position: absolute; inset: 0; transform: rotate(-90deg); }
+  .score__track { fill: none; stroke: var(--line-strong); stroke-width: 4; }
+  .score__arc { fill: none; stroke: var(--p); stroke-width: 4; stroke-linecap: round; }
+  .score__num { position: relative; font-weight: 700; font-size: 14px; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+  .drink:not(.is-top) .score__arc { stroke: color-mix(in oklab, var(--p) 70%, var(--ink-3)); }
+</style>
+
+<script>
+  import { DRINKS, PRESETS, START, match, point, polygon, RADIUS } from './taste';
+  import { clamp, easeInOutCubic, reducedMotion, whenVisible } from '../lib';
+
+  for (const root of document.querySelectorAll<HTMLElement>('[data-taste]')) init(root);
+
+  function init(root: HTMLElement) {
+    const svg = root.querySelector<SVGSVGElement>('svg.radar')!;
+    const you = svg.querySelector<SVGPolygonElement>('.radar__you')!;
+    const ghost = svg.querySelector<SVGPolygonElement>('.radar__ghost')!;
+    const handles = [...svg.querySelectorAll<SVGGElement>('.handle')];
+    const valueLabels = [...svg.querySelectorAll<SVGTSpanElement>('.ax-val')];
+    const list = root.querySelector<HTMLOListElement>('.menu')!;
+    const live = root.querySelector<HTMLElement>('[data-live]')!;
+    const rows = new Map(DRINKS.map((d) => [d.id, list.querySelector<HTMLLIElement>(`[data-id="${d.id}"]`)!]));
+    const tasteOf = new Map(DRINKS.map((d) => [d.id, d.taste as readonly number[]]));
+    const nameOf = new Map(DRINKS.map((d) => [d.id, d.name]));
+
+    const values: number[] = [...START];
+    const target = new Map(DRINKS.map((d) => [d.id, match(START, d.taste)]));
+    const shown = new Map(target);
+    let order = [...list.children].map((li) => (li as HTMLElement).dataset.id!);
+    const ghostNow = [...tasteOf.get(order[0])!];
+    let ghostTarget = [...ghostNow];
+    let announceTimer = 0;
+    let lastAnnounced = order[0];
+
+    // ---------- Rendering ----------
+    let raf = 0;
+    const kick = () => { if (!raf) raf = requestAnimationFrame(tick); };
+
+    function tick() {
+      raf = 0;
+      const k = reducedMotion() ? 1 : 0.2;
+      let busy = false;
+      for (const [id, t] of target) {
+        let s = shown.get(id)!;
+        if (Math.abs(t - s) > 0.2) { s += (t - s) * k; busy = true; } else s = t;
+        shown.set(id, s);
+        const row = rows.get(id)!;
+        row.querySelector('.score__num')!.textContent = String(Math.round(s));
+        (row.querySelector('.score__arc') as SVGCircleElement).style.strokeDashoffset = (100 - s).toFixed(1);
+      }
+      for (let i = 0; i < 5; i++) {
+        const d = ghostTarget[i] - ghostNow[i];
+        if (Math.abs(d) > 0.02) { ghostNow[i] += d * (reducedMotion() ? 1 : 0.16); busy = true; } else ghostNow[i] = ghostTarget[i];
+      }
+      ghost.setAttribute('points', polygon(ghostNow));
+      if (busy) kick();
+    }
+
+    function update() {
+      you.setAttribute('points', polygon(values));
+      handles.forEach((h, i) => {
+        const [x, y] = point(i, values[i]);
+        h.setAttribute('transform', `translate(${x.toFixed(2)} ${y.toFixed(2)})`);
+        const v = String(Math.round(values[i]));
+        if (h.getAttribute('aria-valuenow') !== v) {
+          h.setAttribute('aria-valuenow', v);
+          h.setAttribute('aria-valuetext', `${v} out of 10`);
+          valueLabels[i].textContent = v;
+        }
+      });
+      for (const [id, t] of tasteOf) target.set(id, match(values, t));
+      rank();
+      kick();
+    }
+
+    function rank() {
+      // Stable sort on whole percentages: near-ties keep their place, so the
+      // list doesn't flicker while two drinks are neck and neck.
+      const next = [...order].sort((a, b) => Math.round(target.get(b)!) - Math.round(target.get(a)!));
+      if (next.join() !== order.join()) {
+        flip(next);
+        order = next;
+      }
+      const top = order[0];
+      rows.forEach((row, id) => row.classList.toggle('is-top', id === top));
+      ghostTarget = [...tasteOf.get(top)!];
+      clearTimeout(announceTimer);
+      announceTimer = window.setTimeout(() => {
+        if (order[0] === lastAnnounced) return;
+        lastAnnounced = order[0];
+        live.textContent = `Top match: ${nameOf.get(order[0])}, ${Math.round(target.get(order[0])!)}%.`;
+      }, 700);
+    }
+
+    // FLIP: measure, move the nodes, then animate each row from where it was.
+    function flip(next: string[]) {
+      const before = new Map(next.map((id) => [id, rows.get(id)!.getBoundingClientRect().top]));
+      for (const id of next) list.appendChild(rows.get(id)!);
+      if (reducedMotion()) return;
+      for (const id of next) {
+        const row = rows.get(id)!;
+        const dy = before.get(id)! - row.getBoundingClientRect().top;
+        if (Math.abs(dy) < 0.5) continue;
+        row.getAnimations().forEach((a) => a.cancel());
+        row.animate([{ transform: `translateY(${dy}px)` }, { transform: 'translateY(0)' }], {
+          duration: 460,
+          easing: 'cubic-bezier(.2,.8,.2,1)',
+        });
+      }
+    }
+
+    // ---------- Input ----------
+    const touched = () => root.classList.add('is-touched');
+    const toSvg = (e: PointerEvent) => {
+      const m = svg.getScreenCTM();
+      if (!m) return { x: 0, y: 0 };
+      const p = new DOMPoint(e.clientX, e.clientY).matrixTransform(m.inverse());
+      return { x: p.x, y: p.y };
+    };
+    const unit = [0, 1, 2, 3, 4].map((i) => point(i, 10, 1));
+    const setFrom = (axis: number, p: { x: number; y: number }) => {
+      const [ux, uy] = unit[axis];
+      values[axis] = clamp(((p.x * ux + p.y * uy) / RADIUS) * 10, 0, 10);
+      update();
+    };
+
+    let dragAxis = -1;
+    let tween = 0;
+    svg.addEventListener('pointerdown', (e) => {
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      const handle = (e.target as Element).closest<SVGGElement>('.handle');
+      const p = toSvg(e);
+      let axis: number;
+      if (handle) {
+        axis = Number(handle.dataset.axis);
+      } else {
+        // Tapping the web (not a dot) moves the nearest axis there.
+        const r = Math.hypot(p.x, p.y);
+        if (r < 12 || r > RADIUS + 24) return;
+        axis = 0;
+        let best = -Infinity;
+        unit.forEach(([ux, uy], i) => {
+          const dot = (p.x * ux + p.y * uy) / r;
+          if (dot > best) { best = dot; axis = i; }
+        });
+      }
+      e.preventDefault();
+      cancelAnimationFrame(tween);
+      dragAxis = axis;
+      svg.setPointerCapture(e.pointerId);
+      handles[axis].focus({ preventScroll: true });
+      handles[axis].classList.add('is-active');
+      root.classList.add('is-dragging');
+      touched();
+      setFrom(axis, p);
+    });
+    svg.addEventListener('pointermove', (e) => {
+      if (dragAxis < 0) return;
+      setFrom(dragAxis, toSvg(e));
+    });
+    const end = () => {
+      if (dragAxis < 0) return;
+      handles[dragAxis].classList.remove('is-active');
+      dragAxis = -1;
+      root.classList.remove('is-dragging');
+    };
+    svg.addEventListener('pointerup', end);
+    svg.addEventListener('pointercancel', end);
+    svg.addEventListener('lostpointercapture', end);
+    // Belt and braces for iOS: a touch that starts on a dot never scrolls.
+    handles.forEach((h) => h.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false }));
+
+    handles.forEach((h, i) => {
+      h.addEventListener('keydown', (e) => {
+        let v = Math.round(values[i]);
+        switch (e.key) {
+          case 'ArrowUp': case 'ArrowRight': v += 1; break;
+          case 'ArrowDown': case 'ArrowLeft': v -= 1; break;
+          case 'PageUp': v += 3; break;
+          case 'PageDown': v -= 3; break;
+          case 'Home': v = 0; break;
+          case 'End': v = 10; break;
+          default: return;
+        }
+        e.preventDefault();
+        cancelAnimationFrame(tween);
+        touched();
+        values[i] = clamp(v, 0, 10);
+        update();
+      });
+    });
+
+    root.querySelectorAll<HTMLButtonElement>('[data-preset]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        touched();
+        const to = PRESETS[Number(btn.dataset.preset)].palate;
+        const from = [...values];
+        cancelAnimationFrame(tween);
+        if (reducedMotion()) {
+          to.forEach((v, i) => (values[i] = v));
+          update();
+          return;
+        }
+        const t0 = performance.now();
+        const step = (now: number) => {
+          const t = Math.min(1, (now - t0) / 700);
+          const e = easeInOutCubic(t);
+          for (let i = 0; i < 5; i++) values[i] = from[i] + (to[i] - from[i]) * e;
+          update();
+          if (t < 1) tween = requestAnimationFrame(step);
+        };
+        tween = requestAnimationFrame(step);
+      });
+    });
+
+    whenVisible(root, () => root.classList.add('is-hinting'), 0.5);
+  }
+</script>
