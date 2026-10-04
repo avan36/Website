@@ -25,6 +25,7 @@ const PREFERRED: Record<Archetype, string> = {
   lighthouse: 'H',
   schoolhouse: 'S',
   depot: 'D',
+  workshop: 'M',
   pier: 'W',
   bottle: 'B',
 };
@@ -90,7 +91,7 @@ export function drawIsland(world: World, geo: Geo, cols = MAP_COLS, rowsN = MAP_
   // Distance to the nearest paved path, without the hub's round paving (a blob at this size), and
   // with a short spur from each door to the building, so every path visibly reaches its letter.
   const segs = geo.paths.flatMap(({ points }) => points.slice(1).map((b, i) => [points[i], b] as const));
-  for (const p of world.places) if (p.kind === 'project') segs.push([geo.door(p), p.at]);
+  for (const p of world.places) if (p.kind === 'project' || p.kind === 'colophon') segs.push([geo.door(p), p.at]);
   const pathDist = (x: number, z: number) => {
     let best = Infinity;
     for (const [a, b] of segs) {

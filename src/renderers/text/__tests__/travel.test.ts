@@ -47,13 +47,14 @@ describe('exits', () => {
     const at = (to: string) => travel.exits('plaza').find((e) => e.to === to)!.dir;
     expect(at('map-of-evolution')).toBe('n');
     expect(at('blog')).toBe('s');
-    expect(at('busy-beer')).toBe('e');
+    expect(at('workshop')).toBe('e');
+    expect(at('busy-beer')).toBe('se'); // leans off east, which the workshop takes
     expect(travel.exits('blog').map((e) => e.dir)).toEqual(['n']);
   });
 
   it('shares a direction when the plaza has more paths than the compass has points', () => {
     const exits = travel.exits('plaza');
-    expect(exits).toHaveLength(9);
+    expect(exits).toHaveLength(10);
     const dirs = exits.map((e) => e.dir);
     expect(new Set(dirs).size).toBeLessThan(dirs.length);
   });

@@ -544,12 +544,14 @@ const places: PlaceInput[] = [
     clearing: 4.6,
     aliases: ['taproom', 'pub', 'bar', 'tavern', 'beer'],
     description:
-      'A timber-framed taproom with an arched door, string lights sagging between two poles, and a sign that swings whenever the breeze picks up. Out front, mugs sit on a barrel table between a pair of stools.',
+      'A timber-framed taproom with an arched door, string lights sagging between two poles, and a sign that swings whenever the breeze picks up. Out front, mugs sit on a barrel table between a pair of stools. Further east, a little railway runs round to a station, and a red bus is parked on the quay below it.',
     scenery: [
       { id: 'barrels', names: ['barrels', 'barrel', 'casks', 'kegs'], description: 'Oak barrels stacked against the wall, most of them empty.' },
       { id: 'sign', names: ['sign', 'swinging sign'], description: 'It reads: "Know what you\'ll love before you order."' },
       { id: 'mugs', names: ['mugs', 'mug', 'table', 'stools'], description: 'Two mugs, one full, one empty. Somebody already knows what they like.' },
       { id: 'lights', names: ['lights', 'string lights', 'bulbs'], description: 'Warm little bulbs on a sagging wire. They hum faintly.' },
+      { id: 'train', names: ['train', 'railway', 'rails', 'tracks', 'station', 'platform', 'carriages'], description: "Out past the taproom, a little railway loops round the east end of the island. The commuter train is silver, two decks high, with a red nose at each end. It keeps island time: on weekday mornings and evenings it goes round and round, stopping at the platform every lap; the rest of the time it waits there with its doors open." },
+      { id: 'bus', names: ['bus', 'double-decker', 'double decker', 'quay'], description: "Down on the stone quay by the water, a red double-decker bus is parked with its engine off, a long way from home. The destination blind is lit but blank. It isn't going anywhere today." },
     ],
   }),
   projectPlace('map-of-evolution', {
@@ -594,11 +596,12 @@ const places: PlaceInput[] = [
     faces: Math.atan2(-18.5, 16.5),
     aliases: ['lighthouse', 'tower', 'light', 'beam'],
     description:
-      'A striped lighthouse at the end of a rocky headland. Its beam sweeps slowly over the water, picking out every passing ship, and a weather vane creaks on the top.',
+      'A striped lighthouse at the end of a rocky headland. Its beam sweeps slowly over the water, picking out every passing ship, and a weather vane creaks on the top. Far off to the north, a city skyline sits on the horizon.',
     scenery: [
       { id: 'rocks', names: ['rocks', 'rock', 'cliff', 'headland'], description: 'Dark rocks at the foot of the tower, wet with spray. There are cracks you could slip a hand into.' },
       { id: 'beam', names: ['beam', 'light', 'lamp'], description: 'The beam passes over you, then over 11,000 ships, one at a time. It notes which ones are flying the right flag.' },
       { id: 'vane', names: ['vane', 'weather vane', 'weathervane'], description: 'The weather vane points wherever the wind says. Today, out to sea.' },
+      { id: 'skyline', names: ['skyline', 'city', 'skyscrapers', 'horizon'], description: "Far across the water to the north there's a city, or two cities that have run into each other. From the west: a big wheel, a clock tower, a glass shard and a building shaped like a bullet; then a slim pyramid, a tall rounded tower and a crowd of glass blocks. After dark their windows light up one by one." },
     ],
   }),
   projectPlace('quizmate', {
@@ -631,6 +634,30 @@ const places: PlaceInput[] = [
       { id: 'crates', names: ['crates', 'crate', 'boxes'], description: 'Crates of flattened cardboard, waiting to be something else.' },
     ],
   }),
+  {
+    id: 'workshop',
+    kind: 'colophon',
+    archetype: 'workshop',
+    name: 'How it was built',
+    title: 'The workshop',
+    blurb: 'Where the island was made, and how.',
+    href: '/colophon',
+    color: '#d97757',
+    at: { x: 24, z: 1.5 },
+    footprint: 2.2,
+    clearing: 3.5,
+    aliases: ['workshop', 'work shed', 'colophon', 'how it was built', 'making of', 'behind the scenes'],
+    description:
+      "A timber workshop inside the railway loop, with a big window on the front and the door propped open. Out front, a workbench stands between two sawhorses, covered in blueprints and offcuts. Through the window a monitor glows, a cursor blinking on its screen. This is where the island was made, and the notes on how are pinned up inside.",
+    scenery: [
+      { id: 'workbench', names: ['workbench', 'bench', 'tools', 'vice'], description: 'A heavy bench, scarred and pencil-marked, with a vice at one end. Half a lighthouse is clamped in it, waiting for its stripes.' },
+      { id: 'blueprints', names: ['blueprints', 'blueprint', 'plans', 'drawings'], description: 'Plans for the whole island, drawn from above in blue. Every place is a circle with a note beside it, and every path is a curve with a number on it. Nothing here says how anything looks, only where it is and what it is.' },
+      { id: 'terminal', names: ['terminal', 'monitor', 'screen', 'computer', 'cursor', 'window'], description: 'Through the window, a monitor full of green text. The last line says the build passed. Below it, the cursor blinks, waiting for the next thing to make.' },
+      { id: 'pinboard', names: ['pinboard', 'prompts', 'notes', 'pins', 'cork board', 'corkboard'], description: 'A cork board crowded with index cards, each one a request in handwriting. "Put a little train on the island." "Give the explorer a wardrobe." "Hide eight lost words." Some are crossed out, which seems to mean done.' },
+      { id: 'sawdust', names: ['sawdust', 'shavings', 'floor', 'offcuts'], description: 'Curls of sawdust and offcuts of low-poly timber, all at slightly different angles. Somebody sweeps up now and then, but not often.' },
+      { id: 'sawhorses', names: ['sawhorses', 'sawhorse', 'trestles', 'plank'], description: 'Two sawhorses with a plank across them, marked out for cutting. Measure twice, build once, run the tests three times.' },
+    ],
+  },
   {
     id: 'blog',
     kind: 'writing',
@@ -674,6 +701,7 @@ const places: PlaceInput[] = [
       { id: 'note', names: ['note', 'paper', 'message'], description: 'The note inside is blank, waiting. Open the bottle to write one.' },
       { id: 'crab', names: ['crab'], description: 'The crab scuttles sideways, keeping one eye on you.' },
       { id: 'shells', names: ['shells', 'shell', 'starfish', 'sand'], description: 'Shells and a starfish, scattered by the last tide.' },
+      { id: 'guestbook', names: ['guestbook', 'notes', 'rolled notes'], description: 'A few rolled-up notes from earlier visitors, tucked in the sand beside the bottle. Open the bottle to read them, or to leave one of your own.' },
     ],
   },
 ];
@@ -688,6 +716,7 @@ const routes: WorldInput['routes'] = [
   { from: 'plaza', to: 'etymon', bend: -0.12 },
   { from: 'plaza', to: 'privacy-research', bend: 0.12 },
   { from: 'plaza', to: 'blog', bend: -0.12 },
+  { from: 'plaza', to: 'workshop', bend: -0.05 },
   // Unpaved: shortcuts across the grass, so neighbours connect directly.
   { from: 'plaza', to: 'contact', paved: false },
   { from: 'middle-place', to: 'etymon', paved: false },
@@ -696,6 +725,8 @@ const routes: WorldInput['routes'] = [
   { from: 'quizmate', to: 'contact', paved: false },
   { from: 'busy-beer', to: 'eqoscan', paved: false },
   { from: 'eqoscan', to: 'privacy-research', paved: false },
+  { from: 'workshop', to: 'busy-beer', paved: false },
+  { from: 'workshop', to: 'eqoscan', paved: false },
 ];
 
 // Eight words English lost, from Etymon's museum of lost words, each hidden
@@ -837,10 +868,10 @@ const activities: WorldInput['activities'] = [
     id: 'skipping-stones',
     kind: 'minigame',
     game: 'stones',
-    place: 'busy-beer',
-    at: { x: 21, z: 3.7 },
+    place: 'privacy-research',
+    at: { x: 8.5, z: -20 },
     name: 'Skipping stones',
-    description: 'A pile of flat stones on the beach east of the taproom, and a calm sea. Five stones a round: let go at just the right moment and they skip for miles.',
+    description: 'A pile of flat stones on the north beach, along the shore from the lighthouse, and a calm sea. Five stones a round: let go at just the right moment and they skip for miles.',
   },
   {
     id: 'crab-boop',
@@ -856,9 +887,104 @@ const activities: WorldInput['activities'] = [
     kind: 'minigame',
     game: 'crates',
     place: 'eqoscan',
-    at: { x: 17.2, z: -1.5 },
+    at: { x: 12.5, z: 0 },
     name: 'Crate stack',
     description: 'Crates waiting by the depot, and a crane to swing them. Drop each one square on the last and see how high the tower goes.',
+  },
+];
+
+// The explorer's wardrobe: one piece at every house, yours the moment you
+// arrive. Wear one per slot (head, face, neck, body), in any view.
+const outfits: WorldInput['outfits'] = [
+  {
+    id: 'cardinal-scarf',
+    name: 'cardinal scarf',
+    slot: 'neck',
+    place: 'middle-place',
+    color: '#c41e3a',
+    description: 'A long knitted scarf in Wesleyan cardinal red, warm enough for a winter of writing on the porch.',
+    hint: 'Someone left a scarf on the cabin porch, by the journal.',
+  },
+  {
+    id: 'hard-hat',
+    name: 'hard hat',
+    slot: 'head',
+    place: 'busy-beer',
+    color: '#f5b82e',
+    description: 'A yellow hard hat from the taproom, where the brewing gets serious. Safety first, then a pint.',
+    hint: 'The taproom keeps one by the barrels for brew days.',
+  },
+  {
+    id: 'leaf-crown',
+    name: 'leaf crown',
+    slot: 'head',
+    place: 'map-of-evolution',
+    color: '#57c15a',
+    description: 'A crown of leaves and blossom woven from the ancient tree. Every leaf a different branch of the family.',
+    hint: 'The oldest tree on the island sheds something to wear.',
+  },
+  {
+    id: 'reading-glasses',
+    name: 'reading glasses',
+    slot: 'face',
+    place: 'etymon',
+    color: '#8a5a2b',
+    description: 'Round tortoiseshell glasses from the library, for very small print and very old words.',
+    hint: 'The library lends more than books.',
+  },
+  {
+    id: 'sunglasses',
+    name: 'sunglasses',
+    slot: 'face',
+    place: 'privacy-research',
+    color: '#1f2a44',
+    description: "The lighthouse keeper's dark glasses. The beam sees everything; now it can't see your eyes.",
+    hint: 'The lighthouse beam is bright. The keeper keeps something for that.',
+  },
+  {
+    id: 'mortarboard',
+    name: 'graduation cap',
+    slot: 'head',
+    place: 'quizmate',
+    color: '#24304a',
+    description: 'A mortarboard with a golden tassel, from the schoolhouse. You passed the quiz.',
+    hint: 'Pass by the schoolhouse and you might graduate.',
+  },
+  {
+    id: 'recycling-vest',
+    name: 'recycling vest',
+    slot: 'body',
+    place: 'eqoscan',
+    color: '#3faa5b',
+    description: 'A green high-visibility vest from the recycling depot, with reflective stripes. Sort responsibly.',
+    hint: 'The depot crew wear something bright. Ask at the conveyor.',
+  },
+  {
+    id: 'tool-belt',
+    name: 'tool belt',
+    slot: 'body',
+    place: 'workshop',
+    color: '#8a5a2b',
+    description: "A leather tool belt from the workshop, with a hammer, a tape measure and a carpenter's pencil in its pockets. Everything you need to build an island.",
+    hint: 'Somebody hung a belt of tools by the workbench, inside the railway loop.',
+  },
+  {
+    id: 'fishing-hat',
+    name: 'fishing hat',
+    slot: 'head',
+    place: 'blog',
+    color: '#b9a06a',
+    description: 'A floppy bucket hat with a fly hooked in the band, from the end of the pier.',
+    hint: 'Walk out to the end of the pier, where the anglers stand.',
+  },
+  {
+    id: 'sailor-hat',
+    name: "sailor's cap",
+    slot: 'head',
+    place: 'contact',
+    color: '#f4f1ea',
+    description: "A white sailor's cap that washed up beside the bottle. It smells of salt and good news.",
+    hint: 'Something besides a bottle washed up on the quiet beach.',
   },
 ];
 
@@ -874,6 +1000,10 @@ const geography: WorldInput['geography'] = {
   headlands: [{ toward: 'privacy-research', reach: 7.5, spread: 0.17, rocks: 0.24 }],
   hills: [{ at: 'map-of-evolution', height: 1.1, spread: 5.5 }],
   pier: { x: 4, start: 16.9, end: 28, width: 1.9, deck: 0.82 },
+  // New land to the east: room for the railway loop, the quay and the workshop inside it.
+  shores: [{ toward: { x: 1, z: 0.1 }, reach: 13, spread: 0.45 }],
+  railway: { center: { x: 24, z: 1.5 }, rx: 6.5, rz: 9, square: 3.2, bed: 1.3, station: 0.25 },
+  quay: { x0: 24, z0: 14.2, x1: 30.5, z1: 19.8, deck: 0.7, bus: { x: 27.4, z: 17.2 }, faces: Math.PI / 2 },
   spawn: { x: 0, z: 7.5 },
 };
 
@@ -901,6 +1031,7 @@ export function buildWorld(posts: Post[]): World {
     routes,
     lostWords,
     activities,
+    outfits,
     geography,
   } satisfies WorldInput);
 }

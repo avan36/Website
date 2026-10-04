@@ -1329,6 +1329,229 @@ export function buildBottle(color: string): Built {
   };
 }
 
+// ---------------------------------------------------------------- workshop
+
+/** A box whose top slopes from `hFront` (at +z) down to `hBack` (at -z), standing on y = 0. */
+function slantBox(w: number, hFront: number, hBack: number, d: number) {
+  const g = new BoxGeometry(w, 1, d);
+  g.translate(0, 0.5, 0);
+  const pos = g.getAttribute('position');
+  for (let i = 0; i < pos.count; i++) if (pos.getY(i) > 0.5) pos.setY(i, pos.getZ(i) > 0 ? hFront : hBack);
+  g.deleteAttribute('normal');
+  g.computeVertexNormals();
+  return g;
+}
+
+/** A sawhorse: a beam on two splayed pairs of legs, along x. */
+function sawhorse(k: Kit, x: number, z: number, ry: number) {
+  const c = Math.cos(ry);
+  const s = Math.sin(ry);
+  const at = (lx: number, ly: number, lz: number): V3 => [x + lx * c + lz * s, ly, z - lx * s + lz * c];
+  k.box(0.9, 0.1, 0.12, WOOD_LIGHT, { p: at(0, 0.62, 0), r: [0, ry, 0] });
+  for (const lx of [-0.34, 0.34]) for (const side of [-1, 1]) {
+    k.box(0.07, 0.66, 0.07, WOOD, { p: at(lx, 0.3, side * 0.12), r: [side * 0.3, ry, 0] });
+  }
+}
+
+/** The workshop: a plank shed with a mono-pitch roof, a big window with a monitor glowing
+ *  inside, a workbench under the window, sawhorses and a saw that works on its own. */
+export function buildWorkshop(color: string): Built {
+  const k = new Kit(909);
+  const W = 3.8;
+  const D = 2.6;
+  const zc = -0.45; // the shed sits back, leaving room for the bench out front
+  const zf = zc + D / 2; // front wall
+  const hF = 2.75;
+  const hB = 2.05;
+  const base = 0.24;
+  const PLANK = '#c9955f';
+  const BATTEN = '#a8743f';
+  // Concrete apron, then the plank walls.
+  k.rbox(W + 1.4, base, D + 1.9, 0.06, '#d3ccbf', { p: [0, base / 2, zc + 0.5] });
+  k.add(slantBox(W, hF, hB, D), PLANK, { p: [0, base, zc] });
+  // Battens down the front and sides.
+  for (let i = 0; i <= 8; i++) {
+    const x = -W / 2 + (i * W) / 8;
+    k.box(0.06, hF, 0.05, BATTEN, { p: [x, base + hF / 2, zf + 0.02], jitter: 0.02 });
+  }
+  for (const sx of [-1, 1]) {
+    for (let i = 1; i < 5; i++) {
+      const z = zc - D / 2 + (i * D) / 5;
+      const h = hB + ((z - (zc - D / 2)) / D) * (hF - hB);
+      k.box(0.05, h, 0.06, BATTEN, { p: [sx * (W / 2 + 0.02), base + h / 2, z], jitter: 0.02 });
+    }
+  }
+  // Corner trim.
+  for (const sx of [-1, 1]) {
+    k.box(0.12, hF, 0.12, TRIM, { p: [sx * W / 2, base + hF / 2, zf] });
+    k.box(0.12, hB, 0.12, TRIM, { p: [sx * W / 2, base + hB / 2, zc - D / 2] });
+  }
+  // Mono-pitch roof in the accent, high over the window and low at the back.
+  const slope = Math.atan2(hF - hB, D);
+  const roofLen = Math.hypot(D, hF - hB) + 0.9;
+  k.rbox(W + 0.7, 0.2, roofLen, 0.06, color, { p: [0, base + (hF + hB) / 2 + 0.12, zc + 0.12], r: [-slope, 0, 0] });
+  k.rbox(W + 0.74, 0.1, 0.16, 0.04, shade(color, -0.12), { p: [0, base + hF + 0.24, zf + 0.5] });
+  // Stovepipe out of the back of the roof.
+  k.cyl(0.11, 0.11, 1.1, '#6f6a64', { p: [1.15, base + hB + 0.75, zc - 0.55] }, 8);
+  k.cyl(0.18, 0.12, 0.14, '#5a5550', { p: [1.15, base + hB + 1.34, zc - 0.55] }, 8);
+
+  // The big window, left of the door: four bars round a dark interior.
+  const wx = -0.75;
+  const wy = base + 1.5;
+  const ww = 1.75;
+  const wh = 1.25;
+  const fz = zf + 0.05;
+  k.box(ww + 0.2, 0.12, 0.16, TRIM, { p: [wx, wy + wh / 2 + 0.06, fz] });
+  k.box(ww + 0.32, 0.1, 0.3, TRIM, { p: [wx, wy - wh / 2 - 0.05, fz + 0.06] }); // sill
+  for (const sx of [-1, 1]) k.box(0.12, wh, 0.16, TRIM, { p: [wx + sx * (ww / 2 + 0.04), wy, fz] });
+  k.box(ww + 0.08, 0.05, 0.1, TRIM, { p: [wx, wy + wh / 2 - 0.26, fz], jitter: 0 }); // transom
+  k.addGlow(new BoxGeometry(ww, wh, 0.02), '#ffffff', { p: [wx, wy, zf + 0.01] });
+  // The monitor, on a desk, seen through the glass.
+  const mx = wx + 0.15;
+  const my = wy - 0.08;
+  k.box(1.5, 0.06, 0.12, '#7d5134', { p: [wx, wy - wh / 2 + 0.2, zf + 0.04] }); // the desk inside
+  k.box(0.08, 0.2, 0.04, '#3d3a36', { p: [mx, my - 0.28, zf + 0.05] });
+  k.rbox(0.72, 0.5, 0.05, 0.02, '#2b2a2e', { p: [mx, my, zf + 0.055] });
+  // A mug and a lamp beside it.
+  k.cyl(0.06, 0.05, 0.12, '#fff3df', { p: [wx - 0.55, wy - wh / 2 + 0.29, zf + 0.06] }, 8);
+  k.cyl(0.015, 0.015, 0.3, '#3d3a36', { p: [wx + 0.68, wy - wh / 2 + 0.38, zf + 0.06], r: [0, 0, -0.3] }, 4);
+
+  // The door, propped open into the dark, right of the window.
+  const dx = 1.05;
+  const dw = 0.95;
+  const dh = 1.9;
+  k.box(dw, dh, 0.04, '#3b2a1f', { p: [dx, base + dh / 2, zf + 0.01], jitter: 0 });
+  for (const sx of [-1, 1]) k.box(0.1, dh + 0.1, 0.12, TRIM, { p: [dx + sx * (dw / 2 + 0.03), base + dh / 2, zf + 0.04] });
+  k.box(dw + 0.26, 0.1, 0.12, TRIM, { p: [dx, base + dh + 0.05, zf + 0.04] });
+  // The open leaf, swung out on its right-hand hinge.
+  const leafA = 1.25;
+  const hingeX = dx + dw / 2;
+  k.rbox(dw - 0.04, dh - 0.04, 0.07, 0.02, shade(color, -0.1), { p: [hingeX - Math.cos(leafA) * (dw / 2), base + dh / 2, zf + 0.06 + Math.sin(leafA) * (dw / 2)], r: [0, leafA, 0] });
+  k.sphere(0.045, '#f2c14e', { p: [hingeX - Math.cos(leafA) * (dw - 0.14), base + 1.0, zf + 0.1 + Math.sin(leafA) * (dw - 0.14)] }, 6, 4);
+  k.rbox(1.2, 0.14, 0.45, 0.04, STONE, { p: [dx, base + 0.03, zf + 0.3] }); // step
+  // A lamp over the door.
+  k.box(0.05, 0.05, 0.3, '#3d3a36', { p: [dx, base + dh + 0.4, zf + 0.15] });
+  k.cone(0.16, 0.14, '#3d3a36', { p: [dx, base + dh + 0.35, zf + 0.3] }, 8);
+  k.addGlow(new SphereGeometry(0.08, 8, 6), '#ffd27a', { p: [dx, base + dh + 0.27, zf + 0.3] });
+
+  // The workbench under the window.
+  const bz = zf + 0.55;
+  const by = base + 0.92;
+  k.rbox(2.0, 0.12, 0.62, 0.03, WOOD_LIGHT, { p: [wx, by, bz] });
+  for (const lx of [-0.88, 0.88]) for (const lz of [-0.24, 0.24]) k.box(0.09, by - base, 0.09, WOOD_DARK, { p: [wx + lx, base + (by - base) / 2, bz + lz] });
+  k.box(1.8, 0.06, 0.5, WOOD, { p: [wx, base + 0.22, bz] }); // shelf
+  for (let i = 0; i < 3; i++) k.rbox(0.3, 0.12, 0.22, 0.03, ['#c8a172', '#3a86ff', '#e5484d'][i], { p: [wx - 0.6 + i * 0.45, base + 0.31, bz + (i % 2) * 0.06] });
+  // A vice at one end, with half a lighthouse clamped in it.
+  k.box(0.2, 0.16, 0.18, '#5c636b', { p: [wx - 0.85, by + 0.13, bz + 0.12] });
+  k.box(0.04, 0.04, 0.3, '#9aa1ab', { p: [wx - 0.85, by + 0.13, bz + 0.3] });
+  k.cyl(0.07, 0.09, 0.32, '#fff6ec', { p: [wx - 0.85, by + 0.37, bz + 0.12] }, 8);
+  k.cyl(0.075, 0.08, 0.08, '#e5484d', { p: [wx - 0.85, by + 0.36, bz + 0.12] }, 8);
+  // Blueprints: one unrolled under a mug and a pencil, one still rolled.
+  k.box(0.7, 0.012, 0.48, '#2f6db5', { p: [wx + 0.05, by + 0.066, bz], r: [0, 0.12, 0], jitter: 0 });
+  for (let i = 0; i < 3; i++) k.box(0.5 - i * 0.12, 0.004, 0.02, '#dfeaff', { p: [wx + 0.02, by + 0.074, bz - 0.12 + i * 0.12], r: [0, 0.12, 0], jitter: 0 });
+  k.box(0.02, 0.004, 0.3, '#dfeaff', { p: [wx - 0.18, by + 0.074, bz + 0.02], r: [0, 0.12, 0], jitter: 0 });
+  k.cyl(0.035, 0.035, 0.24, '#ffbe0b', { p: [wx + 0.32, by + 0.09, bz + 0.12], r: [Math.PI / 2, 0, 0.9] }, 6);
+  k.cyl(0.06, 0.06, 0.62, '#4f86c9', { p: [wx + 0.68, by + 0.12, bz - 0.12], r: [0, 0, Math.PI / 2] }, 8);
+  // A hammer.
+  k.cyl(0.025, 0.025, 0.34, WOOD_DARK, { p: [wx + 0.6, by + 0.08, bz + 0.14], r: [Math.PI / 2, 0, -0.5] }, 5);
+  k.box(0.07, 0.07, 0.16, '#5c636b', { p: [wx + 0.68, by + 0.09, bz + 0.29], r: [0, -0.5, 0] });
+
+  // A pinboard of prompts on the side wall.
+  const px = -W / 2 - 0.05;
+  k.box(0.05, 0.75, 1.05, '#c8955c', { p: [px, base + 1.55, zc + 0.1] });
+  k.box(0.06, 0.82, 0.06, WOOD_DARK, { p: [px, base + 1.55, zc + 0.64] });
+  k.box(0.06, 0.82, 0.06, WOOD_DARK, { p: [px, base + 1.55, zc - 0.44] });
+  const CARDS = ['#fff3df', '#ffd166', '#ffffff', '#ff9eb5', '#bde3ff', '#fff3df', '#c9f2c7'];
+  CARDS.forEach((c, i) => {
+    const cz = zc + 0.1 - 0.36 + (i % 4) * 0.24 + (i > 3 ? 0.12 : 0);
+    const cy = base + 1.72 - (i > 3 ? 0.32 : 0) + ((i * 37) % 5) * 0.01;
+    k.box(0.02, 0.16, 0.2, c, { p: [px - 0.03, cy, cz], r: [((i * 13) % 7) * 0.04 - 0.12, 0, 0], jitter: 0 });
+    k.sphere(0.02, i % 2 ? '#e5484d' : '#3a86ff', { p: [px - 0.05, cy + 0.06, cz] }, 5, 3);
+  });
+
+  // Sawhorses with a plank across, and sawdust under it.
+  const sx0 = 2.35;
+  const sz0 = 0.75;
+  sawhorse(k, sx0, sz0 - 0.55, Math.PI / 2);
+  sawhorse(k, sx0, sz0 + 0.55, Math.PI / 2);
+  k.box(0.32, 0.05, 1.7, '#e2bb85', { p: [sx0, base + 0.43, sz0], r: [0, 0.04, 0] });
+  k.box(0.012, 0.052, 0.1, '#3d3a36', { p: [sx0, base + 0.43, sz0 + 0.15], jitter: 0 }); // the pencil line
+  for (let i = 0; i < 7; i++) {
+    const a = i * 2.1;
+    k.ico(0.08 + (i % 3) * 0.03, '#efd5a6', { p: [sx0 + Math.cos(a) * 0.3, base + 0.02, sz0 + 0.15 + Math.sin(a) * 0.32], s: [1, 0.35, 1] });
+  }
+  // Offcuts by the wall.
+  k.box(0.5, 0.1, 0.12, '#e2bb85', { p: [-W / 2 - 0.35, base + 0.05, zf + 0.15], r: [0, 0.6, 0] });
+  k.box(0.35, 0.1, 0.12, '#d6a86f', { p: [-W / 2 - 0.2, base + 0.15, zf + 0.25], r: [0, -0.3, 0] });
+
+  // The window's interior is white in a dusky material, so night can warm it.
+  const glass = glowMat('#4a5664');
+  const glassDay = glass.color.clone();
+  const glassNight = new Color('#ffcf85');
+  const group = k.build({ glowMaterial: glass });
+
+  // The screen and its cursor glow on their own, day and night.
+  const sk = new Kit(910);
+  sk.addGlow(new BoxGeometry(0.62, 0.4, 0.01), '#1c3b33', { p: [mx, my, zf + 0.085] });
+  const LINES = [0.42, 0.3, 0.48, 0.22, 0.36];
+  LINES.forEach((l, i) => sk.addGlow(new BoxGeometry(l, 0.035, 0.01), i === 2 ? '#ffd27a' : '#8ff0be', { p: [mx - 0.27 + l / 2, my + 0.14 - i * 0.06, zf + 0.09] }));
+  group.add(sk.build({ glowMaterial: glowMat() }));
+  const ck = new Kit(911);
+  ck.addGlow(new BoxGeometry(0.05, 0.045, 0.01), '#eafff3', { p: [0, 0, 0] });
+  const cursor = ck.build({ glowMaterial: glowMat() });
+  cursor.position.set(mx - 0.27 + 0.05, my + 0.14 - 5 * 0.06, zf + 0.095);
+  group.add(cursor);
+
+  // A saw on the plank that saws away now and then, spitting sawdust.
+  const saw = new Group();
+  const swk = new Kit(912);
+  swk.add(new BoxGeometry(0.03, 0.16, 0.55), '#c9ced4', { p: [0, 0.08, 0], jitter: 0.01 });
+  swk.rbox(0.06, 0.14, 0.16, 0.03, '#e5484d', { p: [0, 0.16, 0.33] });
+  saw.add(swk.build());
+  saw.position.set(sx0, base + 0.42, sz0 + 0.15);
+  saw.rotation.x = -0.35;
+  group.add(saw);
+  const dust = new Vector3(sx0, base + 0.42, sz0 + 0.15);
+  let sawT = 1.5;
+  let dustT = 0;
+
+  return {
+    group,
+    bouncy: group,
+    glows: {
+      halos: [[wx, wy, zf + 0.35, 1.9], [dx, base + dh + 0.27, zf + 0.42, 1.3], [mx, my, zf + 0.3, 0.8]],
+      pools: [[wx, 0.05, zf + 1.1, 2.6], [dx, 0.05, zf + 1.2, 2.2]],
+    },
+    night: (n) => {
+      glass.color.lerpColors(glassDay, glassNight, n);
+    },
+    onNear: () => {
+      sawT = 0;
+    },
+    update: (c) => {
+      cursor.visible = Math.floor(c.t * 1.8) % 2 === 0;
+      // Saw in bursts: a couple of seconds of strokes, then a rest.
+      sawT += c.dt;
+      if (c.hover && sawT > 2.6) sawT = 0;
+      if (sawT > 7) sawT = 0;
+      const sawing = sawT < 2.4;
+      saw.position.z = sz0 + 0.15 + (sawing ? Math.sin(sawT * 11) * 0.12 : 0);
+      saw.position.y = base + 0.42 - (sawing ? Math.min(sawT, 2.4) * 0.012 : 0);
+      if (sawing) {
+        dustT -= c.dt;
+        if (dustT <= 0) {
+          dustT = 0.12;
+          const w = c.toWorld(dust.clone());
+          c.puffs.spawn(w.x + (Math.random() - 0.5) * 0.1, w.y, w.z, {
+            vx: (Math.random() - 0.5) * 0.6, vy: 0.4 + Math.random() * 0.4, vz: (Math.random() - 0.5) * 0.6,
+            size: 0.05 + Math.random() * 0.03, life: 0.9, drag: 1.2, gravity: -2.4, grow: 0.2, color: '#efd5a6',
+          });
+        }
+      }
+    },
+  };
+}
+
 export const BUILDERS = {
   cabin: buildCabin,
   taproom: buildTaproom,
@@ -1337,6 +1560,7 @@ export const BUILDERS = {
   lighthouse: buildLighthouse,
   schoolhouse: buildSchoolhouse,
   depot: buildDepot,
+  workshop: buildWorkshop,
   pier: buildPier,
   bottle: buildBottle,
 } as const;

@@ -43,7 +43,10 @@ describe('reduce', () => {
   it('goes into buildings with a room, and nowhere else', () => {
     const a = reduce(w, emptyState(), { type: 'inside', at: 'etymon' });
     expect(a.state.presence).toMatchObject({ inside: 'etymon', at: 'etymon' });
-    expect(a.events).toEqual([{ type: 'inside', at: 'etymon' }, { type: 'arrived', at: 'etymon' }]);
+    // Going in is arriving: the piece of the wardrobe kept there is yours too.
+    expect(a.events.slice(0, 2)).toEqual([{ type: 'inside', at: 'etymon' }, { type: 'arrived', at: 'etymon' }]);
+    const gift = w.outfits.find((o) => o.place === 'etymon');
+    if (gift) expect(a.state.progress.wardrobe).toEqual([gift.id]);
     for (const at of ['blog', 'contact', 'map-of-evolution', 'nowhere']) expect(reduce(w, emptyState(), { type: 'inside', at }).events, at).toEqual([]);
     const out = reduce(w, a.state, { type: 'inside', at: null });
     expect(out.state.presence).toMatchObject({ inside: null, at: 'etymon' });
@@ -183,7 +186,7 @@ describe('pickCatch', () => {
 describe('sanitize', () => {
   it('drops progress for words and posts that no longer exist', () => {
     const s = sanitize(w, { progress: { found: ['attercop', 'gone', 'attercop', 7], caught: ['first', 'deleted'], night: true }, presence: { at: 'nowhere', pos: { x: 'a' } } });
-    expect(s.progress).toEqual({ found: ['attercop'], caught: ['first'], night: false, bestLap: null, games: {} });
+    expect(s.progress).toEqual({ found: ['attercop'], caught: ['first'], night: false, bestLap: null, games: {}, wardrobe: [], worn: {} });
     expect(s.presence).toEqual({ at: null, pos: null, inside: null });
   });
 
@@ -213,5 +216,81 @@ describe('createStore', () => {
     store.dispatch({ type: 'move', pos: { x: 1, z: 2 } });
     expect(calls).toBe(0);
     expect(store.state.presence.pos).toEqual({ x: 1, z: 2 });
+  });
+});
+
+describe('wardrobe', () => {
+  const at = (s: ReturnType<typeof emptyState>, place: string) => reduce(w, s, { type: 'move', pos: null, at: place });
+
+  it('unlocks the piece kept at a place on arrival, once', () => {
+    const a = at(emptyState(), 'busy-beer');
+    expect(a.state.progress.wardrobe).toEqual(['hard-hat']);
+    expect(a.events).toEqual([
+      { type: 'arrived', at: 'busy-beer' },
+      { type: 'unlocked', id: 'hard-hat', count: 1, total: w.outfits.length },
+    ]);
+    const b = at(at(a.state, 'plaza').state, 'busy-beer');
+    expect(b.state.progress.wardrobe).toEqual(['hard-hat']);
+    expect(b.events.map((e) => e.type)).toEqual(['arrived']);
+  });
+
+  it('unlocks nothing at the plaza', () => {
+    expect(at(emptyState(), 'plaza').state.progress.wardrobe).toEqual([]);
+  });
+
+  it('completes the wardrobe on the last piece', () => {
+    let s = emptyState();
+    let events: ReturnType<typeof reduce>['events'] = [];
+    for (const o of w.outfits) ({ state: s, events } = at(s, o.place));
+    expect(events.map((e) => e.type)).toEqual(['arrived', 'unlocked', 'wardrobe-complete']);
+    expect(s.progress.wardrobe).toHaveLength(w.outfits.length);
+  });
+
+  it('wears only unlocked pieces, one per slot', () => {
+    let s = emptyState();
+    expect(reduce(w, s, { type: 'wear', id: 'hard-hat' }).events).toEqual([]);
+    s = at(at(s, 'busy-beer').state, 'quizmate').state;
+    let r = reduce(w, s, { type: 'wear', id: 'hard-hat' });
+    expect(r.events).toEqual([{ type: 'dressed', slot: 'head', id: 'hard-hat' }]);
+    r = reduce(w, r.state, { type: 'wear', id: 'mortarboard' });
+    expect(r.state.progress.worn).toEqual({ head: 'mortarboard' });
+    // Wearing it again changes nothing.
+    expect(reduce(w, r.state, { type: 'wear', id: 'mortarboard' }).state).toBe(r.state);
+    r = reduce(w, r.state, { type: 'unwear', slot: 'head' });
+    expect(r.events).toEqual([{ type: 'dressed', slot: 'head', id: null }]);
+    expect(r.state.progress.worn).toEqual({});
+    expect(reduce(w, r.state, { type: 'unwear', slot: 'head' }).state).toBe(r.state);
+  });
+
+  it('keeps the wardrobe when the word hoard is reset', () => {
+    let s = at(emptyState(), 'middle-place').state;
+    s = reduce(w, s, { type: 'wear', id: 'cardinal-scarf' }).state;
+    s = reduce(w, s, { type: 'find', id: 'attercop' }).state;
+    s = reduce(w, s, { type: 'reset' }).state;
+    expect(s.progress.found).toEqual([]);
+    expect(s.progress.wardrobe).toEqual(['cardinal-scarf']);
+    expect(s.progress.worn).toEqual({ neck: 'cardinal-scarf' });
+  });
+
+  it('sanitizes: unknown pieces go, and only unlocked pieces in the right slot stay on', () => {
+    const s = sanitize(w, {
+      progress: { wardrobe: ['hard-hat', 'top-hat', 'hard-hat', 'sunglasses'], worn: { head: 'hard-hat', face: 'hard-hat', neck: 'cardinal-scarf', body: 3 } },
+    });
+    expect(s.progress.wardrobe).toEqual(['hard-hat', 'sunglasses']);
+    expect(s.progress.worn).toEqual({ head: 'hard-hat' });
+  });
+
+  it('persists what you unlock and wear', () => {
+    const local = memory();
+    const session = memory();
+    const store = createStore(w, { local, session });
+    const seen: string[] = [];
+    store.subscribe((_, events) => seen.push(...events.map((e) => e.type)));
+    store.dispatch({ type: 'move', pos: { x: 0, z: 0 }, at: 'etymon' });
+    store.dispatch({ type: 'wear', id: 'reading-glasses' });
+    expect(seen).toEqual(['arrived', 'unlocked', 'dressed']);
+    const again = createStore(w, { local, session });
+    expect(again.state.progress.wardrobe).toEqual(['reading-glasses']);
+    expect(again.worn()).toEqual({ face: 'reading-glasses' });
   });
 });

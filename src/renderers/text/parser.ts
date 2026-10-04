@@ -31,6 +31,7 @@ export type Verb =
   | 'inventory' | 'hint' | 'help' | 'map' | 'fish' | 'reel' | 'wait' | 'take'
   | 'about' | 'work' | 'writing' | 'contact' | 'where' | 'exits' | 'clear' | 'undo'
   | 'again' | 'view' | 'portal' | 'yes' | 'no' | 'night' | 'day' | 'score' | 'race' | 'play' | 'throw'
+  | 'wardrobe' | 'wear' | 'remove'
   // Inside a building.
   | 'talk' | 'ask' | 'leave' | 'bye'
   // A few for fun.
@@ -82,6 +83,9 @@ const PHRASES: Record<Verb, string[]> = {
   ],
   play: ['play', 'play a game', 'play game', 'play the game', 'games', 'game', 'minigame', 'minigames', 'mini game', 'mini games', 'have a go', 'high scores', 'best scores', 'scores'],
   throw: ['throw', 't', 'throw stone', 'throw it', 'skip', 'skim', 'skip stone', 'skim stone', 'toss', 'fling', 'let go', 'let fly', 'release'],
+  wardrobe: ['wardrobe', 'outfits', 'outfit', 'clothes', 'closet', 'costumes', 'what am i wearing', 'dress up', 'my clothes'],
+  wear: ['wear', 'put on', 'don', 'try on', 'equip', 'dress in', 'change into'],
+  remove: ['take off', 'remove', 'unwear', 'doff', 'unequip', 'undress'],
   xyzzy: ['xyzzy'],
   plugh: ['plugh', 'plover'],
   sudo: ['sudo'],

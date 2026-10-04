@@ -26,10 +26,13 @@ import { HEX } from './palette';
 import { bayer, col, nightColor, toHex } from './pixels';
 import { findPath, nearestOpen, smooth, type Grid, type Pt } from './path';
 import { hash2 } from './rng';
-import { crab, lampPost, paintLandmark, paintScenery, portal as paintPortal, rowboat, scroll, shells, type Landmark, type Sprite } from './sprites';
+import { crab, lampPost, paintLandmark, paintScenery, portal as paintPortal, rowboat, scroll, shells, workshopCursor, type Landmark, type Sprite } from './sprites';
 import { buildTerrain, RECT, TEX } from './terrain';
 import { createInside, type Inside } from './inside';
 import { paintRoom } from './room';
+import { bus, drawTrain, shelter } from './commute';
+import { daylight, pageClock } from '../../world/clock';
+import { createTrain } from '../../world/train';
 
 /** World units per second. */
 const SPEED = 4.6;
@@ -96,7 +99,10 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
   const art = new Map<string, Landmark>(places.map((m) => [m.place.id, paintLandmark(m.kind, m.place.color, Math.round(m.doorDx * TEX))]));
   const scenery = paintScenery();
   const props = scatterProps(world, geo, places);
-  const hero = paintExplorer();
+  // Dressed in whatever the visitor picked from the wardrobe; repainted when that changes.
+  const wornNow = () => world.outfits.filter((o) => store.state.progress.worn[o.slot] === o.id);
+  let wornKey = wornNow().map((o) => o.id).join();
+  let hero = paintExplorer(wornNow());
   const scrollArt = scroll();
   const crabArt = [crab(0), crab(1)];
   const pier = geo.pier;
@@ -164,6 +170,15 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
     halt: () => ((path = null), clearKeys(), (facing = 'up')),
   });
   for (const b of games.blocks) stampCircle(b.x, b.z, b.r + BODY_R);
+  // The bus on the quay and the station's shelter stand in the way too.
+  const quay = geo.quay;
+  const busAt = quay ? { x: quay.bus.x, z: quay.bus.z + 0.5 } : null;
+  if (quay) for (const t of [-1.5, 0, 1.5]) stampCircle(quay.bus.x + Math.sin(quay.faces) * t, quay.bus.z + Math.cos(quay.faces) * t, 0.65 + BODY_R);
+  const shelterAt = geo.station && geo.rail ? (() => {
+    const at = geo.rail.at(geo.station.s);
+    return { x: at.x + Math.cos(at.yaw) * at.out * 1.8, z: at.z - Math.sin(at.yaw) * at.out * 1.8 };
+  })() : null;
+  if (shelterAt) stampCircle(shelterAt.x, shelterAt.z, 0.6 + BODY_R);
 
   const blockedAt = (x: number, z: number) => {
     const i = ti(x);
@@ -271,6 +286,8 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
   }
   things.push({ x: lampAt.x, z: lampAt.z, sprite: lampPost() });
   things.push(...games.things);
+  if (busAt) things.push({ x: busAt.x, z: busAt.z, sprite: bus() });
+  if (shelterAt) things.push({ x: shelterAt.x, z: shelterAt.z, sprite: shelter() });
   if (bottlePlace) things.push({ x: bottlePlace.base.x + 1.3, z: bottlePlace.base.z + 0.9, sprite: shells() });
   things.sort((a, b) => a.z - b.z);
 
@@ -887,10 +904,23 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
   }
 
   // ---------- Night ----------
-  let nightK = store.state.progress.night ? 1 : 0;
+  // Two things bring the dark, as on the 3D island: island time (the real
+  // clock, or ?time=22:00) and the reward night for a full word hoard. The
+  // map shows whichever is darker; the fireflies come out for the reward only.
+  const clock = pageClock(location.search);
+  let clockDark = 1 - daylight(clock.date());
+  let commuting = clock.commute(clock.date());
+  let clockAt = 0;
+  const train = createTrain(geo);
+  const darkness = () => Math.max(store.state.progress.night ? 1 : 0, clockDark);
+  let nightK = darkness();
   let nightGoal = nightK;
-  const unsub = store.subscribe((state, events) => {
-    nightGoal = state.progress.night ? 1 : 0;
+  const unsub = store.subscribe((_state, events) => {
+    nightGoal = darkness();
+    if (events.some((e) => e.type === 'dressed') && wornNow().map((o) => o.id).join() !== wornKey) {
+      wornKey = wornNow().map((o) => o.id).join();
+      hero = paintExplorer(wornNow());
+    }
     if (!motion) nightK = nightGoal;
     if (events.some((e) => e.type === 'found')) for (const w of words) w.here = !store.has(w.id) && w.id !== cheerWord;
     // A reset puts every word back where it was hidden.
@@ -1668,6 +1698,18 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
     };
   }
 
+  const workshop = places.find((m) => m.kind === 'workshop');
+  if (workshop) {
+    const t = landmarkThing.get(workshop.place.id)!;
+    const cur = workshopCursor(Math.round(workshop.doorDx * TEX));
+    t.after = (c, sx, sy) => {
+      // The cursor on the monitor, blinking (steady when motion is reduced).
+      if (motion && Math.floor(time * 1.8) % 2) return;
+      c.fillStyle = '#eafff3';
+      c.fillRect(sx + cur.dx, sy + cur.dy, 2, 1);
+    };
+  }
+
   function drawScene(c: CanvasRenderingContext2D) {
     // The open sea, past the painted map: the same deep blue its edges fade to.
     c.fillStyle = DEEP[night ? 1 : 0];
@@ -1677,6 +1719,7 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
     drawRipples(c);
     drawDust(c);
     if (night) drawPools(c);
+    if (train.exists) drawTrain(c, train.cars(), bx, by, TEX, night);
 
     // The click marker: a ring that shrinks into the ground.
     if (marker.t < 1) {
@@ -1723,7 +1766,7 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
     drawHero(c, true);
     c.globalAlpha = 1;
     if (night) {
-      drawFlies(c);
+      if (store.state.progress.night) drawFlies(c);
       drawLighthouseBeam(c);
     }
   }
@@ -1844,7 +1887,15 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
     time += dt;
     if (window.devicePixelRatio !== dpr && Math.min(window.devicePixelRatio, 3) !== dpr) resize();
     update(dt);
-    nightK = motion ? Math.max(0, Math.min(1, nightK + Math.sign(nightGoal - nightK) * dt * 1.6)) : nightGoal;
+    if (now - clockAt > 1000) {
+      clockAt = now;
+      const d = clock.date();
+      clockDark = 1 - daylight(d);
+      commuting = clock.commute(d);
+      nightGoal = darkness();
+    }
+    train.update(dt, commuting, pos);
+    nightK = motion ? Math.max(0, Math.min(1, nightK + Math.max(-dt * 1.6, Math.min(dt * 1.6, nightGoal - nightK)))) : nightGoal; // eases to a goal that can be anywhere in 0..1 at dusk
     aimCamera();
     if (motion) {
       cam.x = damp(cam.x, camGoal.x, 5, dt);

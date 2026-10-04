@@ -1,0 +1,170 @@
+---
+// A glass jar that fills with words: how much the owner has journaled, as a
+// count only (never any journal content). Returning visitors watch it tick up
+// from the number they saw last time. The number lives in src/data/life.ts.
+import { journalWords, journalWordsUpdated } from '../../data/life';
+import { formatWords, jarCapacity, jarFill } from './life';
+
+const capacity = jarCapacity(journalWords);
+const fill = jarFill(journalWords, capacity);
+const updated = new Date(`${journalWordsUpdated}T12:00:00Z`).toLocaleDateString('en-US', {
+  month: 'long', year: 'numeric', timeZone: 'UTC',
+});
+// Little paper slips drifting in the ink, as [x, y, rotation]. Fixed, so the
+// server and the browser agree.
+const slips: [number, number, number][] = [
+  [52, 150, -18], [78, 138, 12], [104, 156, -6], [66, 122, 24], [96, 112, -20],
+  [58, 98, 8], [88, 168, 30], [112, 128, 16], [72, 160, -30], [100, 90, -10],
+];
+---
+<div class="jar" data-word-jar data-words={journalWords} data-capacity={capacity} style={`--fill:${fill}`}>
+  <svg class="jar__art" viewBox="0 0 160 200" aria-hidden="true">
+    <defs>
+      <clipPath id="jar-inside">
+        <path d="M40 58 Q34 66 34 80 V170 Q34 186 50 186 H110 Q126 186 126 170 V80 Q126 66 120 58 Z" />
+      </clipPath>
+    </defs>
+    <!-- glass back -->
+    <path class="jar__glass-back" d="M40 58 Q34 66 34 80 V170 Q34 186 50 186 H110 Q126 186 126 170 V80 Q126 66 120 58 Z" />
+    <!-- the words, rising -->
+    <g clip-path="url(#jar-inside)">
+      <g class="jar__level">
+        <rect class="jar__ink" x="30" y="40" width="100" height="150" />
+        <path class="jar__surface" d="M30 41 q12 -5 25 0 t25 0 t25 0 t25 0 V46 H30 Z" />
+        {slips.map(([x, y, r]) => (
+          <rect class="jar__slip" x={x} y={y} width="14" height="9" rx="1.5" transform={`rotate(${r} ${x + 7} ${y + 4.5})`} />
+        ))}
+      </g>
+    </g>
+    <!-- glass front, neck, lid -->
+    <path class="jar__glass" d="M40 58 Q34 66 34 80 V170 Q34 186 50 186 H110 Q126 186 126 170 V80 Q126 66 120 58" />
+    <rect class="jar__neck" x="42" y="44" width="76" height="14" rx="4" />
+    <rect class="jar__lid" x="38" y="26" width="84" height="20" rx="6" />
+    <path class="jar__lid-line" d="M44 33 H116 M44 39 H116" />
+    <path class="jar__shine" d="M44 86 Q42 120 46 160" />
+    <!-- a paper label -->
+    <rect class="jar__label" x="54" y="70" width="52" height="22" rx="3" />
+    <text class="jar__label-text" x="80" y="85" text-anchor="middle">words</text>
+  </svg>
+
+  <div class="jar__copy">
+    <p class="jar__count">
+      <span class="jar__num" data-jar-num>{formatWords(journalWords)}</span><span class="jar__plus">+</span>
+    </p>
+    <p class="jar__what">words journaled so far</p>
+    <p class="jar__since" data-jar-since aria-live="polite"></p>
+    <p class="jar__meta">
+      Counted {updated}. The jar's {Math.round(fill * 100)}% of the way to {formatWords(capacity)}.
+      Only the number leaves the journal.
+    </p>
+  </div>
+</div>
+
+<style>
+  .jar {
+    --fill: 0;
+    display: grid;
+    gap: var(--space-5);
+    align-items: center;
+    justify-items: center;
+    text-align: center;
+  }
+  .jar__art { width: clamp(150px, 34vw, 200px); height: auto; overflow: visible; }
+  .jar__glass-back { fill: color-mix(in oklab, var(--sky) 18%, var(--bg-raised)); }
+  .jar__glass { fill: none; stroke: color-mix(in oklab, var(--ink) 30%, transparent); stroke-width: 3; stroke-linejoin: round; }
+  .jar__neck { fill: color-mix(in oklab, var(--sky) 22%, var(--bg-raised)); stroke: color-mix(in oklab, var(--ink) 30%, transparent); stroke-width: 3; }
+  .jar__lid { fill: var(--p); stroke: color-mix(in oklab, var(--p) 60%, var(--ink)); stroke-width: 2; }
+  .jar__lid-line { stroke: color-mix(in oklab, #fff 40%, transparent); stroke-width: 1.5; stroke-linecap: round; }
+  .jar__shine { fill: none; stroke: rgba(255, 255, 255, 0.75); stroke-width: 4; stroke-linecap: round; }
+  .jar__label { fill: #fff6df; stroke: #e2cfa6; stroke-width: 1; }
+  .jar__label-text { font-family: var(--font-read); font-style: italic; font-size: 13px; fill: #6b5b3e; }
+
+  /* The ink's surface starts at y=40; the jar's inside runs 58..186 (128
+     tall). Slide it down to the top, then by the unfilled share of that. */
+  .jar__level {
+    transform: translateY(calc((1 - var(--fill)) * 128px + 18px));
+    transition: transform 1600ms var(--ease-out);
+  }
+  .jar__ink { fill: color-mix(in oklab, var(--p) 78%, var(--bg-raised)); }
+  .jar__surface { fill: color-mix(in oklab, var(--p) 55%, #fff); }
+  .jar__slip { fill: #fff6df; opacity: 0.85; }
+
+  .jar__count {
+    font-family: var(--font-display);
+    font-size: var(--step-4);
+    font-weight: 750;
+    letter-spacing: -0.04em;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink);
+  }
+  .jar__plus { color: var(--p); margin-left: 0.04em; }
+  .jar__what { margin-top: var(--space-2); font-weight: 650; color: var(--ink-2); }
+  .jar__since {
+    display: inline-block;
+    margin-top: var(--space-3);
+    padding: 4px 12px;
+    border-radius: var(--r-pill);
+    font-size: var(--step--1);
+    font-weight: 650;
+    color: color-mix(in oklab, var(--p) 60%, var(--ink));
+    background: color-mix(in oklab, var(--p) 14%, var(--bg-raised));
+  }
+  .jar__since:empty { display: none; }
+  .jar__meta { margin-top: var(--space-3); max-width: 34ch; font-size: var(--step--1); color: var(--ink-3); }
+
+  @media (min-width: 640px) {
+    .jar { grid-template-columns: auto minmax(0, 1fr); justify-items: start; text-align: left; gap: var(--space-6); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .jar__level { transition: none; }
+  }
+</style>
+
+<script>
+  import { reducedMotion, whenVisible } from '../work/lib';
+  import { JAR_STORAGE_KEY, countAt, formatWords, jarFill, parseSeen, plan, sinceNote } from './life';
+
+  function readSeen(): number | null {
+    try { return parseSeen(localStorage.getItem(JAR_STORAGE_KEY)); } catch { return null; }
+  }
+  function remember(n: number) {
+    try { localStorage.setItem(JAR_STORAGE_KEY, String(n)); } catch { /* private mode: fine */ }
+  }
+
+  for (const root of document.querySelectorAll<HTMLElement>('[data-word-jar]')) {
+    const words = Number(root.dataset.words);
+    const capacity = Number(root.dataset.capacity);
+    const num = root.querySelector<HTMLElement>('[data-jar-num]')!;
+    const since = root.querySelector<HTMLElement>('[data-jar-since]')!;
+    const { from, to, added } = plan(readSeen(), words);
+
+    if (added === 0) {
+      remember(words);
+      continue;
+    }
+
+    // Start from what they saw last time; tick up once the jar is on screen.
+    num.textContent = formatWords(from);
+    root.style.setProperty('--fill', String(jarFill(from, capacity)));
+
+    whenVisible(root, () => {
+      remember(words);
+      root.style.setProperty('--fill', String(jarFill(to, capacity)));
+      const done = () => {
+        num.textContent = formatWords(to);
+        since.textContent = sinceNote(added);
+      };
+      if (reducedMotion()) return done();
+      const ms = 1600;
+      const t0 = performance.now();
+      const step = (now: number) => {
+        const t = (now - t0) / ms;
+        num.textContent = formatWords(countAt(from, to, t));
+        if (t < 1) requestAnimationFrame(step);
+        else done();
+      };
+      requestAnimationFrame(step);
+    });
+  }
+</script>

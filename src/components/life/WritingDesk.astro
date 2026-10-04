@@ -1,0 +1,34 @@
+---
+// "From the writing desk": shown only on the middle place page. The word jar
+// and the film & reality-TV shelf, both fed by src/data/life.ts.
+import WordJar from './WordJar.astro';
+import Shelf from './Shelf.astro';
+---
+<section class="desk wrap" aria-labelledby="desk-title">
+  <header class="desk__head">
+    <p class="kicker">Off the page</p>
+    <h2 class="desk__title" id="desk-title">From the writing desk</h2>
+    <p class="desk__lede">How much has gone into the journal so far, and what's playing in the background while it does.</p>
+  </header>
+  <div class="desk__grid">
+    <div class="desk__panel"><WordJar /></div>
+    <div class="desk__panel"><Shelf /></div>
+  </div>
+</section>
+
+<style>
+  .desk { margin-top: clamp(var(--space-8), 9vw, var(--space-10)); display: grid; gap: var(--space-6); }
+  .desk__head { display: grid; gap: var(--space-3); max-width: var(--max-read); }
+  .desk__title { font-size: var(--step-3); font-weight: 750; letter-spacing: -0.035em; line-height: 1.05; }
+  .desk__lede { font-family: var(--font-read); font-size: var(--step-1); line-height: 1.5; color: var(--ink-2); }
+  .desk__grid { display: grid; gap: var(--space-5); }
+  .desk__panel {
+    padding: clamp(22px, 4vw, 40px);
+    border-radius: var(--r-lg);
+    background: color-mix(in oklab, var(--p) 6%, var(--bg-raised));
+    box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--p) 14%, transparent);
+  }
+  @media (min-width: 960px) {
+    .desk__grid { grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); align-items: start; }
+  }
+</style>

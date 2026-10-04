@@ -80,7 +80,7 @@ export const ScenerySchema = z
   })
   .strict();
 
-export const ARCHETYPES = ['plaza', 'cabin', 'taproom', 'tree', 'library', 'lighthouse', 'schoolhouse', 'depot', 'pier', 'bottle'] as const;
+export const ARCHETYPES = ['plaza', 'cabin', 'taproom', 'tree', 'library', 'lighthouse', 'schoolhouse', 'depot', 'workshop', 'pier', 'bottle'] as const;
 
 /** The archetypes that are buildings you can walk into. */
 export const BUILDINGS = ['cabin', 'taproom', 'library', 'lighthouse', 'schoolhouse', 'depot'] as const;
@@ -159,8 +159,9 @@ export const WALL_PROPS: readonly (typeof PROPS)[number][] = ['frame', 'board', 
 export const PlaceSchema = z
   .object({
     id: Id,
-    /** hub: a crossroads with nothing to open. project/writing/contact: opens a page. */
-    kind: z.enum(['hub', 'project', 'writing', 'contact']),
+    /** hub: a crossroads with nothing to open. project/writing/contact: opens a page.
+     *  colophon: opens the page about how the site itself was made. */
+    kind: z.enum(['hub', 'project', 'writing', 'contact', 'colophon']),
     /** What it physically is. Each renderer maps archetypes to its own art. */
     archetype: z.enum(ARCHETYPES),
     /** The thing it stands for, e.g. "busy beer". */
@@ -245,6 +246,27 @@ export const ActivitySchema = z
   })
   .strict();
 
+/** Where a piece of the wardrobe goes on the explorer. One item per slot. */
+export const OUTFIT_SLOTS = ['head', 'face', 'neck', 'body'] as const;
+
+/** A piece of clothing for the explorer, unlocked by visiting a place. */
+export const OutfitSchema = z
+  .object({
+    id: Id,
+    /** What it's called, e.g. "hard hat". */
+    name: z.string(),
+    slot: z.enum(OUTFIT_SLOTS),
+    /** The place that unlocks it: arrive there (or go in) and it's yours. */
+    place: Id,
+    /** Its main color; renderers pick their own trim. */
+    color: Hex,
+    /** One line, shown once it's unlocked. */
+    description: z.string(),
+    /** A nudge, shown in the wardrobe before it's unlocked. */
+    hint: z.string(),
+  })
+  .strict();
+
 // ---------- Geography ----------
 
 /** The island's shape, as a recipe. geo.ts turns it into height and coastline. */
@@ -266,6 +288,35 @@ export const GeographySchema = z
     hills: z.array(z.object({ at: Id, height: z.number(), spread: z.number().positive() }).strict()),
     /** The jetty that carries the writing place out to sea, running due south. */
     pier: z.object({ x: z.number(), start: z.number(), end: z.number(), width: z.number().positive(), deck: z.number() }).strict(),
+    /** Gentle shoulders of new land that push the coast out toward a point:
+     *  grass and a sandy beach like the rest of the shore, no rocks. */
+    shores: z.array(z.object({ toward: Vec2, reach: z.number(), spread: z.number().positive() }).strict()).default([]),
+    /** A little railway: a rounded loop (a superellipse, `square` from 2 for an
+     *  oval up to ~6 for a rounded rectangle) laid on a level bed at height
+     *  `bed`. `station` is where the platform stands, as a fraction of the way
+     *  round from due east, turning toward the south (clockwise from above).
+     *  Paved paths cross it on level crossings; it never blocks a walk. */
+    railway: z
+      .object({
+        center: Vec2,
+        rx: z.number().positive(),
+        rz: z.number().positive(),
+        square: z.number().min(2).max(8).default(3),
+        bed: z.number(),
+        station: z.number().min(0).max(1),
+      })
+      .strict()
+      .optional(),
+    /** A stone quay at the water's edge (a level deck between two corners), and
+     *  where on it the bus is parked, facing `faces` (0 = south, π/2 = east). */
+    quay: z
+      .object({ x0: z.number(), z0: z.number(), x1: z.number(), z1: z.number(), deck: z.number(), bus: Vec2, faces: z.number() })
+      .strict()
+      .optional(),
+    /** Level, empty building plots kept for places still to come: nothing grows
+     *  or is laid there. Build on one by adding a place at `at` with this
+     *  clearing, and remove the plot. */
+    plots: z.array(z.object({ id: Id, at: Vec2, clearing: z.number().positive() }).strict()).default([]),
     /** Where a new visitor appears. */
     spawn: Vec2,
   })
@@ -285,6 +336,7 @@ export const WorldSchema = z
     routes: z.array(RouteSchema),
     lostWords: z.array(LostWordSchema),
     activities: z.array(ActivitySchema),
+    outfits: z.array(OutfitSchema).default([]),
     geography: GeographySchema,
   })
   .strict()
@@ -308,6 +360,8 @@ export type Route = z.infer<typeof RouteSchema>;
 export type LostWord = z.infer<typeof LostWordSchema>;
 export type Activity = z.infer<typeof ActivitySchema>;
 export type GameId = (typeof GAMES)[number];
+export type OutfitSlot = (typeof OUTFIT_SLOTS)[number];
+export type Outfit = z.infer<typeof OutfitSchema>;
 export type Geography = z.infer<typeof GeographySchema>;
 export type World = z.infer<typeof WorldSchema>;
 /** What authors write: defaults may be left out. */
@@ -419,8 +473,30 @@ export function checkWorld(w: z.infer<typeof WorldSchema> | World): Issue[] {
     if (a.game && games.has(a.game)) add(`The game "${a.game}" is on the island twice.`, ['activities', i, 'game']);
     if (a.game) games.add(a.game);
   });
+
+  // Every outfit is unlocked somewhere real (and somewhere you can go into or
+  // arrive at, not the hub you start in), one piece per place.
+  const outfitIds = new Set<string>();
+  const outfitAt = new Map<string, string>();
+  (w.outfits ?? []).forEach((o, i) => {
+    if (outfitIds.has(o.id)) add(`Two outfits share the id "${o.id}".`, ['outfits', i, 'id']);
+    outfitIds.add(o.id);
+    const p = places.get(o.place);
+    if (!p) return add(`Outfit "${o.id}" is unlocked at unknown place "${o.place}".`, ['outfits', i, 'place']);
+    if (p.kind === 'hub') add(`Outfit "${o.id}" is unlocked at the hub, where everyone starts; pick a place to visit.`, ['outfits', i, 'place']);
+    const other = outfitAt.get(o.place);
+    if (other) add(`"${o.place}" unlocks both "${other}" and "${o.id}"; give each place one piece.`, ['outfits', i, 'place']);
+    outfitAt.set(o.place, o.id);
+  });
   w.geography.headlands.forEach((h, i) => {
     if (!places.has(h.toward)) add(`Headland ${i} points toward unknown place "${h.toward}".`, ['geography', 'headlands', i]);
+  });
+  // A plot is kept free for a place still to come; once one stands there, the plot goes.
+  w.geography.plots.forEach((plot, i) => {
+    for (const p of w.places) {
+      const d = Math.hypot(plot.at.x - p.at.x, plot.at.z - p.at.z);
+      if (d < plot.clearing + p.footprint) add(`"${p.id}" stands on plot "${plot.id}" (${d.toFixed(1)} away): remove the plot from geography.plots now it's built on.`, ['geography', 'plots', i]);
+    }
   });
   w.geography.hills.forEach((h, i) => {
     if (!places.has(h.at)) add(`Hill ${i} is at unknown place "${h.at}".`, ['geography', 'hills', i]);

@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest';
 import type { EngineState, Result } from '../engine';
 import { plain, type Effect, type Signal } from '../output';
 import { gameNamed } from '../games';
-import { engine, play, say } from './helpers';
+import { engine, play, say, world } from './helpers';
+
+/** Where the stones are skipped (the world says). */
+const STONES = world.activities.find((a) => a.game === 'stones')!.place;
 
 const effects = (r: { effects: Effect[] }, type: Effect['type']) => r.effects.filter((e) => e.type === type);
 const timer = (r: Result) => (effects(r, 'timer')[0] as Extract<Effect, { type: 'timer' }> | undefined)?.signal;
@@ -10,7 +13,7 @@ const timer = (r: Result) => (effects(r, 'timer')[0] as Extract<Effect, { type: 
 const fire = (s: EngineState, sig: Signal) => engine.signal(s, sig);
 
 /** Throw a whole round of five, each when the sea is at `when`. */
-function round(when: 'wait' | 'flat' | 'ripple' | 'swell', from = play('busy-beer', 'play stones')) {
+function round(when: 'wait' | 'flat' | 'ripple' | 'swell', from = play(STONES, 'play stones')) {
   let s = from.state;
   let r = from.last;
   const all: Result[] = [r];
@@ -42,7 +45,7 @@ describe('the games, in words', () => {
   });
 
   it('mentions the game where it is played, with a chip on phones', () => {
-    expect(say('busy-beer', 'look')).toMatch(/PLAY STONES/);
+    expect(say(STONES, 'look')).toMatch(/PLAY STONES/);
     expect(say('contact', 'look')).toMatch(/PLAY CRABS/);
     expect(say('eqoscan', 'look')).toMatch(/PLAY CRATES/);
     expect(engine.suggest(engine.initial('eqoscan')).map((c) => c.cmd)).toContain('play crates');
@@ -94,15 +97,15 @@ describe('the games, in words', () => {
   });
 
   it('says when a round beats your best, and when it does not', () => {
-    const start = (best: number) => play({ ...engine.initial('busy-beer'), bests: { stones: best } }, 'play stones');
+    const start = (best: number) => play({ ...engine.initial(STONES), bests: { stones: best } }, 'play stones');
     expect(plain(round('flat', start(20)).last.out)).toMatch(/A new best, beating 20!/);
     expect(plain(round('wait', start(20)).last.out)).toMatch(/Your best is 20/);
   });
 
   it('ignores the sea once the stones are put down, or for an old stone', () => {
-    const r = play('busy-beer', 'play stones');
+    const r = play(STONES, 'play stones');
     const sig = timer(r.last)!;
-    const left = engine.run(r.state, 'north');
+    const left = engine.run(r.state, 'go to the plaza');
     expect(left.state.stones).toBeNull();
     expect(fire(left.state, sig).out).toEqual([]);
     expect(fire(r.state, { ...sig, cast: sig.cast + 5 }).out).toEqual([]);
@@ -110,7 +113,7 @@ describe('the games, in words', () => {
 
   it('has nothing to throw without a stone in hand', () => {
     expect(say('plaza', 'throw')).toMatch(/nothing to throw/);
-    expect(say('busy-beer', 'skip')).toMatch(/PLAY STONES/);
+    expect(say(STONES, 'skip')).toMatch(/PLAY STONES/);
   });
 
   it('puts your bests in SCORE', () => {

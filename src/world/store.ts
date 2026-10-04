@@ -1,6 +1,7 @@
 // What a visitor has done, shared by every renderer: where they are, which
-// lost words they've found, what they've caught off the pier, and their best
-// score at each of the island's little games. Switch from the
+// lost words they've found, what they've caught off the pier, their best
+// score at each of the island's little games, and what they've unlocked for
+// the wardrobe and are wearing. Switch from the
 // island to the map to the text adventure and you're still standing in the
 // same spot with the same pockets.
 //
@@ -8,7 +9,7 @@
 // (state, events), so they're tested without a browser. createStore() wraps it
 // with persistence and subscriptions.
 
-import type { World } from './schema';
+import type { OutfitSlot, World } from './schema';
 
 export type Vec2 = { x: number; z: number };
 
@@ -23,6 +24,10 @@ export type Progress = {
   bestLap: number | null;
   /** Each mini-game's best score and how many rounds were played, by game id. */
   games: Record<string, GameRecord>;
+  /** Outfit pieces unlocked by visiting places, in the order they were unlocked. */
+  wardrobe: string[];
+  /** What the explorer has on: at most one unlocked piece per slot. */
+  worn: Partial<Record<OutfitSlot, string>>;
 };
 
 export type GameRecord = { best: number; plays: number };
@@ -47,6 +52,12 @@ export type Action =
   | { type: 'lap'; time: number }
   /** A round of a mini-game ended with this score. */
   | { type: 'score'; game: string; score: number }
+  /** Unlock a piece directly (arriving at its place does this on its own). */
+  | { type: 'unlock'; id: string }
+  /** Put on an unlocked piece, replacing whatever was in its slot. */
+  | { type: 'wear'; id: string }
+  /** Take off whatever is in a slot. */
+  | { type: 'unwear'; slot: OutfitSlot }
   | { type: 'reset' };
 
 export type WorldEvent =
@@ -59,7 +70,11 @@ export type WorldEvent =
   /** A lap round the island, finished: whether it beat the best, and the best before it. */
   | { type: 'lap'; time: number; best: boolean; previous: number | null }
   /** `record`: a new best (a score above zero that beats the last best). */
-  | { type: 'scored'; game: string; score: number; best: number; previous: number; record: boolean };
+  | { type: 'scored'; game: string; score: number; best: number; previous: number; record: boolean }
+  | { type: 'unlocked'; id: string; count: number; total: number }
+  | { type: 'wardrobe-complete' }
+  /** A slot changed: `id` is what's in it now (null: nothing). */
+  | { type: 'dressed'; slot: OutfitSlot; id: string | null };
 
 /** A lap time worth keeping: a real number of seconds, not a glitch. */
 export const validLap = (t: unknown): t is number => typeof t === 'number' && Number.isFinite(t) && t > 1 && t < 3600;
@@ -71,7 +86,7 @@ const MAX_SCORE = 999_999;
 export const gameIds = (world: World): string[] => world.activities.flatMap((a) => (a.kind === 'minigame' && a.game ? [a.game] : []));
 
 export const emptyState = (): WorldState => ({
-  progress: { found: [], caught: [], night: false, bestLap: null, games: {} },
+  progress: { found: [], caught: [], night: false, bestLap: null, games: {}, wardrobe: [], worn: {} },
   presence: { at: null, pos: null, inside: null },
 });
 
@@ -86,7 +101,10 @@ export function reduce(world: World, state: WorldState, action: Action): { state
       // Walking somewhere else takes you back outside.
       const inside = presence.inside && at !== presence.inside ? null : presence.inside;
       if (inside !== presence.inside) events.push({ type: 'inside', at: null });
-      return { state: { progress, presence: { at, pos: action.pos, inside } }, events };
+      // Arriving somewhere (or going in) unlocks the wardrobe piece kept there.
+      let next = progress;
+      for (const o of world.outfits) if (o.place === at) next = unlock(world, next, o.id, events);
+      return { state: { progress: next, presence: { at, pos: action.pos, inside } }, events };
     }
     case 'inside': {
       // Only into buildings that have a room.
@@ -94,8 +112,29 @@ export function reduce(world: World, state: WorldState, action: Action): { state
       if (action.at && !at) return { state, events };
       if (at === presence.inside) return { state, events };
       events.push({ type: 'inside', at });
-      if (at && at !== presence.at) events.push({ type: 'arrived', at });
-      return { state: { progress, presence: { ...presence, at: at ?? presence.at, inside: at } }, events };
+      let next = progress;
+      if (at && at !== presence.at) {
+        events.push({ type: 'arrived', at });
+        for (const o of world.outfits) if (o.place === at) next = unlock(world, next, o.id, events);
+      }
+      return { state: { progress: next, presence: { ...presence, at: at ?? presence.at, inside: at } }, events };
+    }
+    case 'unlock': {
+      const next = unlock(world, progress, action.id, events);
+      return next === progress ? { state, events } : { state: { presence, progress: next }, events };
+    }
+    case 'wear': {
+      const o = world.outfits.find((x) => x.id === action.id);
+      if (!o || !progress.wardrobe.includes(o.id) || progress.worn[o.slot] === o.id) return { state, events };
+      events.push({ type: 'dressed', slot: o.slot, id: o.id });
+      return { state: { presence, progress: { ...progress, worn: { ...progress.worn, [o.slot]: o.id } } }, events };
+    }
+    case 'unwear': {
+      if (!progress.worn[action.slot]) return { state, events };
+      const worn = { ...progress.worn };
+      delete worn[action.slot];
+      events.push({ type: 'dressed', slot: action.slot, id: null });
+      return { state: { presence, progress: { ...progress, worn } }, events };
     }
     case 'find': {
       const total = world.lostWords.length;
@@ -134,10 +173,23 @@ export function reduce(world: World, state: WorldState, action: Action): { state
       events.push({ type: 'scored', game: action.game, score, best: now.best, previous: was.best, record });
       return { state: { presence, progress: { ...progress, games: { ...progress.games, [action.game]: now } } }, events };
     }
-    case 'reset':
-      // Forgets the words and the catches; the lap record and the best scores are kept (the card only asks about words).
-      return { state: { presence, progress: { ...emptyState().progress, bestLap: progress.bestLap, games: progress.games } }, events: progress.night ? [{ type: 'night', on: false }] : [] };
+    case 'reset': {
+      // Forgets the words and the catches. The lap record, the best scores and the
+      // wardrobe (earned by walking) are kept: the card only asks about words.
+      const fresh = { ...emptyState().progress, bestLap: progress.bestLap, games: progress.games, wardrobe: progress.wardrobe, worn: progress.worn };
+      return { state: { presence, progress: fresh }, events: progress.night ? [{ type: 'night', on: false }] : [] };
+    }
   }
+}
+
+/** Add an outfit to the wardrobe (if it exists and isn't there yet), noting what happened in `events`. */
+function unlock(world: World, progress: Progress, id: string, events: WorldEvent[]): Progress {
+  if (progress.wardrobe.includes(id) || !world.outfits.some((o) => o.id === id)) return progress;
+  const wardrobe = [...progress.wardrobe, id];
+  const total = world.outfits.length;
+  events.push({ type: 'unlocked', id, count: wardrobe.length, total });
+  if (wardrobe.length === total) events.push({ type: 'wardrobe-complete' });
+  return { ...progress, wardrobe };
 }
 
 /** Pick something to catch: a post not caught yet if there is one, else any. */
@@ -169,6 +221,15 @@ export function sanitize(world: World, raw: unknown): WorldState {
       if (!g || typeof g !== 'object') continue;
       const { best, plays } = g as Partial<GameRecord>;
       s.progress.games[id] = { best: count(best), plays: Math.max(count(plays), count(best) > 0 ? 1 : 0) };
+    }
+  }
+  const outfits = new Map(world.outfits.map((o) => [o.id, o]));
+  s.progress.wardrobe = [...new Set(strings(r.progress?.wardrobe))].filter((id) => outfits.has(id));
+  const worn = r.progress?.worn;
+  if (worn && typeof worn === 'object') {
+    for (const [slot, id] of Object.entries(worn)) {
+      const o = typeof id === 'string' ? outfits.get(id) : undefined;
+      if (o && o.slot === slot && s.progress.wardrobe.includes(o.id)) s.progress.worn[o.slot] = o.id;
     }
   }
   const at = r.presence?.at;
@@ -265,5 +326,7 @@ export function createStore(
     has: (id: string) => state.progress.found.includes(id),
     /** Your best score at a mini-game (0 if you haven't played it). */
     best: (game: string) => state.progress.games[game]?.best ?? 0,
+    /** The outfit pieces being worn right now, by slot. */
+    worn: () => state.progress.worn,
   };
 }

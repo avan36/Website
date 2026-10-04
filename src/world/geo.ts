@@ -40,11 +40,12 @@ export function createGeo(world: World) {
     return { theta: Math.atan2(p.at.z, p.at.x), ...h };
   });
   const hills = g.hills.map((h) => ({ ...byId.get(h.at)!.at, height: h.height, spread: h.spread }));
+  const shores = (g.shores ?? []).map((s) => ({ theta: Math.atan2(s.toward.z, s.toward.x), reach: s.reach, spread: s.spread }));
 
   function coastRadius(theta: number) {
     let r = g.coast.radius;
     for (const w of g.coast.ripples) r += w.amp * Math.sin(w.freq * theta + w.phase);
-    for (const h of headlands) {
+    for (const h of [...headlands, ...shores]) {
       const d = wrapAngle(theta - h.theta);
       r += h.reach * Math.exp(-(d * d) / (2 * h.spread * h.spread));
     }
@@ -95,12 +96,50 @@ export function createGeo(world: World) {
     .map((p) => ({ x: p.at.x, z: p.at.z, r: p.clearing, blend: PAD_BLEND, h: rawHeight(p.at.x, p.at.z) }));
   if (hub.clearing > 0) pads.push({ x: hub.at.x, z: hub.at.z, r: hub.clearing, blend: hub.clearing, h: rawHeight(hub.at.x, hub.at.z) });
 
+  // Plots kept for places still to come are levelled just like a place's clearing.
+  const plots = (g.plots ?? []).map((p) => ({ id: p.id, x: p.at.x, z: p.at.z, r: p.clearing }));
+  for (const p of plots) pads.push({ x: p.x, z: p.z, r: p.r, blend: PAD_BLEND, h: rawHeight(p.x, p.z) });
+
+  // ---------- The railway ----------
+  const rw = g.railway;
+  const rail = rw ? railLoop(rw) : null;
+  const railSegs: Segment[] = rail ? rail.points.map((p, i) => { const q = rail.points[(i + 1) % rail.points.length]; return { ax: p.x, az: p.z, bx: q.x, bz: q.z }; }) : [];
+  /** Distance to the railway's centre line (Infinity if there isn't one). */
+  function railDist(x: number, z: number) {
+    if (!rail) return Infinity;
+    // Cheap reject: far outside the loop's box.
+    if (Math.abs(x - rw!.center.x) > rw!.rx + 6 || Math.abs(z - rw!.center.z) > rw!.rz + 6) return 6;
+    return segDist(railSegs, x, z);
+  }
+
+  // ---------- The quay ----------
+  const qy = g.quay;
+  const quay = qy ? { x0: Math.min(qy.x0, qy.x1), x1: Math.max(qy.x0, qy.x1), z0: Math.min(qy.z0, qy.z1), z1: Math.max(qy.z0, qy.z1), deck: qy.deck, bus: qy.bus, faces: qy.faces } : null;
+  /** How far outside the quay's deck a point is (negative inside). */
+  function quayDist(x: number, z: number) {
+    if (!quay) return Infinity;
+    const dx = Math.max(quay.x0 - x, 0, x - quay.x1);
+    const dz = Math.max(quay.z0 - z, 0, z - quay.z1);
+    if (dx === 0 && dz === 0) return -Math.min(x - quay.x0, quay.x1 - x, z - quay.z0, quay.z1 - z);
+    return Math.hypot(dx, dz);
+  }
+
   /** Ground height of the island (without the pier deck). */
   function heightAt(x: number, z: number) {
     let h = rawHeight(x, z);
     for (const p of pads) {
       const d = Math.hypot(x - p.x, z - p.z);
       if (d < p.r + p.blend) h = lerp(h, p.h, 1 - smoothstep(p.r, p.r + p.blend, d));
+    }
+    // The railway runs on a level bed that eases into the land either side.
+    if (rail) {
+      const d = railDist(x, z);
+      if (d < RAIL_BED + RAIL_BLEND) h = lerp(h, rw!.bed, 1 - smoothstep(RAIL_BED, RAIL_BLEND + RAIL_BED, d));
+    }
+    // The quay is a stone deck with a short, steep wall down to the sea.
+    if (quay) {
+      const d = quayDist(x, z);
+      if (d < 0.9) h = lerp(h, quay.deck, 1 - smoothstep(0, 0.9, d));
     }
     return h;
   }
@@ -217,8 +256,32 @@ export function createGeo(world: World) {
       if (Math.hypot(x - d.x, z - d.z) < 1.6 + margin) return false;
     }
     if (Math.abs(x - pier.x) < 2.2 && z > pier.start - 2) return false;
+    if (railDist(x, z) < 1.6 + margin) return false;
+    if (quayDist(x, z) < 0.8 + margin) return false;
+    // A plot keeps a little more than its clearing free, so no canopy hangs over it.
+    for (const p of plots) if (Math.hypot(x - p.x, z - p.z) < p.r + 1.2 + margin) return false;
+    if (station && Math.hypot(x - station.x, z - station.z) < 3.2 + margin) return false;
     return true;
   }
+
+  // ---------- Level crossings and the station ----------
+  /** Where a paved path crosses the railway, and which way the path runs there. */
+  const crossings: { x: number; z: number; along: number }[] = [];
+  for (const s of segments) {
+    for (const r of railSegs) {
+      const hit = intersect(s, r);
+      if (hit && !crossings.some((c) => Math.hypot(c.x - hit.x, c.z - hit.z) < 2)) crossings.push({ ...hit, along: Math.atan2(s.bx - s.ax, s.bz - s.az) });
+    }
+  }
+  /** The station platform: beside the track, on the outside of the loop. */
+  const station = rail && rw ? (() => {
+    const p = rail.at(rw.station * rail.length);
+    const ox = p.x + Math.cos(p.yaw) * 2.2 * p.out;
+    const oz = p.z - Math.sin(p.yaw) * 2.2 * p.out;
+    return { x: ox, z: oz, yaw: p.yaw, s: rw.station * rail.length };
+  })() : null;
+  // The platform stands on level ground at the height of the rails.
+  if (station && rw) pads.push({ x: station.x, z: station.z, r: 2.4, blend: 2, h: rw.bed });
 
   /** Compass bearing from one point to another: 0 = north, π/2 = east. */
   const bearing = (a: Vec2, b: Vec2) => Math.atan2(b.x - a.x, -(b.z - a.z));
@@ -226,6 +289,14 @@ export function createGeo(world: World) {
   return {
     hub,
     pier,
+    /** The railway loop (null if the island has none): sample it with at(s). */
+    rail,
+    railDist,
+    crossings,
+    station,
+    quay,
+    quayDist,
+    plots,
     spawn: g.spawn,
     place: (id: string) => byId.get(id),
     coastRadius,
@@ -243,6 +314,78 @@ export function createGeo(world: World) {
     nearestPlace,
     isOpenGround,
     bearing,
+  };
+}
+
+/** Half-width of the railway's level bed, and how far it blends into the land. */
+const RAIL_BED = 1.5;
+const RAIL_BLEND = 2.2;
+
+function segDist(segs: Segment[], x: number, z: number) {
+  let best = Infinity;
+  for (const s of segs) {
+    const dx = s.bx - s.ax;
+    const dz = s.bz - s.az;
+    const t = clamp(((x - s.ax) * dx + (z - s.az) * dz) / (dx * dx + dz * dz));
+    const d = Math.hypot(x - (s.ax + dx * t), z - (s.az + dz * t));
+    if (d < best) best = d;
+  }
+  return best;
+}
+
+function intersect(a: Segment, b: Segment): Vec2 | null {
+  const rx = a.bx - a.ax, rz = a.bz - a.az, sx = b.bx - b.ax, sz = b.bz - b.az;
+  const den = rx * sz - rz * sx;
+  if (Math.abs(den) < 1e-9) return null;
+  const t = ((b.ax - a.ax) * sz - (b.az - a.az) * sx) / den;
+  const u = ((b.ax - a.ax) * rz - (b.az - a.az) * rx) / den;
+  return t >= 0 && t <= 1 && u >= 0 && u <= 1 ? { x: a.ax + rx * t, z: a.az + rz * t } : null;
+}
+
+type RailSpec = { center: Vec2; rx: number; rz: number; square: number };
+
+/**
+ * A railway loop as a closed polyline, evenly spaced, plus at(s): the point
+ * s units along it (wrapping), the way it heads there (yaw: 0 = south, π/2 =
+ * east, like a place's `faces`) and which side is outside the loop (out: ±1
+ * along the yaw's right-hand normal). It runs clockwise seen from above.
+ */
+export function railLoop(r: RailSpec) {
+  const N = 240;
+  const e = 2 / r.square;
+  const raw: Vec2[] = [];
+  for (let i = 0; i < N; i++) {
+    const a = (i / N) * TAU; // clockwise from above: +x then +z (south)
+    const c = Math.cos(a);
+    const s = Math.sin(a);
+    raw.push({ x: r.center.x + r.rx * Math.sign(c) * Math.abs(c) ** e, z: r.center.z + r.rz * Math.sign(s) * Math.abs(s) ** e });
+  }
+  // Respace evenly by arc length so a train moves at a steady speed.
+  const cum = [0];
+  for (let i = 1; i <= N; i++) cum.push(cum[i - 1] + Math.hypot(raw[i % N].x - raw[i - 1].x, raw[i % N].z - raw[i - 1].z));
+  const length = cum[N];
+  const sample = (s: number): Vec2 => {
+    s = ((s % length) + length) % length;
+    let lo = 0, hi = N;
+    while (hi - lo > 1) { const m = (lo + hi) >> 1; if (cum[m] <= s) lo = m; else hi = m; }
+    const t = (s - cum[lo]) / (cum[lo + 1] - cum[lo] || 1);
+    const a = raw[lo], b = raw[(lo + 1) % N];
+    return { x: lerp(a.x, b.x, t), z: lerp(a.z, b.z, t) };
+  };
+  const M = 160;
+  const points = Array.from({ length: M }, (_, i) => sample((i / M) * length));
+  return {
+    points,
+    length,
+    at(s: number) {
+      const p = sample(s);
+      const q = sample(s + 0.35);
+      const yaw = Math.atan2(q.x - p.x, q.z - p.z);
+      // Heading clockwise, the right-hand side (x: cos, z: -sin of yaw) points out of the loop.
+      const rx = Math.cos(yaw), rz = -Math.sin(yaw);
+      const out = (p.x - r.center.x) * rx + (p.z - r.center.z) * rz > 0 ? 1 : -1;
+      return { x: p.x, z: p.z, yaw, out };
+    },
   };
 }
 

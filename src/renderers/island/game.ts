@@ -36,6 +36,9 @@ import { createBoating, type Boating } from './play/boating';
 import type { GameId } from '../games/catalog';
 import { PORTAL_NEXT } from '../portal';
 import { buildAmbient } from './world/ambient';
+import { buildCommute } from './world/commute';
+import { buildSkyline } from './world/skyline';
+import { daylight, pageClock } from '../../world/clock';
 import { resetSharedMaterials } from './world/kit';
 import { buildNature, type Collider, type SharedUniforms } from './world/nature';
 import { buildNight } from './world/night';
@@ -134,6 +137,8 @@ export interface GameHandle {
     /** The mini-games: each spot, whether its prompt is up, and playing one (walking over first if need be). */
     games: () => { id: GameId; x: number; z: number; stand: { x: number; z: number }; open: boolean }[];
     play: (id: GameId) => void;
+    /** Island time: how dark the clock and reward make it, and what the train is doing. */
+    clock: () => { dark: number; commuting: boolean; train: { s: number; v: number; dwell: number; atStation: boolean } };
   };
 }
 
@@ -220,6 +225,11 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
   scene.add(ripples.mesh);
   const buoys = buildBuoys();
   scene.add(buoys.group);
+  // The railway, the train, the quay and its bus; and the city across the water.
+  const commute = buildCommute();
+  island.add(commute.group);
+  const skyline = buildSkyline();
+  scene.add(skyline.group);
 
   const landmarks = PLACES.map((p) => new Landmark(p));
   const byId = new Map(landmarks.map((l) => [l.place.id, l]));
@@ -229,6 +239,7 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
   const colliders: Collider[] = [
     ...nature.colliders,
     ...landmarks.map((l) => ({ x: l.place.x, z: l.place.z, r: l.place.radius })),
+    ...commute.colliders,
   ];
 
   const player = new Explorer(puffs, ripples);
@@ -251,6 +262,9 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     { ax: PIER.x, az: PIER.start, bx: PIER.x, bz: PIER.end, r: PIER.width / 2, top: PIER.deck },
     { ax: boatX, az: boatZ - ROWBOAT.halfLength + ROWBOAT.halfWidth, bx: boatX, bz: boatZ + ROWBOAT.halfLength - ROWBOAT.halfWidth, r: ROWBOAT.halfWidth, top: 0.3 },
   ];
+  // Dressed in whatever the visitor picked from the wardrobe (in any view).
+  const dressUp = () => player.wear(o.store.world.outfits.filter((x) => o.store.state.progress.worn[x.slot] === x.id));
+  dressUp();
   const hill = PLACES.find((p) => p.kind === 'tree');
 
   // The portal on the plaza, to the next way of seeing the island.
@@ -353,15 +367,27 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
   /** Walking over to a game to play it (cancelled if you head somewhere else). */
   let pendingGame: { id: GameId; target: Vector2 } | null = null;
 
-  const night = buildNight({ scene, hemi, sun, sky, water: water.material, ambient, landmarks, mobile });
+  const night = buildNight({ scene, hemi, sun, sky, water: water.material, ambient, landmarks: [...landmarks, commute], extras: [skyline], mobile });
   scene.add(night.group);
   let nightWant = store.state.progress.night;
   /** Night waits for the last word's card to close, so you see it fall. */
   let nightHold = false;
   night.set(nightWant, true);
+  // Island time: the real clock (or ?time=22:00) sets how dark it is and
+  // whether the train is running. Checked about once a second.
+  const clock = pageClock(location.search);
+  let clockAt = -Infinity;
+  let commuting = false;
+  const tickClock = (instant = false) => {
+    const d = clock.date();
+    night.setClock(1 - daylight(d), instant);
+    commuting = clock.commute(d);
+  };
+  tickClock(true);
   const dialog = document.getElementById('w-dialog') as HTMLDialogElement | null;
   const unsubscribe = store.subscribe((_, events) => {
     words.sync(store.has);
+    dressUp();
     for (const e of events) {
       if (e.type === 'hoard-complete') nightHold = true;
       if (e.type === 'night') nightWant = e.on;
@@ -1544,7 +1570,11 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     // Night falls (or lifts). After the last word it waits for the card to close.
     if (nightHold && !words.picking && !dialog?.open) nightHold = false;
     if (!nightHold) night.set(nightWant);
+    // The real clock (dusk, dawn, the commute) is checked once a second.
+    const now = performance.now();
+    if (now - clockAt > 1000) (clockAt = now), tickClock();
     night.update(time, dt, o.reducedMotion);
+    commute.update(state === 'intro' ? 0 : dt, commuting, player.pos);
 
     // Click marker
     if (markerT < 1) {
@@ -1836,6 +1866,7 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
       boat: boating?.debug ?? null,
       games: () => games.list(),
       play: (id: GameId) => playAt(id),
+      clock: () => ({ dark: night.dark, commuting, train: commute.state() }),
       screen: (id: string) => {
         const l = byId.get(id);
         if (!l) return null;

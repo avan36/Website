@@ -9,7 +9,7 @@ import type { Archetype } from '../../../world/schema';
 export type PlaceKind = Exclude<Archetype, 'plaza'>;
 
 export interface Place {
-  /** Place id: a project slug, or 'blog' / 'contact'. */
+  /** Place id: a project slug, or 'blog' / 'contact' / 'workshop'. */
   id: string;
   kind: PlaceKind;
   href: string;
@@ -41,6 +41,7 @@ const METRICS: Record<PlaceKind, { labelY: number; hitR: number; hitH: number; r
   schoolhouse: { labelY: 4.3, hitR: 3.0, hitH: 6.2 },
   taproom: { labelY: 3.7, hitR: 3.2, hitH: 4.6 },
   depot: { labelY: 3.1, hitR: 3.2, hitH: 4.0 },
+  workshop: { labelY: 4.0, hitR: 2.9, hitH: 5.0 },
   library: { labelY: 5.4, hitR: 3.2, hitH: 7.4 },
   lighthouse: { labelY: 8.2, hitR: 2.4, hitH: 10 },
   pier: { labelY: 2.7, hitR: 1.6, hitH: 3, range: 2.6 },
