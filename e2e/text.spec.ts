@@ -31,11 +31,14 @@ test('text adventure: help, look, go, and the portal', async ({ page }) => {
   const go = await say(page, 'go to library');
   await expect(go.locator('.tx-title')).toContainText(/library/i);
 
-  // From the library, "portal" walks back to the plaza and asks; again steps through.
+  // From the library, "portal" walks back to the plaza and asks; again opens the menu.
   const back = await say(page, 'portal');
   await expect(back).toContainText(/portal/i);
   await page.locator('#tx-input').fill('portal');
   await page.locator('#tx-input').press('Enter');
+  const island = page.locator('#w-dialog .w-portal__opt[value="island"]');
+  await expect(island).toBeVisible({ timeout: 10_000 });
+  await island.click();
   await page.waitForFunction(() => document.documentElement.dataset.view === 'island', null, { timeout: 30_000 });
   await homeReady(page, 'island');
   await expect(page).toHaveURL(/view=island/);

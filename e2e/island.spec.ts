@@ -66,13 +66,16 @@ test.describe('3D island', () => {
     await tick(page, 0.3);
     expect(await page.evaluate(() => (window as DebugWindow).__island!.debug.portal()?.near), 'the portal card is up').toBe(true);
 
+    // The portal asks where to: pick the pixel map from its menu.
     await page.keyboard.press('Enter');
+    await expect(page.locator('#w-dialog .w-portal__opt[value="map"]')).toBeVisible();
+    await page.locator('#w-dialog .w-portal__opt[value="map"]').click();
     for (let i = 0; i < 20 && !(await page.evaluate(() => (window as DebugWindow).__island?.debug.portalled() ?? true)); i++) await tick(page, 0.1);
     await page.evaluate(() => (window as DebugWindow).__island?.resume());
 
     await page.waitForFunction(() => document.documentElement.dataset.view !== 'island', null, { timeout: 30_000 });
     await homeReady(page);
-    expect(await page.evaluate(() => document.documentElement.dataset.view)).toBe('map'); // PORTAL_NEXT in src/renderers/portal.ts
+    expect(await page.evaluate(() => document.documentElement.dataset.view)).toBe('map');
     expect(errors).toEqual([]);
   });
 });

@@ -110,15 +110,26 @@ test.describe('map', () => {
     expect(errors).toEqual([]);
   });
 
-  test('the portal takes you to the text adventure', async ({ page }) => {
+  test('the portal opens its menu, and takes you to the text adventure', async ({ page }) => {
     const errors = await openMap(page);
     const portal = await page.evaluate(() => (window as DebugWindow).__world!.world.activities.find((a) => a.kind === 'portal')!.at);
     await page.evaluate((p) => (window as DebugWindow).__map!.teleport(p.x, p.z + 1.6), portal);
     await expect.poll(() => page.evaluate(() => (window as DebugWindow).__map!.portal().near)).toBe(true);
 
+    // Walking into it opens its menu of views. Closing it leaves you on the map...
     await page.keyboard.down('ArrowUp');
-    await page.waitForFunction(() => (window as DebugWindow).__map?.mode() !== 'play', null, { timeout: 10_000 });
+    await expect(page.locator('#w-dialog .w-portal__opt--main')).toBeVisible({ timeout: 10_000 });
     await page.keyboard.up('ArrowUp');
+    await page.keyboard.press('Escape');
+    await expect(page.locator('#w-dialog')).not.toHaveAttribute('open', '');
+    expect(await page.evaluate(() => document.documentElement.dataset.view)).toBe('map');
+    await page.waitForTimeout(250); // the menu's close event lands a moment after it shuts
+    // ...and Enter at it opens the menu again; the text adventure is tucked underneath.
+    await page.keyboard.press('Enter');
+    const text = page.locator('#w-dialog .w-portal__more[value="text"]');
+    await expect(text).toBeVisible();
+    await text.click();
+    await page.waitForFunction(() => (window as DebugWindow).__map?.mode() !== 'play', null, { timeout: 10_000 });
 
     await page.waitForFunction(() => document.documentElement.dataset.view === 'text', null, { timeout: 20_000 });
     await expect(page.locator('.view-host[data-view="text"] #tx-input')).toBeVisible();

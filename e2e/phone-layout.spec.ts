@@ -68,7 +68,7 @@ async function openHud(page: Page, view: string) {
 }
 
 /** Widths where the brand's name is known to spill out of its pill (see the test at the end). */
-const BRAND_SPILLS = new Set([320]);
+const BRAND_SPILLS = new Set<number>();
 
 for (const width of [320, 375, 390]) {
   test.describe(`${width}px phone`, () => {
@@ -133,18 +133,3 @@ for (const width of [320, 375, 390]) {
     });
   });
 }
-
-// Known bug (found by this suite): at 320px "Ambrose Vannier / Software
-// developer" is wider than the brand pill, so it runs out of it and under the
-// view switcher. test.fail() keeps the suite green while the bug stands, and
-// turns red once it's fixed: then delete this test and empty BRAND_SPILLS.
-test.describe('320px phone, known bug', () => {
-  test.use(phone(320));
-  test('brand name fits its pill on a 320px phone', async ({ page }) => {
-    test.fail(true, 'The brand text overflows its pill at 320px');
-    await seed(page);
-    await openHud(page, 'map');
-    const m = await measure(page);
-    expect(m.brandText!.right, JSON.stringify(m)).toBeLessThanOrEqual(m.brand!.right + 0.5);
-  });
-});
