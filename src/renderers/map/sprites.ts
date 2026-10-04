@@ -142,6 +142,8 @@ export interface Landmark {
   door: { dx: number; dy: number };
   /** The row where the landmark's silhouette starts (name tags sit above it). */
   top: number;
+  /** For a building with a room: the row where its walls start. Everything above is roof, which lifts off as it opens up. */
+  roof?: number;
 }
 
 /** A snug log cabin: teal roof, a chimney, flower boxes, a porch with the journal. */
@@ -197,7 +199,7 @@ function cabin(accent: string, doorDx: number): Landmark {
     p.px(fx + c * 2 + r, base - 2 - r * 2, WOOD_LIGHT);
     p.px(fx + c * 2 + r, base - 1 - r * 2, WOOD_DARK);
   }
-  return { sprite: finish(p, ax, base, { rx: 25, ry: 4, dy: 2 }), door: { dx: doorDx, dy: -6 }, top: 1 };
+  return { sprite: finish(p, ax, base, { rx: 25, ry: 4, dy: 2 }), door: { dx: doorDx, dy: -6 }, top: 1, roof: wy };
 }
 
 /** A timber-framed taproom: plaster and beams, an arched door, barrels and a swinging sign. */
@@ -246,7 +248,7 @@ function taproom(accent: string, doorDx: number): Landmark {
   // Step in front of the door.
   p.hline(dX - 1, dX + 10, base, STONE_LIGHT);
   p.hline(dX - 1, dX + 10, base + 1, STONE_DARK);
-  return { sprite: finish(p, ax, base, { rx: 26, ry: 4, dy: 1 }), door: { dx: doorDx, dy: -6 }, top: 4 };
+  return { sprite: finish(p, ax, base, { rx: 26, ry: 4, dy: 1 }), door: { dx: doorDx, dy: -6 }, top: 4, roof: wy };
 }
 
 /** The ancient tree: a huge blossoming canopy, roots, a swing and a tiny round door. */
@@ -398,7 +400,7 @@ function library(accent: string, doorDx: number): Landmark {
   // Steps.
   p.hline(dX - 2, dX + 11, base, SAND_LIGHT);
   p.hline(dX - 2, dX + 11, base + 1, SAND_DARK);
-  return { sprite: finish(p, ax, base, { rx: 28, ry: 4, dy: 1 }), door: { dx: doorDx, dy: -7 }, top: 0 };
+  return { sprite: finish(p, ax, base, { rx: 28, ry: 4, dy: 1 }), door: { dx: doorDx, dy: -7 }, top: 0, roof: wy };
 }
 
 /** The lighthouse: stripes in the accent, a dark gallery, a glowing lamp and a cone cap. */
@@ -444,7 +446,7 @@ function lighthouse(accent: string): Landmark {
   p.vline(ax, 0, 2, IRON);
   p.hline(ax - 3, ax + 2, 1, IRON); // the weather vane
   p.px(ax + 3, 1, IRON);
-  return { sprite: finish(p, ax, base, { rx: 11, ry: 3, dy: 1 }), door: { dx: 0, dy: -5 }, top: 0 };
+  return { sprite: finish(p, ax, base, { rx: 11, ry: 3, dy: 1 }), door: { dx: 0, dy: -5 }, top: 0, roof: 19 };
 }
 
 /** The schoolhouse: clapboard, a bell tower, a flag and a chalkboard out front. */
@@ -500,7 +502,7 @@ function schoolhouse(accent: string, doorDx: number): Landmark {
   p.hline(cx + 1, cx + 3, base - 3, col('#ffd166'));
   p.vline(cx, base - 1, base + 1, WOOD_DARK);
   p.vline(cx + 8, base - 1, base + 1, WOOD_DARK);
-  return { sprite: finish(p, ax, base, { rx: 25, ry: 4, dy: 1 }, flag), door: { dx: doorDx, dy: -6 }, top: 0 };
+  return { sprite: finish(p, ax, base, { rx: 25, ry: 4, dy: 1 }, flag), door: { dx: doorDx, dy: -6 }, top: 0, roof: wy };
 }
 
 /** The recycling depot: an open shed with a badge, a row of bins and a conveyor out front. */
@@ -544,7 +546,7 @@ function depot(accent: string, doorDx: number): Landmark {
   p.rect(cx, base - 7, 8, 7, col('#c8a172'));
   p.rect(cx + 1, base - 12, 6, 5, col('#d4b07e'));
   p.hline(cx, cx + 7, base - 4, col('#a8824f'));
-  return { sprite: finish(p, ax, base, { rx: 27, ry: 4, dy: 4 }), door: { dx: doorDx, dy: -8 }, top: 3 };
+  return { sprite: finish(p, ax, base, { rx: 27, ry: 4, dy: 4 }), door: { dx: doorDx, dy: -8 }, top: 3, roof: 18 };
 }
 
 /** Where the workshop's big window goes, given its door: on the other side of the front. */

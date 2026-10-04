@@ -65,7 +65,7 @@ Renderers are loaded with `import()` only when chosen, so someone reading the li
 
 `/?view=map` (or `island`, `text`, `list`) opens a view directly.
 
-Inside a building, the spatial views share more: `renderers/roomPlan.ts` is the room as geometry (where you can stand, what's within reach, a path round the furniture), and `renderers/room.ts` is the room's bar, the "Talk to" nudge and the one conversation box (E or Enter to talk, arrows between choices, Escape to close it or leave). The map paints a pixel room (`map/room.ts`, `map/inside.ts`); the island builds a dollhouse scene (`island/room.ts`). The text adventure has `ENTER`, `TALK TO`, `ASK … ABOUT`, `LEAVE`. The store remembers which building you're in, so switching views keeps you inside.
+Inside a building, the spatial views share more: `renderers/roomPlan.ts` is the room as geometry (where you can stand, what's within reach, a path round the furniture), and `renderers/room.ts` is the room's bar, the "Talk to" nudge and the one conversation box (E or Enter to talk, arrows between choices, Escape to close it or leave). On the map the building opens up where it stands: the camera eases in, the roof lifts off and the pixel room grows out of its walls, with the island still round it. The room is painted by `map/room.ts`, and walking about in it is `map/inside.ts`, a self-contained piece that draws into any 2D canvas at any position and scale, so another page could host it. The island builds a dollhouse scene (`island/room.ts`). The text adventure has `ENTER`, `TALK TO`, `ASK … ABOUT`, `LEAVE`. The store remembers which building you're in, so switching views keeps you inside.
 
 ## Shared state
 

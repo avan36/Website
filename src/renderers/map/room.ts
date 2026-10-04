@@ -83,6 +83,8 @@ export interface MapRoom {
   w: number;
   h: number;
   bg: { day: HTMLCanvasElement; night: HTMLCanvasElement };
+  /** The tops of its walls, and their inner edge (for drawing it part open). */
+  rim: { top: string; edge: string };
   sprites: RoomSprite[];
   /** Room units to room pixels, and back. */
   px(x: number): number;
@@ -297,6 +299,12 @@ function floorThing(prop: Prop, arch: string, accent: string) {
 }
 
 // ---------- The walls and what hangs on them ----------
+
+/** The tops of the walls, seen from above, and their inner edge. */
+function wallRim(style: Style) {
+  const hex = style.wallHex === '#3a6fd8' ? '#6b4a3a' : style.wallHex;
+  return { top: shade(hex, -0.32), edge: shade(hex, -0.15) };
+}
 
 function paintBackground(place: Place, plan: RoomPlan, night: boolean): Pix {
   const { w, d } = plan;
@@ -561,8 +569,9 @@ function paintBackground(place: Place, plan: RoomPlan, night: boolean): Pix {
   }
 
   // Side walls, and the front wall with the doorway in it.
-  const wallTop = col(shade(style.wallHex === '#3a6fd8' ? '#6b4a3a' : style.wallHex, -0.32));
-  const wallEdge = col(shade(style.wallHex === '#3a6fd8' ? '#6b4a3a' : style.wallHex, -0.15));
+  const rim = wallRim(style);
+  const wallTop = col(rim.top);
+  const wallEdge = col(rim.edge);
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < SIDE; x++) {
       p.px(x, y, x === SIDE - 1 ? wallEdge : wallTop);
@@ -679,6 +688,7 @@ export function paintRoom(place: Place): MapRoom {
     }
   };
 
-  return { place, plan, w: W, h: H, bg: { day: day.canvas(), night: nite.canvas() }, sprites, px, py, ux, uz, hit, animate };
+  const rim = wallRim(STYLES[place.archetype] ?? STYLES.cabin);
+  return { place, plan, w: W, h: H, bg: { day: day.canvas(), night: nite.canvas() }, rim, sprites, px, py, ux, uz, hit, animate };
 }
 

@@ -99,9 +99,11 @@ export type MapHandle = {
   near(): string | null;
   mode(): string;
   swimRoom(): number;
-  portal(): { near: boolean; tag: boolean };
+  portal(): { near: boolean; tag: boolean; choosing: boolean };
   places(): { id: string; door: { x: number; z: number } }[];
   inside(): { at: string } | null;
+  /** Device pixels to a map pixel: the map's own (S), and the camera's right now (Z: more inside a building). */
+  scale(): { S: number; Z: number };
 };
 export type IslandPlayer = { x: number; z: number; y: number; airborne: boolean; water: string; doubleJumped: boolean };
 export type IslandDebug = {
