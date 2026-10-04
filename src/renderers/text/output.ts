@@ -40,7 +40,8 @@ export type Effect =
   | { type: 'find'; id: string }
   | { type: 'fish' }
   | { type: 'view'; id: ViewId }
-  | { type: 'portal'; id: ViewId }
+  /** Open the portal's menu of views, and go through into the one picked. */
+  | { type: 'portal' }
   | { type: 'night'; on: boolean }
   | { type: 'clear' }
   | { type: 'timer'; ms: number; signal: Signal }

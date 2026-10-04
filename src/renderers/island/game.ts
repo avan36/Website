@@ -26,13 +26,13 @@ import {
 import { Explorer, type Water } from './character';
 import { Landmark } from './landmarks';
 import { Labels, type Rect } from './labels';
-import type { RendererContext, SoundName } from '../types';
+import type { RendererContext, SoundName, ViewId } from '../types';
 import type { WorldStore } from '../../world/store';
 import { Fishing, FISH_RANGE, type FishPhase } from './play/fishing';
 import { Prompt, type PromptText } from './play/prompt';
 import { LostWords } from './play/words';
 import { Portal } from './play/portal';
-import { PORTAL_NEXT, VIEW_TITLE } from '../portal';
+import { PORTAL_NEXT } from '../portal';
 import { buildAmbient } from './world/ambient';
 import { resetSharedMaterials } from './world/kit';
 import { buildNature, type Collider, type SharedUniforms } from './world/nature';
@@ -54,8 +54,10 @@ export interface GameOptions {
   labelsHost: HTMLElement;
   /** Open a place's page, wiping in from (x, y) on screen. */
   go: (id: string, from: { x: number; y: number }) => void;
-  /** Step through the portal into the next view, swirling out from (x, y) on screen. */
-  portal: (from: { x: number; y: number }) => void;
+  /** Step through the portal into another view, swirling out from (x, y) on screen. */
+  portal: (next: ViewId, from: { x: number; y: number }) => void;
+  /** Open the portal's menu of views: resolves with the one picked, or null. */
+  choosePortal: () => Promise<ViewId | null>;
   /** Just came through the portal from another view: step out of this one. */
   viaPortal: boolean;
   cover: HTMLElement | null;
@@ -230,7 +232,6 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
   // The portal on the plaza, to the next way of seeing the island.
   const portalSpot = ACTIVITIES.find((a) => a.kind === 'portal');
   const portal = portalSpot ? new Portal(portalSpot, { reducedMotion: o.reducedMotion }) : null;
-  const PORTAL_TO = VIEW_TITLE[PORTAL_NEXT.island];
   if (portal) {
     island.add(portal.group);
     colliders.push(...portal.colliders);
@@ -364,7 +365,7 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
   let labelHover: string | null = null;
   let labelFocus: string | null = null;
   // The portal's label reads like a place's: where it leads, and a button to step through.
-  const portalLabel = { id: 'portal', color: '#8b5cf6', name: PORTAL_TO, kicker: 'Step through', blurb: 'The portal leads to another way of seeing the island.', href: `/?view=${PORTAL_NEXT.island}` };
+  const portalLabel = { id: 'portal', color: '#8b5cf6', name: 'Choose a view', kicker: 'The portal', blurb: 'One island, a few ways to see it. Step through and pick one.', href: `/?view=${PORTAL_NEXT.island}` };
   const labels = new Labels(
     o.labelsHost,
     portal ? [...PLACES, portalLabel] : PLACES,
@@ -893,8 +894,30 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     o.sound.play('pop');
   }
 
-  /** Into the portal: drawn into the swirl, shrinking and spinning, then on to the next view. */
+  /** Where the portal leads this time: picked from its menu as you step up. */
+  let portalTo: ViewId = PORTAL_NEXT.island;
+  let choosing = false;
+  /** Closed the menu without picking: pushing into the portal again waits until you've stepped back. */
+  let portalShy = false;
+  /** At the portal: open its menu of views, and step through into the one picked. */
   function stepIn() {
+    if (state !== 'play' || !portal || words.picking || player.inWater || choosing) return;
+    stopFishing();
+    choosing = true;
+    walkTarget = null;
+    pendingEnter = null;
+    pendingPortal = false;
+    keys.clear();
+    o.sound.play('pop');
+    void o.choosePortal().then((next) => {
+      choosing = false;
+      if (destroyed) return;
+      if (next) (portalTo = next), stepThrough();
+      else portalShy = true;
+    });
+  }
+  /** Into the portal: drawn into the swirl, shrinking and spinning, then on to the next view. */
+  function stepThrough() {
     if (state !== 'play' || !portal || words.picking || player.inWater) return;
     stopFishing();
     state = 'portal';
@@ -926,7 +949,7 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     portal.flare = Math.sin(Math.PI * clamp(portalT / (DRAW_IN + 0.5))) ;
     if (portalT >= DRAW_IN && !portalled) {
       portalled = toScreen(portal.middle);
-      o.portal(portalled);
+      o.portal(portalTo, portalled);
     }
     // The page didn't go (it was already going somewhere): step back out.
     if (portalT > 3) {
@@ -1045,7 +1068,8 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
       const side = player.pos.x - portal.x;
       const front = player.pos.z - portal.z;
       const into = wish.y < -0.5 && Math.abs(wish.x) <= -wish.y;
-      pushT = into && Math.abs(side) < 0.7 && front > 0 && front < 1.2 ? pushT + dt : 0;
+      if (front > 1.6 || Math.abs(side) > 1) portalShy = false;
+      pushT = !portalShy && into && Math.abs(side) < 0.7 && front > 0 && front < 1.2 ? pushT + dt : 0;
       if (pushT > 0.12) return stepIn();
     } else pushT = 0;
     player.sprint = shiftHeld || (!!walkTarget && runTo);

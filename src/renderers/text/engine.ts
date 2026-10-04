@@ -13,7 +13,7 @@
 import type { Geo } from '../../world/geo';
 import type { LostWord, Place, Post, Scenery, World } from '../../world/schema';
 import type { ViewId } from '../types';
-import { PORTAL_NEXT, portalOf, VIEW_TITLE } from '../portal';
+import { portalOf } from '../portal';
 import { closest } from './fuzzy';
 import { createLexicon, pronoun, ref, thing } from './lexicon';
 import { drawIsland, GROUND, mapWithYou, type IslandMap } from './map';
@@ -72,7 +72,6 @@ export function createEngine(world: World, geo: Geo, { random = Math.random }: E
   const total = world.lostWords.length;
   const fishing = world.activities.find((a) => a.kind === 'fishing');
   const portal = portalOf(world);
-  const portalTo = PORTAL_NEXT.text;
   const PORTAL_WORDS = ['portal', 'ring', 'ring of light', 'light'];
   let island: IslandMap | null = null; // drawn the first time someone asks for the map
 
@@ -114,7 +113,7 @@ export function createEngine(world: World, geo: Geo, { random = Math.random }: E
       out.push({ kind: 'p', spans, tone: 'dim' });
     }
     if (fishing?.place === pl.id) out.push(dim(fishing.description, ' ', ...md('Type [FISH] to try your luck.')));
-    if (portal?.place === pl.id) out.push(dim(...md(`In the middle of it all, a ring of violet light hangs over the cobbles, humming. Through it you can see ${VIEW_TITLE[portalTo].toLowerCase()}. [Step through](portal) if you're curious.`)));
+    if (portal?.place === pl.id) out.push(dim(...md(`In the middle of it all, a ring of violet light hangs over the cobbles, humming. Through it you can see the island other ways: in 3D, as a pixel map, as a plain list. [Step through](portal) if you're curious.`)));
     if (pl.href) {
       const verb = pl.kind === 'contact' ? 'OPEN' : 'ENTER';
       const what = project(pl)?.name;
@@ -521,8 +520,8 @@ export function createEngine(world: World, geo: Geo, { random = Math.random }: E
     }
     return result(
       { ...s, fishing: null },
-      [p(`You step into the ring of light. The plaza folds away around you like a page turning, and for a moment there's nothing but violet. Then: ${VIEW_TITLE[portalTo].toLowerCase()}.`)],
-      [{ type: 'sound', name: 'whoosh' }, { type: 'portal', id: portalTo }],
+      [p("You step up to the ring of light. It shimmers, and in it you see the island a few different ways at once. Pick one and step through.")],
+      [{ type: 'portal' }],
     );
   }
 

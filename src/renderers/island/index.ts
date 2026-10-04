@@ -2,7 +2,6 @@
 
 import type { RendererContext, RendererHandle } from '../types';
 import { createGame, type GameHandle } from './game';
-import { PORTAL_NEXT } from '../portal';
 
 export async function mount(ctx: RendererContext): Promise<RendererHandle> {
   const labels = document.createElement('div');
@@ -13,7 +12,8 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
     hud: document.getElementById('isl-stage')!,
     labelsHost: labels,
     go: ctx.go,
-    portal: (from) => ctx.portal(PORTAL_NEXT.island, from),
+    portal: (next, from) => ctx.portal(next, from),
+    choosePortal: () => ctx.ui.choosePortal('island'),
     viaPortal: ctx.viaPortal,
     cover: document.getElementById('isl-cover'),
     returnTo: ctx.returnTo,

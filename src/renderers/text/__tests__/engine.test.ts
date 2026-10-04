@@ -31,11 +31,11 @@ describe('starting out', () => {
 });
 
 describe('the portal', () => {
-  it('stands in the plaza, and stepping through goes on to the 3D island', () => {
+  it('stands in the plaza, and stepping through opens its menu of views', () => {
     expect(say('plaza', 'look')).toMatch(/ring of violet light/);
     for (const said of ['portal', 'step through', 'enter the portal', 'go through the portal', 'step into the portal']) {
       const r = play('plaza', said).last;
-      expect(effects(r, 'portal'), said).toEqual([{ type: 'portal', id: 'island' }]);
+      expect(effects(r, 'portal'), said).toEqual([{ type: 'portal' }]);
     }
     expect(say('plaza', 'examine the portal')).toMatch(/chunky pixels/);
   });

@@ -49,6 +49,8 @@ export interface RendererContext {
     showCatch(slug: string, fresh: boolean): void;
     /** Open the word hoard: every lost word, found or not. */
     openHoard(): void;
+    /** Open the portal's menu of views: resolves with the one picked, or null. */
+    choosePortal(current: ViewId): Promise<ViewId | null>;
   };
   /**
    * Call once the first frame is on screen: the loader goes away. If the
