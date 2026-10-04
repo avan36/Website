@@ -36,6 +36,11 @@ const places: PlaceInput[] = [
     scenery: [
       { id: 'paths', names: ['paths', 'path', 'trails'], description: 'Well-trodden paths of packed sand fan out in every direction. Some have clearly been walked more than others.' },
       { id: 'sea', names: ['sea', 'ocean', 'water', 'waves'], description: 'Turquoise and calm. Out past the pier, a few gulls are arguing about something.' },
+      {
+        id: 'portal',
+        names: ['portal', 'ring of light', 'ring', 'light'],
+        description: 'A ring of violet light, a little taller than you, hanging just above the cobbles. It hums, very quietly. Through it the plaza looks the same and completely different: carved out of low hills in one glance, drawn in chunky pixels in the next.',
+      },
     ],
   },
   projectPlace('middle-place', {
@@ -332,6 +337,14 @@ const activities: WorldInput['activities'] = [
     at: { x: 3.5, z: 23.2 },
     name: 'Fish off the pier',
     description: 'Cast a line off the pier. Whatever bites is something I wrote.',
+  },
+  {
+    id: 'portal',
+    kind: 'portal',
+    place: 'plaza',
+    at: { x: 0, z: 4.5 },
+    name: 'The portal',
+    description: 'A ring of light in the middle of the plaza. Step through it to see the island another way: in 3D, as a pixel-art map, or as a text adventure.',
   },
 ];
 

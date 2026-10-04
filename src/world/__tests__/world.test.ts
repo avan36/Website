@@ -47,6 +47,20 @@ describe('the authored world', () => {
     for (const a of w.activities) expect(geo.isWalkable(a.at.x, a.at.z), a.id).toBe(true);
   });
 
+  it('rings the island with water to swim in, and nothing to swim in on land', () => {
+    for (let a = 0; a < 64; a++) {
+      const th = (a / 64) * Math.PI * 2;
+      const r = geo.coastRadius(th);
+      const at = (d: number) => ({ x: Math.cos(th) * d, z: Math.sin(th) * d });
+      const shore = at(r + 3);
+      const open = at(r + 12);
+      expect(geo.isSwimmable(shore.x, shore.z), `just offshore at ${a}`).toBe(true);
+      expect(geo.isSwimmable(open.x, open.z), `open sea at ${a}`).toBe(false);
+    }
+    expect(geo.isSwimmable(w.geography.spawn.x, w.geography.spawn.z)).toBe(false);
+    expect(geo.depthAt(w.geography.spawn.x, w.geography.spawn.z)).toBe(0);
+  });
+
   it('has the coast enclose every place but the pier', () => {
     for (const p of w.places) {
       if (p.archetype === 'pier') continue;

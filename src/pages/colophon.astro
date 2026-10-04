@@ -74,7 +74,7 @@ const views = [
       The island knows it's a <code>taproom</code>. The 3D view builds timber and string lights for that, the map draws a
       sprite, and the text adventure just reads you the description. Positions are in metres, and the coastline, hills and
       paths are a recipe that one shared geometry module turns into a height field, so the 3D island and the pixel map agree
-      on where the beach is.
+      on where the beach is, and on how far out you can swim before the seabed drops away.
     </p>
     <p>The whole thing is published at <a href="/world.json">/world.json</a>, with a <a href="/world.schema.json">JSON Schema</a> generated from the same source.</p>
 
@@ -112,6 +112,11 @@ const views = [
       {' '}<em>wordhord</em> on the library's shelf, <em>curglaff</em> (the shock of cold water when you first plunge in) by the
       pier. They come from the museum of lost words in <a href="/work/etymon">Etymon</a>, and they're hidden in the data, so you
       can find them in any view. Find them all and night falls. And if you fish off the pier, whatever bites is something I wrote.
+    </p>
+    <p>
+      In the middle of the plaza there's a portal. In the data it's one more activity, a kind and a spot; each view draws it in
+      its own way and sends you on to the next one. Step through on the island and you come out of the same portal on the pixel
+      map, then in the text adventure, then back on the island, standing exactly where you were.
     </p>
 
     <h2>Built with</h2>

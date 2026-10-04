@@ -13,6 +13,7 @@
 import type { Geo } from '../../world/geo';
 import type { LostWord, Place, Post, Scenery, World } from '../../world/schema';
 import type { ViewId } from '../types';
+import { PORTAL_NEXT, portalOf, VIEW_TITLE } from '../portal';
 import { closest } from './fuzzy';
 import { createLexicon, pronoun, ref, thing } from './lexicon';
 import { drawIsland, GROUND, mapWithYou, type IslandMap } from './map';
@@ -70,6 +71,9 @@ export function createEngine(world: World, geo: Geo, { random = Math.random }: E
   const lex = createLexicon(world);
   const total = world.lostWords.length;
   const fishing = world.activities.find((a) => a.kind === 'fishing');
+  const portal = portalOf(world);
+  const portalTo = PORTAL_NEXT.text;
+  const PORTAL_WORDS = ['portal', 'ring', 'ring of light', 'light'];
   let island: IslandMap | null = null; // drawn the first time someone asks for the map
 
   const wordIn = (pl: Place, s: Scenery) => world.lostWords.find((w) => w.place === pl.id && w.in === s.id);
@@ -110,6 +114,7 @@ export function createEngine(world: World, geo: Geo, { random = Math.random }: E
       out.push({ kind: 'p', spans, tone: 'dim' });
     }
     if (fishing?.place === pl.id) out.push(dim(fishing.description, ' ', ...md('Type [FISH] to try your luck.')));
+    if (portal?.place === pl.id) out.push(dim(...md(`In the middle of it all, a ring of violet light hangs over the cobbles, humming. Through it you can see ${VIEW_TITLE[portalTo].toLowerCase()}. [Step through](portal) if you're curious.`)));
     if (pl.href) {
       const verb = pl.kind === 'contact' ? 'OPEN' : 'ENTER';
       const what = project(pl)?.name;
@@ -507,6 +512,20 @@ export function createEngine(world: World, geo: Geo, { random = Math.random }: E
     return unknownNoun(s, noun, 'go to');
   }
 
+  /** Through the portal, into the next view (walking to it first if it's elsewhere). */
+  function stepThrough(s: EngineState): Result {
+    if (!portal) return result(s, [say('You look around for a portal. Nothing. This is a perfectly ordinary island, apart from everything.')]);
+    if (s.at !== portal.place) {
+      const there = walk(s, portal.place);
+      return result(there.state, [...there.out, p(...md('The portal hums in front of you. [Step through](portal)?'))], there.effects);
+    }
+    return result(
+      { ...s, fishing: null },
+      [p(`You step into the ring of light. The plaza folds away around you like a page turning, and for a moment there's nothing but violet. Then: ${VIEW_TITLE[portalTo].toLowerCase()}.`)],
+      [{ type: 'sound', name: 'whoosh' }, { type: 'portal', id: portalTo }],
+    );
+  }
+
   function view(s: EngineState, noun: string): Result {
     const id = VIEWS[noun.split(' ')[0]];
     if (!id) return result(s, [say('Which view? The [island](view island), the [map](view map), the [list](view list), or this one.')]);
@@ -540,8 +559,11 @@ export function createEngine(world: World, geo: Geo, { random = Math.random }: E
       case 'go':
         if (c.dir) return goDir(s, c.dir);
         return goNoun(s, noun);
+      case 'portal':
+        return stepThrough(s);
       case 'enter':
         if (c.dir) return goDir(s, c.dir, true);
+        if (portal && PORTAL_WORDS.includes(noun)) return stepThrough(s);
         if (!noun || lex.places(noun).some((x) => x.id === s.at) || ['door', 'building'].includes(noun)) return enter(s);
         if (lex.scenery(here, noun).length) return result(s, [say(`You can't get into ${thing(lex.scenery(here, noun)[0])}. [ENTER] on its own goes inside.`)]);
         return goNoun(s, noun, true);
@@ -686,9 +708,15 @@ export function createEngine(world: World, geo: Geo, { random = Math.random }: E
   }
 
   /** The opening: a title and a look around (or, coming back out of a place, just the look). */
-  function start(s: EngineState, { returning = false } = {}): Result {
+  function start(s: EngineState, { returning = false, portal: through = false } = {}): Result {
     const here = place(s.at);
     if (returning) return result(s, [p(`You step back out of ${ref(here)}, blinking in the light.`), ...describe(s, here)]);
+    if (through)
+      return result(s, [
+        { kind: 'banner', title: 'The Island', lines: ['The same island, in words', RELEASE] },
+        p('You tumble out of the ring of light and land on the cobbles. The colors drain away, and the island is made of words now. Everything is where you left it.'),
+        ...describe(s, here),
+      ]);
     const name = world.person.name.split(' ')[0];
     const lead = world.person.intro.split(/(?<=\.)\s/)[0];
     return result(s, [
@@ -709,6 +737,7 @@ export function createEngine(world: World, geo: Geo, { random = Math.random }: E
     if (here.href) chips.push({ label: here.kind === 'contact' ? 'Open the bottle' : 'Enter', cmd: 'enter', tone: 'go' });
     if (here.kind === 'writing') chips.push({ label: 'Read', cmd: 'read' });
     if (fishing?.place === here.id && !s.fishing) chips.push({ label: 'Fish', cmd: 'fish', tone: 'go' });
+    if (portal?.place === here.id) chips.push({ label: 'Step through the portal', cmd: 'portal', tone: 'go' });
     for (const line of exitLines(here)) {
       for (const pl of line.places) chips.push({ label: `${DIR_ARROWS[DIRS.find((d) => DIR_NAMES[d] === line.dir)!]} ${pl.ref.replace(/^the /, '')}`, cmd: pl.cmd });
     }

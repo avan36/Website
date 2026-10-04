@@ -132,6 +132,9 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
         case 'view':
           later(() => document.querySelector<HTMLButtonElement>(`[data-view-set="${e.id}"]`)?.click(), 450);
           break;
+        case 'portal':
+          later(() => (typewriter.finish(), ctx.portal(e.id, origin())), ctx.reducedMotion ? 60 : 700);
+          break;
       }
     }
     return extra;
@@ -246,7 +249,7 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
   });
 
   // ---------- Go ----------
-  const opening = engine.start(state, { returning: !!ctx.returnTo });
+  const opening = engine.start(state, { returning: !!ctx.returnTo, portal: ctx.viaPortal });
   state = opening.state;
   show(null, opening.out);
   paintChips();

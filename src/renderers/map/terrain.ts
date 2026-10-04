@@ -3,7 +3,9 @@
 // (8 map pixels to a world unit) and quantizes it to the palette, with
 // ordered dithering where one color gives way to the next. The result is one
 // canvas for the whole island, blitted each frame, plus a few cheap layers
-// for the moving water: shore foam, wave glints, and stars on the sea at night.
+// for the moving water (shore foam) and masks saying where you can walk, wade
+// and swim. Past the swimming water the seabed drops away to the deep blue of
+// the open sea, which the renderer carries on past the edge of the canvas.
 
 import type { Geo, Vec2 } from '../../world/geo';
 import { fbm } from '../../world/noise';
@@ -14,8 +16,10 @@ import { hash2 } from './rng';
 
 /** Map pixels per world unit. */
 export const TEX = 8;
-/** The world rectangle the map covers (the island and a ring of sea). */
-export const RECT = { x0: -32, z0: -32, x1: 34, z1: 32 };
+/** The world rectangle the map paints: the island, the water you can swim in, and the drop-off past it. */
+export const RECT = { x0: -34, z0: -37, x1: 37, z1: 34 };
+/** Deeper than this (world units) you swim; shallower, you wade. */
+export const SWIM_DEPTH = 0.45;
 
 /** What each map pixel is. */
 export const G = { water: 0, wet: 1, sand: 2, bank: 3, grass: 4, rock: 5, cliff: 6, path: 7, plaza: 8, pier: 9 } as const;
@@ -24,17 +28,22 @@ export interface Terrain {
   W: number;
   H: number;
   ground: Uint8Array;
-  /** 1 where you can't stand: sea and cliff. Buildings and trees are added later. */
+  /**
+   * 0 where you can be (land, the pier deck, the water you can swim in), 1
+   * where you can't (cliffs, the open sea), and 2 for the water hugging the
+   * pier, which you can only cross in the air: off the deck, with a jump.
+   * Buildings and trees are added later.
+   */
   solid: Uint8Array;
+  /** How wet each pixel is: 0 dry, 1 wading, 2 swimming. */
+  water: Uint8Array;
   day: HTMLCanvasElement;
   /** The same ground after dark, painted the first time night falls. */
   night(): HTMLCanvasElement;
   /** Shore foam: the lapping line and the wave behind it, by day and by night. */
   foam(night: boolean): [HTMLCanvasElement, HTMLCanvasElement];
-  /** Glints on the water, sorted by row: x, y, phase (0..255) per site. */
-  glints: Uint16Array;
-  /** Stars reflected on the sea at night, same layout. */
-  stars: Uint16Array;
+  /** Open water away from the shore: 1 where stars show on it at night, 2 where it's deep enough for glints too. */
+  open: Uint8Array;
 }
 
 /** Give the browser a moment between slow chunks so the loader keeps moving. */
@@ -61,6 +70,7 @@ export async function buildTerrain(geo: Geo, spurs: Vec2[][]): Promise<Terrain> 
   const tN = new Float32Array(NW * NH);
   const fN = new Float32Array(NW * NH);
   const pN = new Float32Array(NW * NH);
+  const sN = new Float32Array(NW * NH);
 
   // Path distance is the slow one; a 1-unit grid tells us where it's worth asking.
   const QW = RECT.x1 - RECT.x0 + 1;
@@ -77,6 +87,7 @@ export async function buildTerrain(geo: Geo, spurs: Vec2[][]): Promise<Terrain> 
       const h = geo.heightAt(x, z);
       hN[k] = h;
       rN[k] = h > -1 ? geo.rockiness(x, z) : 0;
+      sN[k] = geo.swimRoom(x, z);
       tN[k] = fbm(x * 0.085 + 11, z * 0.085 - 7, 3, 21);
       fN[k] = fbm(x * 0.21 - 40, z * 0.21 + 3, 2, 33);
       const qa = Math.min(QW - 1, Math.max(0, Math.round(x - RECT.x0)));
@@ -108,12 +119,14 @@ export async function buildTerrain(geo: Geo, spurs: Vec2[][]): Promise<Terrain> 
   const hgt = new Float32Array(n);
   const rock = new Float32Array(n);
   const path = new Float32Array(n);
+  const room = new Float32Array(n);
   for (let j = 0; j < H; j++) {
     for (let i = 0; i < W; i++) {
       const k = j * W + i;
       hgt[k] = lerpN(hN, i, j);
       rock[k] = lerpN(rN, i, j);
       path[k] = lerpN(pN, i, j);
+      room[k] = lerpN(sN, i, j);
     }
   }
   await breathe();
@@ -136,10 +149,11 @@ export async function buildTerrain(geo: Geo, spurs: Vec2[][]): Promise<Terrain> 
       let g: number;
 
       if (h < 0) {
-        // Sea: banded by depth, dithered across each band's edge, and deep
-        // all round the map's edges so it meets the open sea beyond.
+        // Sea: banded by depth and dithered across each band's edge. Where the
+        // swimming water ends the seabed drops away to the open sea's deep
+        // blue, so the edge you can swim to is one you can see.
         const edge = Math.min(x - RECT.x0, RECT.x1 - x, z - RECT.z0, RECT.z1 - z);
-        const depth = -h + d * 0.4 + Math.max(0, 5 - edge) * 0.9;
+        const depth = -h + d * 0.4 + Math.max(0, 1 - room[k]) * 1.1 + Math.max(0, 2 - edge) * 2;
         g = G.water;
         c = depth < 0.22 ? C.shallow2 : depth < 0.75 ? C.shallow : depth < 1.7 ? C.mid : depth < 3.4 ? C.sea : C.deep;
         if (depth < 0.75 && hash2(i, j, 5) < 0.012) c = C.shallow2;
@@ -290,17 +304,28 @@ export async function buildTerrain(geo: Geo, spurs: Vec2[][]): Promise<Terrain> 
     }
   }
 
-  // ---------- Where you can stand ----------
+  // ---------- Where you can be ----------
   const solid = new Uint8Array(n);
+  const water = new Uint8Array(n);
   const pierBox = (x: number, z: number) => Math.abs(x - pier.x) < half + 0.5 && z > pier.start - 0.5 && z < pier.end + 0.5;
+  // The headland's rim: rock that drops steeply to the sea all round, not just
+  // the face drawn on its south side. You can't climb it out of the water.
+  const steep = (i: number, j: number, h: number) =>
+    Math.max(Math.abs(hAt(i - 4, j) - h), Math.abs(hAt(i + 4, j) - h), Math.abs(hAt(i, j - 4) - h), Math.abs(hAt(i, j + 4) - h)) > 0.45;
   for (let j = 0; j < H; j++) {
     for (let i = 0; i < W; i++) {
       const k = j * W + i;
       const x = wx(i);
       const z = wz(j);
-      let ok = hgt[k] > 0.14 && ground[k] !== G.cliff;
-      if (pierBox(x, z)) ok = geo.isWalkable(x, z);
-      solid[k] = ok ? 0 : 1;
+      const h = hgt[k];
+      if (pierBox(x, z) && !geo.isWalkable(x, z)) {
+        solid[k] = 2;
+        water[k] = -h < SWIM_DEPTH ? 1 : 2;
+      } else if (h > 0.14 || pierBox(x, z)) {
+        solid[k] = ground[k] === G.cliff || (rock[k] > 0.2 && steep(i, j, h)) ? 1 : 0;
+      } else if (room[k] > 0) {
+        water[k] = -h < SWIM_DEPTH ? 1 : 2;
+      } else solid[k] = 1;
     }
   }
 
@@ -329,18 +354,9 @@ export async function buildTerrain(geo: Geo, spurs: Vec2[][]): Promise<Terrain> 
     }
   }
 
-  // Glints on open water and stars for night, sorted by row.
-  const glints: number[] = [];
-  const stars: number[] = [];
-  for (let j = 0; j < H; j++) {
-    for (let i = 2; i < W - 2; i++) {
-      const k = j * W + i;
-      if (ground[k] !== G.water || dist[k] !== 255) continue;
-      const e = hash2(i, j, 51);
-      if (e < 1 / 110 && hgt[k] < -0.4) glints.push(i, j, Math.floor(hash2(i, j, 52) * 256));
-      else if (e > 1 - 1 / 260) stars.push(i, j, Math.floor(hash2(i, j, 53) * 256));
-    }
-  }
+  // Open water, for the glints by day and the stars at night.
+  const open = new Uint8Array(n);
+  for (let k = 0; k < n; k++) if (ground[k] === G.water && dist[k] === 255) open[k] = hgt[k] < -0.4 ? 2 : 1;
 
   const day = pix.canvas();
   let nightCv: HTMLCanvasElement | null = null;
@@ -358,8 +374,8 @@ export async function buildTerrain(geo: Geo, spurs: Vec2[][]): Promise<Terrain> 
       night
         ? (foamNight ??= [foamA.canvas(nightData(foamA.data)), foamB.canvas(nightData(foamB.data))])
         : (foamDay ??= [foamA.canvas(), foamB.canvas()]),
-    glints: Uint16Array.from(glints),
-    stars: Uint16Array.from(stars),
+    water,
+    open,
   };
 }
 

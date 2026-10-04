@@ -30,7 +30,7 @@ export type Verb =
   | 'look' | 'examine' | 'search' | 'go' | 'enter' | 'back' | 'read' | 'open'
   | 'inventory' | 'hint' | 'help' | 'map' | 'fish' | 'reel' | 'wait' | 'take'
   | 'about' | 'work' | 'writing' | 'contact' | 'where' | 'exits' | 'clear' | 'undo'
-  | 'again' | 'view' | 'yes' | 'no' | 'night' | 'day' | 'score'
+  | 'again' | 'view' | 'portal' | 'yes' | 'no' | 'night' | 'day' | 'score'
   // A few for fun.
   | 'xyzzy' | 'plugh' | 'sudo' | 'hello' | 'ls' | 'cd' | 'pwd' | 'quit' | 'swim'
   | 'ring' | 'knock' | 'climb' | 'sit' | 'eat' | 'drink' | 'jump' | 'sleep' | 'zork';
@@ -41,7 +41,7 @@ const PHRASES: Record<Verb, string[]> = {
   examine: ['examine', 'x', 'inspect', 'check', 'check out', 'study', 'look at', 'observe', 'what is', 'whats', 'cat', 'admire', 'touch', 'smell', 'listen to'],
   search: ['search', 'look in', 'look inside', 'look under', 'look behind', 'look through', 'look beneath', 'look among', 'search through', 'rummage', 'rummage in', 'rummage through', 'dig', 'dig in', 'dig through', 'investigate', 'feel', 'peek', 'peer into'],
   go: ['go', 'walk', 'run', 'head', 'travel', 'move', 'visit', 'take me', 'follow', 'wander', 'stroll', 'hike', 'jog', 'goto', 'cd to', 'go over', 'walk over', 'teleport'],
-  enter: ['enter', 'go in', 'go inside', 'go into', 'get in', 'step in', 'step inside', 'head in', 'head inside', 'walk in', 'walk into', 'come in', 'inside'],
+  enter: ['enter', 'go in', 'go inside', 'go into', 'get in', 'step in', 'step into', 'step inside', 'head in', 'head inside', 'walk in', 'walk into', 'come in', 'inside'],
   back: ['back', 'go back', 'return', 'b', 'retreat', 'turn back', 'head back', 'walk back'],
   read: ['read', 'read about'],
   open: ['open', 'unlock', 'uncork', 'push', 'launch', 'visit page'],
@@ -63,6 +63,7 @@ const PHRASES: Record<Verb, string[]> = {
   undo: ['undo'],
   again: ['again', 'g', 'repeat'],
   view: ['view', 'switch to', 'switch', 'switch view', 'change view', 'show view'],
+  portal: ['portal', 'use portal', 'enter portal', 'go through', 'step through', 'walk through', 'jump through', 'go through portal', 'step through portal', 'step into portal', 'jump into portal', 'through portal', 'step into the light'],
   yes: ['yes', 'y', 'yeah', 'yep', 'sure', 'ok', 'okay', 'please do', 'yes please'],
   no: ['no', 'nope', 'nah', 'no thanks'],
   night: ['night', 'nighttime', 'night time', 'dusk', 'lights off'],

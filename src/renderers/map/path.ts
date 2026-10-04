@@ -8,6 +8,8 @@ export interface Grid {
   h: number;
   /** 1 where you can't stand, row-major. */
   blocked: Uint8Array;
+  /** How slow each open cell is to cross (1 = walking; swimming costs more). Missing means all 1. */
+  cost?: Uint8Array;
 }
 
 export type Pt = { x: number; y: number };
@@ -43,9 +45,9 @@ export function nearestOpen(g: Grid, x: number, y: number, maxR = 24): Pt | null
 }
 
 /**
- * Shortest 8-connected path between two open cells (no squeezing diagonally
- * between two blocked cells). Returns the cells from start to goal inclusive,
- * or null if the goal can't be reached.
+ * Quickest 8-connected path between two open cells (no squeezing diagonally
+ * between two blocked cells), weighing each step by the cell's cost. Returns
+ * the cells from start to goal inclusive, or null if the goal can't be reached.
  */
 export function findPath(g: Grid, sx: number, sy: number, gx: number, gy: number): Pt[] | null {
   if (!isOpen(g, sx, sy) || !isOpen(g, gx, gy)) return null;
@@ -110,7 +112,7 @@ export function findPath(g: Grid, sx: number, sy: number, gx: number, gy: number
       if (dx && dy && (!isOpen(g, cx + dx, cy) || !isOpen(g, cx, cy + dy))) continue;
       const ni = ny * g.w + nx;
       if (closed[ni]) continue;
-      const t = gScore[cur] + cost;
+      const t = gScore[cur] + (g.cost ? cost * g.cost[ni] : cost);
       if (t < gScore[ni]) {
         gScore[ni] = t;
         came[ni] = cur;

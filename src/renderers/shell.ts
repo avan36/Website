@@ -7,6 +7,7 @@
 import { readGeo, readWorld } from '../world/client';
 import { createStore } from '../world/store';
 import { Sound } from './audio';
+import { PORTAL_COLOR, portalExit, portalOf } from './portal';
 import { createUI } from './ui';
 import type { Renderer, RendererContext, RendererHandle, ViewId } from './types';
 
@@ -80,6 +81,8 @@ let handle: RendererHandle | null = null;
 let host: HTMLElement | null = null;
 let token = 0;
 let returnTo = session.get('island:return');
+/** Set while the next view mounts after a trip through the portal. */
+let viaPortal = false;
 
 /** What to show instead when a view can't run here. */
 const fallback = (v: ViewId): ViewId => (v === 'island' && !gl ? (reducedMotion ? 'list' : 'map') : v);
@@ -110,7 +113,9 @@ async function mount(v: Exclude<ViewId, 'list'>) {
     touch,
     sound,
     returnTo,
+    viaPortal,
     go,
+    portal,
     ui,
     ready: (reveal) => {
       if (my !== token) return;
@@ -118,6 +123,7 @@ async function mount(v: Exclude<ViewId, 'list'>) {
       if (reveal !== 'self') revealFrom(reveal);
       session.set('island:return', null);
       returnTo = null;
+      viaPortal = false;
       if (!local.get('island:hinted')) window.setTimeout(() => my === token && html.classList.add('isl-hinting'), 3200);
       window.setTimeout(() => html.classList.add('isl-played'), 3200);
     },
@@ -150,10 +156,15 @@ let gl3dLost = false;
 
 type ViewOpts = { persist?: boolean; focus?: boolean; url?: boolean };
 
+/** The view we'll really show for a wish: no 3D without WebGL. */
+const resolve = (v: ViewId): ViewId => {
+  v = fallback(v);
+  return v === 'island' && gl3dLost ? (reducedMotion ? 'list' : 'map') : v;
+};
+
 async function setView(next: ViewId, { persist = true, focus = false, url }: ViewOpts = {}) {
   url ??= persist;
-  next = fallback(next);
-  if (next === 'island' && gl3dLost) next = reducedMotion ? 'list' : 'map';
+  next = resolve(next);
   const changed = next !== view || (next !== 'list' && !handle && !host);
   view = next;
   html.dataset.view = next;
@@ -215,6 +226,46 @@ function go(placeId: string, from?: { x: number; y: number }, href?: string) {
     leaving = window.setTimeout(() => comeBack(placeId), 2500);
   };
   leaving = -1;
+}
+
+// ---------- Through the portal ----------
+
+/**
+ * Step through the portal into another view: the portal's color swirls out
+ * from it to fill the screen, the next view mounts behind that cover with the
+ * visitor standing in front of its own portal, and the cover shrinks back into
+ * it there (the renderer passes ready() the portal's place on screen).
+ */
+function portal(next: ViewId, from?: { x: number; y: number }) {
+  const p = portalOf(world);
+  if (!p || leaving || resolve(next) === view || resolve(next) === 'list') return;
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  const x = from?.x ?? w / 2;
+  const y = from?.y ?? h / 2;
+  const R = Math.hypot(Math.max(x, w - x), Math.max(y, h - y)) + 20;
+  const swirl = `radial-gradient(circle at ${x}px ${y}px, #f5d0fe 0, #c084fc ${R * 0.12}px, ${PORTAL_COLOR} ${R * 0.45}px, #4c1d95 ${R}px)`;
+  wipe.style.background = swirl;
+  wipe.hidden = false;
+  leaving = -1;
+  const anim = wipe.animate([{ clipPath: `circle(0px at ${x}px ${y}px)` }, { clipPath: `circle(${R}px at ${x}px ${y}px)` }], {
+    duration: reducedMotion ? 10 : 560,
+    easing: 'cubic-bezier(.7,0,.25,1)',
+    fill: 'forwards',
+  });
+  anim.onfinish = () => {
+    // Hand over to the cover (under the HUD), which the next view takes down.
+    html.style.setProperty('--isl-return', PORTAL_COLOR);
+    html.classList.add('isl-returning');
+    wipe.hidden = true;
+    anim.cancel();
+    leaving = 0;
+    store.dispatch({ type: 'move', at: p.place, pos: portalExit(p) });
+    returnTo = null;
+    viaPortal = true;
+    void setView(next);
+    window.setTimeout(() => html.classList.remove('isl-returning'), 9000);
+  };
 }
 
 /**
@@ -382,5 +433,5 @@ window.addEventListener('pageshow', (e) => {
 
 // Test and debug handle: dev builds, or production with ?debug.
 if (import.meta.env.DEV || new URLSearchParams(location.search).has('debug')) {
-  (window as unknown as { __world?: unknown }).__world = { world, store, geo, go, setView: (v: ViewId) => setView(v) };
+  (window as unknown as { __world?: unknown }).__world = { world, store, geo, go, portal, setView: (v: ViewId) => setView(v) };
 }

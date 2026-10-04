@@ -10,7 +10,7 @@ import type { WorldStore } from '../world/store';
 
 export type ViewId = 'island' | 'map' | 'text' | 'list';
 
-export type SoundName = 'step' | 'tap' | 'pop' | 'land' | 'chime' | 'bell' | 'whoosh' | 'jump';
+export type SoundName = 'step' | 'tap' | 'pop' | 'land' | 'chime' | 'bell' | 'whoosh' | 'jump' | 'jump2' | 'splash' | 'swim';
 
 export interface RendererContext {
   world: World;
@@ -25,11 +25,19 @@ export interface RendererContext {
   /** The place the visitor just came back out of, if they used this page to go in. */
   returnTo: string | null;
   /**
+   * True if the visitor just stepped through the portal from another view:
+   * start them stepping out of this view's portal (see portal.ts for where it
+   * stands), and pass its screen position to ready().
+   */
+  viaPortal: boolean;
+  /**
    * Go into a place: plays the color wipe from (x, y) in viewport pixels,
    * then opens its page, or `href` instead (a page on this site that belongs
    * to that place, like one post at the pier).
    */
   go(placeId: string, from?: { x: number; y: number }, href?: string): void;
+  /** Step through the portal into another view: a swirl of the portal's color from (x, y), then that view. */
+  portal(next: ViewId, from?: { x: number; y: number }): void;
   ui: {
     /** Say something to screen readers. */
     announce(text: string): void;
