@@ -43,6 +43,11 @@ const _m = new Matrix4();
 const _q = new Quaternion();
 const _e = new Euler();
 const _c = new Color();
+const _a = new Vector3();
+const _b = new Vector3();
+const _mid = new Vector3();
+const ONE = new Vector3(1, 1, 1);
+const ALONG = new Vector3(0, 0, 1);
 const _hsl = { h: 0, s: 0, l: 0 };
 
 let sharedLit: MeshStandardMaterial | null = null;
@@ -96,13 +101,30 @@ export class Kit {
     this.rand = rng(seed);
   }
 
+  private frame: Matrix4 | null = null;
+
   add(geo: BufferGeometry, color: string | number, o: PartOpts = {}) {
-    this.lit.push(prep(geo, color, o, this.rand));
+    const g = prep(geo, color, o, this.rand);
+    if (this.frame) g.applyMatrix4(this.frame);
+    this.lit.push(g);
     return this;
   }
   /** Unlit, always-bright parts: windows, bulbs, the lamp. */
   addGlow(geo: BufferGeometry, color: string | number, o: PartOpts = {}) {
-    this.glow.push(prep(geo, color, { ...o, jitter: 0 }, this.rand));
+    const g = prep(geo, color, { ...o, jitter: 0 }, this.rand);
+    if (this.frame) g.applyMatrix4(this.frame);
+    this.glow.push(g);
+    return this;
+  }
+  /** Build a whole piece somewhere else: every part added inside `fn` is moved by `m` too (set down and turned). */
+  within(m: Matrix4, fn: () => void) {
+    const was = this.frame;
+    this.frame = was ? was.clone().multiply(m) : m;
+    try {
+      fn();
+    } finally {
+      this.frame = was;
+    }
     return this;
   }
 
@@ -136,6 +158,18 @@ export class Kit {
   }
   lathe(points: [number, number][], color: string, o: PartOpts = {}, seg = 12) {
     return this.add(new LatheGeometry(points.map(([x, y]) => new Vector2(x, y)), seg), color, o);
+  }
+
+  /** A beam from a to b, w by h in section (a strut, a rib, a chain's link). */
+  beam(a: V3, b: V3, w: number, h: number, color: string, jitter = 0.02) {
+    _a.set(...a);
+    _b.set(...b);
+    const len = Math.max(0.001, _a.distanceTo(_b));
+    const g = new BoxGeometry(w, h, len);
+    _q.setFromUnitVectors(ALONG, _b.sub(_a).divideScalar(len));
+    _mid.set((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2);
+    g.applyMatrix4(_m.compose(_mid, _q, ONE));
+    return this.add(g, color, { jitter });
   }
 
   /** Triangular prism (a gable / attic). `p` is the base center; ridge runs along z. */

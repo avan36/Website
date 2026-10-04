@@ -148,6 +148,7 @@ test.describe('3D island', () => {
     await expect
       .poll(async () => (await tick(page, 0.2), page.evaluate(() => (window as DebugWindow).__island!.debug.inside()?.at ?? null)), { timeout: 60_000 })
       .toBe('westfield');
+    await expect(page.locator('#w-room')).toBeVisible();
     const card = page.locator('#w-talk');
     await expect(card).toBeVisible();
     await expect(card.locator('.w-talk__name')).toHaveText('Westfield');

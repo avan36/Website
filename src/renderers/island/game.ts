@@ -46,9 +46,10 @@ import { buildNight } from './world/night';
 import { Puffs } from './world/particles';
 import { Ripples } from './world/ripples';
 import { buildBuoys } from './world/buoys';
-import { buildBridges } from './world/bridges';
+import { buildBridges, clearLandings } from './world/bridges';
+import { buildLondon } from './world/london';
 import { ROWBOAT } from './landmarks/builders';
-import { ACTIVITIES, groundAt, heightAt, HUB, isSwimmable, isWalkable, LAND, nextStop, PIER, PLACES, placeOf, PLAZA, SPAWN, swimRoom, WORDS } from './world/shape';
+import { ACTIVITIES, groundAt, heightAt, HUB, isSwimmable, isWalkable, LAND, LAND_OUTLINE, nextStop, PIER, PLACES, placeOf, PLAZA, SPAWN, swimRoom, WORDS } from './world/shape';
 import { fitScale, frameRoom } from './interior/frame';
 import { buildInterior, type Interior } from './interior/room';
 import { buildHeightTexture, buildTerrain, pressGround } from './world/terrain';
@@ -115,8 +116,8 @@ export interface GameHandle {
     frames: () => number;
     places: () => { id: string; x: number; z: number; stand: { x: number; z: number } }[];
     teleport: (x: number, z: number) => void;
-    /** Look at (x, z) from `dist` away, at a pitch and a turn (for still shots: pause() first, then render()). */
-    look: (x: number, z: number, dist?: number, pitch?: number, yaw?: number) => void;
+    /** Look at (x, z) (at height y) from `dist` away, at a pitch and a turn (for still shots: pause() first, then render()). */
+    look: (x: number, z: number, dist?: number, pitch?: number, yaw?: number, y?: number) => void;
     screen: (id: string) => { x: number; y: number } | null;
     /** Every lost word: where it lies, whether it's showing, and where it is on screen. */
     words: () => { id: string; x: number; z: number; shown: boolean; screen: { x: number; y: number } }[];
@@ -200,12 +201,49 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
   const sm = mobile ? 1024 : 2048;
   sun.shadow.mapSize.set(sm, sm);
   const sc = sun.shadow.camera;
-  sc.left = -LAND.r - 2;
-  sc.right = LAND.r + 2;
-  sc.top = LAND.r + 2;
-  sc.bottom = -LAND.r - 2;
-  sc.near = 10;
-  sc.far = 130;
+  // The shadow map is fitted tightly round the land as the sun sees it (and
+  // fitted again whenever the light moves, as night swings it round to the
+  // moon), so none of it is spent on open sea: the outline of every island,
+  // at the shore and a little above it for the hills.
+  const landPts = LAND_OUTLINE.flatMap((p) => [new Vector3(p.x, 0, p.z), new Vector3(p.x, 3, p.z)]);
+  const fit = { left: 0, right: 0, bottom: 0, top: 0, near: 10, far: 130 };
+  const fitFrom = new Vector3(Number.NaN, 0, 0);
+  const fitV = new Vector3();
+  /** Fit the sun's shadow camera round the land, if the light has moved since it last was. True if it was. */
+  function fitShadows() {
+    if (fitFrom.equals(sun.position)) return false;
+    fitFrom.copy(sun.position);
+    sun.updateMatrixWorld();
+    sun.target.updateMatrixWorld();
+    sun.shadow.updateMatrices(sun);
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+    for (const p of landPts) {
+      fitV.copy(p).applyMatrix4(sc.matrixWorldInverse);
+      if (fitV.x < x0) x0 = fitV.x;
+      if (fitV.x > x1) x1 = fitV.x;
+      if (fitV.y < y0) y0 = fitV.y;
+      if (fitV.y > y1) y1 = fitV.y;
+      if (-fitV.z < z0) z0 = -fitV.z;
+      if (-fitV.z > z1) z1 = -fitV.z;
+    }
+    const m = 1.5;
+    fit.left = x0 - m;
+    fit.right = x1 + m;
+    fit.bottom = y0 - m;
+    fit.top = y1 + m;
+    // Room toward the light for the tallest things (the old tree, the lighthouse, the bridge's towers), and a little beyond the far shore.
+    fit.near = Math.max(0.5, z0 - 14);
+    fit.far = z1 + 8;
+    return true;
+  }
+  fitShadows();
+  sc.left = fit.left;
+  sc.right = fit.right;
+  sc.top = fit.top;
+  sc.bottom = fit.bottom;
+  sc.near = fit.near;
+  sc.far = fit.far;
+  sc.updateProjectionMatrix();
   sun.shadow.bias = -0.0006;
   sun.shadow.normalBias = 0.035;
   sun.shadow.radius = 3;
@@ -237,9 +275,13 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
   // The railway, the train, the quay and its bus; and the city across the water.
   const commute = buildCommute();
   island.add(commute.group);
-  // The footbridges out to the islets.
+  // The bridges out to the islets (Tower Bridge lands on the quay: whatever stood in its way there is cleared).
   const bridges = buildBridges();
   island.add(bridges.group);
+  clearLandings(commute.group, commute.colliders);
+  // Little London's street furniture, on the way from the bridge to the mall.
+  const london = buildLondon();
+  island.add(london.group);
   const skyline = buildSkyline();
   scene.add(skyline.group);
 
@@ -251,8 +293,10 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
   const colliders: Collider[] = [
     ...nature.colliders,
     ...landmarks.map((l) => ({ x: l.place.x, z: l.place.z, r: l.place.radius })),
+    ...landmarks.flatMap((l) => l.solids()),
     ...commute.colliders,
     ...bridges.colliders,
+    ...london.colliders,
   ];
 
   const player = new Explorer(puffs, ripples);
@@ -382,7 +426,7 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
   /** Walking over to a game to play it (cancelled if you head somewhere else). */
   let pendingGame: { id: GameId; target: Vector2 } | null = null;
 
-  const night = buildNight({ scene, hemi, sun, sky, water: water.material, ambient, landmarks: [...landmarks, commute, bridges, games], extras: [skyline], mobile });
+  const night = buildNight({ scene, hemi, sun, sky, water: water.material, ambient, landmarks: [...landmarks, commute, bridges, london, games], extras: [skyline], mobile });
   scene.add(night.group);
   let nightWant = store.state.progress.night;
   /** Night waits for the last word's card to close, so you see it fall. */
@@ -1257,13 +1301,14 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
   // While a room's up, the sun's shadows close in round it and what's on
   // screen near it: the island's whole shadow map spent on a room set down at
   // dollhouse size keeps its shadows crisp, where island-wide they'd blur.
-  const SPREAD = sc.top;
   const shadowAt = new Vector3();
   let shadowK = 0;
   function focusShadows(dt: number) {
     const r = room?.group.visible ? room : null;
     const want = r ? 1 : 0;
     shadowK = o.reducedMotion || Math.abs(want - shadowK) < 0.002 ? want : damp(shadowK, want, 3, dt);
+    // The light swings round as night falls: fit the island's shadows round the land again.
+    const moved = fitShadows();
     // Where the room is as the sun sees it (kept from the last frame it was up, to ease back out from).
     if (r) {
       sun.updateMatrixWorld();
@@ -1271,14 +1316,19 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
       sun.shadow.updateMatrices(sun);
       r.group.getWorldPosition(shadowAt).applyMatrix4(sc.matrixWorldInverse);
     }
-    const R = lerp(SPREAD, clamp(rig.dist * 0.9, 7, SPREAD), shadowK);
-    const x = shadowAt.x * shadowK;
-    const y = shadowAt.y * shadowK;
-    if (sc.left === x - R && sc.right === x + R && sc.bottom === y - R && sc.top === y + R) return;
-    sc.left = x - R;
-    sc.right = x + R;
-    sc.bottom = y - R;
-    sc.top = y + R;
+    // From the fit round the land to a square round the room.
+    const R = clamp(rig.dist * 0.9, 7, Math.max(fit.right - fit.left, fit.top - fit.bottom) / 2);
+    const left = lerp(fit.left, shadowAt.x - R, shadowK);
+    const right = lerp(fit.right, shadowAt.x + R, shadowK);
+    const bottom = lerp(fit.bottom, shadowAt.y - R, shadowK);
+    const top = lerp(fit.top, shadowAt.y + R, shadowK);
+    if (!moved && sc.left === left && sc.right === right && sc.bottom === bottom && sc.top === top) return;
+    sc.left = left;
+    sc.right = right;
+    sc.bottom = bottom;
+    sc.top = top;
+    sc.near = fit.near;
+    sc.far = fit.far;
     sc.updateProjectionMatrix();
   }
 
@@ -2043,8 +2093,8 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
       frames: () => frames,
       places: () => PLACES.map((p) => ({ id: p.id, x: p.x, z: p.z, stand: p.stand })),
       /** Look at (x, z) from `dist` away (for still shots: pause() first, then render()). */
-      look: (x: number, z: number, dist = 70, pitch = 1.0, yaw = 0) => {
-        rig.target.set(x, 0.5, z);
+      look: (x: number, z: number, dist = 70, pitch = 1.0, yaw = 0, y = 0.5) => {
+        rig.target.set(x, y, z);
         rig.dist = dist;
         rig.pitch = pitch;
         rig.yaw = yaw;

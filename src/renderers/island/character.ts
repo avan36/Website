@@ -1092,6 +1092,30 @@ function dress(o: Wearable, mat: MatFn): Group {
       g.rotation.x = -0.1;
       return g;
     }
+    case 'red-cap': {
+      // A baseball cap: a dome of six panels hugging the head, a button on top, and a stiff brim out over the eyes.
+      const cloth = mat(c, { rough: 0.75 });
+      const y = 0.75;
+      const R = 0.41;
+      const dome = at(new Mesh(new SphereGeometry(R, 24, 10, 0, Math.PI * 2, 0, Math.PI / 2), cloth), 0, y, 0);
+      dome.scale.set(1, 0.6, 1);
+      g.add(dome);
+      for (const a of [0, Math.PI / 3, (2 * Math.PI) / 3]) {
+        const seam = at(new Mesh(new TorusGeometry(R + 0.002, 0.007, 4, 20, Math.PI), mat(d)), 0, y, 0);
+        seam.rotation.y = a;
+        seam.scale.set(1, 0.6, 1);
+        g.add(seam);
+      }
+      g.add(at(new Mesh(new SphereGeometry(0.04, 10, 6), cloth), 0, y + R * 0.6, 0));
+      const brim = at(new Mesh(new CylinderGeometry(0.3, 0.3, 0.03, 22, 1, false, -Math.PI / 2, Math.PI), cloth), 0, y + 0.01, 0.2);
+      brim.scale.z = 1.25;
+      brim.rotation.x = 0.16;
+      const under = at(new Mesh(new CylinderGeometry(0.29, 0.29, 0.012, 22, 1, false, -Math.PI / 2, Math.PI), mat(d)), 0, y - 0.008, 0.2);
+      under.scale.z = 1.23;
+      under.rotation.x = 0.16;
+      g.add(brim, under);
+      return g;
+    }
     case 'fishing-hat': {
       g.add(at(new Mesh(new CylinderGeometry(0.22, 0.29, 0.2, 20), mat(c, { rough: 0.9 })), 0, 0.95, 0));
       g.add(at(new Mesh(new CylinderGeometry(0.295, 0.3, 0.06, 20), mat('#5b7a4a')), 0, 0.88, 0));
