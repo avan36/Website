@@ -4,6 +4,7 @@
 // how they look and what they do. Tests read the blocks back as plain text.
 
 import type { SoundName, ViewId } from '../types';
+import type { OutfitSlot } from '../../world/schema';
 
 /** A run of text. A `cmd` makes it something you can click to type. */
 export type Span = string | { text: string; cmd?: string; href?: string; color?: string; tone?: 'em' | 'key' | 'dim' };
@@ -41,6 +42,8 @@ export type Effect =
   | { type: 'fish' }
   | { type: 'view'; id: ViewId }
   | { type: 'night'; on: boolean }
+  | { type: 'wear'; id: string }
+  | { type: 'unwear'; slot: OutfitSlot }
   | { type: 'clear' }
   | { type: 'timer'; ms: number; signal: Signal }
   | { type: 'sound'; name: SoundName };

@@ -90,11 +90,11 @@ import { AXES, MAX_VIBES, MENU, VIBES } from './bartender';
 </ToyFrame>
 
 <style>
-  .bar { display: grid; gap: var(--space-6); }
+  .bar { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-6); }
   @media (min-width: 900px) {
     .bar { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(var(--space-6), 4vw, var(--space-8)); align-items: start; }
   }
-  .bar__left, .bar__right { display: grid; gap: var(--space-6); min-width: 0; }
+  .bar__left, .bar__right { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-6); min-width: 0; }
 
   .bar__step {
     display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap;
@@ -141,20 +141,25 @@ import { AXES, MAX_VIBES, MENU, VIBES } from './bartender';
     border-radius: var(--r-md);
     background: var(--bg-raised);
     box-shadow: var(--shadow-1), inset 0 0 0 1px var(--line);
-    background-image: repeating-linear-gradient(0deg, transparent 0 27px, var(--line) 27px 28px);
   }
   .ticket .bar__step { margin-bottom: var(--space-2); }
   .ticket__scroll { overflow-x: auto; }
+  /* Body rows are built by the script, so they need :global to pick up styles. */
   .ticket__table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: var(--step--1); }
-  .ticket__table th, .ticket__table td { padding: 6px 4px; text-align: center; }
+  .ticket__table :global(th), .ticket__table :global(td) { padding: 6px 4px; text-align: center; border-bottom: 1px solid var(--line); }
   .ticket__table thead th { font-size: 12px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-3); }
-  .ticket__table tbody th, .ticket__table tfoot th { text-align: left; font-weight: 650; white-space: nowrap; padding-right: var(--space-3); }
-  .ticket__table td { font-family: var(--font-mono); font-weight: 600; color: var(--ink-3); }
-  .ticket__table td.is-pos { color: color-mix(in oklab, var(--p) 55%, var(--ink)); }
-  .ticket__table td.is-neg { color: var(--ink-2); }
-  .ticket__table tfoot tr { border-top: 2px dashed var(--line-strong); }
-  .ticket__table tfoot td { font-weight: 800; color: var(--ink); }
-  .ticket__empty td { text-align: left; font-family: var(--font-read); font-style: italic; color: var(--ink-3); }
+  .ticket__table :global(tbody th), .ticket__table tfoot th { text-align: left; font-weight: 650; white-space: nowrap; padding-right: var(--space-3); }
+  .ticket__table :global(td) { font-family: var(--font-mono); font-weight: 600; color: var(--ink-3); }
+  .ticket__table :global(td.is-pos) { color: color-mix(in oklab, var(--p) 55%, var(--ink)); }
+  .ticket__table :global(td.is-neg) { color: var(--ink-2); }
+  .ticket__table tfoot :global(th), .ticket__table tfoot :global(td) { border-top: 2px dashed var(--line-strong); border-bottom: 0; }
+  .ticket__table tfoot :global(td) { font-weight: 800; color: var(--ink); }
+  .ticket__table :global(.ticket__empty td) { text-align: left; font-family: var(--font-read); font-style: italic; color: var(--ink-3); }
+  @media (max-width: 420px) {
+    .ticket { padding: var(--space-3); }
+    .ticket__table :global(th), .ticket__table :global(td) { padding: 6px 2px; }
+    .ticket__table thead th { font-size: 10px; letter-spacing: 0; }
+  }
   .ticket__how { margin-top: var(--space-3); font-size: var(--step--1); color: var(--ink-3); }
 
   /* ---------- Scores ---------- */

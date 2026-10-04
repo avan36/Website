@@ -265,6 +265,8 @@ export function createGeo(world: World) {
     const oz = p.z - Math.sin(p.yaw) * 2.2 * p.out;
     return { x: ox, z: oz, yaw: p.yaw, s: rw.station * rail.length };
   })() : null;
+  // The platform stands on level ground at the height of the rails.
+  if (station && rw) pads.push({ x: station.x, z: station.z, r: 2.4, blend: 2, h: rw.bed });
 
   /** Compass bearing from one point to another: 0 = north, π/2 = east. */
   const bearing = (a: Vec2, b: Vec2) => Math.atan2(b.x - a.x, -(b.z - a.z));

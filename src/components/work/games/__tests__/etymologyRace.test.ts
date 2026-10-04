@@ -65,7 +65,7 @@ describe('questions', () => {
   it('skips ancestor questions when the oldest form is just the word', () => {
     expect(hasAncestorQuestion(byWord('water'))).toBe(true);
     expect(hasAncestorQuestion(byWord('quiz'))).toBe(false);
-    expect(hasAncestorQuestion(byWord('sauna') ?? byWord('ukulele'))).toBe(false);
+    expect(hasAncestorQuestion(byWord('kindergarten'))).toBe(false);
   });
 
   it('origin distractors are distinct, wrong, and include a near miss', () => {

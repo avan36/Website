@@ -11,7 +11,7 @@
 // something: go into a place, record a found word, cast a line, set a timer.
 
 import type { Geo } from '../../world/geo';
-import type { LostWord, Place, Post, Scenery, World } from '../../world/schema';
+import type { LostWord, Outfit, OutfitSlot, Place, Post, Scenery, World } from '../../world/schema';
 import type { ViewId } from '../types';
 import { closest } from './fuzzy';
 import { createLexicon, pronoun, ref, thing } from './lexicon';
@@ -41,6 +41,9 @@ export type EngineState = {
   found: string[];
   caught: string[];
   night: boolean;
+  /** Outfit pieces unlocked, and what's being worn (also mirrors of the store). */
+  wardrobe: string[];
+  worn: Partial<Record<OutfitSlot, string>>;
   /** Scenery you've examined once that hides a word ("place/scenery"): look again and you find it. */
   noticed: string[];
   /** The last thing you looked at, for "search it". */
@@ -150,13 +153,17 @@ export function createEngine(world: World, geo: Geo, { random = Math.random }: E
     const out: Block[] = [];
     if (s.fishing) out.push(dim('You reel in your line and leave the pier.'));
     out.push({ kind: 'p', spans: narrate(legs) });
-    const next: EngineState = { ...s, from: s.at, at: toId, fishing: null, pending: null, it: null };
+    let next: EngineState = { ...s, from: s.at, at: toId, fishing: null, pending: null, it: null };
     const effects: Effect[] = [{ type: 'move', place: toId }, { type: 'sound', name: 'step' }];
+    // Every house keeps something to wear; arriving makes it yours (the store does the same on the move).
+    const gift = world.outfits.find((o) => o.place === toId && !s.wardrobe.includes(o.id));
+    if (gift) next = { ...next, wardrobe: [...s.wardrobe, gift.id] };
+    const gifted = gift ? [unlockedLine(gift, next)] : [];
     if (opts.enter) {
       const r = enter(next);
-      return result(r.state, [...out, ...r.out], [...effects, ...r.effects]);
+      return result(r.state, [...out, ...gifted, ...r.out], [...effects, ...r.effects]);
     }
-    return result(next, [...out, ...describe(next, to)], effects);
+    return result(next, [...out, ...describe(next, to), ...gifted], effects);
   }
 
   function goDir(s: EngineState, d: Dir, enterAfter = false): Result {
@@ -341,7 +348,106 @@ export function createEngine(world: World, geo: Geo, { random = Math.random }: E
       if (s.found.length < total) out.push(dim(...md(`${cap(spell(total - s.found.length))} still lost. [HINT] if you'd like a nudge.`)));
     }
     if (s.caught.length) out.push(dim(`Caught off the pier: ${s.caught.length} of ${world.posts.length} posts.`));
+    if (world.outfits.length) {
+      const wearing = world.outfits.filter((o) => s.worn[o.slot] === o.id);
+      out.push(dim(...md(`In your [WARDROBE]: ${s.wardrobe.length} of ${world.outfits.length} things to wear${wearing.length ? `, and you have on ${andList(wearing.map((o) => `the ${o.name}`))}` : ''}.`)));
+    }
     return result(s, out);
+  }
+
+  // ---------- The wardrobe ----------
+
+  const SLOT_WORDS: Record<OutfitSlot, string[]> = {
+    head: ['hat', 'cap', 'helmet', 'head', 'crown'],
+    face: ['glasses', 'specs', 'spectacles', 'shades', 'face'],
+    neck: ['scarf', 'neck'],
+    body: ['vest', 'jacket', 'body'],
+  };
+  const wearCmd = (o: Outfit) => `wear ${o.name}`;
+  const article = (o: Outfit) => (/^[aeiou]/i.test(o.name) ? 'an' : 'a');
+
+  /** Outfit pieces a noun could mean, best first: a whole name, then every word of it, then the slot. */
+  function outfitsNamed(noun: string, among: readonly Outfit[] = world.outfits): Outfit[] {
+    const n = key(noun);
+    if (!n) return [];
+    const ws = n.split(' ');
+    const names = (o: Outfit) => [key(o.name), key(o.id.replace(/-/g, ' '))];
+    const exact = among.filter((o) => names(o).includes(n));
+    if (exact.length) return exact;
+    const partial = among.filter((o) => names(o).some((name) => ws.every((w) => name.split(' ').includes(w))));
+    if (partial.length) return partial;
+    return among.filter((o) => ws.some((w) => SLOT_WORDS[o.slot].includes(w)));
+  }
+
+  function unlockedLine(o: Outfit, s: EngineState): Block {
+    const pl = place(o.place);
+    return {
+      kind: 'p',
+      tone: 'flavour',
+      spans: [
+        `Something is waiting for you here: ${article(o)} `,
+        { text: o.name, color: pl.color, tone: 'key' },
+        `. It fits. That's ${s.wardrobe.length} of ${world.outfits.length} for your wardrobe. `,
+        cmd('Wear it', wearCmd(o)),
+        ' or see your ',
+        cmd('WARDROBE', 'wardrobe'),
+        '.',
+      ],
+    };
+  }
+
+  function wardrobe(s: EngineState): Result {
+    const n = world.outfits.length;
+    if (!n) return result(s, [say('There’s nothing to wear on this island. Yet.')]);
+    const items: ListItem[] = world.outfits.map((o) => {
+      const pl = place(o.place);
+      if (!s.wardrobe.includes(o.id)) return { label: [{ text: '???', tone: 'dim' }], text: [{ text: o.hint, tone: 'em' }, ' ', placeSpan(pl, `(${ref(pl)})`)], color: '#9a9184' };
+      const on = s.worn[o.slot] === o.id;
+      return {
+        color: pl.color,
+        label: [{ text: o.name, color: pl.color, cmd: on ? `take off ${o.name}` : wearCmd(o) }],
+        text: [on ? 'wearing it. ' : '', o.description],
+      };
+    });
+    const wearing = world.outfits.filter((o) => s.worn[o.slot] === o.id);
+    return result(s, [
+      { kind: 'list', title: `Your wardrobe: ${s.wardrobe.length} of ${n}`, items },
+      dim(
+        ...(wearing.length ? [`You're wearing ${andList(wearing.map((o) => `the ${o.name}`))}. `] : ['You’re wearing just your scarf. ']),
+        ...md(s.wardrobe.length < n ? `Every house on the island keeps something to wear: walk up to one and it’s yours. Click a name to [WEAR] it.` : 'You’ve found every piece. Dress however you like; it shows in every view.'),
+      ),
+    ]);
+  }
+
+  function wear(s: EngineState, noun: string): Result {
+    if (!noun) return result(s, [say(s.wardrobe.length ? 'Wear what? Your [WARDROBE] has everything you’ve found.' : 'You’ve nothing to wear yet. Every house on the island keeps something; go and visit one.')]);
+    const mine = world.outfits.filter((o) => s.wardrobe.includes(o.id));
+    const have = outfitsNamed(noun, mine);
+    if (!have.length) {
+      const elsewhere = outfitsNamed(noun)[0];
+      if (elsewhere) {
+        const pl = place(elsewhere.place);
+        return result(s, [p(`You haven't found that yet. `, { text: elsewhere.hint, tone: 'em' }, ' Try ', placeSpan(pl), '.')]);
+      }
+      return result(s, [say(`You've nothing like that to wear. Your [WARDROBE] has everything you've found.`)]);
+    }
+    const o = have.find((x) => s.worn[x.slot] !== x.id) ?? have[0];
+    if (s.worn[o.slot] === o.id) return result(s, [say(`You're already wearing the ${o.name}.`)]);
+    const before = world.outfits.find((x) => s.worn[o.slot] === x.id);
+    const next = { ...s, worn: { ...s.worn, [o.slot]: o.id } };
+    const line = before ? `You swap the ${before.name} for the ${o.name}.` : `You put on the ${o.name}.`;
+    return result(next, [p(line, ' ', { text: o.description, tone: 'dim' })], [{ type: 'wear', id: o.id }, { type: 'sound', name: 'pop' }]);
+  }
+
+  function takeOff(s: EngineState, noun: string): Result {
+    const wearing = world.outfits.filter((o) => s.worn[o.slot] === o.id);
+    if (!wearing.length) return result(s, [say('You’re not wearing anything from the wardrobe. The scarf stays: it’s part of you.')]);
+    const all = ['all', 'everything', 'clothes', 'outfit'].includes(key(noun));
+    const off = all ? wearing : outfitsNamed(noun, wearing).slice(0, 1);
+    if (!noun || !off.length) return result(s, [p('Take off what? You’re wearing ', ...wearing.flatMap((o, i) => [i ? (i === wearing.length - 1 ? ' and ' : ', ') : '', cmd(`the ${o.name}`, `take off ${o.name}`)]), '.')]);
+    const worn = { ...s.worn };
+    for (const o of off) delete worn[o.slot];
+    return result({ ...s, worn }, [say(`You take off ${andList(off.map((o) => `the ${o.name}`))} and tuck ${off.length > 1 ? 'them' : 'it'} away in your [WARDROBE].`)], off.map((o) => ({ type: 'unwear' as const, slot: o.slot })));
   }
 
   function hint(s: EngineState): Result {
@@ -378,6 +484,7 @@ export function createEngine(world: World, geo: Geo, { random = Math.random }: E
           row('MAP', 'map', 'see the whole island'),
           row('HINT', 'hint', 'a nudge toward a lost word'),
           row('INVENTORY', 'inventory', 'the words you’ve found (I)'),
+          row('WARDROBE', 'wardrobe', 'things to wear, one from every house (WEAR, TAKE OFF)'),
           row('WORK · WRITING · ABOUT', 'work', 'the plain facts'),
         ],
       },
@@ -588,7 +695,15 @@ export function createEngine(world: World, geo: Geo, { random = Math.random }: E
         return reel(s);
       case 'wait':
         return result(s, [p(pick(s.fishing ? WAIT_FISHING : WAIT, s.turns))]);
+      case 'wardrobe':
+        return wardrobe(s);
+      case 'wear':
+        return wear(s, noun);
+      case 'remove':
+        return takeOff(s, noun);
       case 'take':
+        // "take the hat off"
+        if (c.rest.includes('off')) return takeOff(s, noun.replace(/\boff\b/, '').trim());
         if (lex.words(noun).length) return examine(s, noun, false);
         return result(s, [say('Everything on this island stays where it is. Except words: those you can keep. [SEARCH] for them.')]);
       case 'about':
@@ -667,13 +782,18 @@ export function createEngine(world: World, geo: Geo, { random = Math.random }: E
 
   // ---------- Starting, and helping the page ----------
 
-  function initial(at: string, progress: { found?: string[]; caught?: string[]; night?: boolean } = {}): EngineState {
+  function initial(
+    at: string,
+    progress: { found?: string[]; caught?: string[]; night?: boolean; wardrobe?: string[]; worn?: Partial<Record<OutfitSlot, string>> } = {},
+  ): EngineState {
     return {
       at: byId.has(at) ? at : hub.id,
       from: null,
       found: progress.found ?? [],
       caught: progress.caught ?? [],
       night: progress.night ?? false,
+      wardrobe: progress.wardrobe ?? [],
+      worn: progress.worn ?? {},
       noticed: [],
       it: null,
       fishing: null,
@@ -714,7 +834,7 @@ export function createEngine(world: World, geo: Geo, { random = Math.random }: E
     }
     chips.push({ label: 'Look', cmd: 'look' });
     for (const sc of here.scenery) chips.push({ label: `Examine ${sc.names[0]}`, cmd: `examine ${sc.names[0]}` });
-    chips.push({ label: 'Map', cmd: 'map' }, { label: 'Hint', cmd: 'hint' }, { label: 'Inventory', cmd: 'inventory' }, { label: 'Help', cmd: 'help' });
+    chips.push({ label: 'Map', cmd: 'map' }, { label: 'Hint', cmd: 'hint' }, { label: 'Inventory', cmd: 'inventory' }, { label: 'Wardrobe', cmd: 'wardrobe' }, { label: 'Help', cmd: 'help' });
     return chips;
   }
 
@@ -732,6 +852,7 @@ export function createEngine(world: World, geo: Geo, { random = Math.random }: E
     if (!head.trim()) pool = [...VERB_WORDS.filter((w) => w.length > 2), ...dirs, ...sceneryNames, ...placeNames];
     else if (before === 'go' || before === 'enter' || before === 'cd') pool = [...placeNames, ...dirs];
     else if (before === 'view') pool = ['island', 'map', 'list'];
+    else if (before === 'wear' || before === 'remove') pool = world.outfits.filter((o) => s.wardrobe.includes(o.id)).map((o) => key(o.name));
     else pool = [...sceneryNames, ...placeNames];
     const out = [...new Set(pool.filter((w) => w.startsWith(part) && w !== part))];
     return out.map((w) => head + w);

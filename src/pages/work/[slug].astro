@@ -18,6 +18,8 @@ import PackScan from '../../components/work/toys/PackScan.astro';
 import WordJourney from '../../components/work/toys/WordJourney.astro';
 import Bartender from '../../components/work/games/Bartender.astro';
 import DarkPatterns from '../../components/work/games/DarkPatterns.astro';
+import EtymologyRace from '../../components/work/games/EtymologyRace.astro';
+import EvolutionSorter from '../../components/work/games/EvolutionSorter.astro';
 import WritingDesk from '../../components/life/WritingDesk.astro';
 import { projects, type Project } from '../../data/projects';
 
@@ -45,6 +47,8 @@ const Toy = toys[project.slug];
 const games: Record<string, (props: Record<string, never>) => unknown> = {
   'busy-beer': Bartender,
   'privacy-research': DarkPatterns,
+  etymon: EtymologyRace,
+  'map-of-evolution': EvolutionSorter,
 };
 const Game = games[project.slug];
 

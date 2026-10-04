@@ -65,7 +65,7 @@ const pin = (id: string) => num.get(id);
 
       <div class="mock__banner">
         <p class="mock__btext">
-          <b>We value your privacy 🍪</b> We and our 312 partners use cookies to personalize content and ads. By continuing to browse you agree to this. You may also
+          <b>We value your privacy 🍪</b> We and our 312 partners use cookies to personalize content and ads. By continuing to browse you agree to this. You may also{' '}
           <button type="button" class="spot mock__hidden" data-spot="hidden-reject">continue with essential cookies only</button>.
         </p>
         <button type="button" class="spot mock__toggle" data-spot="flip-toggle">
@@ -128,7 +128,7 @@ const pin = (id: string) => num.get(id);
 </ToyFrame>
 
 <style>
-  .dp { display: grid; gap: var(--space-4); }
+  .dp { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-4); }
   .dp__bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3) var(--space-5); }
   .dp__count {
     font-family: var(--font-display); font-weight: 700; font-size: var(--step-2);
@@ -194,7 +194,8 @@ const pin = (id: string) => num.get(id);
   .spot.is-missed { box-shadow: 0 0 0 2.5px var(--p); outline: 2px dashed var(--p); outline-offset: 4px; }
   .spot.is-decoy { animation: nope 360ms ease; }
   @keyframes nope { 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
-  .pin {
+  /* Pins are added by the script, so they need :global. */
+  .spot :global(.pin) {
     position: absolute; top: -10px; right: -10px; z-index: 2;
     display: grid; place-items: center;
     min-width: 22px; height: 22px; padding: 0 5px; border-radius: var(--r-pill);
@@ -204,7 +205,7 @@ const pin = (id: string) => num.get(id);
     animation: pop 380ms var(--ease-spring);
     pointer-events: none;
   }
-  .spot.is-missed .pin { background: #fff; color: var(--p); box-shadow: inset 0 0 0 2px var(--p); }
+  .spot.is-missed :global(.pin) { background: #fff; color: var(--p); box-shadow: inset 0 0 0 2px var(--p); }
   @keyframes pop { from { transform: scale(0.3); opacity: 0; } }
 
   .mock__brand { display: inline-flex; align-items: center; gap: 8px; font-weight: 800; font-size: 17px; color: var(--fern); padding: 2px 4px; }
@@ -287,7 +288,7 @@ const pin = (id: string) => num.get(id);
   .reveal > .dp__btn { margin-left: 0; justify-self: start; }
 
   @media (prefers-reduced-motion: reduce) {
-    .spot.is-decoy, .pin { animation: none; }
+    .spot.is-decoy, .spot :global(.pin) { animation: none; }
     .dp__btn { transition: none; }
   }
 </style>

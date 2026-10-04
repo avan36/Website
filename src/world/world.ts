@@ -437,7 +437,7 @@ const geography: WorldInput['geography'] = {
   // New land to the east: room for the railway loop, the quay and a spare plot.
   shores: [{ toward: { x: 1, z: 0.1 }, reach: 13, spread: 0.45 }],
   railway: { center: { x: 24, z: 1.5 }, rx: 6.5, rz: 9, square: 3.2, bed: 1.3, station: 0.25 },
-  quay: { x0: 24.5, z0: 16.2, x1: 31.5, z1: 21, deck: 0.7, bus: { x: 28, z: 18.6 }, faces: Math.PI / 2 },
+  quay: { x0: 24, z0: 14.2, x1: 30.5, z1: 19.8, deck: 0.7, bus: { x: 27.4, z: 17.2 }, faces: Math.PI / 2 },
   plots: [{ id: 'workshop', at: { x: 24, z: 1.5 }, clearing: 3.5 }],
   spawn: { x: 0, z: 7.5 },
 };

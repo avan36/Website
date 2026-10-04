@@ -67,7 +67,10 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
   const art = new Map<string, Landmark>(places.map((m) => [m.place.id, paintLandmark(m.kind, m.place.color, Math.round(m.doorDx * TEX))]));
   const scenery = paintScenery();
   const props = scatterProps(world, geo, places);
-  const hero = paintExplorer();
+  // Dressed in whatever the visitor picked from the wardrobe; repainted when that changes.
+  const wornNow = () => world.outfits.filter((o) => store.state.progress.worn[o.slot] === o.id);
+  let wornKey = wornNow().map((o) => o.id).join();
+  let hero = paintExplorer(wornNow());
   const scrollArt = scroll();
   const crabArt = [crab(0), crab(1)];
   const pier = geo.pier;
@@ -515,6 +518,10 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
   let nightGoal = nightK;
   const unsub = store.subscribe((state, events) => {
     nightGoal = state.progress.night ? 1 : 0;
+    if (events.some((e) => e.type === 'dressed') && wornNow().map((o) => o.id).join() !== wornKey) {
+      wornKey = wornNow().map((o) => o.id).join();
+      hero = paintExplorer(wornNow());
+    }
     if (!motion) nightK = nightGoal;
     if (events.some((e) => e.type === 'found')) for (const w of words) w.here = !store.has(w.id) && w.id !== cheerWord;
     // A reset puts every word back where it was hidden.

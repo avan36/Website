@@ -38,14 +38,14 @@ export type MenuDrink = {
 };
 
 export const MENU: MenuDrink[] = [
-  { id: 'wcipa', name: 'West Coast IPA', notes: 'Piney, bitter, bone-dry', hue: '#e0a12e', taste: [9, 4, 2, 1, 1], pour: "One West Coast IPA. It bites back, and you said that's fine." },
-  { id: 'hazy', name: 'Hazy IPA', notes: 'Juicy, soft, tropical', hue: '#f5b942', taste: [6, 3, 6, 3, 0], pour: 'Hazy IPA, cloudy as a good afternoon. Smells like a fruit stand.' },
-  { id: 'pils', name: 'Czech Pilsner', notes: 'Crisp, bready, spicy hops', hue: '#f2c94c', taste: [5, 5, 3, 1, 0], pour: 'A proper Czech Pilsner, with a thick cap of foam. Clean and cold.' },
-  { id: 'wit', name: 'Belgian Witbier', notes: 'Hazy, orange peel, coriander', hue: '#f6dc8e', taste: [2, 3, 5, 3, 0], pour: 'Witbier with a little orange peel. Sunshine in a glass.' },
-  { id: 'gose', name: 'Gose', notes: 'Tart, a little salty', hue: '#efd77a', taste: [1, 2, 3, 8, 0], pour: "A Gose: tart, a pinch of salt, a little strange. You asked for it." },
-  { id: 'cider', name: 'Dry Cider', notes: 'Apple-sharp, sparkling', hue: '#e8cf6a', taste: [0, 1, 4, 6, 0], pour: 'Dry cider, sharp as a green apple. No hops anywhere near it.' },
-  { id: 'stout', name: 'Oatmeal Stout', notes: 'Silky, coffee, chocolate', hue: '#2a1a12', taste: [2, 7, 5, 1, 9], pour: 'Oatmeal Stout. Pull up a stool, this one takes its time.' },
-  { id: 'barley', name: 'Barleywine', notes: 'Rich, toffee, warming', hue: '#8c3a14', taste: [6, 9, 8, 1, 3], pour: 'Barleywine, in the small glass. Sip it slowly, it sips back.' },
+  { id: 'wcipa', name: 'West Coast IPA', notes: 'Piney, bitter, bone-dry', hue: '#e0a12e', taste: [9, 4, 2, 1, 1], pour: "Piney and dry. It bites back, and you said that's fine." },
+  { id: 'hazy', name: 'Hazy IPA', notes: 'Juicy, soft, tropical', hue: '#f5b942', taste: [6, 3, 6, 3, 0], pour: 'Cloudy as a lazy afternoon. Smells like a fruit stand.' },
+  { id: 'pils', name: 'Czech Pilsner', notes: 'Crisp, bready, spicy hops', hue: '#f2c94c', taste: [5, 5, 3, 1, 0], pour: 'Poured properly, with a thick cap of foam. Clean and cold.' },
+  { id: 'wit', name: 'Belgian Witbier', notes: 'Hazy, orange peel, coriander', hue: '#f6dc8e', taste: [2, 3, 5, 3, 0], pour: 'A little orange peel, a little spice. Sunshine in a glass.' },
+  { id: 'gose', name: 'Gose', notes: 'Tart, a little salty', hue: '#efd77a', taste: [1, 2, 3, 8, 0], pour: "Tart, a pinch of salt, a little strange. You asked for it." },
+  { id: 'cider', name: 'Dry Cider', notes: 'Apple-sharp, sparkling', hue: '#e8cf6a', taste: [0, 1, 4, 6, 0], pour: 'Sharp as a green apple. No hops anywhere near it.' },
+  { id: 'stout', name: 'Oatmeal Stout', notes: 'Silky, coffee, chocolate', hue: '#2a1a12', taste: [2, 7, 5, 1, 9], pour: 'Pull up a stool. This one takes its time.' },
+  { id: 'barley', name: 'Barleywine', notes: 'Rich, toffee, warming', hue: '#8c3a14', taste: [6, 9, 8, 1, 3], pour: 'In the small glass. Sip it slowly, it sips back.' },
 ];
 
 const byId = new Map(VIBES.map((v) => [v.id, v]));

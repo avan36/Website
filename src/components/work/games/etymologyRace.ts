@@ -105,17 +105,16 @@ export function makeQuestion(kind: QuestionKind, word: RaceWord, words: readonly
 
 /** Ten questions from distinct words; every third one asks for the oldest ancestor when the word has one. */
 export function buildRound(words: readonly RaceWord[], rng: Rng, length = ROUND_LENGTH, langName?: (code: string) => string): Question[] {
-  const picked = shuffle(words, rng).slice(0, Math.min(length, words.length));
-  for (let i = ANCESTOR_EVERY - 1; i < picked.length; i += ANCESTOR_EVERY) {
-    if (hasAncestorQuestion(picked[i])) continue;
-    // Swap in a later word that does have an ancestor to ask about.
-    const j = picked.findIndex((w, k) => k > i && (k + 1) % ANCESTOR_EVERY !== 0 && hasAncestorQuestion(w));
-    if (j > 0) [picked[i], picked[j]] = [picked[j], picked[i]];
+  const pool = shuffle(words, rng);
+  const n = Math.min(length, words.length);
+  const out: Question[] = [];
+  for (let i = 0; i < n; i++) {
+    const wantsAncestor = (i + 1) % ANCESTOR_EVERY === 0;
+    const k = wantsAncestor ? Math.max(0, pool.findIndex(hasAncestorQuestion)) : 0;
+    const [w] = pool.splice(k, 1);
+    out.push(makeQuestion(wantsAncestor && hasAncestorQuestion(w) ? 'ancestor' : 'origin', w, words, rng, langName));
   }
-  return picked.map((w, i) => {
-    const kind: QuestionKind = (i + 1) % ANCESTOR_EVERY === 0 && hasAncestorQuestion(w) ? 'ancestor' : 'origin';
-    return makeQuestion(kind, w, words, rng, langName);
-  });
+  return out;
 }
 
 /** Streak multiplier: +25% per answer already in a row, capped at ×2. */

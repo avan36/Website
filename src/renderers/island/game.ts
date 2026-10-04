@@ -169,6 +169,9 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
   player.onLand = (impact) => (impact > 1.1 ? o.sound.play('land') : impact > 0.15 && o.sound.play('step'));
   player.onJump = () => o.sound.play('jump');
   player.lowJumps = o.reducedMotion;
+  // Dressed in whatever the visitor picked from the wardrobe (in any view).
+  const dressUp = () => player.wear(o.store.world.outfits.filter((x) => o.store.state.progress.worn[x.slot] === x.id));
+  dressUp();
   const hill = PLACES.find((p) => p.kind === 'tree');
 
   // ---------- Things to do ----------
@@ -223,6 +226,7 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
   const dialog = document.getElementById('w-dialog') as HTMLDialogElement | null;
   const unsubscribe = store.subscribe((_, events) => {
     words.sync(store.has);
+    dressUp();
     for (const e of events) {
       if (e.type === 'hoard-complete') nightHold = true;
       if (e.type === 'night') nightWant = e.on;

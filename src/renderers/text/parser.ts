@@ -31,6 +31,7 @@ export type Verb =
   | 'inventory' | 'hint' | 'help' | 'map' | 'fish' | 'reel' | 'wait' | 'take'
   | 'about' | 'work' | 'writing' | 'contact' | 'where' | 'exits' | 'clear' | 'undo'
   | 'again' | 'view' | 'yes' | 'no' | 'night' | 'day' | 'score'
+  | 'wardrobe' | 'wear' | 'remove'
   // A few for fun.
   | 'xyzzy' | 'plugh' | 'sudo' | 'hello' | 'ls' | 'cd' | 'pwd' | 'quit' | 'swim'
   | 'ring' | 'knock' | 'climb' | 'sit' | 'eat' | 'drink' | 'jump' | 'sleep' | 'zork';
@@ -68,6 +69,9 @@ const PHRASES: Record<Verb, string[]> = {
   night: ['night', 'nighttime', 'night time', 'dusk', 'lights off'],
   day: ['day', 'daytime', 'day time', 'dawn', 'lights on'],
   score: ['score', 'progress', 'points'],
+  wardrobe: ['wardrobe', 'outfits', 'outfit', 'clothes', 'closet', 'costumes', 'what am i wearing', 'dress up', 'my clothes'],
+  wear: ['wear', 'put on', 'don', 'try on', 'equip', 'dress in', 'change into'],
+  remove: ['take off', 'remove', 'unwear', 'doff', 'unequip', 'undress'],
   xyzzy: ['xyzzy'],
   plugh: ['plugh', 'plover'],
   sudo: ['sudo'],
