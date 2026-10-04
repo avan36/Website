@@ -1,0 +1,548 @@
+---
+// Under the hood: the island's blueprint. The world every view on the home
+// page draws, laid out to explore instead of read as raw JSON. Everything is
+// rendered at build time from the real world; the small script only picks
+// things. Fields this page hasn't been taught about still show up, generically.
+import Base from '../layouts/Base.astro';
+import SiteHeader from '../components/SiteHeader.astro';
+import SiteFooter from '../components/SiteFooter.astro';
+import BlueprintMap from '../components/blueprint/BlueprintMap.astro';
+import '../components/blueprint/blueprint.css';
+import { drawIsland, highlightJson, humanize, num, renderFields, renderValue } from '../components/blueprint/lib';
+import { compass } from '../world/geo';
+import { loadWorld } from '../world/load';
+
+const world = await loadWorld();
+const draw = drawIsland(world);
+const W = world as unknown as Record<string, unknown>;
+
+const place = (id: string) => world.places.find((p) => p.id === id);
+const titleOf = (id: string) => place(id)?.title ?? id;
+/** A title in the middle of a sentence: "to the lighthouse", not "to The lighthouse". */
+const inLine = (id: string) => titleOf(id).replace(/^The /, 'the ');
+const colorOf = (id: string) => place(id)?.color ?? '#2b8fb8';
+const hub = world.places.find((p) => p.kind === 'hub') ?? world.places[0];
+const KIND: Record<string, string> = { hub: 'Crossroads', project: 'Project', writing: 'Writing', contact: 'Contact' };
+const kindLabel = (k: string) => KIND[k] ?? humanize(k);
+const json = (v: unknown) => highlightJson(v, 46);
+
+// The fields each card already shows in its own way. Anything else, including
+// fields added to the world later, is listed under "More fields".
+const SHOWN = {
+  place: ['id', 'kind', 'archetype', 'name', 'title', 'blurb', 'href', 'project', 'color', 'at', 'footprint', 'clearing', 'faces', 'door', 'aliases', 'description', 'scenery'],
+  route: ['from', 'to', 'paved', 'bend'],
+  word: ['id', 'word', 'gloss', 'story', 'first', 'died', 'place', 'in', 'at', 'hint'],
+  activity: ['id', 'kind', 'place', 'at', 'name', 'description'],
+  project: ['slug', 'name', 'headline', 'blurb', 'platforms', 'color', 'tags', 'href', 'body', 'links'],
+  post: ['slug', 'title', 'description', 'date', 'href'],
+};
+const KNOWN_TOP = ['$schema', 'version', 'site', 'person', 'projects', 'posts', 'places', 'routes', 'lostWords', 'activities', 'geography'];
+const extraTop = Object.keys(W).filter((k) => !KNOWN_TOP.includes(k));
+
+const scenery = world.places.reduce((n, p) => n + p.scenery.length, 0);
+const paved = world.routes.filter((r) => r.paved).length;
+const counts = [
+  { n: world.places.length, label: 'places', tab: 'places' },
+  { n: paved, label: 'paths', tab: 'routes' },
+  { n: world.routes.length - paved, label: 'shortcuts', tab: 'routes' },
+  { n: scenery, label: 'things to look at', tab: 'places' },
+  { n: world.lostWords.length, label: 'lost words', tab: 'words' },
+  { n: world.activities.length, label: 'activities', tab: 'activities' },
+  { n: world.projects.length, label: 'projects', tab: 'projects' },
+  { n: world.posts.length, label: 'posts', tab: 'posts' },
+];
+
+const routesOf = (id: string) => world.routes.map((r, i) => ({ ...r, i })).filter((r) => r.from === id || r.to === id);
+const wordsAt = (id: string) => world.lostWords.filter((w) => w.place === id);
+const activitiesAt = (id: string) => world.activities.filter((a) => a.place === id);
+const projectPlace = (slug: string) => world.places.find((p) => p.project === slug);
+
+const geo = world.geography;
+const geoCards = [
+  {
+    key: 'geo:coast',
+    kicker: 'Geography',
+    title: 'The coast',
+    rel: [] as string[],
+    lede: `The shore sits about ${num(geo.coast.radius)} m from the middle, rippled by ${geo.coast.ripples.length} sine waves and pushed out by every headland. The dashed line beyond it is how far out you can swim.`,
+    data: geo.coast,
+  },
+  ...geo.headlands.map((h, i) => ({
+    key: `geo:headland:${i}`,
+    kicker: 'Geography · headland',
+    title: `A headland toward ${inLine(h.toward)}`,
+    rel: [`place:${h.toward}`],
+    lede: `The coast bulges ${num(h.reach)} m out toward ${inLine(h.toward)} and ends in a cliff instead of a beach.`,
+    data: h,
+  })),
+  ...geo.hills.map((h, i) => ({
+    key: `geo:hill:${i}`,
+    kicker: 'Geography · hill',
+    title: `A hill under ${inLine(h.at)}`,
+    rel: [`place:${h.at}`],
+    lede: `The ground rises ${num(h.height)} m, spreading about ${num(h.spread)} m around ${inLine(h.at)}.`,
+    data: h,
+  })),
+  {
+    key: 'geo:pier',
+    kicker: 'Geography',
+    title: 'The pier',
+    rel: world.places.filter((p) => p.archetype === 'pier').map((p) => `place:${p.id}`),
+    lede: `A jetty ${num(geo.pier.width)} m wide running due south from z ${num(geo.pier.start)} to z ${num(geo.pier.end)}, its deck ${num(geo.pier.deck)} m above the sea.`,
+    data: geo.pier,
+  },
+  {
+    key: 'geo:spawn',
+    kicker: 'Geography',
+    title: 'Where you arrive',
+    rel: [`place:${hub.id}`],
+    lede: `A new visitor appears here, ${num(Math.hypot(geo.spawn.x - hub.at.x, geo.spawn.z - hub.at.z))} m ${compass(Math.atan2(geo.spawn.x - hub.at.x, -(geo.spawn.z - hub.at.z)))} of ${inLine(hub.id)}.`,
+    data: geo.spawn,
+  },
+];
+const geoExtra = renderFields(geo, ['coast', 'headlands', 'hills', 'pier', 'spawn']);
+
+// The coast's radius all the way round, as a little line chart for the geography tab.
+const prof = draw.profile;
+const pMin = Math.min(...prof) - 1;
+const pMax = Math.max(...prof) + 1;
+const profile = prof.map((r, i) => `${i ? 'L' : 'M'}${((i / (prof.length - 1)) * 200).toFixed(1)} ${(60 - ((r - pMin) / (pMax - pMin)) * 56).toFixed(1)}`).join('');
+
+const fmtDate = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+const dateOf = (iso: string) => {
+  const d = new Date(iso + 'T00:00:00Z');
+  return Number.isNaN(+d) ? iso : fmtDate.format(d);
+};
+
+const TABS = [
+  { id: 'places', label: 'Places', n: world.places.length },
+  { id: 'routes', label: 'Paths', n: world.routes.length },
+  { id: 'words', label: 'Lost words', n: world.lostWords.length },
+  { id: 'activities', label: 'Activities', n: world.activities.length },
+  { id: 'geography', label: 'Geography', n: geoCards.length },
+  { id: 'projects', label: 'Projects', n: world.projects.length },
+  { id: 'posts', label: 'Posts', n: world.posts.length },
+  { id: 'site', label: 'The site', n: null as number | null },
+  ...extraTop.map((k) => ({ id: `x-${k}`, label: humanize(k), n: Array.isArray(W[k]) ? (W[k] as unknown[]).length : null })),
+];
+
+const views = [
+  { id: 'island', name: 'The 3D island' },
+  { id: 'map', name: 'The pixel map' },
+  { id: 'text', name: 'The text adventure' },
+  { id: 'list', name: 'The list' },
+];
+---
+<Base
+  title="The island's blueprint · Ambrose Vannier"
+  description="Under the hood of the home page: the one world every view draws, as an interactive blueprint of places, paths, lost words and geography."
+>
+  <SiteHeader />
+
+  <main id="main" class="bp" data-bp>
+    <header class="wrap bp-head">
+      <p class="kicker">Under the hood</p>
+      <h1 class="bp-title">The island's blueprint</h1>
+      <p class="bp-lede">
+        Every view on the home page is drawn from one description of the island. This is that description, unrolled on the
+        drafting table. Tap anything on the drawing to see what the data says about it.
+      </p>
+      <ul class="bp-counts" role="list">
+        {counts.map((c) => (
+          <li><button type="button" class="bp-count" data-tab-go={c.tab}><span class="bp-count__n" data-count={c.n}>{c.n}</span><span class="bp-count__label">{c.label}</span></button></li>
+        ))}
+      </ul>
+    </header>
+
+    <section class="wrap bp-sheet" aria-label="The blueprint" data-bp-sheet>
+      <div class="bp-board">
+        <div class="bp-map" data-bp-map>
+          <BlueprintMap world={world} draw={draw} />
+          <p class="bp-stamp" aria-hidden="true"><span>The island</span><span>Sheet 1 of 1 · 1 unit = 1 m</span></p>
+        </div>
+        <div class="bp-legend">
+          <span><i class="bp-key bp-key--path"></i>Path</span>
+          <span><i class="bp-key bp-key--short"></i>Shortcut</span>
+          <span><i class="bp-key bp-key--star"></i>Lost word</span>
+          <span><i class="bp-key bp-key--act"></i>Activity</span>
+          <span><i class="bp-key bp-key--door"></i>Door</span>
+          <button type="button" class="bp-redraw" data-redraw>Draw the paths again</button>
+        </div>
+      </div>
+
+      <div class="bp-panel" data-bp-panel>
+        {world.places.map((p) => {
+          const d = draw.places.find((x) => x.id === p.id)!;
+          const routes = routesOf(p.id);
+          const words = wordsAt(p.id);
+          const acts = activitiesAt(p.id);
+          const rel = [...routes.map((r) => `route:${r.i}`), ...words.map((w) => `word:${w.id}`), ...acts.map((a) => `activity:${a.id}`)];
+          const more = renderFields(p, SHOWN.place);
+          return (
+            <article class="bp-card" data-card={`place:${p.id}`} data-rel={rel.join(' ')} style={`--c:${p.color}`} hidden={p !== hub}>
+              <header class="bp-card__head">
+                <span class="bp-card__swatch" aria-hidden="true"></span>
+                <div>
+                  <p class="bp-card__kicker">{kindLabel(p.kind)} · {p.archetype}</p>
+                  <h2 class="bp-card__title" tabindex="-1">{p.title}</h2>
+                  {p.name !== p.title && <p class="bp-card__sub">{p.name}</p>}
+                </div>
+              </header>
+              <p class="bp-card__blurb">{p.blurb}</p>
+              <dl class="bp-fields">
+                <div class="bp-field"><dt>Color</dt><dd><span class="bp-swatch" style={`--sw:${p.color}`}></span><code>{p.color}</code></dd></div>
+                <div class="bp-field"><dt>Stands at</dt><dd>
+                  <span class="bp-num">x {num(p.at.x)}, z {num(p.at.z)}</span>
+                  {p !== hub && <span class="bp-aside">{Math.round(d.fromHub)} m {compass(d.bearing)} of {inLine(hub.id)}</span>}
+                </dd></div>
+                <div class="bp-field"><dt>Size</dt><dd><span class="bp-num">{num(p.footprint)} m</span> in radius{p.clearing > 0 && <>, in a level clearing <span class="bp-num">{num(p.clearing)} m</span> in radius</>}</dd></div>
+                {p !== hub && (
+                  <div class="bp-field"><dt>Door</dt><dd>
+                    <span class="bp-num">x {num(d.door.x)}, z {num(d.door.z)}</span>
+                    <span class="bp-aside">{d.doorAuthored ? 'placed by hand' : `just outside the front, which faces ${compass(Math.PI - d.facing)}`}</span>
+                  </dd></div>
+                )}
+                {p.href && <div class="bp-field"><dt>Opens</dt><dd><a class="bp-link" href={p.href}>{p.href}</a></dd></div>}
+                {p.aliases.length > 0 && <div class="bp-field"><dt>Answers to</dt><dd set:html={renderValue(p.aliases)} /></div>}
+              </dl>
+
+              {routes.length > 0 && (
+                <>
+                  <h3 class="bp-card__h">Routes</h3>
+                  <ul class="bp-links" role="list">
+                    {routes.map((r) => {
+                      const other = r.from === p.id ? r.to : r.from;
+                      return (
+                        <li><button type="button" class="bp-go" data-select={`place:${other}`} data-hint={`route:${r.i}`} style={`--c:${colorOf(other)}`}>
+                          <span class="bp-go__dot"></span>{titleOf(other)}<span class="bp-tag">{r.paved ? 'path' : 'shortcut'}</span>
+                        </button></li>
+                      );
+                    })}
+                  </ul>
+                </>
+              )}
+
+              {words.length > 0 && (
+                <>
+                  <h3 class="bp-card__h">{words.length > 1 ? 'Lost words' : 'Lost word'}</h3>
+                  <ul class="bp-links" role="list">
+                    {words.map((w) => (
+                      <li><button type="button" class="bp-go" data-select={`word:${w.id}`}><span class="bp-go__star" aria-hidden="true">✦</span><em>{w.word}</em><span class="bp-tag">in the {p.scenery.find((s) => s.id === w.in)?.names[0] ?? w.in}</span></button></li>
+                    ))}
+                  </ul>
+                </>
+              )}
+
+              {acts.length > 0 && (
+                <>
+                  <h3 class="bp-card__h">Things to do</h3>
+                  <ul class="bp-links" role="list">
+                    {acts.map((a) => (
+                      <li><button type="button" class="bp-go" data-select={`activity:${a.id}`}><span class="bp-go__ring" aria-hidden="true"></span>{a.name}</button></li>
+                    ))}
+                  </ul>
+                </>
+              )}
+
+              {p.scenery.length > 0 && (
+                <>
+                  <h3 class="bp-card__h">Scenery <span class="bp-card__count">{p.scenery.length}</span></h3>
+                  <ul class="bp-scenery" role="list">
+                    {p.scenery.map((s) => (
+                      <li>
+                        <details>
+                          <summary>{s.names[0]}{words.some((w) => w.in === s.id) && <span class="bp-go__star" title="A lost word is hidden here">✦</span>}</summary>
+                          <p>{s.description}</p>
+                          {s.names.length > 1 && <p class="bp-aside">Also: {s.names.slice(1).join(', ')}</p>}
+                          <Fragment set:html={renderFields(s, ['id', 'names', 'description'])} />
+                        </details>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+
+              <h3 class="bp-card__h">What you see</h3>
+              <p class="bp-card__desc">{p.description}</p>
+
+              {more && <><h3 class="bp-card__h">More fields</h3><Fragment set:html={more} /></>}
+              <details class="bp-json"><summary>See the JSON</summary><pre><code set:html={json(p)} /></pre></details>
+            </article>
+          );
+        })}
+
+        {world.routes.map((r, i) => {
+          const dr = draw.routes[i];
+          const more = renderFields(r, SHOWN.route);
+          return (
+            <article class="bp-card" data-card={`route:${i}`} data-rel={`place:${r.from} place:${r.to}`} style={`--c:${colorOf(r.to)}`} hidden>
+              <header class="bp-card__head">
+                <span class="bp-card__swatch bp-card__swatch--route" aria-hidden="true"></span>
+                <div>
+                  <p class="bp-card__kicker">{r.paved ? 'A paved path' : 'A shortcut'}</p>
+                  <h2 class="bp-card__title" tabindex="-1">{titleOf(r.from)} to {inLine(r.to)}</h2>
+                </div>
+              </header>
+              <p class="bp-card__blurb">
+                {r.paved
+                  ? 'Drawn as a path in the 3D island and on the pixel map.'
+                  : 'Open ground, not drawn as a path. The text adventure lets you walk it directly.'}
+              </p>
+              <dl class="bp-fields">
+                <div class="bp-field"><dt>From</dt><dd><button type="button" class="bp-go" data-select={`place:${r.from}`} style={`--c:${colorOf(r.from)}`}><span class="bp-go__dot"></span>{titleOf(r.from)}</button></dd></div>
+                <div class="bp-field"><dt>To</dt><dd><button type="button" class="bp-go" data-select={`place:${r.to}`} style={`--c:${colorOf(r.to)}`}><span class="bp-go__dot"></span>{titleOf(r.to)}</button></dd></div>
+                <div class="bp-field"><dt>Length</dt><dd><span class="bp-num">about {Math.round(dr?.length ?? 0)} m</span>{r.paved ? ' along the curve' : ' as the crow flies'}</dd></div>
+                {r.paved && <div class="bp-field"><dt>Bend</dt><dd><span class="bp-num">{num(r.bend)}</span> <span class="bp-aside">{r.bend === 0 ? 'dead straight' : `curves ${Math.abs(r.bend) >= 0.2 ? 'a lot' : 'a little'}, as a share of its length`}</span></dd></div>}
+              </dl>
+              {more && <><h3 class="bp-card__h">More fields</h3><Fragment set:html={more} /></>}
+              <details class="bp-json"><summary>See the JSON</summary><pre><code set:html={json(r)} /></pre></details>
+            </article>
+          );
+        })}
+
+        {world.lostWords.map((w) => {
+          const p = place(w.place);
+          const where = p?.scenery.find((s) => s.id === w.in)?.names[0] ?? w.in;
+          const more = renderFields(w, SHOWN.word);
+          return (
+            <article class="bp-card" data-card={`word:${w.id}`} data-rel={`place:${w.place}`} style={`--c:${colorOf(w.place)}`} hidden>
+              <header class="bp-card__head">
+                <span class="bp-card__swatch bp-card__swatch--star" aria-hidden="true">✦</span>
+                <div>
+                  <p class="bp-card__kicker">Lost word · {w.first} to {w.died}</p>
+                  <h2 class="bp-card__title bp-card__title--word" tabindex="-1">{w.word}</h2>
+                </div>
+              </header>
+              <p class="bp-card__blurb">{w.gloss}</p>
+              <dl class="bp-fields">
+                <div class="bp-field"><dt>Hidden at</dt><dd><button type="button" class="bp-go" data-select={`place:${w.place}`} style={`--c:${colorOf(w.place)}`}><span class="bp-go__dot"></span>{titleOf(w.place)}</button> <span class="bp-aside">in the {where}</span></dd></div>
+                <div class="bp-field"><dt>Lies at</dt><dd><span class="bp-num">x {num(w.at.x)}, z {num(w.at.z)}</span></dd></div>
+                <div class="bp-field"><dt>Hint</dt><dd>{w.hint}</dd></div>
+              </dl>
+              <h3 class="bp-card__h">Its story</h3>
+              <p class="bp-card__desc">{w.story}</p>
+              {more && <><h3 class="bp-card__h">More fields</h3><Fragment set:html={more} /></>}
+              <details class="bp-json"><summary>See the JSON</summary><pre><code set:html={json(w)} /></pre></details>
+            </article>
+          );
+        })}
+
+        {world.activities.map((a) => {
+          const more = renderFields(a, SHOWN.activity);
+          return (
+            <article class="bp-card" data-card={`activity:${a.id}`} data-rel={`place:${a.place}`} style={`--c:${colorOf(a.place)}`} hidden>
+              <header class="bp-card__head">
+                <span class="bp-card__swatch bp-card__swatch--ring" aria-hidden="true"></span>
+                <div>
+                  <p class="bp-card__kicker">Activity · {humanize(a.kind)}</p>
+                  <h2 class="bp-card__title" tabindex="-1">{a.name}</h2>
+                </div>
+              </header>
+              <p class="bp-card__blurb">{a.description}</p>
+              <dl class="bp-fields">
+                <div class="bp-field"><dt>At</dt><dd><button type="button" class="bp-go" data-select={`place:${a.place}`} style={`--c:${colorOf(a.place)}`}><span class="bp-go__dot"></span>{titleOf(a.place)}</button></dd></div>
+                {a.at && <div class="bp-field"><dt>Exactly</dt><dd><span class="bp-num">x {num(a.at.x)}, z {num(a.at.z)}</span></dd></div>}
+              </dl>
+              {more && <><h3 class="bp-card__h">More fields</h3><Fragment set:html={more} /></>}
+              <details class="bp-json"><summary>See the JSON</summary><pre><code set:html={json(a)} /></pre></details>
+            </article>
+          );
+        })}
+
+        {geoCards.map((g) => (
+          <article class="bp-card" data-card={g.key} data-rel={g.rel.join(' ')} style="--c:#2b8fb8" hidden>
+            <header class="bp-card__head">
+              <span class="bp-card__swatch bp-card__swatch--geo" aria-hidden="true"></span>
+              <div>
+                <p class="bp-card__kicker">{g.kicker}</p>
+                <h2 class="bp-card__title" tabindex="-1">{g.title}</h2>
+              </div>
+            </header>
+            <p class="bp-card__blurb">{g.lede}</p>
+            <Fragment set:html={renderFields(g.data)} />
+            <details class="bp-json"><summary>See the JSON</summary><pre><code set:html={json(g.data)} /></pre></details>
+          </article>
+        ))}
+      </div>
+      <p class="visually-hidden" aria-live="polite" data-bp-live></p>
+    </section>
+
+    <section class="wrap bp-parts" aria-labelledby="bp-parts-title">
+      <h2 class="bp-h2" id="bp-parts-title">Every part of it</h2>
+      <div class="bp-tabs" role="tablist" aria-label="Parts of the world" data-tabs>
+        {TABS.map((t, i) => (
+          <button type="button" role="tab" class="bp-tab" id={`bp-tab-${t.id}`} aria-controls={`bp-pane-${t.id}`} aria-selected={i === 0 ? 'true' : 'false'} tabindex={i === 0 ? 0 : -1} data-tab={t.id}>
+            {t.label}{t.n !== null && <span class="bp-tab__n">{t.n}</span>}
+          </button>
+        ))}
+      </div>
+
+      <div class="bp-pane" role="tabpanel" id="bp-pane-places" aria-labelledby="bp-tab-places" data-pane="places" tabindex="0">
+        <p class="bp-pane__intro">Each place says what it is, where it stands and what you find there. Pick one to see it on the drawing.</p>
+        <ul class="bp-tiles" role="list">
+          {world.places.map((p) => (
+            <li><button type="button" class="bp-tile" data-select={`place:${p.id}`} style={`--c:${p.color}`}>
+              <span class="bp-tile__swatch"></span>
+              <span class="bp-tile__title">{p.title}</span>
+              <span class="bp-tile__meta">{kindLabel(p.kind)} · {p.archetype} · {p.scenery.length} things to look at</span>
+            </button></li>
+          ))}
+        </ul>
+      </div>
+
+      <div class="bp-pane" role="tabpanel" id="bp-pane-routes" aria-labelledby="bp-tab-routes" data-pane="routes" tabindex="0">
+        <p class="bp-pane__intro">Routes join two places. Paved ones become the paths you walk; the rest are shortcuts across the grass.</p>
+        <ul class="bp-rows" role="list">
+          {world.routes.map((r, i) => (
+            <li><button type="button" class="bp-row" data-select={`route:${i}`}>
+              <span class="bp-row__ends"><span class="bp-go__dot" style={`--c:${colorOf(r.from)}`}></span>{titleOf(r.from)}<span class="bp-row__arrow" aria-hidden="true">→</span><span class="visually-hidden"> to </span><span class="bp-go__dot" style={`--c:${colorOf(r.to)}`}></span>{titleOf(r.to)}</span>
+              <span class:list={['bp-tag', r.paved ? 'bp-tag--paved' : '']}>{r.paved ? 'path' : 'shortcut'}</span>
+            </button></li>
+          ))}
+        </ul>
+      </div>
+
+      <div class="bp-pane" role="tabpanel" id="bp-pane-words" aria-labelledby="bp-tab-words" data-pane="words" tabindex="0">
+        <p class="bp-pane__intro">Words English lost, each hidden in a piece of scenery. Turn a card over to see the word, or find where it lies.</p>
+        <ul class="bp-flips" role="list">
+          {world.lostWords.map((w) => {
+            const where = place(w.place)?.scenery.find((s) => s.id === w.in)?.names[0] ?? w.in;
+            return (
+              <li class="bp-flip" style={`--c:${colorOf(w.place)}`}>
+                <button type="button" class="bp-flip__btn" aria-pressed="false" data-flip>
+                  <span class="bp-flip__inner">
+                    <span class="bp-flip__face bp-flip__front" data-face="front">
+                      <span class="bp-flip__where">{titleOf(w.place)}, in the {where}</span>
+                      <span class="bp-flip__blanks" aria-label={`${[...w.word].length} letters`}>{[...w.word].map(() => <i></i>)}</span>
+                      <span class="bp-flip__hint">{w.hint}</span>
+                      <span class="bp-flip__turn">Turn over</span>
+                    </span>
+                    <span class="bp-flip__face bp-flip__back" data-face="back" aria-hidden="true">
+                      <span class="bp-flip__word">{w.word}</span>
+                      <span class="bp-flip__gloss">{w.gloss}</span>
+                      <span class="bp-flip__years">{w.first} to {w.died}</span>
+                    </span>
+                  </span>
+                </button>
+                <button type="button" class="bp-flip__map" data-select={`word:${w.id}`}>Where it lies</button>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+
+      <div class="bp-pane" role="tabpanel" id="bp-pane-activities" aria-labelledby="bp-tab-activities" data-pane="activities" tabindex="0">
+        <p class="bp-pane__intro">Things to do, each tied to a place and a spot. Every view decides for itself how to draw them.</p>
+        <ul class="bp-tiles" role="list">
+          {world.activities.map((a) => (
+            <li><button type="button" class="bp-tile" data-select={`activity:${a.id}`} style={`--c:${colorOf(a.place)}`}>
+              <span class="bp-tile__swatch bp-tile__swatch--ring"></span>
+              <span class="bp-tile__title">{a.name}</span>
+              <span class="bp-tile__meta">{humanize(a.kind)} · at {titleOf(a.place)}</span>
+              <span class="bp-tile__body">{a.description}</span>
+            </button></li>
+          ))}
+        </ul>
+      </div>
+
+      <div class="bp-pane" role="tabpanel" id="bp-pane-geography" aria-labelledby="bp-tab-geography" data-pane="geography" tabindex="0">
+        <p class="bp-pane__intro">The island's shape isn't drawn by hand. It's a recipe, and one shared bit of math turns it into ground, beaches and cliffs.</p>
+        <figure class="bp-profile">
+          <svg viewBox="0 0 200 64" preserveAspectRatio="none" aria-hidden="true"><path d={profile} pathLength="1" /></svg>
+          <figcaption>How far the coast is from the middle, all the way round: {num(Math.min(...prof))} m at its closest, {num(Math.max(...prof))} m at the tip of the headland.</figcaption>
+        </figure>
+        <ul class="bp-tiles" role="list">
+          {geoCards.map((g) => (
+            <li><button type="button" class="bp-tile" data-select={g.key} style="--c:#2b8fb8">
+              <span class="bp-tile__swatch bp-tile__swatch--geo"></span>
+              <span class="bp-tile__title">{g.title}</span>
+              <span class="bp-tile__body">{g.lede}</span>
+            </button></li>
+          ))}
+        </ul>
+        {geoExtra && <><h3 class="bp-h3">More fields</h3><Fragment set:html={geoExtra} /></>}
+      </div>
+
+      <div class="bp-pane" role="tabpanel" id="bp-pane-projects" aria-labelledby="bp-tab-projects" data-pane="projects" tabindex="0">
+        <p class="bp-pane__intro">The projects the places stand for. Each one has exactly one place on the island, or the build fails.</p>
+        <ul class="bp-projects" role="list">
+          {world.projects.map((pr) => {
+            const pl = projectPlace(pr.slug);
+            const more = renderFields(pr, SHOWN.project);
+            return (
+              <li class="bp-project" style={`--c:${pr.color}`}>
+                <p class="bp-project__name"><span class="bp-tile__swatch"></span>{pr.name}</p>
+                <p class="bp-project__headline">{pr.headline}</p>
+                <p class="bp-aside">{pr.platforms}</p>
+                {pr.tags.length > 0 && <Fragment set:html={renderValue(pr.tags)} />}
+                {more && <Fragment set:html={more} />}
+                <p class="bp-project__acts">
+                  <a class="bp-link" href={pr.href}>Its page</a>
+                  {pl && <button type="button" class="bp-go" data-select={`place:${pl.id}`}><span class="bp-go__dot"></span>{pl.title} on the drawing</button>}
+                </p>
+              </li>
+            );
+          })}
+        </ul>
+        <details class="bp-json"><summary>See the JSON</summary><pre><code set:html={json(world.projects)} /></pre></details>
+      </div>
+
+      <div class="bp-pane" role="tabpanel" id="bp-pane-posts" aria-labelledby="bp-tab-posts" data-pane="posts" tabindex="0">
+        <p class="bp-pane__intro">Posts from the blog. Fish off the pier and one of these is what bites.</p>
+        <ul class="bp-posts" role="list">
+          {world.posts.map((po) => {
+            const more = renderFields(po, SHOWN.post);
+            return (
+              <li>
+                <time datetime={po.date}>{dateOf(po.date)}</time>
+                <a class="bp-link" href={po.href}>{po.title}</a>
+                <p class="bp-aside">{po.description}</p>
+                {more && <Fragment set:html={more} />}
+              </li>
+            );
+          })}
+        </ul>
+        <details class="bp-json"><summary>See the JSON</summary><pre><code set:html={json(world.posts)} /></pre></details>
+      </div>
+
+      <div class="bp-pane" role="tabpanel" id="bp-pane-site" aria-labelledby="bp-tab-site" data-pane="site" tabindex="0">
+        <p class="bp-pane__intro">The top of the document: which version of the format it is, and the site and person it describes.</p>
+        <Fragment set:html={renderFields({ version: world.version, schema: world.$schema, site: world.site, person: world.person })} />
+      </div>
+
+      {extraTop.map((k) => (
+        <div class="bp-pane" role="tabpanel" id={`bp-pane-x-${k}`} aria-labelledby={`bp-tab-x-${k}`} data-pane={`x-${k}`} tabindex="0">
+          <p class="bp-pane__intro">A newer part of the world that this page shows as it is.</p>
+          <div set:html={renderValue(W[k])} />
+          <details class="bp-json"><summary>See the JSON</summary><pre><code set:html={json(W[k])} /></pre></details>
+        </div>
+      ))}
+    </section>
+
+    <section class="wrap bp-fits" aria-labelledby="bp-fits-title">
+      <h2 class="bp-h2" id="bp-fits-title">How it fits together</h2>
+      <p class="bp-fits__line">
+        The 3D island, the pixel map, the text adventure and the list all read this same data, and each decides for itself
+        how it looks. Move a place in the data and it moves in every view.
+      </p>
+      <ul class="bp-views" role="list">
+        {views.map((v) => <li><a class="bp-view" href={`/?view=${v.id}`}>{v.name}<span aria-hidden="true">→</span></a></li>)}
+      </ul>
+      <p class="bp-dev">
+        <a class="bp-link" href="/colophon">How the site works</a>
+        <span aria-hidden="true">·</span>
+        <a class="bp-link" href="/world.json" download="world.json">Download world.json</a>
+        <span aria-hidden="true">·</span>
+        <a class="bp-link" href="/world.schema.json" download="world.schema.json">its JSON Schema</a>
+      </p>
+    </section>
+  </main>
+
+  <SiteFooter />
+</Base>
+
+<script>
+  import { mountBlueprint } from '../components/blueprint/explorer';
+  mountBlueprint();
+</script>
+
