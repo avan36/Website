@@ -1127,8 +1127,6 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
         return { x: (v.x * 0.5 + 0.5) * viewW, y: (-v.y * 0.5 + 0.5) * viewH };
       },
       render: () => present(performance.now()),
-      _spawn: (x: number, z: number) => ripples.spawn(x, z, { from: 1, to: 3, life: 10, width: 0.3, alpha: 1 }),
-      _rip: () => [Array.from(ripples.material.uniforms.uShape.value as Float32Array).slice(0, 24), Array.from(ripples.material.uniforms.uLook.value as Float32Array).slice(0, 24)],
       tick: (seconds: number) => {
         for (let t = 0; t < seconds - 1e-6; t += 1 / 60) simulate(1 / 60, 1 / 60);
       },

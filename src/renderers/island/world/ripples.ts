@@ -184,7 +184,7 @@ export class Ripples {
       this.shape[k + 2] = r.from + (r.to - r.from) * easeOutCubic(f);
       // Lines thin out as they spread, and fade in fast and out slowly.
       this.shape[k + 3] = r.width * (1 - f * 0.5);
-      this.look[k] = r.alpha * Math.min(1, f * 10) * (1 - f) * (1 - f);
+      this.look[k] = r.alpha * Math.min(1, f * 10) * (1 - f) * Math.sqrt(1 - f);
       this.look[k + 1] = r.y;
       this.look[k + 2] = r.wave;
     }

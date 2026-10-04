@@ -49,10 +49,10 @@ const CLIFF = 1.0;
 
 // In the sea
 /** Afloat, the feet hang this far under the surface: head and shoulders stay out. */
-const SINK = 0.68;
+const SINK = 0.8;
 /** Start swimming in water deeper than this, and wade again once it's shallower than that. */
-const SWIM_IN = 0.66;
-const SWIM_OUT = 0.52;
+const SWIM_IN = 0.78;
+const SWIM_OUT = 0.62;
 /** How fast you go wading and swimming, as a share of walking. */
 const WADE_PACE = 0.75;
 const SWIM_PACE = 0.6;
@@ -799,7 +799,7 @@ export class Explorer {
     const pull = 0.4 + 0.6 * this.strokeAmt;
     this.bodyG.position.y = 0.12 + bob * (1 - sw) + Math.sin(st * 2) * 0.025 * sw;
     // Afloat you lean into the water, rocking a little with each stroke.
-    this.bodyG.rotation.x = lerp(0.14 * this.walkAmt + Math.sin(this.phase * 2) * 0.03 * this.walkAmt, 0.36 + Math.sin(st * 2) * 0.05 * pull, sw);
+    this.bodyG.rotation.x = lerp(0.14 * this.walkAmt + Math.sin(this.phase * 2) * 0.03 * this.walkAmt, 0.16 + 0.08 * this.strokeAmt + Math.sin(st * 2) * 0.05 * pull, sw);
     this.bodyG.rotation.z = lerp(Math.sin(this.phase) * 0.06 * this.walkAmt, Math.sin(st) * 0.07 * pull, sw);
 
     // The double jump's somersault (and a tuck while it turns)
