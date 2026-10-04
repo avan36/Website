@@ -53,7 +53,7 @@ function lum([r, g, b]: number[]) {
 }
 const mix = (rgb: number[], k: number) => rgb.map((c) => Math.round(c * k));
 const css = (rgb: number[]) => `rgb(${rgb.join(' ')})`;
-function accentVars(hex: string) {
+export function accentVars(hex: string) {
   const rgb = hexToRgb(hex);
   const dark = mix(rgb, 0.78);
   const whiteOnDark = 1.05 / (lum(dark) + 0.05);

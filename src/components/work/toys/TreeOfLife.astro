@@ -108,8 +108,21 @@ import Replay from '../Replay.astro';
       const line = cssVar(root, '--line-strong');
       const accent = cssVar(root, '--p') || '#4caf6a';
       const small = w < 520;
+      const family = getComputedStyle(root).fontFamily;
+      const tipFont = (you?: boolean) => `${you ? 750 : 650} ${small ? 12 : 15}px ${family}`;
+      // Past this |cos| a tip's label hangs to the side instead of centering
+      // over it; narrow fans switch sooner so Plants and Fungi don't collide.
+      const side = small ? 0.15 : 0.3;
       const cx = w / 2, cy = h - (small ? 36 : 44);
-      const R = Math.min(w / 2 - (small ? 62 : 96), cy - (small ? 34 : 44));
+      let R = Math.min(w / 2 - (small ? 62 : 96), cy - (small ? 34 : 44));
+      // Shrink the fan until every tip label clears the edges (Bacteria is the tight one on phones).
+      for (const p of nodes) {
+        if (!p.n.tip || !p.n.label) continue;
+        ctx.font = tipFont(p.n.you);
+        const c = Math.abs(Math.cos(p.a));
+        const tw = ctx.measureText(p.n.label).width;
+        if (c > 0.01) R = Math.min(R, (w / 2 - 10 - (c > side ? tw : tw / 2)) / c - 14);
+      }
       const pt = (r: number, a: number): [number, number] => [cx + Math.cos(a) * r * R, cy + Math.sin(a) * r * R];
 
       // Time rings and the baseline.
@@ -127,13 +140,18 @@ import Replay from '../Replay.astro';
       ctx.lineTo(cx + R + 12, cy);
       ctx.stroke();
 
-      ctx.font = `600 ${small ? 11 : 12}px ${getComputedStyle(root).fontFamily}`;
+      ctx.font = `600 ${small ? 11 : 12}px ${family}`;
       ctx.fillStyle = ink3;
       ctx.textBaseline = 'top';
-      ctx.textAlign = 'center';
-      ctx.fillText('4 billion years ago', cx, cy + 10);
       ctx.textAlign = 'right';
       ctx.fillText('Today', cx + R + 12, cy + 10);
+      ctx.textAlign = 'center';
+      // On a small fan the caption would run into "Today": break it in two.
+      const ago = '4 billion years ago';
+      if (cx + ctx.measureText(ago).width / 2 + 8 > cx + R + 12 - ctx.measureText('Today').width) {
+        ctx.fillText('4 billion', cx, cy + 10);
+        ctx.fillText('years ago', cx, cy + (small ? 23 : 25));
+      } else ctx.fillText(ago, cx, cy + 10);
 
       // Branches.
       ctx.lineCap = 'round';
@@ -185,10 +203,10 @@ import Replay from '../Replay.astro';
         if (p.n.tip) {
           const lx = cx + Math.cos(p.a) * (R + 14), ly = cy + Math.sin(p.a) * (R + 14);
           const c = Math.cos(p.a);
-          ctx.textAlign = c < -0.3 ? 'right' : c > 0.3 ? 'left' : 'center';
+          ctx.textAlign = c < -side ? 'right' : c > side ? 'left' : 'center';
           ctx.textBaseline = Math.sin(p.a) < -0.85 ? 'bottom' : 'middle';
           ctx.fillStyle = p.n.you ? accent : ink2;
-          ctx.font = `${p.n.you ? 750 : 650} ${small ? 13 : 15}px ${getComputedStyle(root).fontFamily}`;
+          ctx.font = tipFont(p.n.you);
           ctx.fillText(p.n.label, lx, ly);
         } else {
           ctx.textAlign = 'right';

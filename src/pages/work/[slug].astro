@@ -140,6 +140,9 @@ const isExternal = (href: string) => /^https?:/.test(href);
 </Base>
 
 <style>
+  /* Toys can fling things past the screen edge (the quiz's confetti): never let
+     that make the page scroll sideways. clip, not hidden, so .facts stays sticky. */
+  .project { overflow-x: clip; }
   .project__toy { margin-top: var(--space-2); }
 
   /* ---------- About ---------- */

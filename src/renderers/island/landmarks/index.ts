@@ -2,7 +2,7 @@
 // island, the intro pop, hover wobble, arrival bounce and a pointer hit volume.
 
 import { CylinderGeometry, Group, Mesh, MeshBasicMaterial, Object3D, Vector3 } from 'three';
-import { BUILDERS, type Built } from './builders';
+import { BUILDERS, type Built, type Glow } from './builders';
 import type { Puffs } from '../world/particles';
 import { groundAt, heightAt, PIER, type Place } from '../world/shape';
 import { Spring } from '../util/math';
@@ -94,6 +94,21 @@ export class Landmark {
   arrive() {
     this.bounce(1);
     return this.built.onNear?.();
+  }
+
+  /** Night falling, 0 (day) to 1 (night). */
+  night(n: number) {
+    this.built.night?.(n);
+  }
+
+  /** Where this landmark's lamps and windows glow at night, in world space. */
+  glows() {
+    const { x, y, z } = this.root.position;
+    const c = Math.cos(this.root.rotation.y);
+    const s = Math.sin(this.root.rotation.y);
+    const toWorld = ([lx, ly, lz, size]: Glow): Glow => [x + lx * c + lz * s, y + ly, z - lx * s + lz * c, size];
+    const g = this.built.glows;
+    return { halos: g?.halos.map(toWorld) ?? [], pools: g?.pools.map(toWorld) ?? [] };
   }
 
   /** World position of the landmark's visual center (for camera swoops). */

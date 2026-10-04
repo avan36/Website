@@ -5,11 +5,28 @@ import type { Project } from '../../data/projects';
 interface Props { next: Project; stop: number; total: number }
 const { next, stop, total } = Astro.props;
 const pad = (n: number) => String(n).padStart(2, '0');
+
+// The stub's white type needs AA (4.5:1) against the stub, gloss included.
+// Deepen the stop's color toward ink only as far as that takes: blue and
+// purple barely move, orange becomes amber.
+const GLOSS = 0.14;
+const rgb = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+const mix = (a: number[], b: number[], t: number) => a.map((v, i) => Math.round(v + (b[i] - v) * t));
+const lum = (c: number[]) => {
+  const [r, g, b] = c.map((v) => {
+    const s = v / 255;
+    return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+};
+const onWhite = (c: number[]) => 1.05 / (lum(mix(c, [255, 255, 255], GLOSS)) + 0.05);
+let deep = rgb(next.hex);
+for (let t = 0.02; onWhite(deep) < 4.6 && t <= 0.6; t += 0.02) deep = mix(rgb(next.hex), [29, 26, 22], t);
 ---
 <section class="next" aria-labelledby="next-title">
   <div class="wrap">
     <div class="ticket-wrap">
-      <a class="ticket" href={`/work/${next.slug}`} data-next data-slug={next.slug} data-color={next.hex} style={`--n:${next.color}`}>
+      <a class="ticket" href={`/work/${next.slug}`} data-next data-slug={next.slug} data-color={next.hex} style={`--n:${next.color};--n-deep:rgb(${deep.join(' ')});--gloss:${GLOSS}`}>
         <span class="ticket__main">
           <span class="ticket__kicker" id="next-title">Next stop</span>
           <span class="ticket__name">{next.name}</span>
@@ -84,7 +101,7 @@ const pad = (n: number) => String(n).padStart(2, '0');
     display: inline-flex; align-items: center; gap: 6px;
     margin-top: var(--space-3);
     font-size: var(--step--1); font-weight: 650;
-    color: color-mix(in oklab, var(--n) 70%, var(--ink));
+    color: color-mix(in oklab, var(--n) 62%, var(--ink));
   }
   .ticket__place svg { color: var(--n); }
 
@@ -96,8 +113,8 @@ const pad = (n: number) => String(n).padStart(2, '0');
     gap: var(--space-1);
     padding: var(--space-5) var(--space-3);
     background:
-      radial-gradient(circle at 30% 20%, color-mix(in oklab, var(--n) 60%, #fff) 0, transparent 60%),
-      var(--n);
+      radial-gradient(circle at 30% 20%, rgb(255 255 255 / var(--gloss)) 0, transparent 60%),
+      var(--n-deep);
     color: #fff;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
   }
@@ -108,7 +125,7 @@ const pad = (n: number) => String(n).padStart(2, '0');
     left: -1px; top: calc(var(--notch) + 6px); bottom: calc(var(--notch) + 6px);
     border-left: 2px dashed color-mix(in oklab, var(--n) 40%, var(--bg-raised));
   }
-  .ticket__stop { font-size: 12px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; opacity: 0.9; }
+  .ticket__stop { font-size: 12px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; }
   .ticket__num {
     font-family: var(--font-display);
     font-size: clamp(1.9rem, 1.2rem + 2.2vw, 3rem);
@@ -117,7 +134,7 @@ const pad = (n: number) => String(n).padStart(2, '0');
     line-height: 1;
     font-variant-numeric: tabular-nums;
   }
-  .ticket__num small { font-size: 0.42em; letter-spacing: 0; opacity: 0.85; margin-left: 2px; }
+  .ticket__num small { font-size: 0.42em; letter-spacing: 0; margin-left: 2px; }
   .ticket__go {
     display: grid; place-items: center;
     width: 44px; height: 44px;
@@ -142,10 +159,28 @@ const pad = (n: number) => String(n).padStart(2, '0');
   import { reducedMotion } from './lib';
 
   let veil: HTMLDivElement | null = null;
+  let leaving = 0;
+
+  // Back to how the page was: no veil, and no wipe waiting for a page we never reached.
+  function takeDown() {
+    clearTimeout(leaving);
+    veil?.remove();
+    veil = null;
+    try {
+      sessionStorage.removeItem('island:wipe');
+    } catch {
+      /* storage blocked: nothing was stored */
+    }
+  }
 
   document.querySelectorAll<HTMLAnchorElement>('a[data-next]').forEach((a) => {
     a.addEventListener('click', (e) => {
       if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      // A wipe is already under way: let it finish rather than start another.
+      if (veil) {
+        e.preventDefault();
+        return;
+      }
       const color = a.dataset.color || '#000';
       try {
         sessionStorage.setItem('island:wipe', JSON.stringify({ slug: a.dataset.slug, color }));
@@ -163,7 +198,6 @@ const pad = (n: number) => String(n).padStart(2, '0');
         y = r.top + r.height / 2;
       }
       const R = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y)) + 4;
-      veil?.remove();
       veil = document.createElement('div');
       veil.setAttribute('aria-hidden', 'true');
       Object.assign(veil.style, { position: 'fixed', inset: '0', zIndex: '2147483000', background: color, pointerEvents: 'none' });
@@ -172,13 +206,21 @@ const pad = (n: number) => String(n).padStart(2, '0');
         [{ clipPath: `circle(0px at ${x}px ${y}px)` }, { clipPath: `circle(${R}px at ${x}px ${y}px)` }],
         { duration: 620, easing: 'cubic-bezier(.65,0,.35,1)', fill: 'forwards' },
       );
-      anim.onfinish = () => { window.location.href = a.href; };
+      anim.onfinish = () => {
+        window.location.href = a.href;
+        // If that navigation is cancelled (a back swipe while the next page
+        // loads, Escape, a dropped connection) nothing else fires, and the
+        // veil would cover the page for good. pagehide clears this if we leave.
+        leaving = window.setTimeout(takeDown, 2500);
+      };
     });
   });
 
+  // The page really is going: keep the veil up for the hand-off.
+  window.addEventListener('pagehide', () => clearTimeout(leaving));
   // Coming back via the back button restores this page from the bfcache with
   // the veil still up. Take it down.
   window.addEventListener('pageshow', (e) => {
-    if (e.persisted && veil) { veil.remove(); veil = null; }
+    if (e.persisted) takeDown();
   });
 </script>

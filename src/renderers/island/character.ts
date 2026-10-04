@@ -1,6 +1,7 @@
 // The explorer: a round little marshmallow with an orange scarf, a backpack
 // and a sprout. Owns its own movement (with circle collisions and staying on
 // land) and all the juice: hop, squash and stretch, dust, blinks, glances.
+// Off the pier it can hold out a little bamboo fishing rod.
 
 import {
   CanvasTexture,
@@ -12,11 +13,12 @@ import {
   SphereGeometry,
   TorusGeometry,
   CylinderGeometry,
+  Object3D,
   Vector2,
   Vector3,
 } from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
-import { clamp, damp, dampAngle, Spring } from './util/math';
+import { clamp, damp, dampAngle, easeOutBack, lerp, Spring } from './util/math';
 import type { Puffs } from './world/particles';
 import type { Collider } from './world/nature';
 import { groundAt, isWalkable } from './world/shape';
@@ -47,6 +49,13 @@ export class Explorer {
   private sprout = new Group();
   private shadow: Mesh;
   private mats: (MeshStandardMaterial | MeshBasicMaterial)[] = [];
+  private rod = new Group();
+  private rodTipAt = new Object3D();
+  private rodAmt = 0;
+  /** Hold the fishing rod out (1) or put it away (0). */
+  rodOut = 0;
+  /** The rod's elevation in radians: raised to wind up a cast, dipped when something bites. */
+  rodPitch = 0.6;
 
   private phase = 0;
   private walkAmt = 0;
@@ -157,6 +166,28 @@ export class Explorer {
     this.armL = mkArm(-1);
     this.armR = mkArm(1);
 
+    // A bamboo rod in the right hand, hidden until there's fishing to do.
+    const bamboo = this.mat(new MeshStandardMaterial({ color: '#d9b26a', roughness: 0.6 }));
+    const wrap = this.mat(new MeshStandardMaterial({ color: '#5b3a24', roughness: 0.7 }));
+    const reel = this.mat(new MeshStandardMaterial({ color: '#2b8fb8', roughness: 0.5 }));
+    const blank = new Mesh(new CylinderGeometry(0.008, 0.02, 1.15, 6), bamboo);
+    blank.position.y = 0.5;
+    const grip = new Mesh(new CylinderGeometry(0.03, 0.032, 0.24, 8), wrap);
+    grip.position.y = -0.04;
+    const spool = new Mesh(new CylinderGeometry(0.045, 0.045, 0.04, 10), reel);
+    spool.rotation.z = Math.PI / 2;
+    spool.position.set(0.04, 0.06, 0);
+    for (const y of [0.32, 0.62, 0.9]) {
+      const band = new Mesh(new CylinderGeometry(0.018 - y * 0.008, 0.018 - y * 0.008, 0.025, 6), wrap);
+      band.position.y = y;
+      this.rod.add(band);
+    }
+    this.rodTipAt.position.y = 1.07;
+    this.rod.add(blank, grip, spool, this.rodTipAt);
+    this.rod.position.set(0.0, -0.13, 0.05);
+    this.rod.visible = false;
+    this.armR.add(this.rod);
+
     // Feet
     const mkFoot = (s: number) => {
       const f = new Mesh(new SphereGeometry(0.12, 14, 10), boot);
@@ -215,6 +246,17 @@ export class Explorer {
 
   faceToward(x: number, z: number) {
     this.yawTarget = Math.atan2(x - this.pos.x, z - this.pos.z);
+  }
+
+  /** A little squash, e.g. a sigh when a fish gets away. */
+  squish(v = 4) {
+    this.land.kick(-v);
+  }
+
+  /** World position of the rod's tip, where the line hangs from. */
+  rodTip(out: Vector3) {
+    this.root.updateMatrixWorld(true);
+    return this.rodTipAt.getWorldPosition(out);
   }
   private yawTarget: number | null = null;
 
@@ -334,6 +376,16 @@ export class Explorer {
     this.armR.rotation.x = -Math.sin(this.phase) * 0.9 * this.walkAmt;
     this.armL.rotation.z = -0.15 - (this.grounded ? 0 : 0.8);
     this.armR.rotation.z = 0.15 + (this.grounded ? 0 : 0.8);
+    // Holding the rod: the right arm comes up and forward, the rod at its pitch.
+    this.rodAmt = damp(this.rodAmt, this.rodOut, 9, dt);
+    this.rod.visible = this.rodAmt > 0.01;
+    if (this.rod.visible) {
+      const k = this.rodAmt;
+      this.armR.rotation.x = lerp(this.armR.rotation.x, -0.95, k);
+      this.armR.rotation.z = lerp(this.armR.rotation.z, 0.32, k);
+      this.rod.rotation.x = Math.PI / 2 - this.rodPitch - this.armR.rotation.x;
+      this.rod.scale.setScalar(Math.max(0.001, easeOutBack(clamp(k * 1.15))));
+    }
     this.footL.position.z = 0.04 + Math.sin(this.phase) * 0.17 * this.walkAmt;
     this.footR.position.z = 0.04 - Math.sin(this.phase) * 0.17 * this.walkAmt;
     this.footL.position.y = 0.06 + Math.max(0, Math.cos(this.phase)) * 0.09 * this.walkAmt;

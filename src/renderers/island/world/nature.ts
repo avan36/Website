@@ -17,7 +17,7 @@ import {
   type WebGLProgramParametersWithUniforms,
 } from 'three';
 import { Kit } from './kit';
-import { heightAt, isOpenGround, rockiness, PLAZA, PLACES } from './shape';
+import { ACTIVITIES, heightAt, isOpenGround, rockiness, PLAZA, PLACES, WORDS } from './shape';
 import { rng } from '../util/math';
 
 export interface SharedUniforms {
@@ -60,7 +60,7 @@ export function swayPatch(uniforms: SharedUniforms, sway: number, speed = 1.3) {
   };
 }
 
-function swayMaterials(uniforms: SharedUniforms, sway: number, speed?: number, opts: { flat?: boolean } = {}) {
+export function swayMaterials(uniforms: SharedUniforms, sway: number, speed?: number, opts: { flat?: boolean } = {}) {
   const mat = new MeshStandardMaterial({ vertexColors: true, flatShading: opts.flat ?? true, roughness: 0.9, metalness: 0 });
   mat.onBeforeCompile = swayPatch(uniforms, sway, speed);
   mat.customProgramCacheKey = () => `sway-${sway}-${speed}`;
@@ -154,7 +154,7 @@ function rockGeometry(seed: number) {
   return k.geometry();
 }
 
-function tuftGeometry() {
+export function tuftGeometry() {
   const k = new Kit(41);
   const blades = 5;
   for (let i = 0; i < blades; i++) {
@@ -247,7 +247,7 @@ export function buildNature(uniforms: SharedUniforms, lite = false) {
     (Math.abs(x) < 6 && z > 0 && z < 16) ||
     Math.hypot(x - PLACES.find((p) => p.kind === 'tree')!.x, z - PLACES.find((p) => p.kind === 'tree')!.z) < 8.5;
 
-  const palms = scatter(
+  let palms = scatter(
     17,
     rand,
     (x, z, h) => h > 0.42 && h < 1.05 && rockiness(x, z) < 0.25 && isOpenGround(x, z, 0.6) && !(z > 10 && Math.abs(x - 2) < 7),
@@ -256,7 +256,7 @@ export function buildNature(uniforms: SharedUniforms, lite = false) {
     [0.85, 1.15],
   );
   all.push(...palms);
-  const trees = scatter(
+  let trees = scatter(
     16,
     rand,
     (x, z, h) => h > 1.0 && rockiness(x, z) < 0.3 && isOpenGround(x, z, 1.4) && !nearPlaza(x, z) && !blocksView(x, z),
@@ -264,10 +264,10 @@ export function buildNature(uniforms: SharedUniforms, lite = false) {
     all,
   );
   all.push(...trees);
-  const pines = scatter(9, rand, (x, z, h) => h > 1.0 && z < -2 && rockiness(x, z) < 0.5 && isOpenGround(x, z, 1.2) && !blocksView(x, z), 3, all, [0.9, 1.3]);
+  let pines = scatter(9, rand, (x, z, h) => h > 1.0 && z < -2 && rockiness(x, z) < 0.5 && isOpenGround(x, z, 1.2) && !blocksView(x, z), 3, all, [0.9, 1.3]);
   all.push(...pines);
-  const bushes = scatter(30, rand, (x, z, h) => h > 0.75 && isOpenGround(x, z, 0.4) && !nearPlaza(x, z), 1.8, all, [0.7, 1.3]);
-  const rocks = scatter(
+  let bushes = scatter(30, rand, (x, z, h) => h > 0.75 && isOpenGround(x, z, 0.4) && !nearPlaza(x, z), 1.8, all, [0.7, 1.3]);
+  let rocks = scatter(
     34,
     rand,
     (x, z, h) => (h > 0.0 && h < 0.5 && isOpenGround(x, z, 0)) || (rockiness(x, z) > 0.5 && h > 0.2 && isOpenGround(x, z, -0.6)),
@@ -275,8 +275,27 @@ export function buildNature(uniforms: SharedUniforms, lite = false) {
     all,
     [0.6, 1.5],
   );
-  const tufts = scatter(lite ? 120 : 230, rand, (x, z, h) => h > 0.7 && isOpenGround(x, z, -0.7), 0.6, [], [0.8, 1.4]);
-  const flowers = scatter(lite ? 80 : 120, rand, (x, z, h) => h > 0.85 && isOpenGround(x, z, -0.5) && rockiness(x, z) < 0.3, 0.45, [], [0.8, 1.25]);
+  let tufts = scatter(lite ? 120 : 230, rand, (x, z, h) => h > 0.7 && isOpenGround(x, z, -0.7), 0.6, [], [0.8, 1.4]);
+  let flowers = scatter(lite ? 80 : 120, rand, (x, z, h) => h > 0.85 && isOpenGround(x, z, -0.5) && rockiness(x, z) < 0.3, 0.45, [], [0.8, 1.25]);
+
+  // Nothing may bury a lost word or the fishing spot, or stand just south of
+  // one where it would hide it from the camera. Filtered after scattering, so
+  // the rest of the island keeps exactly the layout it always had.
+  const spots = [...WORDS, ...ACTIVITIES];
+  const clear = (r: number, reach = 0, half = 0) => (s: Spot) =>
+    spots.every((k) => {
+      const dx = s.x - k.x;
+      const dz = s.z - k.z;
+      return dx * dx + dz * dz > r * r && !(dz > 0 && dz < reach && Math.abs(dx) < half);
+    });
+  const keep = <T extends Spot>(list: T[], r: number, reach?: number, half?: number) => list.filter(clear(r, reach, half));
+  palms = keep(palms, 2.6, 9.5, 3.2);
+  trees = keep(trees, 2.2, 6, 2.2);
+  pines = keep(pines, 2, 5, 1.8);
+  bushes = keep(bushes, 1.5, 1.6, 1);
+  rocks = keep(rocks, 1.2, 1, 0.8);
+  tufts = keep(tufts, 0.5);
+  flowers = keep(flowers, 0.45);
 
   const palmM = swayMaterials(uniforms, 0.0045, 1.1);
   const treeM = swayMaterials(uniforms, 0.006, 1.3);

@@ -1,6 +1,7 @@
 // The island game: scene, camera rig, input, the intro, entering a place and
-// the return reveal. Loaded with a dynamic import() only when WebGL is
-// available and the visitor is playing.
+// the return reveal, plus what there is to do: finding the lost words, fishing
+// off the pier, and the night that falls once every word is found. Loaded with
+// a dynamic import() only when WebGL is available and the visitor is playing.
 
 import {
   ACESFilmicToneMapping,
@@ -24,13 +25,18 @@ import {
 } from 'three';
 import { Explorer } from './character';
 import { Landmark } from './landmarks';
-import { Labels } from './labels';
-import type { SoundName } from '../types';
+import { Labels, type Rect } from './labels';
+import type { RendererContext, SoundName } from '../types';
+import type { WorldStore } from '../../world/store';
+import { Fishing, FISH_RANGE, type FishPhase } from './play/fishing';
+import { Prompt, type PromptText } from './play/prompt';
+import { LostWords } from './play/words';
 import { buildAmbient } from './world/ambient';
 import { resetSharedMaterials } from './world/kit';
 import { buildNature, type Collider, type SharedUniforms } from './world/nature';
+import { buildNight } from './world/night';
 import { Puffs } from './world/particles';
-import { groundAt, isWalkable, PLACES, SPAWN } from './world/shape';
+import { ACTIVITIES, groundAt, HUB, isWalkable, PLACES, PLAZA, SPAWN, WORDS } from './world/shape';
 import { buildHeightTexture, buildTerrain } from './world/terrain';
 import { buildSky, HORIZON } from './world/sky';
 import { buildWater } from './world/water';
@@ -48,6 +54,9 @@ export interface GameOptions {
   reducedMotion: boolean;
   touch: boolean;
   sound: { play(name: SoundName): void };
+  /** Progress and presence, shared with every other view. */
+  store: WorldStore;
+  ui: Pick<RendererContext['ui'], 'announce' | 'toast' | 'showWord' | 'showCatch'>;
   onReady: () => void;
   onFirstMove: () => void;
   onIntroDone: () => void;
@@ -59,7 +68,22 @@ export interface GameHandle {
   resume(): void;
   destroy(): void;
   /** For tests and debugging. */
-  debug: { state: () => string; player: () => { x: number; z: number }; near: () => string | null; frames: () => number; places: () => { id: string; x: number; z: number; stand: { x: number; z: number } }[]; teleport: (x: number, z: number) => void; screen: (id: string) => { x: number; y: number } | null };
+  debug: {
+    state: () => string;
+    player: () => { x: number; z: number };
+    near: () => string | null;
+    frames: () => number;
+    places: () => { id: string; x: number; z: number; stand: { x: number; z: number } }[];
+    teleport: (x: number, z: number) => void;
+    screen: (id: string) => { x: number; y: number } | null;
+    /** Every lost word: where it lies, whether it's showing, and where it is on screen. */
+    words: () => { id: string; x: number; z: number; shown: boolean; screen: { x: number; y: number } }[];
+    /** Fishing: the phase, and a press of the fishing key. */
+    fishing: () => FishPhase | null;
+    fish: () => void;
+    /** How far night has fallen, 0..1. */
+    night: () => number;
+  };
 }
 
 type State = 'intro' | 'play' | 'entering';
@@ -109,7 +133,8 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
   sun.shadow.intensity = 0.85;
   scene.add(sun, sun.target);
 
-  scene.add(buildSky(sunDir));
+  const sky = buildSky(sunDir);
+  scene.add(sky);
 
   const uniforms: SharedUniforms = { uTime: { value: 0 }, uGrow: { value: 1 } };
   const island = new Group();
@@ -140,6 +165,64 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
   scene.add(player.root, player.shadowMesh);
   player.onStep = () => o.sound.play('step');
   player.onLand = (impact) => impact > 0.5 && o.sound.play('land');
+
+  // ---------- Things to do ----------
+  const { store } = o;
+  const words = new LostWords(WORDS, uniforms, { reducedMotion: o.reducedMotion, touch, mobile });
+  island.add(words.group);
+  words.sync(store.has);
+  words.onSound = (name) => o.sound.play(name);
+  words.onFound = (id) => store.dispatch({ type: 'find', id });
+  words.onReveal = (id) => o.ui.showWord(id);
+
+  const fishSpot = ACTIVITIES.find((a) => a.kind === 'fishing');
+  const fishing = fishSpot ? new Fishing(fishSpot, player, puffs, { reducedMotion: o.reducedMotion }) : null;
+  const fishAnchor = fishSpot ? new Vector3(fishSpot.x, groundAt(fishSpot.x, fishSpot.z) + 2.2, fishSpot.z) : null;
+  const fishColor = PLACES.find((p) => p.id === fishSpot?.place)?.color ?? '#2b8fb8';
+  const prompt = fishSpot ? new Prompt(o.labelsHost, { name: 'Fishing spot', color: fishColor, key: 'E', onPress: () => fishAction() }) : null;
+  // What the prompt says at each step of a cast.
+  const kicker = fishSpot?.name ?? '';
+  const say = {
+    ready: { kicker, blurb: fishSpot?.description ?? '', action: 'Cast a line' },
+    soon: { kicker, blurb: 'Too soon! Wait for the float to go under, then reel in.', action: 'Cast a line' },
+    wait: { kicker, blurb: 'Watch the float. When it goes under, reel in.', action: 'Reel in', muted: true },
+    bite: { kicker, blurb: "Something's biting!", action: 'Reel in!', urgent: true },
+    caught: { kicker, blurb: 'Got one!', action: 'Reel in', muted: true },
+    away: { kicker, blurb: 'It got away.', action: 'Cast a line', muted: true },
+  } satisfies Record<string, PromptText>;
+  const promptText = (phase: FishPhase, tooSoon: boolean): PromptText => {
+    if (phase === 'ready') return tooSoon ? say.soon : say.ready;
+    if (phase === 'bite') return say.bite;
+    if (phase === 'catch') return say.caught;
+    if (phase === 'miss') return say.away;
+    if (phase === 'reel') return tooSoon ? say.soon : say.wait;
+    return say.wait;
+  };
+  if (fishing) {
+    scene.add(fishing.group);
+    fishing.onSound = (name) => o.sound.play(name);
+    fishing.onBite = () => o.ui.announce(touch ? 'Something is biting! Tap to reel in.' : 'Something is biting! Press E to reel in.');
+    fishing.onCatch = () => {
+      const r = store.fish();
+      if (r) o.ui.showCatch(r.post.slug, r.fresh);
+    };
+    fishing.onMiss = () => o.ui.toast({ title: 'It got away', body: 'Cast again?', color: fishColor });
+  }
+
+  const night = buildNight({ scene, hemi, sun, sky, water: water.material, ambient, landmarks, mobile });
+  scene.add(night.group);
+  let nightWant = store.state.progress.night;
+  /** Night waits for the last word's card to close, so you see it fall. */
+  let nightHold = false;
+  night.set(nightWant, true);
+  const dialog = document.getElementById('w-dialog') as HTMLDialogElement | null;
+  const unsubscribe = store.subscribe((_, events) => {
+    words.sync(store.has);
+    for (const e of events) {
+      if (e.type === 'hoard-complete') nightHold = true;
+      if (e.type === 'night') nightWant = e.on;
+    }
+  });
 
   // Click marker
   const marker = new Mesh(
@@ -178,6 +261,7 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     // Portrait looks down more steeply so the narrow view still spans the island.
     baseDist = aspect < 0.8 ? 47 : aspect < 1.2 ? 48 : 47;
     basePitch = aspect < 0.8 ? 0.86 : aspect < 1.2 ? 0.74 : 0.68;
+    night.resize(viewH * renderer.getPixelRatio(), camera.fov);
   };
   resize();
   const ro = new ResizeObserver(resize);
@@ -231,18 +315,31 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
   let movedOnce = false;
   let time = 0;
   const keys = new Set<string>();
+  /** Walking to the fishing spot to cast from it. */
+  let pendingCast = false;
+  /** The fishing prompt is up. */
+  let fishOpen = false;
 
   const returning = o.returnTo ? byId.get(o.returnTo) ?? null : null;
+  // Switched here from another view: stand where you were standing there.
+  const saved = store.state.presence.pos;
+  const resume = !returning && saved && isWalkable(saved.x, saved.z) ? saved : null;
 
   // ---------- Start pose ----------
-  if (returning || o.reducedMotion) {
+  if (returning || resume || o.reducedMotion) {
     state = 'play';
     const p = returning?.place;
     if (p) player.place(p.stand.x, p.stand.z, Math.atan2(p.x - p.stand.x, p.z - p.stand.z) + Math.PI);
+    else if (resume) player.place(resume.x, resume.z, 0, o.reducedMotion ? 0 : 2.4);
     else player.place(SPAWN.x, SPAWN.z, 0);
     rig.target.set(player.pos.x, player.pos.y + 0.8, player.pos.z);
     rig.dist = baseDist;
     rig.pitch = basePitch;
+    if (resume && !o.reducedMotion) {
+      // A short settle instead of the long swoop: start a little high and drift down.
+      rig.dist = baseDist * 1.3;
+      rig.pitch = basePitch + 0.12;
+    }
     if (p) {
       dismissedId = p.id; // don't pop the prompt the moment you come back out
     }
@@ -267,10 +364,13 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     const r = canvas.getBoundingClientRect();
     ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
   };
-  const pickLandmark = (): string | null => {
+  /** What's under the pointer: a lost word (favoured, it's small) or a landmark. */
+  const pickTarget = (): { word: string } | { place: string } | null => {
     raycaster.setFromCamera(ndc, camera);
     const hits = raycaster.intersectObjects(hitMeshes, false);
-    return hits.length ? (hits[0].object.userData.place as string) : null;
+    const w = words.raycast(raycaster);
+    if (w && (!hits.length || w.distance < hits[0].distance + 3)) return { word: w.id };
+    return hits.length ? { place: hits[0].object.userData.place as string } : null;
   };
   const tmpV = new Vector3();
   const pickGround = (): Vector2 | null => {
@@ -322,12 +422,30 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     if (state === 'intro') return skipIntro();
     if (state !== 'play') return;
     setNdc(e);
-    const id = pickLandmark();
-    press = { id, x: e.clientX, y: e.clientY, ground: !id, pointerId: e.pointerId };
-    if (!id) {
+    // Something's biting: a tap anywhere reels it in.
+    if (fishing?.phase === 'bite') {
+      fishAction();
+      return;
+    }
+    const target = pickTarget();
+    const id = target && 'place' in target ? target.place : null;
+    press = { id, x: e.clientX, y: e.clientY, ground: !target, pointerId: e.pointerId };
+    if (target && 'word' in target) {
+      // Tap a scroll: walk over and pick it up.
+      const w = words.spot(target.word)!;
+      const p = toShore(new Vector2(w.x, w.z));
+      if (p) {
+        stopFishing();
+        walkTarget = p;
+        pendingEnter = null;
+        showMarker(p);
+        firstMove();
+      }
+    } else if (!id) {
       const g = pickGround();
       const p = g && toShore(g);
       if (p) {
+        stopFishing();
         walkTarget = p;
         pendingEnter = null;
         showMarker(p);
@@ -373,6 +491,8 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
   const isTyping = (el: Element | null) => !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || (el as HTMLElement).isContentEditable);
   const onKeyDown = (e: KeyboardEvent) => {
     if (e.metaKey || e.ctrlKey || e.altKey || isTyping(document.activeElement)) return;
+    // A card is up: the island waits until it's closed.
+    if (dialog?.open) return keys.clear();
     if (state === 'intro') {
       if (e.code !== 'Tab') skipIntro();
       if (MOVE_KEYS[e.code]) e.preventDefault();
@@ -383,11 +503,22 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
       keys.add(e.code);
       walkTarget = null;
       pendingEnter = null;
+      stopFishing();
       firstMove();
       return;
     }
     const active = document.activeElement as HTMLElement | null;
     const onControl = !!active && active !== document.body && active !== canvas && (active.tagName === 'A' || active.tagName === 'BUTTON');
+    // Fishing: E or F casts and reels in; so does space once the line is out.
+    if ((e.code === 'KeyE' || e.code === 'KeyF') && !e.repeat && state === 'play') {
+      if (fishAction()) e.preventDefault();
+      return;
+    }
+    if (e.key === ' ' && !onControl && fishing?.active && state === 'play') {
+      e.preventDefault();
+      fishing.reel();
+      return;
+    }
     if ((e.key === 'Enter' || e.key === ' ') && !onControl && state === 'play') {
       const id = nearId && nearId !== dismissedId ? nearId : null;
       if (id) {
@@ -424,11 +555,52 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     o.onFirstMove();
   }
 
+  /** Pick up a lost word: stop, look at it, hop, and let the scroll do its thing. */
+  function pickUp(id: string) {
+    const w = words.spot(id);
+    if (!w) return;
+    walkTarget = null;
+    pendingEnter = null;
+    keys.clear();
+    stopFishing();
+    player.faceToward(w.x, w.z);
+    player.hop(5);
+    words.pick(id, player.pos, puffs);
+    firstMove();
+  }
+
+  /** The fishing key (E or F), the prompt's button, or a tap while it bites. True if it did something. */
+  function fishAction() {
+    if (!fishing || state !== 'play' || words.picking) return false;
+    if (fishing.active) {
+      fishing.reel();
+      return true;
+    }
+    if (!fishOpen) return false;
+    firstMove();
+    // Step up to the spot first, then cast.
+    const s = fishing.stand;
+    if (Math.hypot(player.pos.x - s.x, player.pos.z - s.z) > 0.4) {
+      walkTarget = new Vector2(s.x, s.z);
+      pendingEnter = null;
+      pendingCast = true;
+      blockedT = 0;
+    } else fishing.cast();
+    return true;
+  }
+
+  /** Walking off mid-cast reels the line in and puts the rod away. */
+  function stopFishing() {
+    pendingCast = false;
+    if (fishing && (fishing.active || player.rodOut)) fishing.cancel();
+  }
+
   function activate(id: string) {
     if (state === 'intro') skipIntro();
     if (state !== 'play') return;
     const l = byId.get(id);
     if (!l) return;
+    stopFishing();
     firstMove();
     const p = l.place;
     const d = Math.hypot(player.pos.x - p.x, player.pos.z - p.z);
@@ -442,9 +614,10 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
   }
 
   function enter(id: string) {
-    if (state !== 'play') return;
+    if (state !== 'play' || words.picking) return;
     const l = byId.get(id);
     if (!l) return;
+    stopFishing();
     state = 'entering';
     enteringId = id;
     enterT = 0;
@@ -487,6 +660,8 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
   // ---------- Frame ----------
   const wish = new Vector2();
   const camGoal = new Vector3();
+  const focusV = new Vector3();
+  const avoidAll: Rect[] = [];
   let raf = 0;
   let last = performance.now();
   let running = false;
@@ -546,6 +721,7 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
       if (arrived) {
         walkTarget = null;
         if (pend) enter(pend.place.id);
+        else if (pendingCast) (pendingCast = false), fishing?.cast();
       } else {
         wish.set(dx / d, dz / d).multiplyScalar(clamp(d / 1.4 + 0.3, 0, 1));
       }
@@ -557,9 +733,17 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
         const pend = pendingEnter ? byId.get(pendingEnter) : null;
         walkTarget = null;
         if (pend && Math.hypot(player.pos.x - pend.place.x, player.pos.z - pend.place.z) < pend.place.enterRange + 1.5) enter(pend.place.id);
+        else if (pendingCast) fishing?.cast();
         pendingEnter = null;
+        pendingCast = false;
       }
     } else blockedT = 0;
+
+    // A lost word within reach?
+    if (!words.picking) {
+      const w = words.near(player.pos.x, player.pos.z);
+      if (w) pickUp(w.id);
+    }
 
     // Who's near?
     let best: string | null = null;
@@ -583,7 +767,45 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
         player.hop(4.2);
       }
     }
+
+    // Fishing: the prompt is up near the spot (unless the pier's own card is), and
+    // stays up while the line is out. Walking off puts the rod away.
+    if (fishing && fishSpot) {
+      const px = player.pos.x;
+      const pz = player.pos.z;
+      const pierCard = nearId === fishSpot.place && nearId !== dismissedId;
+      fishOpen = !words.picking && (fishing.active || pendingCast || (fishing.inRange(px, pz) && !pierCard));
+      const far = Math.hypot(px - fishSpot.x, pz - fishSpot.z) > FISH_RANGE + 0.8;
+      if ((fishing.active && far) || (!fishing.active && player.rodOut > 0 && !pendingCast && player.speed > 0.6)) fishing.cancel();
+    }
+
+    reportPresence(dt);
   };
+
+  // ---------- Presence ----------
+  // Tell the store where you are (a few times a second, and whenever you
+  // arrive somewhere) so the map and the text adventure pick up from here.
+  let presenceT = 0;
+  let lastAt: string | null | undefined;
+  let lastX = NaN;
+  let lastZ = NaN;
+  const hereAt = () => {
+    if (nearId) return nearId;
+    return Math.hypot(player.pos.x - PLAZA.x, player.pos.z - PLAZA.z) < HUB.radius ? HUB.id : null;
+  };
+  function reportPresence(dt: number, force = false) {
+    presenceT += dt;
+    const at = hereAt();
+    const x = player.pos.x;
+    const z = player.pos.z;
+    const moved = Math.hypot(x - lastX, z - lastZ) > 0.05 || Number.isNaN(lastX);
+    if (!force && at === lastAt && (presenceT < 0.25 || !moved)) return;
+    presenceT = 0;
+    lastAt = at;
+    lastX = x;
+    lastZ = z;
+    store.dispatch({ type: 'move', pos: { x: Math.round(x * 100) / 100, z: Math.round(z * 100) / 100 }, at });
+  }
 
   const frame = (now: number) => {
     raf = requestAnimationFrame(frame);
@@ -601,8 +823,9 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
 
     // Hover (mouse) via the hit volumes
     if (pointerMoved && pointerInside && state === 'play' && !touch) {
-      pointerHover = pickLandmark();
-      canvas.style.cursor = pointerHover ? 'pointer' : '';
+      const target = pickTarget();
+      pointerHover = target && 'place' in target ? target.place : null;
+      canvas.style.cursor = target ? 'pointer' : '';
       pointerMoved = false;
     }
     const hoverId = state === 'play' ? labelHover ?? labelFocus ?? pointerHover : null;
@@ -612,8 +835,15 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     }
 
     player.update(time, dt, puffs);
+    fishing?.update(time, dt);
+    words.update(time, dt, camera, puffs, uniforms.uGrow.value);
     puffs.update(dt);
     ambient.update(time);
+
+    // Night falls (or lifts). After the last word it waits for the card to close.
+    if (nightHold && !words.picking && !dialog?.open) nightHold = false;
+    if (!nightHold) night.set(nightWant);
+    night.update(time, dt, o.reducedMotion);
 
     // Click marker
     if (markerT < 1) {
@@ -627,11 +857,15 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     if (state === 'play') {
       const near = nearId && nearId !== dismissedId ? byId.get(nearId)! : null;
       camGoal.set(player.pos.x + player.vel.x * 0.18, player.pos.y + 0.8, player.pos.z + player.vel.y * 0.18);
-      if (near) camGoal.lerp(near.focus(new Vector3()), 0.25);
+      if (near) camGoal.lerp(near.focus(focusV), 0.25);
+      // Lean in on a scroll being unrolled, or on the float while fishing.
+      let zoom = near ? 0.74 : 1;
+      if (words.picking && !o.reducedMotion) (camGoal.lerp(words.focus, 0.5), (zoom = 0.62));
+      else if (fishing?.active && !o.reducedMotion) (camGoal.lerp(fishing.float, 0.3), (zoom = 0.8));
       rig.target.x = damp(rig.target.x, camGoal.x, 3.2, dt);
       rig.target.y = damp(rig.target.y, camGoal.y, 3.2, dt);
       rig.target.z = damp(rig.target.z, camGoal.z, 3.2, dt);
-      rig.dist = damp(rig.dist, baseDist * (near ? 0.74 : 1), 2.2, dt);
+      rig.dist = damp(rig.dist, baseDist * zoom, 2.2, dt);
       rig.pitch = damp(rig.pitch, basePitch - (near ? 0.08 : 0), 2.2, dt);
       rig.yaw = damp(rig.yaw, rig.parallax.x * 0.035, 3, dt);
     } else if (state === 'entering' && enteringId) {
@@ -662,8 +896,19 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
         if (r.width > 0 && cs.display !== 'none' && +cs.opacity > 0.05) avoid.push({ l: r.left - 6, t: r.top - 6, r: r.right + 6, b: r.bottom + 6 });
       });
     }
+    let promptRect: Rect | null = null;
+    if (prompt && fishing && fishSpot && fishAnchor) {
+      prompt.show(fishOpen && state === 'play');
+      if (fishOpen) {
+        prompt.set(promptText(fishing.phase, fishing.tooSoon));
+        promptRect = prompt.place(camera, fishAnchor, viewW, viewH, avoid);
+      }
+    }
+    avoidAll.length = 0;
+    avoidAll.push(...avoid);
+    if (promptRect) avoidAll.push(promptRect);
     labels.update(camera, anchors, viewW, viewH, {
-      avoid,
+      avoid: avoidAll,
       visible: state === 'play',
       nearId: nearId && nearId !== dismissedId ? nearId : null,
       hoverId,
@@ -689,12 +934,16 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     }
   };
 
-  // Compile shaders before the first visible frame to avoid a hitch.
+  // Compile shaders before the first visible frame to avoid a hitch, including
+  // the things that only show up later (night, the unrolling scroll, the catch).
+  const later = [night.group, ...words.group.children, ...(fishing?.group.children ?? [])].filter((x) => !x.visible);
+  later.forEach((x) => (x.visible = true));
   try {
     await renderer.compileAsync(scene, camera);
   } catch {
     /* fall back to compiling on first render */
   }
+  later.forEach((x) => (x.visible = false));
   renderer.render(scene, camera);
   o.onReady();
 
@@ -731,7 +980,13 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     window.removeEventListener('blur', onBlur);
     canvas.removeEventListener('webglcontextlost', onLost);
     o.labelsHost.removeEventListener('focusin', onFocusIn);
+    // Leave the store knowing exactly where you were standing.
+    if (state === 'play') reportPresence(0, true);
+    unsubscribe();
     labels.dispose();
+    prompt?.dispose();
+    words.dispose();
+    fishing?.dispose();
     const mats = new Set<Material>();
     scene.traverse((obj) => {
       const m = obj as Mesh;
@@ -765,7 +1020,16 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
       teleport: (x: number, z: number) => {
         player.place(x, z, 0);
         walkTarget = null;
+        rig.target.set(player.pos.x, player.pos.y + 0.8, player.pos.z);
       },
+      words: () =>
+        WORDS.map((w) => {
+          const v = new Vector3(w.x, groundAt(w.x, w.z) + 0.15, w.z).project(camera);
+          return { id: w.id, x: w.x, z: w.z, shown: !store.has(w.id), screen: { x: (v.x * 0.5 + 0.5) * viewW, y: (-v.y * 0.5 + 0.5) * viewH } };
+        }),
+      fishing: () => fishing?.phase ?? null,
+      fish: () => void fishAction(),
+      night: () => night.amount,
       screen: (id: string) => {
         const l = byId.get(id);
         if (!l) return null;

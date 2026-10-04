@@ -1,7 +1,7 @@
 // Life around the island: drifting clouds (with soft shadows), gulls circling
-// overhead, and a little sailboat out at sea.
+// overhead, and a little sailboat out at sea, which lights a lamp at night.
 
-import { Group, IcosahedronGeometry, Mesh, MeshStandardMaterial, ConeGeometry } from 'three';
+import { Color, Group, IcosahedronGeometry, Mesh, MeshBasicMaterial, MeshStandardMaterial, ConeGeometry } from 'three';
 import { Kit } from './kit';
 import { rng } from '../util/math';
 
@@ -72,10 +72,28 @@ export function buildAmbient() {
   bk.add(new ConeGeometry(1.6, 3.6, 3), '#fffdf7', { p: [0.0, 2.6, -0.5], s: [0.06, 1, 1] });
   bk.add(new ConeGeometry(0.4, 0.6, 3), '#ff5a36', { p: [0, 4.55, 0.2], r: [0, 0, -Math.PI / 2], s: [1, 1, 0.1] });
   boat.add(bk.build({ castShadow: false }));
+  // A lamp at the masthead, lit only after dark.
+  const lamp = new Mesh(new IcosahedronGeometry(0.22, 1), new MeshBasicMaterial({ color: '#ffd27a', toneMapped: false }));
+  lamp.position.set(0, 4.25, 0.2);
+  lamp.visible = false;
+  boat.add(lamp);
   group.add(boat);
+
+  const cloudDay = { color: cloudMat.color.clone(), emissive: cloudMat.emissive.clone(), intensity: cloudMat.emissiveIntensity };
+  const cloudNight = { color: new Color('#aab6dc'), emissive: new Color('#5b6aa0') };
 
   return {
     group,
+    /** Where the boat is, for its lamp's halo. */
+    boatLamp: lamp,
+    /** Night falling, 0 (day) to 1 (night): clouds turn moonlit grey-blue, the boat lights its lamp. */
+    night(n: number) {
+      cloudMat.color.lerpColors(cloudDay.color, cloudNight.color, n);
+      cloudMat.emissive.lerpColors(cloudDay.emissive, cloudNight.emissive, n);
+      cloudMat.emissiveIntensity = cloudDay.intensity * (1 - n * 0.5);
+      lamp.visible = n > 0.02;
+      lamp.scale.setScalar(Math.max(n, 0.001));
+    },
     update(t: number) {
       for (const c of clouds) {
         const a = c.a + t * c.s;

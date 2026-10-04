@@ -38,12 +38,19 @@ export interface LandmarkCtx {
   toWorld: (v: Vector3) => Vector3;
 }
 
+/** [x, y, z, size] in the landmark's own space. */
+export type Glow = [number, number, number, number];
+
 export interface Built {
   group: Group;
   bouncy: Object3D;
   update?: (ctx: LandmarkCtx) => void;
   /** Called once when the explorer comes within range. */
   onNear?: () => string | void;
+  /** What lights up at night: halos around lamps and windows, and pools of lamplight on the ground. */
+  glows?: { halos: Glow[]; pools: Glow[] };
+  /** Night falling, from 0 (day) to 1 (night): turn up a beam, warm the windows. */
+  night?: (n: number) => void;
 }
 
 const WOOD = '#b98352';
@@ -146,12 +153,17 @@ export function buildCabin(color: string): Built {
   }
   const glow = glowMat();
   const group = k.build({ glowMaterial: glow });
+  const glows = {
+    halos: [[-0.75, 1.85, D / 2 + 0.45, 1.5], [-1.35, 1.5, D / 2 + 0.4, 1.5], [1.35, 1.5, D / 2 + 0.4, 1.5], [W / 2 + 0.45, 1.5, 0, 1.2], [-W / 2 - 0.45, 1.5, 0.5, 1.2]] as Glow[],
+    pools: [[0, 0.5, D / 2 + 1.0, 3.2], [W / 2 + 1.2, 0.05, 0, 1.8], [-W / 2 - 1.2, 0.05, 0.5, 1.8]] as Glow[],
+  };
   const chimney = new Vector3(-1.25, 4.9, -0.8);
   let smoke = 0;
   const base = new Color('#ffffff');
   return {
     group,
     bouncy: group,
+    glows,
     update: (c) => {
       smoke -= c.dt;
       if (smoke <= 0) {
@@ -294,11 +306,19 @@ export function buildTaproom(color: string): Built {
   bulbs.forEach((_, i) => bulbMesh.setColorAt(i, palette[i % palette.length]));
   group.add(bulbMesh);
 
+  const glows = {
+    halos: [
+      [-1.5, 0.75, D / 2 + 0.35, 1.3], [1.5, 0.75, D / 2 + 0.35, 1.3], [-1.5, 1.95, D / 2 + 0.3, 1.1], [1.5, 1.95, D / 2 + 0.3, 1.1], [W / 2 + 0.4, 1.0, 0, 1.1],
+      ...bulbs.map((b): Glow => [b.x, b.y, b.z, 0.55]),
+    ] as Glow[],
+    pools: [[0, 0.05, D / 2 + 2.0, 3.6], [W / 2 + 1.0, 0.05, 0, 1.6]] as Glow[],
+  };
   const swing = new Spring(0, 40, 2.2);
   let wasHover = false;
   return {
     group,
     bouncy: group,
+    glows,
     update: (c) => {
       if (c.hover && !wasHover) swing.kick(2.5);
       wasHover = c.hover;
@@ -511,9 +531,14 @@ export function buildLighthouse(color: string): Built {
   vane.add(vk.build({ castShadow: false }));
   group.add(vane);
 
+  const opacity = bm.uniforms.uOpacity.value as number;
   return {
     group,
     bouncy: group,
+    glows: { halos: [[0, gy + 0.72, 0, 5.5]], pools: [] },
+    night: (n) => {
+      bm.uniforms.uOpacity.value = opacity + n * 0.34;
+    },
     update: (c) => {
       beam.rotation.y = c.t * 0.9;
       vane.rotation.y = Math.sin(c.t * 0.4) * 0.6 + 0.4;
@@ -539,7 +564,7 @@ export function buildSchoolhouse(color: string): Built {
   k.roof(W, 1.5, D + 0.6, top, color, { overhang: 0.45, thick: 0.22 });
   // Round attic window
   k.cyl(0.32, 0.32, 0.08, TRIM, { p: [0, top + 0.6, D / 2 + 0.02], r: [Math.PI / 2, 0, 0] }, 14);
-  k.addGlow(new CylinderGeometry(0.24, 0.24, 0.06, 14), '#cfeaff', { p: [0, top + 0.6, D / 2 + 0.05], r: [Math.PI / 2, 0, 0] });
+  k.addGlow(new CylinderGeometry(0.24, 0.24, 0.06, 14), '#ffffff', { p: [0, top + 0.6, D / 2 + 0.05], r: [Math.PI / 2, 0, 0] });
   // Doors, steps, windows
   k.rbox(1.15, 1.6, 0.14, 0.04, shade(color, -0.12), { p: [0, 0.36 + 0.8, D / 2 + 0.04] });
   k.box(0.04, 1.5, 0.05, TRIM, { p: [0, 1.16, D / 2 + 0.12] });
@@ -547,11 +572,12 @@ export function buildSchoolhouse(color: string): Built {
   k.sphere(0.05, '#f2c14e', { p: [0.15, 1.15, D / 2 + 0.14] }, 6, 4);
   k.rbox(1.6, 0.18, 0.5, 0.04, STONE, { p: [0, 0.27, D / 2 + 0.45] });
   k.rbox(1.4, 0.18, 0.4, 0.04, STONE_DARK, { p: [0, 0.1, D / 2 + 0.8] });
-  windowAt(k, -1.35, 1.6, D / 2 + 0.06, { w: 0.62, h: 0.8, glow: '#cfeaff' });
-  windowAt(k, 1.35, 1.6, D / 2 + 0.06, { w: 0.62, h: 0.8, glow: '#cfeaff' });
+  // The glass is white in a sky-blue material, so night can warm it without touching the day look.
+  windowAt(k, -1.35, 1.6, D / 2 + 0.06, { w: 0.62, h: 0.8, glow: '#ffffff' });
+  windowAt(k, 1.35, 1.6, D / 2 + 0.06, { w: 0.62, h: 0.8, glow: '#ffffff' });
   for (const z of [-0.8, 0.8]) {
-    windowAt(k, W / 2 + 0.06, 1.6, z, { w: 0.62, h: 0.8, ry: Math.PI / 2, glow: '#cfeaff' });
-    windowAt(k, -W / 2 - 0.06, 1.6, z, { w: 0.62, h: 0.8, ry: -Math.PI / 2, glow: '#cfeaff' });
+    windowAt(k, W / 2 + 0.06, 1.6, z, { w: 0.62, h: 0.8, ry: Math.PI / 2, glow: '#ffffff' });
+    windowAt(k, -W / 2 - 0.06, 1.6, z, { w: 0.62, h: 0.8, ry: -Math.PI / 2, glow: '#ffffff' });
   }
   // An apple on the step
   k.sphere(0.12, '#e5484d', { p: [0.55, 0.47, D / 2 + 0.42] }, 8, 6);
@@ -579,7 +605,10 @@ export function buildSchoolhouse(color: string): Built {
   k.sphere(0.08, '#f2c14e', { p: [W / 2 + 0.9, 4.45, D / 2 + 0.3] }, 6, 4);
   k.rbox(0.4, 0.2, 0.4, 0.05, STONE, { p: [W / 2 + 0.9, 0.1, D / 2 + 0.3] });
 
-  const group = k.build({ glowMaterial: glowMat() });
+  const glass = glowMat('#cfeaff');
+  const glassDay = glass.color.clone();
+  const glassNight = new Color('#ffd590');
+  const group = k.build({ glowMaterial: glass });
 
   const bell = new Group();
   bell.position.set(0, ty + 1.24, tz);
@@ -602,6 +631,13 @@ export function buildSchoolhouse(color: string): Built {
   return {
     group,
     bouncy: group,
+    glows: {
+      halos: [[-1.35, 1.6, D / 2 + 0.4, 1.4], [1.35, 1.6, D / 2 + 0.4, 1.4], [0, top + 0.6, D / 2 + 0.35, 0.9], ...[-0.8, 0.8].flatMap((z): Glow[] => [[W / 2 + 0.4, 1.6, z, 1.2], [-W / 2 - 0.4, 1.6, z, 1.2]])],
+      pools: [[0, 0.05, D / 2 + 1.5, 3.0], [W / 2 + 1.1, 0.05, 0, 1.8], [-W / 2 - 1.1, 0.05, 0, 1.8]],
+    },
+    night: (n) => {
+      glass.color.lerpColors(glassDay, glassNight, n);
+    },
     onNear: () => {
       swing.kick(4.5);
       return 'bell';
@@ -697,6 +733,8 @@ export function buildDepot(color: string): Built {
   return {
     group,
     bouncy: group,
+    // Nobody works the belt after dark, but a lamp is left on under the roof.
+    glows: { halos: [[0, 2.3, 0.4, 2.4]], pools: [[0, 0.22, 0.6, 3.2]] },
     update: (c) => {
       for (const r of rollers) r.rotation.z = -c.t * 3;
       items.forEach((it, i) => {
@@ -750,7 +788,7 @@ function archWindow(k: Kit, x: number, y: number, z: number, opts: { w?: number;
 }
 
 /** Little 3D letters for the idle animation: A, E, O and the Old English thorn (Þ). */
-function letterGeometries() {
+export function letterGeometries() {
   const T = 0.07;
   const make = (f: (q: Kit) => void) => {
     const q = new Kit(901);
@@ -1046,6 +1084,14 @@ export function buildLibrary(color: string): Built {
     for (let i = 0; i < n; i++) spawn(page.x + (Math.random() - 0.5) * 0.6, page.y, page.z + (Math.random() - 0.5) * 0.3, { vy: 0.75, spread: 0.22, life: 2.6, size: 1.1 });
   };
 
+  const glows = {
+    halos: [
+      [-0.92, base + 1.45, dz + 0.4, 1.2], [0.92, base + 1.45, dz + 0.4, 1.2], [1.35, base + 1.3, dz + 0.35, 1.3], [0, ry0, rz + 0.3, 1.1],
+      [W / 2 + 0.35, base + 1.3, 0.62, 1.1], [W / 2 + 0.35, base + 1.3, -0.95, 1.1], [-W / 2 - 0.35, base + 1.3, -1.2, 1.1], [-W / 2 - 0.35, base + 1.3, 0.2, 1.1],
+      [tx + Math.sin(0.35) * (TR + 0.3), 0.4 + 3.3, tz + Math.cos(0.35) * (TR + 0.3), 0.9],
+    ] as Glow[],
+    pools: [[0, 0.05, dz + 1.3, 3.2], [W / 2 + 1.0, 0.05, -0.2, 1.8]] as Glow[],
+  };
   let chimT = 0.4;
   let bookT = 1.2;
   let turnT = -1;
@@ -1062,6 +1108,7 @@ export function buildLibrary(color: string): Built {
   return {
     group,
     bouncy: group,
+    glows,
     onNear: () => {
       if (turnT < 0) turnT = 0;
       fromBook(5);
@@ -1192,6 +1239,7 @@ export function buildPier(color: string): Built {
   return {
     group,
     bouncy: box,
+    glows: { halos: [[-PIER.width / 2 + 0.36, deckY + 1.6, L - 3.6, 1.6]], pools: [[-0.25, deckY + 0.02, L - 3.6, 1.25]] },
     update: (c) => {
       flagS.target = c.near || c.hover ? -Math.PI / 2 : 0;
       flagS.update(c.dt);
@@ -1263,6 +1311,7 @@ export function buildBottle(color: string): Built {
   return {
     group,
     bouncy: holder,
+    glows: { halos: [[0, 0.3, 0, 1.0]], pools: [] },
     update: (c) => {
       bottle.rotation.x = Math.sin(c.t * 1.6) * 0.12;
       bottle.position.y = 0.2 + Math.abs(Math.sin(c.t * 1.6)) * 0.02;

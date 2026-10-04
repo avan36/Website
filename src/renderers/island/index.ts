@@ -17,6 +17,8 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
     reducedMotion: ctx.reducedMotion,
     touch: ctx.touch,
     sound: ctx.sound,
+    store: ctx.store,
+    ui: ctx.ui,
     onReady: () => ctx.ready('self'),
     onFirstMove: ctx.firstMove,
     onIntroDone: () => {},

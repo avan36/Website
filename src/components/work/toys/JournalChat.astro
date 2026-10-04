@@ -62,6 +62,7 @@ const script = [
   }
   .jchat__screen {
     --mp: #2e9c8f;
+    --mp-deep: #24796f; /* sent bubbles: white on it is AA (5.2:1) */
     --paper: #fbf8f2;
     --ink-j: #26231f;
     position: relative;
@@ -80,7 +81,7 @@ const script = [
   .jchat__top { padding: 14px 18px 10px; text-align: center; border-bottom: 1px solid rgba(38, 35, 31, 0.07); }
   .jchat__island { display: block; width: 92px; height: 26px; margin: 0 auto 12px; border-radius: 20px; background: #0b0a09; }
   .jchat__app { font-family: var(--font-read); font-style: italic; font-size: 18px; font-weight: 500; }
-  .jchat__when { font-size: 11.5px; color: #8b8378; letter-spacing: 0.02em; }
+  .jchat__when { font-size: 11.5px; color: #756d62; letter-spacing: 0.02em; }
 
   .jchat__thread {
     display: flex;
@@ -89,6 +90,9 @@ const script = [
     gap: 9px;
     padding: 14px 14px 10px;
     overflow: hidden;
+    /* Older lines scroll up under a soft edge rather than a hard cut. */
+    -webkit-mask: linear-gradient(transparent, #000 22px);
+    mask: linear-gradient(transparent, #000 22px);
   }
   .jmsg {
     max-width: 84%;
@@ -98,7 +102,7 @@ const script = [
   }
   .jmsg--me {
     align-self: flex-end;
-    background: var(--mp);
+    background: var(--mp-deep);
     color: #fff;
     border-bottom-right-radius: 6px;
   }
@@ -154,7 +158,7 @@ const script = [
     /* Wrap like a real composer: it grows a line taller and the thread scrolls up. */
     overflow-wrap: anywhere;
   }
-  .jchat__placeholder { color: #a39b90; }
+  .jchat__placeholder { color: #736b60; }
   .jchat__typed:not(:empty) ~ .jchat__placeholder { display: none; }
   .jchat__caret { display: none; width: 1.5px; height: 17px; margin-left: 1px; vertical-align: -3px; background: var(--mp); animation: jblink 1s steps(1) infinite; }
   .jchat.is-typing .jchat__caret { display: inline-block; }
@@ -211,6 +215,8 @@ const script = [
     async function play() {
       const id = ++run;
       const alive = () => id === run;
+      // A replay can land mid-keystroke: drop the old run's composer state too.
+      root.classList.remove('is-typing', 'can-send', 'sent');
       if (reducedMotion()) return showAll();
       thread.textContent = '';
       typed.textContent = '';

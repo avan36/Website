@@ -329,7 +329,7 @@ const activities: WorldInput['activities'] = [
     id: 'fishing',
     kind: 'fishing',
     place: 'blog',
-    at: { x: 3.55, z: 24.2 },
+    at: { x: 3.5, z: 23.2 },
     name: 'Fish off the pier',
     description: 'Cast a line off the pier. Whatever bites is something I wrote.',
   },

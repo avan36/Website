@@ -1,0 +1,389 @@
+/* The text adventure: a warm terminal in lamplight. Cream on deep brown by
+   day, starlight on navy once the word hoard is full. Loaded with the text
+   renderer, so no other view pays for it. */
+
+.tx {
+  --tx-bg: #14110d;
+  --tx-bg-2: #1c1813;
+  --tx-glow: #231c14;
+  --tx-ink: #efe6d3;
+  --tx-ink-2: #cbbea6;
+  --tx-dim: #978b78;
+  --tx-line: rgba(239, 230, 211, 0.13);
+  --tx-cmd: #f6b75e;
+  --tx-sun: #ffcf7a;
+  /* The map */
+  --m-sea: #3c7d95;
+  --m-sand: #cdb487;
+  --m-grass: #79a356;
+  --m-rock: #a39a8c;
+  --m-path: #d79a52;
+  --m-pier: #b98a5c;
+
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: radial-gradient(120% 70% at 50% -10%, var(--tx-glow) 0%, var(--tx-bg) 62%) var(--tx-bg);
+  color: var(--tx-ink);
+  font-family: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
+  font-size: clamp(15px, 14px + 0.25vw, 17px);
+  line-height: 1.6;
+  font-variant-ligatures: none;
+  -webkit-font-smoothing: antialiased;
+  user-select: text;
+  -webkit-user-select: text;
+  transition: background-color 1.2s ease;
+}
+.tx.is-night {
+  --tx-bg: #0c0f18;
+  --tx-bg-2: #131827;
+  --tx-glow: #18203a;
+  --tx-ink: #e8e6f2;
+  --tx-ink-2: #c3c2d6;
+  --tx-dim: #8c8fab;
+  --tx-line: rgba(220, 225, 255, 0.13);
+  --tx-cmd: #ffe08a;
+  --tx-sun: #ffe9a8;
+  --m-sea: #3a5590;
+  --m-sand: #a99f86;
+  --m-grass: #4e7d62;
+  --m-rock: #8a8aa0;
+  --m-path: #ffd66e;
+  --m-pier: #b49a74;
+  background:
+    radial-gradient(1px 1px at 12% 18%, #fff8 50%, transparent 51%),
+    radial-gradient(1px 1px at 78% 12%, #fff9 50%, transparent 51%),
+    radial-gradient(1.5px 1.5px at 64% 30%, #fff6 50%, transparent 51%),
+    radial-gradient(1px 1px at 30% 40%, #fff5 50%, transparent 51%),
+    radial-gradient(1px 1px at 90% 46%, #fff7 50%, transparent 51%),
+    radial-gradient(1px 1px at 6% 62%, #fff5 50%, transparent 51%),
+    radial-gradient(120% 70% at 50% -10%, var(--tx-glow) 0%, var(--tx-bg) 62%) var(--tx-bg);
+}
+.tx ::selection { background: color-mix(in oklab, var(--tx-cmd) 32%, transparent); color: inherit; }
+
+/* Text that hasn't typed out yet. */
+::highlight(tx-unwritten) { color: transparent; text-decoration-color: transparent; }
+
+/* Content scrolls up and fades out under the HUD. */
+.tx::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 92px;
+  z-index: 1;
+  background: linear-gradient(var(--tx-bg) 55%, transparent);
+  pointer-events: none;
+}
+
+/* ---------- The story ---------- */
+.tx-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(239, 230, 211, 0.16) transparent;
+}
+.tx-log {
+  max-width: calc(68ch + 48px);
+  margin: 0 auto;
+  padding: 108px 24px 32px;
+}
+.tx-turn + .tx-turn { margin-top: 1.6em; }
+.tx-turn__body > * + * { margin-top: 0.6em; }
+.tx-echo { color: var(--tx-ink-2); margin-bottom: 0.55em; }
+.tx-echo__prompt { color: var(--tx-cmd); font-weight: 700; }
+.tx-p { max-width: 68ch; }
+.tx-p.is-dim { color: var(--tx-dim); }
+.tx-p.is-flavour { color: var(--tx-sun); font-style: italic; }
+.tx-p.is-alert { color: var(--tx-sun); font-weight: 700; }
+.tx-span.is-em, .tx-link.is-em, .tx-cmd.is-em { font-style: italic; }
+.tx-span.is-dim { color: var(--tx-dim); }
+.is-place { --c-text: color-mix(in oklab, var(--c) 68%, white); }
+.tx-span.is-place { color: var(--c-text); }
+.tx-glue { white-space: nowrap; }
+
+/* The opening title, Infocom style. */
+.tx-banner { padding-bottom: 1.1em; margin-bottom: 1.4em; border-bottom: 1px dashed var(--tx-line); opacity: 0; transition: opacity 0.6s ease; }
+.tx-banner.is-in { opacity: 1; }
+.tx-banner__title {
+  font: inherit;
+  font-size: clamp(1.5em, 1em + 3vw, 2.1em);
+  font-weight: 800;
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+  color: var(--tx-sun);
+  line-height: 1.25;
+  margin-bottom: 0.4em;
+}
+.tx-banner__title::after {
+  content: '~ ~ ~ ~ ~ ~';
+  display: block;
+  font-size: 0.42em;
+  font-weight: 400;
+  letter-spacing: 0.3em;
+  color: var(--m-sea);
+}
+.tx-banner__line { color: var(--tx-dim); }
+.tx-banner__line:first-of-type { color: var(--tx-ink-2); }
+
+/* A place, as you arrive. */
+.tx-title {
+  font: inherit;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  line-height: 1.4;
+  color: color-mix(in oklab, var(--c) 68%, white);
+  margin-top: 0.2em;
+}
+.tx-turn__body > .tx-title:not(:first-child) { margin-top: 1em; }
+.tx-title__mark { font-size: 0.72em; vertical-align: 0.12em; }
+.tx-title__sub { color: var(--tx-dim); font-weight: 400; letter-spacing: 0; }
+
+/* Words you can click to type them. */
+.tx-cmd {
+  appearance: none;
+  display: inline;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: none;
+  color: var(--tx-cmd);
+  font: inherit;
+  line-height: inherit;
+  text-align: inherit;
+  text-decoration: underline dotted 1px;
+  text-underline-offset: 0.24em;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.tx-cmd:hover { text-decoration-style: solid; }
+.tx-cmd:focus-visible { outline: 2px solid var(--tx-cmd); outline-offset: 2px; }
+.tx-cmd.is-place { color: var(--c-text); }
+.tx-cmd.is-dir { color: var(--tx-ink-2); }
+.tx-link { color: var(--tx-cmd); text-underline-offset: 0.24em; text-decoration-thickness: 1px; }
+.tx-link.is-key { font-weight: 700; text-decoration: none; }
+.tx-link.is-key:hover { text-decoration: underline; }
+
+/* Exits: a little table, arrows first. */
+.tx-exits {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  column-gap: 2ch;
+  margin-top: 0.85em !important;
+  padding-top: 0.7em;
+  border-top: 1px dashed var(--tx-line);
+}
+.tx-exits__row { display: grid; grid-column: 1 / -1; grid-template-columns: subgrid; }
+.tx-exits__dir { color: var(--tx-dim); white-space: nowrap; }
+.tx-exits__arrow { display: inline-block; width: 2ch; color: var(--tx-dim); }
+
+/* Lists: work, writing, help, the hoard. */
+.tx-list__title { color: var(--tx-dim); font-size: 0.82em; letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 0.45em; }
+.tx-list__items { display: grid; grid-template-columns: max-content 1fr; gap: 0.3em 2.5ch; margin: 0; }
+.tx-list__items dt { font-weight: 700; color: var(--tx-ink); }
+.tx-list__items dt[style] { color: color-mix(in oklab, var(--c) 68%, white); }
+.tx-list__items dd { margin: 0; color: var(--tx-ink-2); }
+
+/* ---------- Cards: a found word, a catch ---------- */
+.tx-card {
+  position: relative;
+  margin: 1em 0 !important;
+  padding: 1.05em 1.3em 1.1em;
+  border: 1px solid color-mix(in oklab, var(--c) 40%, transparent);
+  border-left: 3px solid var(--c);
+  border-radius: 4px 16px 16px 4px;
+  background: linear-gradient(135deg, color-mix(in oklab, var(--c) 16%, var(--tx-bg)), var(--tx-bg-2) 70%);
+  box-shadow: 0 18px 50px -24px color-mix(in oklab, var(--c) 60%, transparent);
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.4s ease, transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.tx-card.is-in { opacity: 1; transform: none; }
+.tx-card > * + * { margin-top: 0.35em; }
+.tx-card__kicker { color: var(--tx-dim); font-size: 0.78em; letter-spacing: 0.14em; text-transform: uppercase; }
+.tx-card__foot { color: var(--tx-dim); font-size: 0.85em; margin-top: 0.8em !important; white-space: pre-wrap; }
+.tx-word__word {
+  font-size: min(2.2em, 7.2vw);
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  line-height: 1.15;
+  color: color-mix(in oklab, var(--c) 60%, white);
+  overflow-wrap: anywhere;
+}
+.tx-word__gloss { font-style: italic; }
+.tx-word__life { color: var(--tx-dim); font-size: 0.85em; white-space: nowrap; overflow: hidden; }
+.tx-word__bar { color: color-mix(in oklab, var(--c) 70%, white); letter-spacing: -0.02em; }
+.tx-word__story { color: var(--tx-ink-2); margin-top: 0.7em !important; }
+.tx-catch__fish { color: color-mix(in oklab, var(--c) 70%, white); letter-spacing: 0; text-transform: none; }
+.tx-catch__title { font-size: 1.25em; font-weight: 800; line-height: 1.3; }
+.tx-catch__title .tx-link { color: var(--tx-ink); text-decoration: none; }
+.tx-catch__title .tx-link:hover { text-decoration: underline; }
+.tx-catch__date { color: var(--tx-dim); font-size: 0.85em; }
+.tx-catch__desc { color: var(--tx-ink-2); }
+
+/* ---------- The map ---------- */
+.tx-map {
+  container-type: inline-size;
+  margin: 1em 0 !important;
+  padding: 1em 1.2em 1.1em;
+  border: 1px solid var(--tx-line);
+  border-radius: 16px;
+  background: color-mix(in oklab, var(--tx-bg-2) 70%, transparent);
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+.tx-map.is-in { opacity: 1; }
+.tx-map__grid {
+  margin: 0 auto;
+  width: max-content;
+  max-width: 100%;
+  overflow: hidden;
+  font: inherit;
+  /* 56 columns of 0.6em must fit the box; rows are twice a column's height, as the map assumes. */
+  font-size: min(1em, 100cqw / 34);
+  line-height: 1.2;
+  letter-spacing: 0;
+  white-space: pre;
+}
+.g-sea { color: var(--m-sea); }
+.g-sand { color: var(--m-sand); }
+.g-grass { color: var(--m-grass); }
+.g-rock { color: var(--m-rock); }
+.g-path { color: var(--m-path); font-weight: 700; }
+.g-pier { color: var(--m-pier); font-weight: 700; }
+.g-place { color: color-mix(in oklab, var(--c) 62%, white); font-weight: 800; text-shadow: 0 0 10px color-mix(in oklab, var(--c) 70%, transparent); }
+.g-you { color: var(--tx-bg); background: var(--tx-cmd); font-weight: 800; border-radius: 2px; animation: tx-blink 1.1s steps(1) infinite; }
+.tx-map__key .g-you { animation: none; padding: 0 0.1em; }
+@keyframes tx-blink { 50% { color: var(--tx-cmd); background: transparent; } }
+.tx-map__legend {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(23ch, 1fr));
+  gap: 0.15em 2ch;
+  margin-top: 0.9em;
+  padding-top: 0.8em;
+  border-top: 1px dashed var(--tx-line);
+  font-size: 0.9em;
+}
+.tx-map__entry { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tx-map__glyph { color: color-mix(in oklab, var(--c) 62%, white); }
+.tx-map__legend .tx-cmd { text-decoration: none; }
+.tx-map__legend .tx-cmd:hover { text-decoration: underline; }
+.tx-map__legend .tx-cmd.is-here::after { content: '  (you)'; color: var(--tx-dim); }
+.tx-map__key { margin-top: 0.6em; color: var(--tx-dim); font-size: 0.85em; white-space: pre-wrap; }
+
+/* ---------- The prompt ---------- */
+.tx-dock {
+  position: relative;
+  z-index: 2;
+  flex: none;
+  width: 100%;
+  max-width: calc(68ch + 48px);
+  margin: 0 auto;
+  padding: 0 24px max(14px, env(safe-area-inset-bottom));
+}
+.tx-dock::before {
+  content: '';
+  position: absolute;
+  inset: -28px 0 100%;
+  background: linear-gradient(transparent, var(--tx-bg));
+  pointer-events: none;
+}
+.tx-line {
+  display: flex;
+  align-items: center;
+  gap: 1.2ch;
+  min-height: 54px;
+  padding: 0 18px;
+  border: 1px solid var(--tx-line);
+  border-radius: 16px;
+  background: var(--tx-bg-2);
+  cursor: text;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.tx-line:focus-within {
+  border-color: color-mix(in oklab, var(--tx-cmd) 55%, transparent);
+  box-shadow: 0 0 0 4px color-mix(in oklab, var(--tx-cmd) 12%, transparent);
+}
+.tx-prompt { color: var(--tx-cmd); font-weight: 800; font-size: 1.2em; line-height: 1; }
+.tx-input {
+  flex: 1;
+  min-width: 0;
+  padding: 14px 0;
+  border: 0;
+  outline: 0;
+  background: none;
+  color: var(--tx-ink);
+  font: inherit;
+  caret-color: var(--tx-cmd);
+}
+.tx-input:focus-visible { outline: 0; }
+.tx-input::placeholder { color: var(--tx-dim); opacity: 0.85; }
+.tx.is-touch .tx-input { font-size: max(16px, 1em); } /* no zoom-on-focus in iOS */
+.tx-keys { margin-top: 0.55em; color: var(--tx-dim); font-size: 0.72em; text-align: center; }
+
+/* Suggestions, for thumbs. */
+.tx-chips {
+  display: flex;
+  gap: 8px;
+  margin: 0 -24px;
+  padding: 2px 24px 10px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  overscroll-behavior-x: contain;
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 18px, #000 calc(100% - 28px), transparent);
+  mask-image: linear-gradient(to right, transparent, #000 18px, #000 calc(100% - 28px), transparent);
+}
+.tx-chips::-webkit-scrollbar { display: none; }
+.tx-chip {
+  flex: none;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--tx-line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.045);
+  color: var(--tx-ink);
+  font: inherit;
+  font-size: 14px;
+  white-space: nowrap;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.15s, background 0.15s;
+}
+.tx-chip:active { transform: scale(0.96); background: rgba(255, 255, 255, 0.1); }
+.tx-chip.is-go { border-color: color-mix(in oklab, var(--tx-cmd) 50%, transparent); color: var(--tx-cmd); }
+.tx-chip.is-urgent { border-color: transparent; background: var(--tx-cmd); color: var(--tx-bg); font-weight: 800; padding: 0 28px; animation: tx-pulse 0.9s ease-in-out infinite; }
+@keyframes tx-pulse { 50% { transform: scale(1.06); } }
+
+/* ---------- Small screens ---------- */
+@media (max-width: 720px) {
+  .tx-log { padding: 80px 16px 24px; }
+  /* The HUD's round buttons sit at the top right in this view: let the opening lines flow around them. */
+  .tx-log::before { content: ''; float: right; width: 50px; height: 100px; }
+  /* Fade the story out under the HUD, a little deeper behind the round buttons at the top right. */
+  .tx::before {
+    height: 190px;
+    background:
+      linear-gradient(var(--tx-bg) 46px, transparent 76px),
+      radial-gradient(90px 150px at 100% 20px, var(--tx-bg) 55%, transparent);
+  }
+  .tx-dock { padding-left: 16px; padding-right: 16px; }
+  .tx-chips { margin: 0 -16px; padding-left: 16px; padding-right: 16px; }
+  .tx-card { padding: 0.95em 1em 1em; }
+  .tx-map { padding: 0.8em 0.7em; }
+  .tx-list__items { grid-template-columns: 1fr; gap: 0; }
+  .tx-list__items dd { margin: 0 0 0.55em 2ch; }
+  .tx-exits { column-gap: 1.5ch; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tx-card, .tx-map, .tx-banner { transition: none; transform: none; }
+  .g-you, .tx-chip.is-urgent { animation: none; }
+}
+
+/* The shared toasts sit at the bottom on desktop, which in this view is the prompt: lift them above it. */
+@media (min-width: 721px) {
+  html[data-view='text'] .w-toasts { bottom: calc(max(24px, env(safe-area-inset-bottom)) + 104px); }
+}

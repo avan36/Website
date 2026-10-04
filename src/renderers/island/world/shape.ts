@@ -52,12 +52,27 @@ const geo = readGeo();
 
 export const { coastRadius, rockiness, heightAt, groundAt, isWalkable, pathDist, isOpenGround } = geo;
 export const PLAZA = geo.hub.at;
+/** The hub: where you are when you're on the plaza and not at any place. */
+export const HUB = { id: geo.hub.id, radius: Math.max(geo.hub.clearing, 2.5) };
 export const SPAWN = geo.spawn;
 export const SEA_LEVEL = 0;
 export const PIER = geo.pier;
 
 const bottle = world.places.find((p) => p.archetype === 'bottle');
 export const BOTTLE = bottle ? { x: bottle.at.x, z: bottle.at.z, theta: Math.atan2(bottle.at.z, bottle.at.x) } : null;
+
+/** On the pier's deck (or its foot), where nothing grows. */
+export const onPier = (x: number, z: number) => Math.abs(x - PIER.x) < PIER.width / 2 + 0.1 && z > PIER.start - 0.3;
+
+const colorOf = (id: string) => world.places.find((p) => p.id === id)?.color ?? '#d9461f';
+
+/** Where each lost word lies, tinted with its place's color. */
+export const WORDS = world.lostWords.map((w) => ({ id: w.id, word: w.word, place: w.place, color: colorOf(w.place), x: w.at.x, z: w.at.z }));
+export type WordSpot = (typeof WORDS)[number];
+
+/** Things to do on the island (fishing off the pier). */
+export const ACTIVITIES = world.activities.map((a) => ({ id: a.id, kind: a.kind, place: a.place, name: a.name, description: a.description, x: a.at.x, z: a.at.z }));
+export type ActivitySpot = (typeof ACTIVITIES)[number];
 
 export const PLACES: Place[] = world.places
   .filter((p) => p.kind !== 'hub' && p.archetype !== 'plaza')

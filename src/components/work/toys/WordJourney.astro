@@ -589,6 +589,9 @@ const endStage = first.path[end];
     }
 
     function selectWord(next: number) {
+      // Pin the outgoing letters at their size: the new word's fit would
+      // otherwise rescale them mid-exit, spilling a long word past the card.
+      for (const g of glyphs) g.el.style.fontSize = getComputedStyle(g.el).fontSize;
       wi = next;
       const j = journeys[wi];
       chips.forEach((c, k) => c.setAttribute('aria-pressed', String(k === wi)));
