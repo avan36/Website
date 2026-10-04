@@ -30,7 +30,7 @@ import {
 } from 'three';
 import type { Place, Prop } from '../../world/schema';
 import { BOX_SIDE, boxDocksRight, type RoomTarget, type RoomUI } from '../room';
-import { BODY, planRoom, type RoomPlan, type Spot } from '../roomPlan';
+import { planRoom, type RoomPlan, type Spot } from '../roomPlan';
 import type { SoundName } from '../types';
 import { Explorer } from './character';
 import { damp } from './util/math';
@@ -103,7 +103,6 @@ export function buildRoom(o: {
   const back = -D / 2;
   const scene = new Scene();
   scene.background = new Color(o.night ? '#141019' : '#2a1f18');
-  const owned: { geometry?: { dispose(): void }; material?: Material | Material[] }[] = [];
   const mats: Material[] = [];
   const mat = <T extends Material>(m: T) => (mats.push(m), m);
 
@@ -494,7 +493,6 @@ export function buildRoom(o: {
       (puffs.mesh.material as Material).dispose();
       ripples.material.dispose();
       sun.shadow.map?.dispose();
-      void owned;
     },
   };
 }

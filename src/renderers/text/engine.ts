@@ -236,7 +236,7 @@ export function createEngine(world: World, geo: Geo, { random = Math.random }: E
     return p(...spans);
   }
 
-  function describeRoom(s: EngineState, pl: Place): Block[] {
+  function describeRoom(_s: EngineState, pl: Place): Block[] {
     const room = pl.interior!;
     return [
       { kind: 'title', text: `Inside ${ref(pl)}`, color: pl.color },
