@@ -365,7 +365,7 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
   let labelHover: string | null = null;
   let labelFocus: string | null = null;
   // The portal's label reads like a place's: where it leads, and a button to step through.
-  const portalLabel = { id: 'portal', color: '#8b5cf6', name: 'Choose a view', kicker: 'The portal', blurb: 'One island, a few ways to see it. Step through and pick one.', href: `/?view=${PORTAL_NEXT.island}` };
+  const portalLabel = { id: 'portal', color: '#8b5cf6', name: 'The portal', kicker: 'Step through', blurb: 'One island, a few ways to see it. Step through and pick one.', href: `/?view=${PORTAL_NEXT.island}` };
   const labels = new Labels(
     o.labelsHost,
     portal ? [...PLACES, portalLabel] : PLACES,
@@ -598,9 +598,29 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
   const onWheel = (e: WheelEvent) => {
     if (state === 'intro') return;
     e.preventDefault();
+    // Two fingers swiped sideways on a trackpad turn the view, like dragging it round.
+    if (!e.ctrlKey && Math.abs(e.deltaX) > Math.abs(e.deltaY)) return turnBy(clamp(e.deltaX, -120, 120) * 0.005);
     // A trackpad pinch comes as a wheel with Ctrl held, in much smaller steps.
     zoomBy(Math.exp(clamp(e.deltaY, -120, 120) * (e.ctrlKey ? 0.01 : 0.0012)));
   };
+  // Safari on a Mac reports a real two-finger twist (and pinch) on the trackpad.
+  type Gesture = Event & { rotation: number; scale: number };
+  let gesture: { rotation: number; scale: number } | null = null;
+  const onGestureStart = (e: Event) => {
+    if (o.touch || state === 'intro') return;
+    e.preventDefault();
+    gesture = { rotation: 0, scale: 1 };
+  };
+  const onGestureChange = (e: Event) => {
+    if (!gesture) return;
+    e.preventDefault();
+    const g = e as Gesture;
+    // Twisting clockwise turns the island clockwise with the fingers.
+    turnBy(((g.rotation - gesture.rotation) * Math.PI) / 180);
+    if (g.scale > 0) zoomBy(gesture.scale / g.scale);
+    gesture = { rotation: g.rotation, scale: g.scale };
+  };
+  const onGestureEnd = () => (gesture = null);
   const onContextMenu = (e: Event) => e.preventDefault();
 
   const onPointerDown = (e: PointerEvent) => {
@@ -772,6 +792,9 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
   canvas.addEventListener('pointerleave', onPointerLeave);
   // On the whole stage, so the labels floating over the island don't swallow it.
   stage.addEventListener('wheel', onWheel, { passive: false });
+  stage.addEventListener('gesturestart', onGestureStart);
+  stage.addEventListener('gesturechange', onGestureChange);
+  stage.addEventListener('gestureend', onGestureEnd);
   canvas.addEventListener('contextmenu', onContextMenu);
   window.addEventListener('keydown', onKeyDown);
   window.addEventListener('keyup', onKeyUp);
@@ -1396,6 +1419,9 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     window.removeEventListener('pointercancel', onPointerUp);
     canvas.removeEventListener('pointerleave', onPointerLeave);
     stage.removeEventListener('wheel', onWheel);
+    stage.removeEventListener('gesturestart', onGestureStart);
+    stage.removeEventListener('gesturechange', onGestureChange);
+    stage.removeEventListener('gestureend', onGestureEnd);
     canvas.removeEventListener('contextmenu', onContextMenu);
     window.removeEventListener('keydown', onKeyDown);
     window.removeEventListener('keyup', onKeyUp);
