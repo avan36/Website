@@ -107,7 +107,10 @@ export interface GameHandle {
     screen: (id: string) => { x: number; y: number } | null;
     /** Every lost word: where it lies, whether it's showing, and where it is on screen. */
     words: () => { id: string; x: number; z: number; shown: boolean; screen: { x: number; y: number } }[];
-    camera: () => { position: number[]; target: number[]; dist: number; pitch: number };
+    camera: () => { position: number[]; target: number[]; dist: number; pitch: number; yaw: number; turn: number; zoom: number };
+    /** Turn the view round the explorer by this many radians, or zoom it by a factor (as dragging, Q, or a pinch would). */
+    turn: (radians: number) => void;
+    zoom: (factor: number) => void;
     /** Fishing: the phase, and a press of the fishing key. */
     fishing: () => FishPhase | null;
     fish: () => void;
@@ -119,6 +122,10 @@ export interface GameHandle {
 type State = 'intro' | 'play' | 'entering' | 'portal';
 
 const INTRO = 3.0;
+/** How far the view can be zoomed in and out, as a share of the usual distance, and how far Q and E turn it. */
+const ZOOM_MIN = 0.55;
+const ZOOM_MAX = 1.45;
+const TURN_STEP = Math.PI / 4;
 /** How long being drawn into the portal takes, and stepping back out of one. */
 const DRAW_IN = 0.35;
 const POP_OUT = 0.5;
@@ -306,6 +313,15 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     yaw: 0,
     parallax: new Vector2(),
     parallaxT: new Vector2(),
+    /** Where the visitor has turned the view to (radians round the explorer), and zoomed it to. */
+    turn: 0,
+    zoom: 1,
+  };
+  const turnBy = (a: number) => {
+    rig.turn += a;
+  };
+  const zoomBy = (k: number) => {
+    rig.zoom = clamp(rig.zoom * k, ZOOM_MIN, ZOOM_MAX);
   };
   let viewW = 1;
   let viewH = 1;
@@ -338,8 +354,8 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
       target.y + Math.sin(pitch) * dist + rig.parallax.y * 0.7,
       target.z + Math.cos(yaw) * cp * dist,
     );
-    // However close it leans in, never down to the sea.
-    camera.position.y = Math.max(camera.position.y, target.y + 1.5, 1.2);
+    // However close it leans in or wherever it's turned, never down to the sea or into a hill.
+    camera.position.y = Math.max(camera.position.y, target.y + 1.5, 1.2, heightAt(camera.position.x, camera.position.z) + 1.5);
     camera.lookAt(target);
   };
 
@@ -513,7 +529,80 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     if (state === 'intro') introSpeed = 4.5;
   };
 
+  // Turning and zooming the view: right- or middle-drag with a mouse, or two fingers (twist and pinch).
+  let turning: { x: number; pointerId: number } | null = null;
+  const fingers = new Map<number, { x: number; y: number }>();
+  let twist: { angle: number; dist: number; turn: number; zoom: number } | null = null;
+  const fingerSpan = () => {
+    const [a, b] = [...fingers.values()];
+    return { angle: Math.atan2(b.y - a.y, b.x - a.x), dist: Math.hypot(b.x - a.x, b.y - a.y) || 1 };
+  };
+  const onGestureDown = (e: PointerEvent) => {
+    if (e.pointerType === 'touch') {
+      fingers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (fingers.size === 2 && state !== 'intro') {
+        // A second finger: this is a twist or a pinch, not a tap. Forget what the first one started.
+        const f = fingerSpan();
+        twist = { ...f, turn: rig.turn, zoom: rig.zoom };
+        if (press?.ground) (walkTarget = null), (markerT = 1), ((marker.material as MeshBasicMaterial).opacity = 0);
+        if (press?.jump) player.releaseJump();
+        press = null;
+        lastTap.t = -1;
+        try {
+          canvas.setPointerCapture(e.pointerId);
+        } catch {
+          /* not capturable */
+        }
+      }
+      return fingers.size > 1;
+    }
+    if (e.button === 1 || e.button === 2) {
+      e.preventDefault();
+      turning = { x: e.clientX, pointerId: e.pointerId };
+      try {
+        canvas.setPointerCapture(e.pointerId);
+      } catch {
+        /* not capturable */
+      }
+      return true;
+    }
+    return false;
+  };
+  const onGestureMove = (e: PointerEvent) => {
+    if (turning && e.pointerId === turning.pointerId) {
+      turnBy((turning.x - e.clientX) * 0.008);
+      turning.x = e.clientX;
+      return true;
+    }
+    const f = fingers.get(e.pointerId);
+    if (!f) return false;
+    f.x = e.clientX;
+    f.y = e.clientY;
+    if (!twist || fingers.size < 2) return !!twist;
+    const now = fingerSpan();
+    // Twisting the fingers clockwise turns the island clockwise with them.
+    let da = now.angle - twist.angle;
+    da = Math.atan2(Math.sin(da), Math.cos(da));
+    rig.turn = twist.turn - da;
+    rig.zoom = clamp((twist.zoom * twist.dist) / now.dist, ZOOM_MIN, ZOOM_MAX);
+    return true;
+  };
+  const onGestureUp = (e: PointerEvent) => {
+    if (turning && e.pointerId === turning.pointerId) turning = null;
+    fingers.delete(e.pointerId);
+    // The gesture's over once a finger lifts (the one left doesn't walk anywhere: its press is gone).
+    if (fingers.size < 2) twist = null;
+  };
+  const onWheel = (e: WheelEvent) => {
+    if (state === 'intro') return;
+    e.preventDefault();
+    // A trackpad pinch comes as a wheel with Ctrl held, in much smaller steps.
+    zoomBy(Math.exp(clamp(e.deltaY, -120, 120) * (e.ctrlKey ? 0.01 : 0.0012)));
+  };
+  const onContextMenu = (e: Event) => e.preventDefault();
+
   const onPointerDown = (e: PointerEvent) => {
+    if (onGestureDown(e)) return;
     if (!e.isPrimary || e.button > 0) return;
     o.sound.play('tap');
     if (state === 'intro') return skipIntro();
@@ -572,6 +661,7 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     }
   };
   const onPointerMove = (e: PointerEvent) => {
+    if (onGestureMove(e)) return;
     setNdc(e);
     pointerInside = true;
     pointerMoved = true;
@@ -586,6 +676,7 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     }
   };
   const onPointerUp = (e: PointerEvent) => {
+    onGestureUp(e);
     if (!press || e.pointerId !== press.pointerId) return;
     if (press.jump) player.releaseJump();
     const moved = Math.hypot(e.clientX - press.x, e.clientY - press.y);
@@ -625,9 +716,15 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     }
     const active = document.activeElement as HTMLElement | null;
     const onControl = !!active && active !== document.body && active !== canvas && (active.tagName === 'A' || active.tagName === 'BUTTON');
-    // Fishing: E or F casts and reels in.
-    if ((e.code === 'KeyE' || e.code === 'KeyF') && !e.repeat && state === 'play') {
+    // Fishing: E or F casts and reels in (E only while there's fishing to do: otherwise it turns the view).
+    if ((e.code === 'KeyF' || (e.code === 'KeyE' && (fishOpen || fishing?.active))) && !e.repeat && state === 'play') {
       if (fishAction()) e.preventDefault();
+      return;
+    }
+    // Q and E turn the view round the explorer, an eighth at a time.
+    if (e.code === 'KeyQ' || e.code === 'KeyE') {
+      e.preventDefault();
+      turnBy(e.code === 'KeyQ' ? TURN_STEP : -TURN_STEP);
       return;
     }
     // Space jumps, or reels in while the line is out. A focused button or link keeps its own Space.
@@ -671,6 +768,8 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
   window.addEventListener('pointerup', onPointerUp);
   window.addEventListener('pointercancel', onPointerUp);
   canvas.addEventListener('pointerleave', onPointerLeave);
+  canvas.addEventListener('wheel', onWheel, { passive: false });
+  canvas.addEventListener('contextmenu', onContextMenu);
   window.addEventListener('keydown', onKeyDown);
   window.addEventListener('keyup', onKeyUp);
   window.addEventListener('blur', onBlur);
@@ -1125,9 +1224,12 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
       rig.target.x = damp(rig.target.x, camGoal.x, 3.2, dt);
       rig.target.y = damp(rig.target.y, camGoal.y, 3.2, dt);
       rig.target.z = damp(rig.target.z, camGoal.z, 3.2, dt);
-      rig.dist = damp(rig.dist, baseDist * zoom, 2.2, dt);
+      rig.dist = damp(rig.dist, baseDist * zoom * rig.zoom, 3, dt);
       rig.pitch = damp(rig.pitch, basePitch - (near ? 0.08 : 0), 2.2, dt);
-      rig.yaw = damp(rig.yaw, rig.parallax.x * 0.035, 3, dt);
+      // Turned by the visitor: eased round (snapped, for reduced motion), plus a touch of parallax.
+      const yawGoal = rig.turn + rig.parallax.x * 0.035;
+      rig.yaw = o.reducedMotion ? yawGoal : damp(rig.yaw, yawGoal, turning || twist ? 14 : 4, dt);
+      if (o.reducedMotion) rig.dist = baseDist * zoom * rig.zoom;
     } else if (state === 'portal' && portal) {
       // Lean in on the swirl as you go through.
       rig.target.lerp(portal.middle, 1 - Math.exp(-dt * 4));
@@ -1267,6 +1369,8 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     window.removeEventListener('pointerup', onPointerUp);
     window.removeEventListener('pointercancel', onPointerUp);
     canvas.removeEventListener('pointerleave', onPointerLeave);
+    canvas.removeEventListener('wheel', onWheel);
+    canvas.removeEventListener('contextmenu', onContextMenu);
     window.removeEventListener('keydown', onKeyDown);
     window.removeEventListener('keyup', onKeyUp);
     window.removeEventListener('blur', onBlur);
@@ -1353,7 +1457,9 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
           const v = new Vector3(w.x, groundAt(w.x, w.z) + 0.15, w.z).project(camera);
           return { id: w.id, x: w.x, z: w.z, shown: !store.has(w.id), screen: { x: (v.x * 0.5 + 0.5) * viewW, y: (-v.y * 0.5 + 0.5) * viewH } };
         }),
-      camera: () => ({ position: camera.position.toArray(), target: rig.target.toArray(), dist: rig.dist, pitch: rig.pitch }),
+      camera: () => ({ position: camera.position.toArray(), target: rig.target.toArray(), dist: rig.dist, pitch: rig.pitch, yaw: rig.yaw, turn: rig.turn, zoom: rig.zoom }),
+      turn: (a: number) => turnBy(a),
+      zoom: (k: number) => zoomBy(k),
       fishing: () => fishing?.phase ?? null,
       fish: () => void fishAction(),
       night: () => night.amount,
