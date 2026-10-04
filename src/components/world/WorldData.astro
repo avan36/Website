@@ -1,0 +1,9 @@
+---
+// Embeds the world as JSON for the renderers on this page. `<` is escaped so
+// no string in the data can close the script tag.
+import { loadWorld } from '../../world/load';
+
+const world = await loadWorld();
+const json = JSON.stringify(world).replace(/</g, '\\u003c');
+---
+<script type="application/json" id="world-data" set:html={json} />

@@ -1,0 +1,333 @@
+---
+// About: who I am, in a page that's calm to read. The name card tells my own
+// name's story the way Etymon tells a word's, and everything else points at
+// something I've actually made or written.
+import Base from '../layouts/Base.astro';
+import SiteHeader from '../components/SiteHeader.astro';
+import SiteFooter from '../components/SiteFooter.astro';
+import { person, bySlug } from '../data/projects';
+import { getPosts, postUrl } from '../components/blog/posts';
+
+const essay = (await getPosts()).find((p) => p.id === 'the-future-of-software');
+const c = (slug: string) => bySlug(slug)?.hex ?? 'var(--accent)';
+
+// Each stage of a name, oldest first, the way Etymon draws a word's journey.
+const ambrose = [
+  { lang: 'Proto-Indo-European', form: '*mer-', gloss: 'to die' },
+  { lang: 'Ancient Greek', form: 'brotós', gloss: 'mortal' },
+  { lang: 'Ancient Greek', form: 'ámbrotos', gloss: 'not mortal: immortal' },
+  { lang: 'Ancient Greek', form: 'Ambrósios', gloss: 'a name: divine, immortal' },
+  { lang: 'Latin', form: 'Ambrosius', gloss: '' },
+  { lang: 'English', form: 'Ambrose', gloss: '' },
+];
+const vannier = [
+  { lang: 'Latin', form: 'vannus', gloss: 'a winnowing basket' },
+  { lang: 'French', form: 'van', gloss: 'the wide basket for sifting grain' },
+  { lang: 'French', form: 'vannier', gloss: 'one who weaves them: a basket-maker' },
+];
+
+const cares = [
+  {
+    title: 'Your life is yours.',
+    body: 'middle place keeps your journal on your device and in your own iCloud: no accounts, no tracking, nothing sold. With the Privacy Tech Lab, I helped measure whether 11,000+ websites honor a visitor’s request not to sell their data.',
+    links: [
+      { label: 'middle place', href: '/work/middle-place', color: c('middle-place') },
+      { label: 'The research', href: '/work/privacy-research', color: c('privacy-research') },
+    ],
+  },
+  {
+    title: 'Show where things come from.',
+    body: 'Etymon follows English words back through every language they passed through on the way here. Map of Evolution does the same for life, from the first cell to you.',
+    links: [
+      { label: 'Etymon', href: '/work/etymon', color: c('etymon') },
+      { label: 'Map of Evolution', href: '/work/map-of-evolution', color: c('map-of-evolution') },
+    ],
+  },
+  {
+    title: 'Judgment is the scarce thing.',
+    quote: 'The scarce thing was never the code. It was the judgment about what to build, and the people who showed up to use it.',
+    links: essay ? [{ label: essay.data.title, href: postUrl(essay), color: 'var(--sea)' }] : [],
+  },
+  {
+    title: 'Learning should answer back.',
+    body: 'QuizMate gives students feedback the moment they need it. My fieldwork with the Assessment Lab looked at how students learn alongside new technology.',
+    links: [{ label: 'QuizMate', href: '/work/quizmate', color: c('quizmate') }],
+  },
+];
+
+const path = [
+  { what: 'Wesleyan University', detail: 'B.A. in Computer Science & History, May 2026', color: 'var(--accent)' },
+  { what: 'Privacy Tech Lab', detail: 'Research on Global Privacy Control, supported by the National Science Foundation', color: c('privacy-research'), href: '/work/privacy-research' },
+  { what: 'The Assessment Lab', detail: 'Fieldwork on how students learn alongside new technology', color: c('quizmate') },
+  { what: 'WesHack', detail: 'Won with eQoScan, an app that shows a product’s packaging footprint', color: c('eqoscan'), href: '/work/eqoscan' },
+  { what: 'Machine Learning Specialization', detail: 'Stanford Online & DeepLearning.AI: supervised learning and the math underneath', color: c('map-of-evolution') },
+  { what: 'On the App Store', detail: 'QuizMate, busy beer and middle place', color: c('busy-beer'), href: '/#work' },
+];
+---
+<Base title="About · Ambrose Vannier" description="Ambrose Vannier is a software developer who studied computer science and history at Wesleyan. What he cares about, what he's made, and where his name comes from.">
+  <SiteHeader current="about" />
+
+  <main id="main" class="about">
+    <section class="wrap about__hero" aria-labelledby="about-title">
+      <div class="about__intro">
+        <p class="kicker rise" style="--i:0">About</p>
+        <h1 class="about__title rise" id="about-title" style="--i:1">Hi, I'm Ambrose.</h1>
+        <p class="about__lede rise" style="--i:2">
+          I'm a software developer. I studied computer science and history at Wesleyan, and a lot of what I make lives where
+          the two meet: tools that show where things came from, and apps that treat people's lives with care.
+        </p>
+        <p class="about__body rise" style="--i:3">
+          This site is one of them. It's a tiny island you can <a class="text-link" href="/?view=island">walk around</a>, and the same island is also a <a class="text-link" href="/?view=map">pixel map</a>, a <a class="text-link" href="/?view=text">text adventure</a> and a <a class="text-link" href="/?view=list">plain list</a>, because underneath it's <a class="text-link" href="/colophon">one world made of data</a>.
+        </p>
+      </div>
+
+      <aside class="name rise" style="--i:3" aria-labelledby="name-title">
+        <p class="name__kicker" id="name-title">My name, the way Etymon would tell it</p>
+        <div class="name__word">
+          <h2 class="name__head" lang="en">Ambrose</h2>
+          <ol class="name__path">
+            {ambrose.map((s) => (
+              <li><span class="name__lang">{s.lang}</span><span class="name__form" lang={s.lang === 'English' ? 'en' : undefined}>{s.form}</span>{s.gloss && <span class="name__gloss">{s.gloss}</span>}</li>
+            ))}
+          </ol>
+          <p class="name__note">The same root gives us <em>ambrosia</em>, the food that kept the Greek gods from dying.</p>
+        </div>
+        <div class="name__word">
+          <h2 class="name__head" lang="fr">Vannier</h2>
+          <ol class="name__path">
+            {vannier.map((s) => (
+              <li><span class="name__lang">{s.lang}</span><span class="name__form">{s.form}</span>{s.gloss && <span class="name__gloss">{s.gloss}</span>}</li>
+            ))}
+          </ol>
+        </div>
+        <p class="name__sum">So, roughly: an immortal basket-maker. I'll take it.</p>
+      </aside>
+    </section>
+
+    <section class="wrap about__section" aria-labelledby="cares-title">
+      <h2 class="about__h2" id="cares-title">What I care about</h2>
+      <ul class="cares" role="list">
+        {cares.map((x) => (
+          <li class="care">
+            <h3 class="care__title">{x.title}</h3>
+            {x.quote ? (
+              <blockquote class="care__quote"><p>“{x.quote}”</p></blockquote>
+            ) : (
+              <p class="care__body">{x.body}</p>
+            )}
+            <p class="care__links">
+              {x.links.map((l) => (
+                <a href={l.href} style={`--c:${l.color}`}><span class="care__dot" aria-hidden="true"></span>{l.label}</a>
+              ))}
+            </p>
+          </li>
+        ))}
+      </ul>
+    </section>
+
+    <section class="wrap about__section" aria-labelledby="path-title">
+      <h2 class="about__h2" id="path-title">Along the way</h2>
+      <ol class="path" role="list">
+        {path.map((x) => (
+          <li class="path__item" style={`--c:${x.color}`}>
+            <span class="path__dot" aria-hidden="true"></span>
+            <h3 class="path__what">{x.href ? <a href={x.href}>{x.what}</a> : x.what}</h3>
+            <p class="path__detail">{x.detail}</p>
+          </li>
+        ))}
+      </ol>
+    </section>
+
+    <section class="wrap about__section about__next" aria-labelledby="next-title">
+      <h2 class="about__h2" id="next-title">Where to next</h2>
+      <ul class="next" role="list">
+        <li><a href="/"><span class="next__name">Explore the island</span><span class="next__note">Everything I've made, as places you can walk to</span></a></li>
+        <li><a href="/blog"><span class="next__name">Read my writing</span><span class="next__note">Essays and notes, posted from the end of the pier</span></a></li>
+        <li><a href="/contact"><span class="next__name">Say hello</span><span class="next__note">I read every message</span></a></li>
+        <li><a href={person.github} rel="noopener"><span class="next__name">GitHub <span aria-hidden="true">↗</span></span><span class="next__note">The code behind most of it</span></a></li>
+      </ul>
+    </section>
+  </main>
+
+  <SiteFooter />
+</Base>
+
+<style>
+  .about {
+    position: relative;
+    isolation: isolate;
+    overflow-x: clip;
+    padding-top: clamp(var(--space-5), 5vw, var(--space-8));
+  }
+  .about::before {
+    content: '';
+    position: absolute;
+    z-index: -1;
+    top: -340px;
+    right: -280px;
+    width: 960px;
+    aspect-ratio: 1;
+    background: radial-gradient(closest-side, color-mix(in oklab, var(--sun) 30%, transparent), transparent 72%);
+    pointer-events: none;
+  }
+
+  /* ---------- Hero ---------- */
+  .about__hero { display: grid; gap: var(--space-8); align-items: start; }
+  .about__intro { display: grid; gap: var(--space-4); max-width: 36rem; }
+  .about__title { font-size: clamp(2.75rem, 1.6rem + 4.6vw, 5.25rem); font-weight: 700; line-height: 1; letter-spacing: -0.04em; }
+  .about__lede { font-family: var(--font-read); font-size: clamp(1.25rem, 1.1rem + 0.6vw, 1.55rem); line-height: 1.45; color: var(--ink); text-wrap: pretty; }
+  .about__body { font-family: var(--font-read); font-size: clamp(1.08rem, 1rem + 0.3vw, 1.2rem); line-height: 1.6; color: var(--ink-2); }
+  .about__body .text-link { font-family: var(--font-read); font-weight: 600; color: color-mix(in srgb, var(--accent) 72%, var(--ink)); }
+
+  /* The name card: an index card from a museum of words. */
+  .name {
+    position: relative;
+    display: grid;
+    gap: var(--space-5);
+    padding: clamp(22px, 3.4vw, 34px);
+    border-radius: 6px 6px 18px 18px;
+    background: var(--bg-raised);
+    box-shadow: var(--shadow-3), inset 0 0 0 1px var(--line);
+    transform: rotate(1.2deg);
+  }
+  .name::before {
+    content: '';
+    position: absolute;
+    inset: 56px 0 auto;
+    height: 2px;
+    background: color-mix(in srgb, var(--coral) 55%, transparent);
+  }
+  .name__kicker { font-size: 12.5px; font-weight: 750; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); padding-bottom: 14px; }
+  .name__word { display: grid; gap: var(--space-3); }
+  .name__head { font-family: var(--font-read); font-weight: 600; font-size: clamp(2rem, 1.6rem + 1.6vw, 2.6rem); letter-spacing: -0.01em; line-height: 1; color: var(--c-etymon); }
+  .name__path { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; }
+  .name__path li {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 8.5rem) minmax(0, 1fr);
+    column-gap: var(--space-3);
+    align-items: baseline;
+    padding: 3px 0 3px 22px;
+  }
+  .name__path li::before {
+    content: '';
+    position: absolute;
+    left: 3px;
+    top: 11px;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--bg-raised);
+    box-shadow: inset 0 0 0 2px var(--c-etymon);
+  }
+  .name__path li:last-child::before { background: var(--c-etymon); }
+  .name__path li:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    left: 7px;
+    top: 20px;
+    bottom: -11px;
+    width: 1px;
+    background: color-mix(in srgb, var(--c-etymon) 40%, transparent);
+  }
+  .name__lang { grid-row: span 2; font-size: 12.5px; font-weight: 650; color: var(--ink-3); line-height: 1.3; }
+  .name__form { font-family: var(--font-read); font-style: italic; font-size: 1.15rem; line-height: 1.3; }
+  .name__path li:last-child .name__form { font-style: normal; font-weight: 600; }
+  .name__gloss { grid-column: 2; font-size: 13.5px; color: var(--ink-2); line-height: 1.3; }
+  .name__note { font-family: var(--font-read); font-size: 1rem; line-height: 1.5; color: var(--ink-2); }
+  .name__sum { padding-top: var(--space-4); border-top: 1px dashed var(--line-strong); font-family: var(--font-read); font-style: italic; font-size: 1.1rem; color: var(--ink); }
+
+  @media (min-width: 960px) {
+    .about__hero { grid-template-columns: minmax(0, 6fr) minmax(0, 5fr); gap: var(--space-9); }
+    .about__intro { padding-top: var(--space-6); }
+  }
+  @media (max-width: 480px) {
+    .name { transform: none; }
+    .name__path li { grid-template-columns: minmax(0, 1fr); }
+    .name__lang { grid-row: auto; }
+    .name__gloss { grid-column: 1; }
+  }
+
+  /* ---------- Sections ---------- */
+  .about__section { margin-top: clamp(var(--space-8), 9vw, var(--space-10)); }
+  .about__h2 { font-size: var(--step-3); font-weight: 720; letter-spacing: -0.03em; margin-bottom: var(--space-6); }
+
+  .cares { display: grid; gap: var(--space-4); margin: 0; padding: 0; list-style: none; }
+  .care {
+    display: grid;
+    align-content: start;
+    gap: var(--space-3);
+    padding: clamp(22px, 3vw, 32px);
+    border-radius: var(--r-lg);
+    background: var(--bg-sunken);
+  }
+  .care__title { font-size: var(--step-1); font-weight: 720; letter-spacing: -0.02em; }
+  .care__body { font-family: var(--font-read); font-size: 1.1rem; line-height: 1.55; color: var(--ink-2); }
+  .care__quote { margin: 0; padding-left: var(--space-4); border-left: 3px solid var(--sea); }
+  .care__quote p { font-family: var(--font-read); font-style: italic; font-size: 1.2rem; line-height: 1.5; color: var(--ink); }
+  .care__links { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-2); }
+  .care__links a {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 40px;
+    padding: 0 14px 0 12px;
+    border-radius: var(--r-pill);
+    background: var(--bg-raised);
+    box-shadow: var(--shadow-1);
+    font-size: var(--step--1);
+    font-weight: 650;
+    text-decoration: none;
+    transition: transform var(--dur-2) var(--ease-spring), box-shadow var(--dur-2);
+  }
+  .care__links a:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); }
+  .care__dot { width: 9px; height: 9px; border-radius: 50%; background: var(--c); box-shadow: 0 0 0 3px color-mix(in srgb, var(--c) 22%, transparent); }
+  @media (min-width: 760px) {
+    .cares { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+
+  .path { display: grid; margin: 0; padding: 0; list-style: none; max-width: 44rem; }
+  .path__item { position: relative; display: grid; gap: 2px; padding: 0 0 var(--space-6) 34px; }
+  .path__item::before {
+    content: '';
+    position: absolute;
+    left: 7px;
+    top: 14px;
+    bottom: -2px;
+    width: 2px;
+    background: var(--line-strong);
+  }
+  .path__item:last-child { padding-bottom: 0; }
+  .path__item:last-child::before { display: none; }
+  .path__dot { position: absolute; left: 0; top: 5px; width: 16px; height: 16px; border-radius: 50%; background: var(--c); box-shadow: 0 0 0 4px color-mix(in srgb, var(--c) 18%, var(--bg)); }
+  .path__what { font-size: var(--step-1); font-weight: 700; letter-spacing: -0.02em; }
+  .path__what a { text-decoration: none; }
+  .path__what a:hover { text-decoration: underline; text-underline-offset: 0.2em; text-decoration-thickness: 1.5px; }
+  .path__detail { font-family: var(--font-read); font-size: 1.08rem; line-height: 1.5; color: var(--ink-2); }
+
+  .next { display: grid; gap: var(--space-3); margin: 0; padding: 0; list-style: none; }
+  .next a {
+    display: grid;
+    gap: 2px;
+    height: 100%;
+    padding: var(--space-5);
+    border-radius: var(--r-md);
+    background: var(--bg-raised);
+    box-shadow: var(--shadow-1), inset 0 0 0 1px var(--line);
+    text-decoration: none;
+    transition: transform var(--dur-2) var(--ease-spring), box-shadow var(--dur-2);
+  }
+  .next a:hover { transform: translateY(-3px); box-shadow: var(--shadow-2), inset 0 0 0 1px var(--line); }
+  .next__name { font-family: var(--font-display); font-weight: 700; font-size: var(--step-1); letter-spacing: -0.02em; }
+  .next__note { font-size: var(--step--1); color: var(--ink-3); }
+  @media (min-width: 760px) {
+    .next { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  }
+
+  .rise { animation: rise 900ms var(--ease-out) both; animation-delay: calc(var(--i) * 80ms + 60ms); }
+  @keyframes rise { from { opacity: 0; transform: translateY(14px); } }
+  @media (min-width: 481px) {
+    .name.rise { animation-name: rise-card; }
+  }
+  @keyframes rise-card { from { opacity: 0; transform: translateY(18px) rotate(3deg); } }
+</style>

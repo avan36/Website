@@ -111,7 +111,7 @@ const first = questions[0];
     letter-spacing: -0.025em;
     outline: none;
   }
-  .quiz__options { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
+  .quiz__options { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-3); }
   .opt {
     display: flex; align-items: center; gap: var(--space-3);
     min-height: 54px;
@@ -127,6 +127,7 @@ const first = questions[0];
   }
   .opt:hover:not(:disabled) { box-shadow: inset 0 0 0 2px var(--p); transform: translateY(-2px); }
   .opt:active:not(:disabled) { transform: scale(0.97); }
+  .opt__text { min-width: 0; overflow-wrap: anywhere; }
   .opt__key {
     flex: none;
     display: grid; place-items: center;
@@ -142,7 +143,8 @@ const first = questions[0];
   .opt.is-wrong .opt__key { background: color-mix(in oklab, var(--coral) 20%, var(--bg-raised)); color: var(--coral); }
   .opt.is-right { background: color-mix(in oklab, var(--p) 16%, var(--bg-raised)); box-shadow: inset 0 0 0 2px var(--p); }
   .opt.is-right .opt__key { background: var(--p); color: #fff; }
-  .quiz__hint { min-height: 1.6em; font-size: var(--step--1); color: var(--ink-2); font-weight: 600; }
+  /* Two lines held open: a hint that wraps mustn't grow the card and shove the page. */
+  .quiz__hint { min-height: 3.1em; font-size: var(--step--1); color: var(--ink-2); font-weight: 600; }
 
   .quiz__yay {
     font-family: var(--font-display);
@@ -160,7 +162,7 @@ const first = questions[0];
   .quiz__confetti :global(i) { position: absolute; left: 0; top: 0; width: 8px; height: 12px; border-radius: 2px; }
 
   @media (max-width: 420px) {
-    .quiz__options { grid-template-columns: 1fr; }
+    .quiz__options { grid-template-columns: minmax(0, 1fr); }
   }
   @media (prefers-reduced-motion: reduce) {
     .quiz__inner { transform: none !important; }

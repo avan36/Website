@@ -1,0 +1,161 @@
+---
+// How this site works: a short, static tour of the world model for the
+// curious. Every example on it is generated from the real world at build
+// time, so it can't drift from what the home page actually does.
+import { Code } from 'astro:components';
+import Reading from '../layouts/Reading.astro';
+import Prose from '../components/blog/Prose.astro';
+import { loadWorld } from '../world/load';
+import { checkWorld } from '../world/schema';
+import contract from '../renderers/types.ts?raw';
+
+const world = await loadWorld();
+
+// One place, as the renderers receive it, trimmed to one piece of scenery.
+// Short arrays and objects stay on one line, like a person would write it.
+const flat = (v: unknown): string =>
+  Array.isArray(v)
+    ? `[${v.map(flat).join(', ')}]`
+    : v && typeof v === 'object'
+      ? `{ ${Object.entries(v).map(([k, x]) => `${JSON.stringify(k)}: ${flat(x)}`).join(', ')} }`
+      : JSON.stringify(v);
+const compact = (v: unknown, indent = ''): string => {
+  const one = flat(v);
+  if (typeof v !== 'object' || v === null || one.length + indent.length <= 64) return one;
+  const inner = indent + '  ';
+  if (Array.isArray(v)) return `[\n${v.map((x) => inner + compact(x, inner)).join(',\n')}\n${indent}]`;
+  return `{\n${Object.entries(v).map(([k, x]) => `${inner}${JSON.stringify(k)}: ${compact(x, inner)}`).join(',\n')}\n${indent}}`;
+};
+const taproom = world.places.find((p) => p.id === 'busy-beer')!;
+const sample = compact({ ...taproom, scenery: taproom.scenery.slice(0, 1) });
+
+// A real failure: cut the bottle off from every path and ask the checker.
+const broken = structuredClone(world);
+broken.routes = broken.routes.filter((r) => r.from !== 'contact' && r.to !== 'contact');
+const failure = checkWorld(broken)
+  .map((i) => `  • ${i.path.join('.')}: ${i.message}`)
+  .join('\n');
+
+const themes = { light: 'github-light', dark: 'github-dark' } as const;
+const views = [
+  { id: 'island', name: 'Island', note: 'three.js, walk it in 3D' },
+  { id: 'map', name: 'Map', note: 'canvas pixel art, top-down' },
+  { id: 'text', name: 'Text', note: 'a parser and a prompt' },
+  { id: 'list', name: 'List', note: 'plain HTML, no JavaScript' },
+];
+---
+<Reading
+  title="How this site works · Ambrose Vannier"
+  description="The home page is one world described as data, drawn four ways: a 3D island, a pixel map, a text adventure and a list."
+  current="none"
+>
+  <header class="col-head">
+    <p class="col-kicker">Colophon</p>
+    <h1 class="col-title">How this site works</h1>
+    <p class="col-lede">The home page is one world described as data, and four different renderers draw it.</p>
+  </header>
+
+  <ul class="col-views" role="list">
+    {views.map((v) => (
+      <li><a href={`/?view=${v.id}`}><span class="col-views__name">{v.name}</span><span class="col-views__note">{v.note}</span></a></li>
+    ))}
+  </ul>
+
+  <Prose>
+    <h2>The world is data</h2>
+    <p>
+      Everything on the island lives in one document: {world.places.length} places, {world.routes.length} routes between them,
+      {' '}{world.lostWords.length} hidden words, the shape of the coast, and the {world.projects.length} projects and {world.posts.length} posts
+      they stand for. It says what each place is and what you see when you get there. It never says how anything looks. Here's
+      the taproom as every renderer receives it (trimmed to one piece of scenery):
+    </p>
+    <Code code={sample} lang="json" themes={themes} defaultColor={false} />
+    <p>
+      The island knows it's a <code>taproom</code>. The 3D view builds timber and string lights for that, the map draws a
+      sprite, and the text adventure just reads you the description. Positions are in metres, and the coastline, hills and
+      paths are a recipe that one shared geometry module turns into a height field, so the 3D island and the pixel map agree
+      on where the beach is.
+    </p>
+    <p>The whole thing is published at <a href="/world.json">/world.json</a>, with a <a href="/world.schema.json">JSON Schema</a> generated from the same source.</p>
+
+    <h2>It can't be wrong quietly</h2>
+    <p>
+      The world is checked when the site builds. The schema catches typos and unknown fields. Then a second pass checks the rules
+      that span the whole world: every project has exactly one place, every place can be reached from the plaza, nothing stands
+      inside anything else, every hidden word is tucked into scenery that exists. If I cut the beach off from every path, the
+      build stops with this:
+    </p>
+    <pre class="col-error"><code>{`The world doesn't hold together:\n${failure}`}</code></pre>
+
+    <h2>Renderers are plug-ins</h2>
+    <p>
+      A renderer is anything that can mount into an empty element and later be paused or destroyed. The page around it owns
+      everything they share: the switcher, the color wipe when you go into a place, the cards for the words you find, sound,
+      and what to fall back to (no WebGL gets the map; reduced motion gets the list). Each renderer is loaded only when you pick
+      it, so reading the list never downloads a 3D engine.
+    </p>
+    <details class="col-details">
+      <summary>The whole contract</summary>
+      <Code code={contract.trim()} lang="ts" themes={themes} defaultColor={false} />
+    </details>
+
+    <h2>One pair of pockets</h2>
+    <p>
+      What you've done is shared too: where you're standing, the words you've found, the posts you've caught off the pier. The
+      rules are one pure function from what you did to what happens next, so they're tested without a browser. Walk to the
+      library on the island, switch to the text adventure, and you're still at the library.
+    </p>
+
+    <h2>The games</h2>
+    <p>
+      Eight words English lost are hidden around the island, each where it belongs: <em>crapulous</em> behind the taproom,
+      {' '}<em>wordhord</em> on the library's shelf, <em>curglaff</em> (the shock of cold water when you first plunge in) by the
+      pier. They come from the museum of lost words in <a href="/work/etymon">Etymon</a>, and they're hidden in the data, so you
+      can find them in any view. Find them all and night falls. And if you fish off the pier, whatever bites is something I wrote.
+    </p>
+
+    <h2>Built with</h2>
+    <p>
+      <a href="https://astro.build">Astro</a>, <a href="https://threejs.org">three.js</a>, <a href="https://zod.dev">zod</a> and
+      {' '}<a href="https://vitest.dev">Vitest</a>, set in Bricolage Grotesque and Newsreader, and hosted on Vercel. The blog is
+      plain Markdown. The rest of the site has no framework on the client: the island, the map and the text adventure are
+      TypeScript talking to the DOM.
+    </p>
+  </Prose>
+</Reading>
+
+<style>
+  .col-head { margin-block-end: var(--space-6); }
+  .col-kicker { font-size: var(--step--1); font-weight: 650; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+  .col-title {
+    margin-block-start: var(--space-2);
+    font-family: var(--font-display);
+    font-size: clamp(2.4rem, 1.6rem + 3.6vw, 4rem);
+    font-weight: 700;
+    line-height: 1.02;
+    letter-spacing: -0.04em;
+  }
+  .col-lede { margin-block-start: var(--space-4); font-family: var(--font-read); font-size: var(--step-1); line-height: 1.45; color: var(--ink-2); max-width: 32ch; }
+
+  .col-views { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); margin: 0 0 var(--space-7); padding: 0; list-style: none; }
+  .col-views a {
+    display: grid;
+    gap: 2px;
+    min-height: 44px;
+    padding: var(--space-4);
+    border-radius: var(--r-md);
+    background: var(--bg-sunken);
+    text-decoration: none;
+    transition: transform var(--dur-2) var(--ease-spring), box-shadow var(--dur-2);
+  }
+  .col-views a:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); }
+  .col-views__name { font-family: var(--font-display); font-weight: 700; font-size: var(--step-1); }
+  .col-views__note { font-size: var(--step--1); color: var(--muted); }
+
+  .col-error {
+    white-space: pre-wrap;
+    color: color-mix(in srgb, #c2361c 80%, var(--ink)) !important;
+  }
+  .col-details { margin-block: var(--space-5); }
+  .col-details summary { cursor: pointer; font-family: var(--font-ui); font-weight: 650; font-size: var(--step-0); color: var(--link); padding-block: 10px; }
+</style>

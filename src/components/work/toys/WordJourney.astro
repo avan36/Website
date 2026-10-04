@@ -501,13 +501,16 @@ const endStage = first.path[end];
       });
 
       word.replaceChildren(...nextGlyphs.map((g) => g.el), ...leaving.map((g) => g.el));
+      // Out of flow first, then measure: the word recenters on the letters that
+      // stay, and that's the box the lost ones are pinned against.
+      for (const g of leaving) g.el.style.position = 'absolute';
       const host = word.getBoundingClientRect();
 
       // Lost letters: pinned where they were, then blurred away.
       for (const g of leaving) {
         const r = before.get(g.el)!;
         g.el.classList.add('is-leaving');
-        Object.assign(g.el.style, { position: 'absolute', left: `${r.left - host.left}px`, top: `${r.top - host.top}px` });
+        Object.assign(g.el.style, { left: `${r.left - host.left}px`, top: `${r.top - host.top}px` });
         g.el.animate(
           [
             { opacity: 1, transform: 'none', filter: 'blur(0)' },
@@ -589,6 +592,9 @@ const endStage = first.path[end];
     }
 
     function selectWord(next: number) {
+      // Pin the outgoing letters at their size: the new word's fit would
+      // otherwise rescale them mid-exit, spilling a long word past the card.
+      for (const g of glyphs) g.el.style.fontSize = getComputedStyle(g.el).fontSize;
       wi = next;
       const j = journeys[wi];
       chips.forEach((c, k) => c.setAttribute('aria-pressed', String(k === wi)));

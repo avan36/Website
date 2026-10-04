@@ -64,7 +64,7 @@ const labelPos = AXES.map((_, i) => {
               aria-valuenow={START[i]}
               aria-valuetext={`${START[i]} out of 10`}
             >
-              <circle class="handle__hit" r="28" />
+              <circle class="handle__hit" r="35" />
               <circle class="handle__ping" r="9" />
               <circle class="handle__ring" r="15" />
               <circle class="handle__knob" r="8.5" />
@@ -235,7 +235,8 @@ const labelPos = AXES.map((_, i) => {
     box-shadow: var(--shadow-2);
   }
   .menu-card__head {
-    display: flex; justify-content: space-between; align-items: baseline;
+    display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap;
+    gap: 0 var(--space-3);
     padding: var(--space-3) var(--space-3) var(--space-4);
   }
   .menu-card__title { font-family: var(--font-display); font-weight: 700; font-size: var(--step-1); letter-spacing: -0.02em; }

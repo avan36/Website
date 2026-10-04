@@ -1,47 +1,55 @@
 ---
-// Home: the island. The page server-renders a complete list view (for no JS,
-// no WebGL, reduced motion, search engines and "List view"), and the game
-// mounts over it when the visitor can play.
+// Home: the world. The page server-renders a complete list view (for no JS,
+// reduced motion, search engines and "List"), embeds the world as JSON, and
+// mounts a renderer over it: the 3D island, the 2D map or the text adventure.
 import Base from '../layouts/Base.astro';
 import IslandStage from '../components/island/IslandStage.astro';
 import ListView from '../components/island/ListView.astro';
-import { person, projects } from '../data/projects';
+import WorldData from '../components/world/WorldData.astro';
+import WorldUI from '../components/world/WorldUI.astro';
+import { person } from '../data/projects';
+import { loadWorld } from '../world/load';
 
-const colors: Record<string, string> = Object.fromEntries([
-  ...projects.map((p) => [p.slug, p.hex]),
-  ['blog', '#2b8fb8'],
-  ['contact', '#ff5a36'],
-]);
+const world = await loadWorld();
+const colors: Record<string, string> = Object.fromEntries(world.places.map((p) => [p.id, p.color]));
 ---
 <Base
   title={`${person.name} · ${person.role}`}
-  description="Ambrose Vannier builds apps people love to use and tools that keep the web honest. Explore his work as a tiny island, or browse the list."
+  description="Ambrose Vannier builds apps people love to use and tools that keep the web honest. Explore his work as a tiny island, a pixel map or a text adventure, or browse the list."
   theme="light"
   bodyClass="isl-body"
 >
   <script is:inline slot="head" define:vars={{ colors }}>
-    // Decide island or list before first paint, so nothing jumps.
+    // Pick the view before first paint, so nothing jumps:
+    // ?view= in the URL, then this tab's last choice, then what the device suits.
     (function () {
       var d = document.documentElement;
       var gl = !!(window.WebGL2RenderingContext || window.WebGLRenderingContext);
       var rm = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
-      var pref = null, ret = null;
+      var views = ['island', 'map', 'text', 'list'];
+      var pref = null, ret = null, q = null;
       try { pref = sessionStorage.getItem('island:view'); ret = sessionStorage.getItem('island:return'); } catch (e) {}
-      var list = !gl || location.hash === '#work' || pref === 'list' || (rm && pref !== 'island');
-      d.classList.add(list ? 'isl-mode-list' : 'isl-mode-play');
+      try { q = new URLSearchParams(location.search).get('view'); } catch (e) {}
+      var view = views.indexOf(q) >= 0 ? q : location.hash === '#work' ? 'list' : views.indexOf(pref) >= 0 ? pref : rm ? 'list' : 'island';
+      if (view === 'island' && !gl) view = rm ? 'list' : 'map';
+      d.dataset.view = view;
+      d.classList.add(view === 'list' ? 'isl-mode-list' : 'isl-mode-play');
+      d.classList.add('isl-js');
       if (gl) d.classList.add('isl-gl');
-      if (!list && ret && colors[ret]) {
+      if (view !== 'list' && ret && colors[ret]) {
         d.classList.add('isl-returning');
         d.style.setProperty('--isl-return', colors[ret]);
       }
     })();
   </script>
+  <WorldData />
   <main id="main">
     <IslandStage />
     <ListView />
   </main>
+  <WorldUI />
 </Base>
 
 <script>
-  import '../game/boot';
+  import '../renderers/shell';
 </script>

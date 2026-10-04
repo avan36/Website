@@ -206,7 +206,7 @@ const rects = bars.map((w, i) => {
   .foot__what b { color: var(--ink); font-size: var(--step-0); font-weight: 650; }
   .chip { padding: 3px 9px; border-radius: var(--r-pill); font-size: 12px; font-weight: 700; white-space: nowrap; }
   .chip--ok { background: color-mix(in oklab, var(--p) 18%, var(--bg-raised)); color: color-mix(in oklab, var(--p) 65%, var(--ink)); }
-  .chip--warn { background: color-mix(in oklab, var(--sun) 26%, var(--bg-raised)); color: color-mix(in oklab, #b26a00 80%, var(--ink)); }
+  .chip--warn { background: color-mix(in oklab, var(--sun) 26%, var(--bg-raised)); color: color-mix(in oklab, #b26a00 55%, var(--ink)); }
   .foot__verdict { display: flex; align-items: center; gap: var(--space-3); margin-top: var(--space-2); }
   .meter { display: flex; gap: 4px; }
   .meter i { width: 18px; height: 8px; border-radius: 4px; background: var(--line-strong); }
@@ -236,6 +236,9 @@ const rects = bars.map((w, i) => {
         await sleep(450);
       }
       if (id !== run) return;
+      // Restart the sweep even when replayed mid-scan (re-adding the class alone wouldn't).
+      root.classList.remove('is-scanning');
+      void root.offsetWidth;
       root.classList.add('is-scanning');
       await sleep(400 + 760 * 2);
       if (id !== run) return;

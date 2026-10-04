@@ -3,7 +3,11 @@
 export const reducedMotion = (): boolean =>
   typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-/** Run `cb` once, the first time `el` scrolls into view. */
+/**
+ * Run `cb` once, the first time `threshold` of `el` scrolls into view, or that
+ * much of the screen's height when `el` is taller than the screen (a tall toy
+ * on a landscape phone can never show half of itself at once).
+ */
 export function whenVisible(el: Element, cb: () => void, threshold = 0.35): void {
   if (!('IntersectionObserver' in window)) {
     cb();
@@ -11,12 +15,16 @@ export function whenVisible(el: Element, cb: () => void, threshold = 0.35): void
   }
   const io = new IntersectionObserver(
     (entries) => {
-      if (entries.some((e) => e.isIntersecting)) {
+      const seen = entries.some((e) => {
+        const room = Math.min(e.boundingClientRect.height, e.rootBounds?.height ?? innerHeight);
+        return e.isIntersecting && e.intersectionRect.height >= room * threshold - 1;
+      });
+      if (seen) {
         io.disconnect();
         cb();
       }
     },
-    { threshold },
+    { threshold: Array.from({ length: 21 }, (_, i) => i / 20) },
   );
   io.observe(el);
 }

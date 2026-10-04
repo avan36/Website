@@ -1,7 +1,17 @@
 ---
-// The full-viewport island: canvas host, loading state, HUD, label layer and
-// the color wipes used when going into a place and coming back out.
+// The full-viewport stage every renderer draws into (the 3D island, the 2D
+// map, the text adventure), with the HUD they share on top: brand, the view
+// switcher, the word hoard, sound, the intro card, and the color wipes used
+// when going into a place and coming back out.
 import { person } from '../../data/projects';
+import ViewIcon from './ViewIcon.astro';
+
+const VIEWS = [
+  { id: 'island', name: 'Island', note: 'Walk around it in 3D' },
+  { id: 'map', name: 'Map', note: 'A pixel-art map, top-down' },
+  { id: 'text', name: 'Text', note: 'A text adventure: type to explore' },
+  { id: 'list', name: 'List', note: 'Just the work, plainly' },
+] as const;
 ---
 <div id="isl-stage" class="isl-stage">
   <div class="isl-loader" role="status">
@@ -17,7 +27,6 @@ import { person } from '../../data/projects';
     <p>Setting sail<span class="isl-loader__dots" aria-hidden="true"><span>.</span><span>.</span><span>.</span></span></p>
   </div>
 
-  <div id="isl-labels" class="isl-labels"></div>
   <div class="isl-vignette" aria-hidden="true"></div>
 
   <div class="isl-hud">
@@ -30,9 +39,26 @@ import { person } from '../../data/projects';
         </span>
       </a>
       <nav class="isl-nav" aria-label="Primary">
-        <button type="button" class="isl-chip" data-isl-list aria-pressed="false">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11" /><circle cx="4.5" cy="6" r="1" fill="currentColor" /><circle cx="4.5" cy="12" r="1" fill="currentColor" /><circle cx="4.5" cy="18" r="1" fill="currentColor" /></svg>
-          <span class="isl-chip__label">List view</span>
+        <div class="isl-views">
+          <button type="button" class="isl-chip isl-views__toggle" data-views-toggle aria-expanded="false" aria-controls="isl-views-menu" aria-haspopup="true">
+            {VIEWS.map((v) => <span class="isl-views__cur" data-for={v.id}><ViewIcon id={v.id} /></span>)}
+            <span class="isl-chip__label"><span class="visually-hidden">View: </span>{VIEWS.map((v) => <span class="isl-views__cur" data-for={v.id}>{v.name}</span>)}</span>
+            <svg class="isl-views__chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+          </button>
+          <div class="isl-views__menu" id="isl-views-menu" hidden>
+            <p class="isl-views__head">One world, four ways to see it</p>
+            {VIEWS.map((v) => (
+              <button type="button" class="isl-views__item" data-view-set={v.id} aria-pressed="false">
+                <span class="isl-views__icon"><ViewIcon id={v.id} /></span>
+                <span class="isl-views__text"><span class="isl-views__name">{v.name}</span><span class="isl-views__note">{v.note}</span></span>
+              </button>
+            ))}
+            <p class="isl-views__json">Every view draws the same <a href="/world.json"><code>world.json</code></a>. <a href="/colophon">How it works</a></p>
+          </div>
+        </div>
+        <button type="button" class="isl-chip isl-hoard-top" data-hoard-open aria-label="Word hoard">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H11v16H5.5A1.5 1.5 0 0 1 4 18.5Z" /><path d="M20 5.5A1.5 1.5 0 0 0 18.5 4H13v16h5.5a1.5 1.5 0 0 0 1.5-1.5Z" /></svg>
+          <span class="isl-hoard__count" data-hoard-count>0/8</span>
         </button>
         <a class="isl-chip" href="/blog">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16Z" /><path d="M13.5 6.5l4 4" /></svg>
@@ -58,7 +84,10 @@ import { person } from '../../data/projects';
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 13V5.5a1.5 1.5 0 0 1 3 0V12M11 11.5v-7a1.5 1.5 0 0 1 3 0v7M14 11.5V6a1.5 1.5 0 0 1 3 0v8.5a6.5 6.5 0 0 1-6.5 6.5h-.5a6 6 0 0 1-4.6-2.2L3 15.6a1.6 1.6 0 0 1 2.4-2.1L8 16" /></svg>
       </span>Hi, I'm Ambrose.</h1>
       <div id="isl-card-body" class="isl-card__body">
-        <p>I build apps people love to use and tools that keep the web honest. Explore the island: every place is something I've made.</p>
+        <div class="isl-card__inner">
+          <p>I build apps people love to use and tools that keep the web honest. Explore the island: every place is something I've made.</p>
+          <a class="isl-card__more" href="/about">More about me <span aria-hidden="true">→</span></a>
+        </div>
       </div>
     </section>
 
@@ -67,8 +96,13 @@ import { person } from '../../data/projects';
       <svg class="isl-sound-on" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9.5h3.5L12 5v14l-4.5-4.5H4Z" /><path d="M16 9a4.5 4.5 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11" /></svg>
     </button>
 
+    <button type="button" class="isl-chip isl-chip--icon isl-hoard-fab" data-hoard-open aria-label="Word hoard">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H11v16H5.5A1.5 1.5 0 0 1 4 18.5Z" /><path d="M20 5.5A1.5 1.5 0 0 0 18.5 4H13v16h5.5a1.5 1.5 0 0 0 1.5-1.5Z" /></svg>
+      <span class="isl-hoard__badge" data-hoard-count>0/8</span>
+    </button>
+
     <p class="isl-hint" aria-hidden="true">
-      <span class="isl-hint__desk"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> or click to explore</span>
+      <span class="isl-hint__desk"><span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span>or click to explore<span class="isl-hint__dot">·</span><span><kbd class="is-wide">Space</kbd></span>to jump</span>
       <span class="isl-hint__touch">Tap anywhere to explore</span>
     </p>
   </div>
@@ -240,7 +274,23 @@ import { person } from '../../data/projects';
     transition: grid-template-rows 420ms var(--ease-out), opacity 300ms, margin 420ms var(--ease-out);
     margin-top: 10px;
   }
-  .isl-card__body p { overflow: hidden; color: var(--ink-2); font-size: 15.5px; line-height: 1.5; }
+  .isl-card__body p { color: var(--ink-2); font-size: 15.5px; line-height: 1.5; }
+  .isl-card__inner { min-height: 0; overflow: hidden; display: grid; justify-items: start; gap: 2px; }
+  .isl-card.is-collapsed .isl-card__inner { visibility: hidden; transition: visibility 0s 420ms; }
+  .isl-card__more {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 44px;
+    margin-bottom: -10px;
+    font-weight: 700;
+    font-size: 15px;
+    color: color-mix(in srgb, var(--accent) 80%, var(--ink));
+    text-decoration: none;
+  }
+  .isl-card__more:hover { text-decoration: underline; text-underline-offset: 0.2em; }
+  .isl-card__more span { transition: transform var(--dur-2) var(--ease-spring); }
+  .isl-card__more:hover span { transform: translateX(3px); }
   .isl-card.is-collapsed { width: 276px; padding-top: 12px; padding-bottom: 12px; }
   .isl-card.is-collapsed .isl-card__body { grid-template-rows: 0fr; opacity: 0; margin-top: 0; }
   .isl-card__toggle {
@@ -298,6 +348,8 @@ import { person } from '../../data/projects';
     font: 700 12px/1 var(--font-ui);
   }
   .isl-hint kbd:last-of-type { margin-right: 8px; }
+  .isl-hint kbd.is-wide { padding: 0 9px; }
+  .isl-hint__dot { margin: 0 10px; opacity: 0.5; }
   .isl-hint__touch { display: none; }
   html.isl-touch .isl-hint__touch { display: inline; }
   html.isl-touch .isl-hint__desk { display: none; }
@@ -307,9 +359,118 @@ import { person } from '../../data/projects';
   /* HUD entrance: arrives as the intro settles */
   .isl-top > *, .isl-card { opacity: 0; transform: translateY(-10px); transition: opacity 600ms var(--ease-out), transform 700ms var(--ease-spring); }
   .isl-card { transform: translateY(14px); }
-  html.isl-ready .isl-top > * { opacity: 1; transform: none; transition-delay: 1.3s; }
-  html.isl-ready .isl-card { opacity: 1; transform: none; transition-delay: 1.9s, 1.9s, 0s, 0s; }
-  html.isl-ready.isl-played .isl-top > *, html.isl-ready.isl-played .isl-card { transition-delay: 0s; }
+  html.isl-hud-on .isl-top > * { opacity: 1; transform: none; transition-delay: 1.3s; }
+  html.isl-hud-on .isl-card { opacity: 1; transform: none; transition-delay: 1.9s, 1.9s, 0s, 0s; }
+  html.isl-hud-on.isl-played .isl-top > *, html.isl-hud-on.isl-played .isl-card { transition-delay: 0s; }
+
+  /* ---------- Renderer hosts ---------- */
+  .view-host { position: absolute; inset: 0; z-index: 1; }
+  html[data-view='text'] .isl-card, html[data-view='text'] .isl-hint, html[data-view='text'] .isl-vignette { display: none; }
+
+  /* The text view is dark: the HUD goes dark with it. */
+  html[data-view='text'] .isl-brand,
+  html[data-view='text'] .isl-chip {
+    background: rgba(38, 33, 27, 0.92);
+    color: #f1e8da;
+    box-shadow: inset 0 0 0 1px rgba(255, 240, 220, 0.09);
+  }
+  html[data-view='text'] .isl-chip svg { color: #cbbfae; }
+  html[data-view='text'] .isl-brand__role { color: #a99e8e; }
+  html[data-view='text'] .isl-chip:hover { background: rgba(58, 51, 43, 0.96); }
+  html[data-view='text'] .isl-chip[aria-pressed='true'] { background: #f1e8da; color: #14110d; }
+  html[data-view='text'] .isl-chip[aria-pressed='true'] svg { color: #14110d; }
+
+  /* ---------- View switcher ---------- */
+  .isl-views { position: relative; }
+  .isl-views__cur { display: none; }
+  html[data-view='island'] .isl-views__cur[data-for='island'],
+  html[data-view='map'] .isl-views__cur[data-for='map'],
+  html[data-view='text'] .isl-views__cur[data-for='text'],
+  html[data-view='list'] .isl-views__cur[data-for='list'] { display: inline-flex; }
+  .isl-views__chev { margin-left: -2px; opacity: 0.6; transition: transform var(--dur-2) var(--ease-out); }
+  .isl-views__toggle[aria-expanded='true'] .isl-views__chev { transform: rotate(180deg); }
+  .isl-views__menu {
+    position: absolute;
+    top: calc(100% + 10px);
+    right: 0;
+    z-index: 20;
+    width: 292px;
+    padding: 8px;
+    border-radius: 22px;
+    background: rgba(255, 255, 255, 0.96);
+    -webkit-backdrop-filter: blur(16px) saturate(1.4);
+    backdrop-filter: blur(16px) saturate(1.4);
+    box-shadow: var(--shadow-3);
+    transform-origin: 85% 0;
+    animation: isl-menu-in 280ms var(--ease-spring);
+  }
+  .isl-views__menu[hidden] { display: none; }
+  @keyframes isl-menu-in { from { opacity: 0; transform: translateY(-6px) scale(0.96); } }
+  .isl-views__head { padding: 8px 12px 6px; font-size: 12px; font-weight: 750; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); }
+  .isl-views__item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    min-height: 52px;
+    padding: 8px 12px;
+    border: 0;
+    border-radius: 14px;
+    background: transparent;
+    text-align: left;
+    cursor: pointer;
+    transition: background var(--dur-1);
+  }
+  .isl-views__item:hover { background: var(--bg-sunken); }
+  .isl-views__item[aria-pressed='true'] { background: #fff1e6; }
+  .isl-views__icon {
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 11px;
+    background: var(--bg-sunken);
+    color: var(--ink-2);
+    flex: none;
+  }
+  .isl-views__item[aria-pressed='true'] .isl-views__icon { background: var(--accent); color: #fff; }
+  .isl-views__text { display: grid; line-height: 1.25; }
+  .isl-views__name { font-family: var(--font-display); font-weight: 700; font-size: 15.5px; }
+  .isl-views__note { font-size: 13.5px; color: var(--ink-3); }
+  .isl-views__json {
+    display: block;
+    margin: 6px 4px 2px;
+    padding: 10px 8px 6px;
+    border-top: 1px solid var(--line);
+    font-size: 13px;
+    color: var(--ink-3);
+    text-decoration: none;
+  }
+  .isl-views__json a { color: var(--ink-2); font-weight: 650; text-underline-offset: 0.2em; }
+  .isl-views__json code { font-family: var(--font-mono); font-size: 12.5px; }
+
+  /* ---------- Word hoard ---------- */
+  .isl-hoard__count { font-variant-numeric: tabular-nums; }
+  .isl-hoard-fab { display: none; }
+  .isl-hoard__badge {
+    position: absolute;
+    top: -4px;
+    right: -6px;
+    min-width: 26px;
+    padding: 2px 5px;
+    border-radius: var(--r-pill);
+    background: var(--ink);
+    color: var(--bg);
+    font-size: 11px;
+    font-weight: 750;
+    line-height: 1.3;
+    font-variant-numeric: tabular-nums;
+  }
+  [data-hoard-open].is-bump { animation: isl-bump 700ms var(--ease-spring); }
+  @keyframes isl-bump { 30% { transform: scale(1.18) rotate(-4deg); } }
+  html.isl-hoard-full [data-hoard-open] { background: #1f2a44; color: #ffe9a8; }
+  html.isl-hoard-full [data-hoard-open] svg { color: #ffe9a8; }
+  html.isl-hoard-full .isl-hoard__badge { background: #ffe9a8; color: #1f2a44; }
 
   /* ---------- Labels ---------- */
   .isl-labels { position: absolute; inset: 0; pointer-events: none; z-index: 5; overflow: hidden; }
@@ -461,7 +622,26 @@ import { person } from '../../data/projects';
       opacity: 0;
       transition: opacity 600ms var(--ease-out) 1.9s, transform var(--dur-2) var(--ease-spring);
     }
-    html.isl-ready .isl-sound-fab { opacity: 1; }
+    html.isl-hud-on .isl-sound-fab, html.isl-hud-on .isl-hoard-fab { opacity: 1; }
+    .isl-hoard-top { display: none; }
+    .isl-hoard-fab {
+      display: inline-flex;
+      position: absolute;
+      right: max(16px, env(safe-area-inset-right));
+      bottom: calc(max(16px, env(safe-area-inset-bottom)) + 56px);
+      opacity: 0;
+      transition: opacity 600ms var(--ease-out) 1.9s, transform var(--dur-2) var(--ease-spring);
+    }
+    /* Text view on a phone: no floating buttons over the words. The brand
+       shrinks to its monogram (the adventure's title says the name) and the
+       word hoard and sound join the top row. */
+    html[data-view='text'] .isl-sound-fab, html[data-view='text'] .isl-hoard-fab { display: none; }
+    html[data-view='text'] .isl-hoard-top, html[data-view='text'] .isl-sound-top { display: inline-flex; }
+    html[data-view='text'] .isl-hoard-top { position: relative; }
+    html[data-view='text'] .isl-hoard-top .isl-hoard__count { position: absolute; top: -4px; right: -6px; min-width: 26px; padding: 2px 5px; border-radius: var(--r-pill); background: #f1e8da; color: #14110d; font-size: 11px; font-weight: 750; line-height: 1.3; }
+    html[data-view='text'] .isl-brand { padding: 4px; }
+    html[data-view='text'] .isl-brand__text { display: none; }
+    .isl-views__menu { position: fixed; top: calc(max(16px, env(safe-area-inset-top)) + 56px); right: 16px; width: min(292px, calc(100vw - 32px)); }
     .isl-card { width: calc(100vw - 32px - 56px); }
     .isl-card.is-collapsed { width: 262px; }
     .isl-hint { bottom: auto; top: calc(max(16px, env(safe-area-inset-top)) + 64px); }
