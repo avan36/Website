@@ -1,0 +1,46 @@
+---
+// The project's main calls to action (App Store badge or "try it" button).
+// Shown in the hero so it's above the fold, and again after the write-up.
+import type { Project } from '../../data/projects';
+import AppStoreButton from '../AppStoreButton.astro';
+interface Props { project: Project }
+const { project } = Astro.props;
+
+const actions = project.links.filter((l) => l.kind === 'appstore' || l.kind === 'primary');
+const isExternal = (href: string) => /^https?:/.test(href);
+---
+{actions.length > 0 && (
+  <div class="actions">
+    {actions.map((l) =>
+      l.kind === 'appstore' ? (
+        <AppStoreButton href={l.href} app={project.name} />
+      ) : (
+        <a class="btn cta" href={l.href} rel={isExternal(l.href) ? 'noopener' : undefined}>
+          {l.label}
+          <span class="cta__arrow" aria-hidden="true">{isExternal(l.href) ? '↗' : '→'}</span>
+        </a>
+      ),
+    )}
+  </div>
+)}
+
+<style>
+  .actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-4); }
+  /* Bigger than a plain .btn, with a glow in the project's color. */
+  .cta {
+    padding: 17px 28px;
+    font-size: var(--step-1);
+    box-shadow:
+      var(--shadow-2),
+      0 10px 34px -8px color-mix(in oklab, var(--p) 70%, transparent),
+      0 0 0 4px color-mix(in oklab, var(--p) 28%, transparent);
+  }
+  .cta:hover {
+    box-shadow:
+      var(--shadow-2),
+      0 16px 40px -8px color-mix(in oklab, var(--p) 80%, transparent),
+      0 0 0 5px color-mix(in oklab, var(--p) 40%, transparent);
+  }
+  .cta__arrow { display: inline-block; transition: transform var(--dur-2) var(--ease-spring); }
+  .cta:hover .cta__arrow { transform: translate(2px, -2px); }
+</style>
