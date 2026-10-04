@@ -147,7 +147,7 @@ export function scatterProps(world: World, geo: Geo, places: MapPlace[], seed = 
   };
 
   for (let gz = -30; gz < 30; gz += CELL) {
-    for (let gx = -30; gx < 32; gx += CELL) {
+    for (let gx = -30; gx < 42; gx += CELL) {
       const x = gx + rnd() * CELL;
       const z = gz + rnd() * CELL;
       const roll = rnd();

@@ -15,8 +15,11 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { prep } from './kit';
 import { rng } from '../util/math';
 
-/** How far north the skyline stands, and how much of the horizon it spans. */
-const Z = -47;
+/** Built around z = 0, then shrunk and set down this far north: a miniature
+ *  of a far-off city, small enough to fit in the top of the view. */
+const Z = 0;
+const AT_Z = -41;
+const SCALE = 0.62;
 
 const DAY = new Color('#9fb0c4');
 const NIGHT = new Color('#1d2648');
@@ -140,6 +143,8 @@ export function buildSkyline() {
   lit.visible = false;
   lights.forEach((g) => g.dispose());
   group.add(mesh, lit);
+  group.position.z = AT_Z;
+  group.scale.setScalar(SCALE);
 
   return {
     group,

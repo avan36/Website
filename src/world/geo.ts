@@ -244,7 +244,8 @@ export function createGeo(world: World) {
     if (Math.abs(x - pier.x) < 2.2 && z > pier.start - 2) return false;
     if (railDist(x, z) < 1.6 + margin) return false;
     if (quayDist(x, z) < 0.8 + margin) return false;
-    for (const p of plots) if (Math.hypot(x - p.x, z - p.z) < p.r + margin) return false;
+    // A plot keeps a little more than its clearing free, so no canopy hangs over it.
+    for (const p of plots) if (Math.hypot(x - p.x, z - p.z) < p.r + 1.2 + margin) return false;
     if (station && Math.hypot(x - station.x, z - station.z) < 3.2 + margin) return false;
     return true;
   }

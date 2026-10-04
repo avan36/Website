@@ -10,6 +10,7 @@
 
 import { BoxGeometry as ThreeBox, BufferAttribute, BufferGeometry, Color, Group, MeshBasicMaterial, type Object3D } from 'three';
 import { readGeo } from '../../../world/client';
+import { CAR_LEN, CARS, createTrain, type CarKind } from '../../../world/train';
 import type { Glow } from '../landmarks/builders';
 import { Kit } from './kit';
 import { smoothstep } from '../util/math';
@@ -18,15 +19,7 @@ const geo = readGeo();
 
 /** Half the distance between the rails. */
 const GAUGE = 0.5;
-const CAR_LEN = 3.3;
-const CAR_GAP = 0.25;
 const CAR_W = 1.12;
-/** Cruising speed in world units a second, and how hard it brakes. */
-const CRUISE = 3.4;
-const ACCEL = 1.1;
-const BRAKE = 1.6;
-/** How long the train waits at the platform on each lap while running, in seconds. */
-const DWELL = 6;
 
 const SILVER = '#c9ced4';
 const SILVER_DARK = '#9aa1aa';
@@ -73,7 +66,7 @@ function ballast(points: { x: number; z: number }[], y: number, half: number) {
 }
 
 /** One car of the train, built along +z (its front), wheels at y = 0. */
-function buildCar(kind: 'loco' | 'coach' | 'cab', glass: MeshBasicMaterial, seed: number) {
+function buildCar(kind: CarKind, glass: MeshBasicMaterial, seed: number) {
   const k = new Kit(seed);
   const L = CAR_LEN;
   const W = CAR_W;
@@ -157,8 +150,7 @@ export function buildCommute() {
   // Window glass shared by every car and the bus: dark by day, warm after dark.
   const glass = new MeshBasicMaterial({ vertexColors: true, color: DAY_GLASS.clone() });
 
-  let train: { cars: Object3D[]; offsets: number[] } | null = null;
-  let stationS = 0;
+  let cars: Object3D[] = [];
   const bedY = rail ? geo.heightAt(rail.points[0].x, rail.points[0].z) : 0;
 
   if (rail) {
@@ -201,7 +193,6 @@ export function buildCommute() {
 
     // ---------- Station ----------
     if (rw) {
-      stationS = rw.s;
       const at = rail.at(rw.s);
       const out = at.out;
       const sk = new Kit(612);
@@ -239,16 +230,13 @@ export function buildCommute() {
     }
 
     // ---------- Train ----------
-    const kinds = ['loco', 'coach', 'cab'] as const;
-    const cars = kinds.map((k, i) => {
+    cars = CARS.map((k, i) => {
       const c = buildCar(k, glass, 620 + i);
       group.add(c);
       return c;
     });
     // The locomotive leads, and the cab car brings up the rear facing backwards.
-    cars[2].children.forEach((m) => (m.rotation.y = Math.PI));
-    const offsets = cars.map((_, i) => i * (CAR_LEN + CAR_GAP));
-    train = { cars, offsets };
+    cars[CARS.indexOf('cab')].children.forEach((m) => (m.rotation.y = Math.PI));
   }
 
   // ---------- Quay and bus ----------
@@ -291,23 +279,28 @@ export function buildCommute() {
     }
   }
 
-  // ---------- Running the train ----------
-  let s = stationS + 0.001; // where the middle of the train is, along the loop
-  let v = 0;
-  let dwell = 0;
-  const trainLen = train ? train.offsets[train.offsets.length - 1] + CAR_LEN : 0;
-  /** Distance along the loop from a to b, going forward. */
-  const ahead = (a: number, b: number) => (rail ? (((b - a) % rail.length) + rail.length) % rail.length : 0);
+  // ---------- Spare plots ----------
+  // Kept for a place still to come: four stakes and a string round level ground.
+  for (const plot of geo.plots) {
+    const pk = new Kit(650);
+    const h = geo.heightAt(plot.x, plot.z);
+    const c = plot.r * 0.62;
+    const corners: [number, number][] = [[-c, -c], [c, -c], [c, c], [-c, c]];
+    for (const [dx, dz] of corners) pk.box(0.08, 0.5, 0.08, '#c39563', { p: [plot.x + dx, h + 0.2, plot.z + dz] });
+    for (let i = 0; i < 4; i++) {
+      const [ax, az] = corners[i];
+      const [bx, bz] = corners[(i + 1) % 4];
+      pk.box(Math.abs(bx - ax) + 0.02 || 0.02, 0.02, Math.abs(bz - az) + 0.02 || 0.02, '#f2efe8', { p: [plot.x + (ax + bx) / 2, h + 0.4, plot.z + (az + bz) / 2], jitter: 0 });
+    }
+    group.add(pk.build({ castShadow: false, receiveShadow: true }));
+  }
 
+  // ---------- Running the train ----------
+  const train = createTrain(geo);
   const place = () => {
-    if (!train || !rail) return;
-    train.cars.forEach((car, i) => {
-      // The middle of car i, counted back from the front of the train.
-      const mid = s + trainLen / 2 - train!.offsets[i] - CAR_LEN / 2;
-      const f = rail.at(mid + CAR_LEN * 0.32);
-      const b = rail.at(mid - CAR_LEN * 0.32);
-      car.position.set((f.x + b.x) / 2, bedY + 0.12, (f.z + b.z) / 2);
-      car.rotation.y = Math.atan2(f.x - b.x, f.z - b.z);
+    train.cars().forEach((c, i) => {
+      cars[i].position.set(c.x, bedY + 0.12, c.z);
+      cars[i].rotation.y = c.yaw;
     });
   };
   place();
@@ -327,40 +320,12 @@ export function buildCommute() {
      * It brakes for anyone standing on the line ahead.
      */
     update(dt: number, running: boolean, player: { x: number; z: number }) {
-      if (!train || !rail) return;
-      const front = s + trainLen / 2;
-      let blocked = false;
-      for (let k = 0.2; k < 4.5; k += 0.5) {
-        const p = rail.at(front + k);
-        if (Math.hypot(player.x - p.x, player.z - p.z) < 1.15) {
-          blocked = true;
-          break;
-        }
-      }
-      const toStop = ahead(s, stationS);
-      const atPlatform = toStop < 0.15 || toStop > rail.length - 0.15;
-      let target = 0;
-      if (dwell > 0) dwell -= dt;
-      else {
-        // The fastest it can go and still stop at the platform: v² = 2·a·d.
-        const brakeTo = Math.sqrt(2 * BRAKE * toStop);
-        if (running) target = Math.min(CRUISE, brakeTo);
-        else if (!atPlatform) target = Math.min(CRUISE * 0.7, brakeTo); // come in and wait
-      }
-      if (blocked) target = 0;
-      v = target > v ? Math.min(target, v + ACCEL * dt) : Math.max(target, v - BRAKE * 1.4 * dt);
-      const step = v * dt;
-      if (v > 0 && step >= toStop && toStop < 1) {
-        // Arrived: stand exactly at the platform (a hair past, so leaving reads as a whole lap ahead).
-        s = stationS + 0.001;
-        v = 0;
-        if (running) dwell = DWELL;
-      } else s += step;
-      s = ((s % rail.length) + rail.length) % rail.length;
+      if (!train.exists) return;
+      train.update(dt, running, player);
       place();
     },
     /** For debugging: where the train is and how fast it's going. */
-    state: () => ({ s, v, dwell: Math.max(0, dwell), atStation: ahead(s, stationS) < 0.2 || ahead(s, stationS) > (rail?.length ?? 0) - 0.2 }),
+    state: train.state,
   };
 }
 

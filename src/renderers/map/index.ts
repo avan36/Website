@@ -16,6 +16,9 @@ import { bayer } from './pixels';
 import { findPath, nearestOpen, smooth, type Grid, type Pt } from './path';
 import { crab, lampPost, paintLandmark, paintScenery, rowboat, scroll, shells, type Landmark, type Sprite } from './sprites';
 import { buildTerrain, RECT, TEX } from './terrain';
+import { bus, drawTrain, shelter } from './commute';
+import { daylight, pageClock } from '../../world/clock';
+import { createTrain } from '../../world/train';
 
 /** World units per second. */
 const SPEED = 4.6;
@@ -26,7 +29,7 @@ const CELL = 4;
 /** How close to a door before its name tag pops up. */
 const DOOR_RANGE = 1.6;
 /** The camera's bounds: the island and a little sea. */
-const VIEW = { x0: -29, z0: -31, x1: 32, z1: 33.5 };
+const VIEW = { x0: -29, z0: -31, x1: 40, z1: 33.5 };
 /** Pixels the HUD covers along the top: the camera centres the explorer below it. */
 const HUD_TOP = 70;
 
@@ -103,6 +106,15 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
   for (const p of props) if (p.r) stampCircle(p.x, p.z, p.r + BODY_R * 0.5);
   const lampAt = { x: pier.x - pier.width / 2 + 0.25, z: pier.end - 3.4 };
   stampCircle(lampAt.x, lampAt.z, 0.15 + BODY_R * 0.5);
+  // The bus on the quay and the station's shelter stand in the way too.
+  const quay = geo.quay;
+  const busAt = quay ? { x: quay.bus.x, z: quay.bus.z + 0.5 } : null;
+  if (quay) for (const t of [-1.5, 0, 1.5]) stampCircle(quay.bus.x + Math.sin(quay.faces) * t, quay.bus.z + Math.cos(quay.faces) * t, 0.65 + BODY_R);
+  const shelterAt = geo.station && geo.rail ? (() => {
+    const at = geo.rail.at(geo.station.s);
+    return { x: at.x + Math.cos(at.yaw) * at.out * 1.8, z: at.z - Math.sin(at.yaw) * at.out * 1.8 };
+  })() : null;
+  if (shelterAt) stampCircle(shelterAt.x, shelterAt.z, 0.6 + BODY_R);
 
   const canStand = (x: number, z: number) => {
     const i = ti(x);
@@ -158,6 +170,8 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
   const boat = rowboat(pierPlace?.place.color ?? HEX.sea);
   things.push({ x: pier.x + pier.width / 2 + 0.95, z: 22.4, sprite: boat });
   things.push({ x: lampAt.x, z: lampAt.z, sprite: lampPost() });
+  if (busAt) things.push({ x: busAt.x, z: busAt.z, sprite: bus() });
+  if (shelterAt) things.push({ x: shelterAt.x, z: shelterAt.z, sprite: shelter() });
   if (bottlePlace) things.push({ x: bottlePlace.base.x + 1.3, z: bottlePlace.base.z + 0.9, sprite: shells() });
   things.sort((a, b) => a.z - b.z);
 
@@ -514,10 +528,19 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
   }
 
   // ---------- Night ----------
-  let nightK = store.state.progress.night ? 1 : 0;
+  // Two things bring the dark, as on the 3D island: island time (the real
+  // clock, or ?time=22:00) and the reward night for a full word hoard. The
+  // map shows whichever is darker; the fireflies come out for the reward only.
+  const clock = pageClock(location.search);
+  let clockDark = 1 - daylight(clock.date());
+  let commuting = clock.commute(clock.date());
+  let clockAt = 0;
+  const train = createTrain(geo);
+  const darkness = () => Math.max(store.state.progress.night ? 1 : 0, clockDark);
+  let nightK = darkness();
   let nightGoal = nightK;
-  const unsub = store.subscribe((state, events) => {
-    nightGoal = state.progress.night ? 1 : 0;
+  const unsub = store.subscribe((_state, events) => {
+    nightGoal = darkness();
     if (events.some((e) => e.type === 'dressed') && wornNow().map((o) => o.id).join() !== wornKey) {
       wornKey = wornNow().map((o) => o.id).join();
       hero = paintExplorer(wornNow());
@@ -1022,6 +1045,7 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
     c.drawImage(night ? terrain.night() : terrain.day, bufL, bufT, bw, bh, 0, 0, bw, bh);
     drawWater(c);
     if (night) drawPools(c);
+    if (train.exists) drawTrain(c, train.cars(), bx, by, TEX, night);
 
     // The click marker: a ring that shrinks into the ground.
     if (marker.t < 1) {
@@ -1068,7 +1092,7 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
     drawHero(c, true);
     c.globalAlpha = 1;
     if (night) {
-      drawFlies(c);
+      if (store.state.progress.night) drawFlies(c);
       drawLighthouseBeam(c);
     }
   }
@@ -1153,7 +1177,15 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
     time += dt;
     if (window.devicePixelRatio !== dpr && Math.min(window.devicePixelRatio, 3) !== dpr) resize();
     update(dt);
-    nightK = motion ? Math.max(0, Math.min(1, nightK + Math.sign(nightGoal - nightK) * dt * 1.6)) : nightGoal;
+    if (now - clockAt > 1000) {
+      clockAt = now;
+      const d = clock.date();
+      clockDark = 1 - daylight(d);
+      commuting = clock.commute(d);
+      nightGoal = darkness();
+    }
+    train.update(dt, commuting, pos);
+    nightK = motion ? Math.max(0, Math.min(1, nightK + Math.max(-dt * 1.6, Math.min(dt * 1.6, nightGoal - nightK)))) : nightGoal; // eases to a goal that can be anywhere in 0..1 at dusk
     aimCamera();
     if (motion) {
       cam.x = damp(cam.x, camGoal.x, 5, dt);

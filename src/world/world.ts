@@ -62,12 +62,14 @@ const places: PlaceInput[] = [
     clearing: 4.6,
     aliases: ['taproom', 'pub', 'bar', 'tavern', 'beer'],
     description:
-      'A timber-framed taproom with an arched door, string lights sagging between two poles, and a sign that swings whenever the breeze picks up. Out front, mugs sit on a barrel table between a pair of stools.',
+      'A timber-framed taproom with an arched door, string lights sagging between two poles, and a sign that swings whenever the breeze picks up. Out front, mugs sit on a barrel table between a pair of stools. Further east, a little railway runs round to a station, and a red bus is parked on the quay below it.',
     scenery: [
       { id: 'barrels', names: ['barrels', 'barrel', 'casks', 'kegs'], description: 'Oak barrels stacked against the wall, most of them empty.' },
       { id: 'sign', names: ['sign', 'swinging sign'], description: 'It reads: "Know what you\'ll love before you order."' },
       { id: 'mugs', names: ['mugs', 'mug', 'table', 'stools'], description: 'Two mugs, one full, one empty. Somebody already knows what they like.' },
       { id: 'lights', names: ['lights', 'string lights', 'bulbs'], description: 'Warm little bulbs on a sagging wire. They hum faintly.' },
+      { id: 'train', names: ['train', 'railway', 'rails', 'tracks', 'station', 'platform', 'carriages'], description: "Out past the taproom, a little railway loops round the east end of the island. The commuter train is silver, two decks high, with a red nose at each end. It keeps island time: on weekday mornings and evenings it goes round and round, stopping at the platform every lap; the rest of the time it waits there with its doors open." },
+      { id: 'bus', names: ['bus', 'double-decker', 'double decker', 'quay'], description: "Down on the stone quay by the water, a red double-decker bus is parked with its engine off, a long way from home. The destination blind is lit but blank. It isn't going anywhere today." },
     ],
   }),
   projectPlace('map-of-evolution', {
@@ -112,11 +114,12 @@ const places: PlaceInput[] = [
     faces: Math.atan2(-18.5, 16.5),
     aliases: ['lighthouse', 'tower', 'light', 'beam'],
     description:
-      'A striped lighthouse at the end of a rocky headland. Its beam sweeps slowly over the water, picking out every passing ship, and a weather vane creaks on the top.',
+      'A striped lighthouse at the end of a rocky headland. Its beam sweeps slowly over the water, picking out every passing ship, and a weather vane creaks on the top. Far off to the north, a city skyline sits on the horizon.',
     scenery: [
       { id: 'rocks', names: ['rocks', 'rock', 'cliff', 'headland'], description: 'Dark rocks at the foot of the tower, wet with spray. There are cracks you could slip a hand into.' },
       { id: 'beam', names: ['beam', 'light', 'lamp'], description: 'The beam passes over you, then over 11,000 ships, one at a time. It notes which ones are flying the right flag.' },
       { id: 'vane', names: ['vane', 'weather vane', 'weathervane'], description: 'The weather vane points wherever the wind says. Today, out to sea.' },
+      { id: 'skyline', names: ['skyline', 'city', 'skyscrapers', 'horizon'], description: "Far across the water to the north there's a city, or two cities that have run into each other. From the west: a big wheel, a clock tower, a glass shard and a building shaped like a bullet; then a slim pyramid, a tall rounded tower and a crowd of glass blocks. After dark their windows light up one by one." },
     ],
   }),
   projectPlace('quizmate', {
