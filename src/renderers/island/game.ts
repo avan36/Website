@@ -694,6 +694,7 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
   const wish = new Vector2();
   const camGoal = new Vector3();
   const focusV = new Vector3();
+  let avoidAt = -Infinity;
   const avoidAll: Rect[] = [];
   let raf = 0;
   let last = performance.now();
@@ -924,8 +925,10 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     }
     placeCamera(rig.target, rig.dist, rig.pitch, rig.yaw);
 
-    // Labels (kept out of the HUD's way)
-    if (frames % 15 === 1) {
+    // Labels (kept out of the HUD's way, re-measured a few times a second
+    // so the hint fading in or the card folding away are seen promptly)
+    if (now - avoidAt > 250) {
+      avoidAt = now;
       avoid.length = 0;
       o.hud.querySelectorAll<HTMLElement>('.isl-top > *, .isl-card, .isl-sound-fab, .isl-hoard-fab, .isl-hint').forEach((el) => {
         const r = el.getBoundingClientRect();

@@ -321,19 +321,25 @@ const paintHoard = (bump = false) => {
   html.classList.toggle('is-night', store.state.progress.night);
 };
 hoardButtons.forEach((b) => b.addEventListener('click', () => ui.openHoard()));
+/** Run `fn` once nothing is in the way: a moment from now, or a moment after the open card closes. */
+const afterCards = (fn: () => void) =>
+  window.setTimeout(() => {
+    const dialog = document.getElementById('w-dialog') as HTMLDialogElement | null;
+    if (dialog?.open) dialog.addEventListener('close', () => window.setTimeout(fn, 700), { once: true });
+    else fn();
+  }, 1200);
 store.subscribe((_, events) => {
   for (const e of events) {
     if (e.type === 'found') paintHoard(true);
+    // Said once the last word's card is closed, as night starts to fall.
     if (e.type === 'hoard-complete')
-      window.setTimeout(
-        () =>
-          ui.toast({
-            title: 'The word hoard is full',
-            body: 'Night falls on the island.',
-            color: '#ffd56b',
-            action: { label: 'See it', run: () => ui.openHoard() },
-          }),
-        1200,
+      afterCards(() =>
+        ui.toast({
+          title: 'The word hoard is full',
+          body: 'Night falls on the island.',
+          color: '#ffd56b',
+          action: { label: 'See it', run: () => ui.openHoard() },
+        }),
       );
     if (e.type === 'night') paintHoard();
   }
