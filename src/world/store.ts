@@ -1,5 +1,6 @@
 // What a visitor has done, shared by every renderer: where they are, which
-// lost words they've found, what they've caught off the pier. Switch from the
+// lost words they've found, what they've caught off the pier, and their best
+// score at each of the island's little games. Switch from the
 // island to the map to the text adventure and you're still standing in the
 // same spot with the same pockets.
 //
@@ -20,7 +21,11 @@ export type Progress = {
   night: boolean;
   /** The fastest lap round the island in the boat, in seconds (null until one is finished). */
   bestLap: number | null;
+  /** Each mini-game's best score and how many rounds were played, by game id. */
+  games: Record<string, GameRecord>;
 };
+
+export type GameRecord = { best: number; plays: number };
 
 export type Presence = {
   /** The place the visitor is at (or last went into), if any. */
@@ -40,6 +45,8 @@ export type Action =
   | { type: 'catch'; slug: string }
   | { type: 'night'; on: boolean }
   | { type: 'lap'; time: number }
+  /** A round of a mini-game ended with this score. */
+  | { type: 'score'; game: string; score: number }
   | { type: 'reset' };
 
 export type WorldEvent =
@@ -50,13 +57,21 @@ export type WorldEvent =
   | { type: 'caught'; slug: string; fresh: boolean }
   | { type: 'night'; on: boolean }
   /** A lap round the island, finished: whether it beat the best, and the best before it. */
-  | { type: 'lap'; time: number; best: boolean; previous: number | null };
+  | { type: 'lap'; time: number; best: boolean; previous: number | null }
+  /** `record`: a new best (a score above zero that beats the last best). */
+  | { type: 'scored'; game: string; score: number; best: number; previous: number; record: boolean };
 
 /** A lap time worth keeping: a real number of seconds, not a glitch. */
 export const validLap = (t: unknown): t is number => typeof t === 'number' && Number.isFinite(t) && t > 1 && t < 3600;
 
+/** The highest score kept, so a tampered save can't fill the screen with digits. */
+const MAX_SCORE = 999_999;
+
+/** The mini-games this world has, by game id. */
+export const gameIds = (world: World): string[] => world.activities.flatMap((a) => (a.kind === 'minigame' && a.game ? [a.game] : []));
+
 export const emptyState = (): WorldState => ({
-  progress: { found: [], caught: [], night: false, bestLap: null },
+  progress: { found: [], caught: [], night: false, bestLap: null, games: {} },
   presence: { at: null, pos: null, inside: null },
 });
 
@@ -110,9 +125,18 @@ export function reduce(world: World, state: WorldState, action: Action): { state
       events.push({ type: 'lap', time: action.time, best, previous });
       return best ? { state: { presence, progress: { ...progress, bestLap: action.time } }, events } : { state, events };
     }
+    case 'score': {
+      if (!gameIds(world).includes(action.game) || !Number.isFinite(action.score)) return { state, events };
+      const score = Math.min(MAX_SCORE, Math.max(0, Math.floor(action.score)));
+      const was = progress.games[action.game] ?? { best: 0, plays: 0 };
+      const record = score > was.best;
+      const now: GameRecord = { best: Math.max(was.best, score), plays: was.plays + 1 };
+      events.push({ type: 'scored', game: action.game, score, best: now.best, previous: was.best, record });
+      return { state: { presence, progress: { ...progress, games: { ...progress.games, [action.game]: now } } }, events };
+    }
     case 'reset':
-      // Forgets the words and the catches; a lap record is kept (the card only asks about words).
-      return { state: { presence, progress: { ...emptyState().progress, bestLap: progress.bestLap } }, events: progress.night ? [{ type: 'night', on: false }] : [] };
+      // Forgets the words and the catches; the lap record and the best scores are kept (the card only asks about words).
+      return { state: { presence, progress: { ...emptyState().progress, bestLap: progress.bestLap, games: progress.games } }, events: progress.night ? [{ type: 'night', on: false }] : [] };
   }
 }
 
@@ -137,6 +161,16 @@ export function sanitize(world: World, raw: unknown): WorldState {
   s.progress.night = r.progress?.night === true && s.progress.found.length === words.size;
   const lap = r.progress?.bestLap;
   s.progress.bestLap = validLap(lap) ? lap : null;
+  const games = r.progress?.games;
+  if (games && typeof games === 'object') {
+    const count = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? Math.min(MAX_SCORE, Math.max(0, Math.floor(v))) : 0);
+    for (const id of gameIds(world)) {
+      const g = (games as Record<string, unknown>)[id];
+      if (!g || typeof g !== 'object') continue;
+      const { best, plays } = g as Partial<GameRecord>;
+      s.progress.games[id] = { best: count(best), plays: Math.max(count(plays), count(best) > 0 ? 1 : 0) };
+    }
+  }
   const at = r.presence?.at;
   if (typeof at === 'string' && world.places.some((p) => p.id === at)) s.presence.at = at;
   const pos = r.presence?.pos;
@@ -229,5 +263,7 @@ export function createStore(
       return { post, fresh };
     },
     has: (id: string) => state.progress.found.includes(id),
+    /** Your best score at a mini-game (0 if you haven't played it). */
+    best: (game: string) => state.progress.games[game]?.best ?? 0,
   };
 }

@@ -19,6 +19,7 @@ import { facingFor, paintExplorer, type Facing } from './explorer';
 import { Fishing } from './fishing';
 import { createBoatCard } from './boat';
 import { boatOf } from '../boat';
+import { createMapGames } from './minigames';
 import { BODY_R, layoutPlaces, scatterProps, type MapPlace } from './layout';
 import { createOverlay, type FishPrompt } from './overlay';
 import { HEX } from './palette';
@@ -156,6 +157,13 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
   const speedboat = boatOf(world);
   const speedAt = speedboat ? { x: speedboat.at.x, z: speedboat.at.z + 1.3 } : null;
   if (speedAt) stampBox(speedAt.x - 0.7, speedAt.z - 2.6, speedAt.x + 0.7, speedAt.z);
+  // The mini-games: a sprite and a tag at each spot; the games open in the shared games card.
+  const games = createMapGames(ctx, root, {
+    walk: (x, z) => (walkTo(x, z) ? path : null),
+    route: () => path,
+    halt: () => ((path = null), clearKeys(), (facing = 'up')),
+  });
+  for (const b of games.blocks) stampCircle(b.x, b.z, b.r + BODY_R);
 
   const blockedAt = (x: number, z: number) => {
     const i = ti(x);
@@ -262,6 +270,7 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
     });
   }
   things.push({ x: lampAt.x, z: lampAt.z, sprite: lampPost() });
+  things.push(...games.things);
   if (bottlePlace) things.push({ x: bottlePlace.base.x + 1.3, z: bottlePlace.base.z + 0.9, sprite: shells() });
   things.sort((a, b) => a.z - b.z);
 
@@ -564,6 +573,11 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
     }
     const active = document.activeElement as HTMLElement | null;
     const onControl = !!active && active !== document.body && (active.tagName === 'A' || active.tagName === 'BUTTON');
+    // A game's tag is up: E or Enter plays it.
+    if ((e.code === 'KeyE' || e.key === 'Enter') && !onControl && games.open && fishing.phase === 'idle') {
+      e.preventDefault();
+      return games.play(games.open);
+    }
     if (e.code === 'KeyE' || ((e.key === 'Enter' || e.key === ' ') && fishing.phase !== 'idle')) {
       if (atFishing() || fishing.phase !== 'idle') {
         e.preventDefault();
@@ -647,6 +661,7 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
     if (fishing.phase !== 'idle') return fishAction();
     if (hitHero(w.x, w.z)) return tryJump();
     if (hitPortal(w.x, w.z)) return activatePortal();
+    if (games.hit(w.x, w.z)) return;
     const m = hitLandmark(w.x, w.z);
     if (m) return activate(m);
     if (fishSpot && Math.hypot(w.x - fishSpot.at.x, w.z - fishSpot.at.z) < 0.9) {
@@ -1171,6 +1186,7 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
       const d = Math.min(Math.hypot(pos.x - m.door.x, pos.z - m.door.z), Math.hypot(pos.x - m.worldDoor.x, pos.z - m.worldDoor.z) + 0.3);
       if (d < DOOR_RANGE && d < bestD) (best = m), (bestD = d);
     }
+    games.update(pos, mode === 'play' && !best && !jump.air && wet === 0);
     let atPortal = false;
     if (portal && !jump.air && wet === 0) {
       const d = Math.hypot(pos.x - portal.at.x, pos.z - portal.at.z - 0.75);
@@ -1801,6 +1817,7 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
       const p = toScreen(pos.x, pos.z - 2.3, scratch);
       overlay.fish(fp, p.x, p.y);
     } else overlay.fish(null);
+    games.render((x, z) => toScreen(x, z, scratch), mode === 'play' && !tagFor && !tagPortal);
   }
 
   function frame(now: number) {
@@ -1888,6 +1905,8 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
         return !!inside;
       },
       fishing: () => fishing.phase,
+      games: () => games.debug(),
+      play: (id: Parameters<typeof games.play>[0]) => games.play(id),
       frames: () => frames,
       scale: () => ({ S, dpr, bw, bh }),
       places: () => places.map((m) => ({ id: m.place.id, door: m.door, worldDoor: m.worldDoor, base: m.base })),
@@ -1942,6 +1961,7 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
       window.removeEventListener('blur', onBlur);
       overlay.destroy();
       boatCard.destroy();
+      games.destroy();
       root.remove();
       if (debug) delete (window as unknown as { __map?: unknown }).__map;
     },

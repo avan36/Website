@@ -48,6 +48,17 @@ describe('the authored world', () => {
     for (const a of w.activities.filter((x) => x.kind !== 'boat')) expect(geo.isWalkable(a.at.x, a.at.z), a.id).toBe(true);
   });
 
+  it('puts each mini-game on dry land, off the paths, clear of every door and the pier', () => {
+    const games = w.activities.filter((a) => a.kind === 'minigame');
+    expect(games.map((a) => a.game).sort()).toEqual(['crabs', 'crates', 'stones']);
+    for (const a of games) {
+      expect(geo.heightAt(a.at.x, a.at.z), a.id).toBeGreaterThan(0.3);
+      expect(geo.isOpenGround(a.at.x, a.at.z), a.id).toBe(true);
+      expect(Math.abs(a.at.x - w.geography.pier.x) > 6 || a.at.z < w.geography.pier.start - 6, `${a.id} by the pier`).toBe(true);
+      for (const b of games) if (b !== a) expect(Math.hypot(a.at.x - b.at.x, a.at.z - b.at.z), `${a.id} by ${b.id}`).toBeGreaterThan(4);
+    }
+  });
+
   it('rings the island with water to swim in, and nothing to swim in on land', () => {
     for (let a = 0; a < 64; a++) {
       const th = (a / 64) * Math.PI * 2;
@@ -106,6 +117,16 @@ describe('validation explains what is wrong', () => {
     const w = clone(base);
     w.lostWords[0].in = 'nowhere';
     expect(messages(w).join('\n')).toMatch(/doesn't have/);
+  });
+
+  it('catches a mini-game with no game, or a game on the island twice', () => {
+    const w = clone(base);
+    const games = w.activities.filter((a) => a.kind === 'minigame');
+    delete games[0].game;
+    games[2].game = games[1].game;
+    const text = messages(w).join('\n');
+    expect(text).toMatch(/needs a game/);
+    expect(text).toMatch(/on the island twice/);
   });
 
   it('rejects unknown fields instead of silently ignoring them', () => {
