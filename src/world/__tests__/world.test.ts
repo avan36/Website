@@ -44,7 +44,8 @@ describe('the authored world', () => {
   });
 
   it('keeps activities on walkable ground', () => {
-    for (const a of w.activities) expect(geo.isWalkable(a.at.x, a.at.z), a.id).toBe(true);
+    // The boat floats: it is moored in the sea (race.test.ts checks it has water under it).
+    for (const a of w.activities.filter((x) => x.kind !== 'boat')) expect(geo.isWalkable(a.at.x, a.at.z), a.id).toBe(true);
   });
 
   it('rings the island with water to swim in, and nothing to swim in on land', () => {

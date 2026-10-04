@@ -32,6 +32,7 @@ import { Fishing, FISH_RANGE, type FishPhase } from './play/fishing';
 import { Prompt, type PromptText } from './play/prompt';
 import { LostWords } from './play/words';
 import { Portal } from './play/portal';
+import { createBoating, type Boating } from './play/boating';
 import { PORTAL_NEXT } from '../portal';
 import { buildAmbient } from './world/ambient';
 import { resetSharedMaterials } from './world/kit';
@@ -127,11 +128,16 @@ export interface GameHandle {
     roomScreen: (x: number, z: number) => { x: number; y: number } | null;
     /** Go straight into a building, as if through its door. */
     enter: (id: string) => boolean;
+    /** The speedboat and the race round the island (see play/boating.ts). */
+    boat: Boating['debug'] | null;
   };
 }
 
-/** 'inside': in a building's room; 'door': the wipe on the way in or out of one. */
-type State = 'intro' | 'play' | 'entering' | 'portal' | 'inside' | 'door';
+/**
+ * 'inside': in a building's room; 'door': the wipe on the way in or out of one.
+ * 'boat': out in the speedboat, which has the keys and the camera (play/boating.ts).
+ */
+type State = 'intro' | 'play' | 'entering' | 'portal' | 'inside' | 'door' | 'boat';
 
 const INTRO = 3.0;
 /** How far the view can be zoomed in and out, as a share of the usual distance, and how far Q and E turn it. */
@@ -294,6 +300,46 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     };
     fishing.onMiss = () => o.ui.toast({ title: 'It got away', body: 'Cast again?', color: fishColor });
   }
+
+  // The speedboat at the end of the pier, and the race round the island.
+  const boatSpot = ACTIVITIES.find((a) => a.kind === 'boat');
+  const boating = boatSpot
+    ? createBoating({
+        scene,
+        camera: () => camera,
+        stage,
+        labelsHost: o.labelsHost,
+        spot: boatSpot,
+        player,
+        puffs,
+        ripples,
+        buoys: buoys.spots,
+        store,
+        sound: o.sound,
+        announce: (t) => o.ui.announce(t),
+        reducedMotion: o.reducedMotion,
+        touch,
+        onBoard: () => {
+          stopFishing();
+          state = 'boat';
+          keys.clear();
+          walkTarget = null;
+          pendingEnter = null;
+          pendingPortal = false;
+        },
+        onLeave: () => void (state = 'play'),
+        walkTo: (x, z) => {
+          stopFishing();
+          walkTarget = new Vector2(x, z);
+          pendingEnter = null;
+          pendingPortal = false;
+          blockedT = 0;
+          showMarker(walkTarget);
+        },
+        walking: () => (walkTarget ? { x: walkTarget.x, z: walkTarget.y } : null),
+        firstMove: () => firstMove(),
+      })
+    : null;
 
   const night = buildNight({ scene, hemi, sun, sky, water: water.material, ambient, landmarks, mobile });
   scene.add(night.group);
@@ -654,6 +700,7 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     if (!e.isPrimary || e.button > 0) return;
     o.sound.play('tap');
     if (state === 'intro') return skipIntro();
+    if (state === 'boat') return void boating?.onPointerDown(e);
     if (state !== 'play') return;
     setNdc(e);
     // Something's biting: a tap anywhere reels it in.
@@ -667,6 +714,9 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
       press = { id: null, x: e.clientX, y: e.clientY, ground: false, pointerId: e.pointerId, jump: true };
       return;
     }
+    // Tap the speedboat: walk over and get in.
+    raycaster.setFromCamera(ndc, camera);
+    if (boating?.tap(raycaster)) return;
     const target = pickTarget();
     const id = target && 'place' in target ? target.place : null;
     press = { id, x: e.clientX, y: e.clientY, ground: !target, pointerId: e.pointerId };
@@ -714,7 +764,7 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
       if (e.pointerType === 'mouse') canvas.style.cursor = room.over(ndc) ? 'pointer' : '';
       return;
     }
-    if (onGestureMove(e)) return;
+    if (onGestureMove(e) || boating?.onPointerMove(e)) return;
     setNdc(e);
     pointerInside = true;
     pointerMoved = true;
@@ -730,6 +780,7 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
   };
   const onPointerUp = (e: PointerEvent) => {
     onGestureUp(e);
+    if (boating?.onPointerUp(e)) return;
     if (!press || e.pointerId !== press.pointerId) return;
     if (press.jump) player.releaseJump();
     const moved = Math.hypot(e.clientX - press.x, e.clientY - press.y);
@@ -770,6 +821,7 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
       if (MOVE_KEYS[e.code]) e.preventDefault();
       return;
     }
+    if (boating?.onKeyDown(e, state)) return;
     if (MOVE_KEYS[e.code]) {
       e.preventDefault();
       keys.add(e.code);
@@ -821,11 +873,13 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
   };
   const onKeyUp = (e: KeyboardEvent) => {
     keys.delete(e.code);
+    boating?.onKeyUp(e);
     if (e.key === 'Shift') shiftHeld = false;
     if (e.code === 'Space') (player.releaseJump(), room?.releaseJump());
   };
   const onBlur = () => {
     keys.clear();
+    boating?.onBlur();
     shiftHeld = false;
   };
 
@@ -1267,6 +1321,8 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
         bestD = d;
       }
     }
+    // Right by the speedboat, its prompt is up instead of the pier's card.
+    if (boating?.claims()) best = null;
     if (best !== nearId) {
       if (nearId) byId.get(nearId)!.near = false;
       nearId = best;
@@ -1387,6 +1443,7 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     }
 
     player.update(time, dt);
+    boating?.update(time, dt, night.amount, state);
     fishing?.update(time, dt);
     words.update(time, dt, camera, puffs, uniforms.uGrow.value);
     puffs.update(dt);
@@ -1427,6 +1484,8 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
       const yawGoal = rig.turn + rig.parallax.x * 0.035;
       rig.yaw = o.reducedMotion ? yawGoal : damp(rig.yaw, yawGoal, turning || twist ? 14 : 4, dt);
       if (o.reducedMotion) rig.dist = baseDist * zoom * rig.zoom;
+    } else if (state === 'boat' && boating) {
+      boating.aim(rig, dt, camera.aspect, camera.fov);
     } else if (state === 'portal' && portal) {
       // Lean in on the swirl as you go through.
       rig.target.lerp(portal.middle, 1 - Math.exp(-dt * 4));
@@ -1463,7 +1522,7 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     if (pointerMoved && pointerInside && state === 'play' && !touch) {
       const target = pickTarget();
       pointerHover = target && 'place' in target ? target.place : null;
-      canvas.style.cursor = target ? 'pointer' : '';
+      canvas.style.cursor = target || boating?.hovering(raycaster) ? 'pointer' : '';
       pointerMoved = false;
     }
     simulate(dt, raw);
@@ -1513,6 +1572,8 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     avoidAll.push(...avoid);
     // Idle labels also keep clear of the explorer standing under the prompt.
     if (promptRect) avoidAll.push(promptRect, { l: promptRect.l, t: promptRect.b, r: promptRect.r, b: promptRect.b + 90 });
+    const boatRect = boating?.present(camera, viewW, viewH, avoid);
+    if (boatRect) avoidAll.push(boatRect);
     labels.update(camera, anchors, viewW, viewH, {
       avoid: avoidAll,
       visible: state === 'play',
@@ -1593,6 +1654,7 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     portal?.dispose();
     words.dispose();
     fishing?.dispose();
+    boating?.dispose();
     const mats = new Set<Material>();
     scene.traverse((obj) => {
       const m = obj as Mesh;
@@ -1680,6 +1742,7 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
         goInside(id);
         return true;
       },
+      boat: boating?.debug ?? null,
       screen: (id: string) => {
         const l = byId.get(id);
         if (!l) return null;

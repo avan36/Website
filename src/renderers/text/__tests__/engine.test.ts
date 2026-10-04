@@ -410,6 +410,40 @@ describe('fishing', () => {
   });
 });
 
+describe('the speedboat', () => {
+  it('is waiting at the pier, with a chip to race it', () => {
+    expect(say('blog', 'look')).toContain('speedboat');
+    expect(engine.suggest(engine.initial('blog')).map((c) => c.cmd)).toContain('race');
+  });
+
+  it('walks you to the pier first', () => {
+    const r = play('plaza', 'take the boat');
+    expect(r.state.at).toBe('blog');
+    expect(r.text).toContain('RACE');
+  });
+
+  it('tells a lap in words at the pier, and offers the real thing', () => {
+    const r = play('blog', 'race');
+    expect(r.text).toMatch(/0:\d\d\.\d\d/);
+    expect(r.text).toContain('race it on the 3D island');
+    expect(effects(r.last, 'boat')).toEqual([]);
+  });
+
+  it('sends you to the 3D island to race it for real', () => {
+    const r = play('blog', 'race in 3d');
+    expect(effects(r.last, 'boat')).toEqual([{ type: 'boat' }]);
+  });
+
+  it('knows your best lap from the island', () => {
+    const s = engine.initial('blog', { bestLap: 41.25 });
+    expect(play(s, 'race').text).toContain('0:41.25');
+  });
+
+  it('understands the ways of asking', () => {
+    for (const c of ['race', 'take the boat', 'get in the boat', 'board the boat', 'race round the island', 'sail']) expect(play('blog', c).text, c).toMatch(/speedboat|motor/);
+  });
+});
+
 describe('not quite understood', () => {
   it('suggests the place you probably meant, and goes there on yes', () => {
     const r = play('plaza', 'libary');

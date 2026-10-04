@@ -30,7 +30,7 @@ export type Verb =
   | 'look' | 'examine' | 'search' | 'go' | 'enter' | 'back' | 'read' | 'open'
   | 'inventory' | 'hint' | 'help' | 'map' | 'fish' | 'reel' | 'wait' | 'take'
   | 'about' | 'work' | 'writing' | 'contact' | 'where' | 'exits' | 'clear' | 'undo'
-  | 'again' | 'view' | 'portal' | 'yes' | 'no' | 'night' | 'day' | 'score'
+  | 'again' | 'view' | 'portal' | 'yes' | 'no' | 'night' | 'day' | 'score' | 'race'
   // Inside a building.
   | 'talk' | 'ask' | 'leave' | 'bye'
   // A few for fun.
@@ -75,6 +75,11 @@ const PHRASES: Record<Verb, string[]> = {
   ask: ['ask', 'ask about', 'question', 'tell me about', 'what about', 'inquire about', 'enquire about'],
   leave: ['leave', 'out', 'go out', 'get out', 'step out', 'head out', 'walk out', 'go outside', 'outside', 'step outside', 'head outside', 'exit building', 'leave building', 'outdoors', 'go outdoors'],
   bye: ['bye', 'goodbye', 'good bye', 'farewell', 'see you', 'see ya', 'cheerio', 'thanks bye', 'thank you'],
+  race: [
+    'race', 'boat race', 'race the boat', 'race a lap', 'race round the island', 'race around the island', 'take the boat', 'take boat', 'take the speedboat',
+    'take speedboat', 'board', 'board the boat', 'board boat', 'get in the boat', 'get in boat', 'get in the speedboat', 'get into the boat', 'sail',
+    'go boating', 'drive the boat', 'drive boat', 'drive the speedboat', 'start the boat', 'untie the boat', 'take the boat out', 'lap',
+  ],
   xyzzy: ['xyzzy'],
   plugh: ['plugh', 'plover'],
   sudo: ['sudo'],

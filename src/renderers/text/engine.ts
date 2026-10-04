@@ -14,6 +14,8 @@ import type { Geo } from '../../world/geo';
 import type { Character, LostWord, Place, Post, Scenery, Thing, Topic, World } from '../../world/schema';
 import type { ViewId } from '../types';
 import { portalOf } from '../portal';
+import { boatOf } from '../boat';
+import { formatLap } from '../../world/race';
 import { closest } from './fuzzy';
 import { createLexicon, matchNames, pronoun, ref, thing } from './lexicon';
 import { drawIsland, GROUND, mapWithYou, type IslandMap } from './map';
@@ -46,6 +48,8 @@ export type EngineState = {
   found: string[];
   caught: string[];
   night: boolean;
+  /** The best lap round the island in the boat (raced on the 3D island), in seconds. */
+  bestLap: number | null;
   /** Scenery you've examined once that hides a word ("place/scenery"): look again and you find it. */
   noticed: string[];
   /** The last thing you looked at, for "search it". */
@@ -76,6 +80,7 @@ export function createEngine(world: World, geo: Geo, { random = Math.random }: E
   const total = world.lostWords.length;
   const fishing = world.activities.find((a) => a.kind === 'fishing');
   const portal = portalOf(world);
+  const boat = boatOf(world);
   const PORTAL_WORDS = ['portal', 'ring', 'ring of light', 'light'];
   let island: IslandMap | null = null; // drawn the first time someone asks for the map
 
@@ -117,6 +122,7 @@ export function createEngine(world: World, geo: Geo, { random = Math.random }: E
       out.push({ kind: 'p', spans, tone: 'dim' });
     }
     if (fishing?.place === pl.id) out.push(dim(fishing.description, ' ', ...md('Type [FISH] to try your luck.')));
+    if (boat?.place === pl.id) out.push(dim(boat.description, ' ', ...md('Type [RACE] to take it out.')));
     if (portal?.place === pl.id) out.push(dim(...md(`In the middle of it all, a ring of violet light hangs over the cobbles, humming. Through it you can see the island other ways: in 3D, as a pixel map, as a plain list. [Step through](portal) if you're curious.`)));
     if (pl.href) {
       const verb = pl.kind === 'contact' ? 'OPEN' : 'ENTER';
@@ -552,7 +558,7 @@ export function createEngine(world: World, geo: Geo, { random = Math.random }: E
           row('WORK · WRITING · ABOUT', 'work', 'the plain facts'),
         ],
       },
-      dim(...md(`${cap(spell(total))} lost words are hidden on the island, and you can [FISH] off the pier. [BACK] retraces your steps.`)),
+      dim(...md(`${cap(spell(total))} lost words are hidden on the island, and you can [FISH] off the pier or [RACE] a boat round it all. [BACK] retraces your steps.`)),
     ]);
   }
 
@@ -613,6 +619,41 @@ export function createEngine(world: World, geo: Geo, { random = Math.random }: E
       { kind: 'catch', title: post.title, date: longDate(post.date), description: post.description, href: post.href, fresh, count: caught.length, total: world.posts.length },
       dim(...md(`[CAST] again, or [READ](read ${post.title}) it.`)),
     ]);
+  }
+
+  // ---------- The boat ----------
+
+  /** Three places you'd pass on the water, in the order the course goes round (south, west, north, east). */
+  function passing() {
+    const start = Math.atan2(boat!.at.z, boat!.at.x);
+    const along = (pl: Place) => (((Math.atan2(pl.at.z, pl.at.x) - start) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+    const round = world.places.filter((pl) => pl.kind !== 'hub' && pl.id !== boat!.place).sort((a, b) => along(a) - along(b));
+    if (round.length <= 3) return round;
+    return [0.2, 0.5, 0.8].map((f) => round[Math.floor(f * round.length)]);
+  }
+
+  /** Take the speedboat out: a lap told in words, or off to race it for real on the 3D island. */
+  function race(s: EngineState, noun: string): Result {
+    if (!boat) return result(s, [say('There’s no boat to race. You could swim round, but it’s a long way.')]);
+    const pier = place(boat.place);
+    const best = s.bestLap !== null ? ` Your best lap, raced on the island, is *${formatLap(s.bestLap)}*.` : '';
+    if (/\b(3d|island|real|really|properly)\b/.test(noun) || s.at !== pier.id) {
+      if (s.at !== pier.id && !/\b(3d|island|real|really|properly)\b/.test(noun)) {
+        const there = walk(s, pier.id);
+        return result(there.state, [...there.out, p(...md('The speedboat is tied up below, rocking on the swell. [RACE] to take it out.'))], there.effects);
+      }
+      return result({ ...s, fishing: null }, [p(...md(`You untie the speedboat and climb in. The island fills in around you, all color and spray: this lap is for real.${best}`))], [{ type: 'boat' }]);
+    }
+    // A lap in words: a time that changes with every telling.
+    const time = 31 + random() * 9;
+    const out: Block[] = [
+      p('You climb down into the little red speedboat, untie it, and pull the cord. The motor coughs twice and catches.'),
+      p('Out past the buoys, a ring of gates runs right round the island. Three, two, one, and you open the throttle.'),
+      p(`The bow lifts. You weave through the gates and round the island, past ${andList(passing().map((x) => ref(x)), 'and')}, spray in your face all the way, then the long run home to the pier.`),
+      p(...md(`You shoot back over the line by the pier. By your own count, that was about *${formatLap(time)}*.${best}`)),
+      dim(...md('For a lap that counts, with a real clock and a ghost of your best: [race it on the 3D island](race in 3d).')),
+    ];
+    return result({ ...s, fishing: null }, out, [{ type: 'sound', name: 'go' }]);
   }
 
   // ---------- Not understood ----------
@@ -779,6 +820,8 @@ export function createEngine(world: World, geo: Geo, { random = Math.random }: E
         // "map of evolution" is a place, not a request for the map.
         if (noun) return dispatch(s, { ...c, verb: null, noun: key(raw) }, raw);
         return result(s, mapBlock(s));
+      case 'race':
+        return race(s, noun);
       case 'fish':
         return fish(s);
       case 'reel':
@@ -925,7 +968,7 @@ export function createEngine(world: World, geo: Geo, { random = Math.random }: E
 
   // ---------- Starting, and helping the page ----------
 
-  function initial(at: string, progress: { found?: string[]; caught?: string[]; night?: boolean } = {}, opts: { inside?: boolean } = {}): EngineState {
+  function initial(at: string, progress: { found?: string[]; caught?: string[]; night?: boolean; bestLap?: number | null } = {}, opts: { inside?: boolean } = {}): EngineState {
     const where = byId.has(at) ? at : hub.id;
     return {
       at: where,
@@ -935,6 +978,7 @@ export function createEngine(world: World, geo: Geo, { random = Math.random }: E
       found: progress.found ?? [],
       caught: progress.caught ?? [],
       night: progress.night ?? false,
+      bestLap: progress.bestLap ?? null,
       noticed: [],
       it: null,
       fishing: null,
@@ -988,6 +1032,7 @@ export function createEngine(world: World, geo: Geo, { random = Math.random }: E
     if (here.href) chips.push({ label: here.kind === 'contact' ? 'Open the bottle' : here.interior ? 'Go inside' : 'Enter', cmd: 'enter', tone: 'go' });
     if (here.kind === 'writing') chips.push({ label: 'Read', cmd: 'read' });
     if (fishing?.place === here.id && !s.fishing) chips.push({ label: 'Fish', cmd: 'fish', tone: 'go' });
+    if (boat?.place === here.id) chips.push({ label: 'Race the boat', cmd: 'race', tone: 'go' });
     if (portal?.place === here.id) chips.push({ label: 'Step through the portal', cmd: 'portal', tone: 'go' });
     for (const line of exitLines(here)) {
       for (const pl of line.places) chips.push({ label: `${DIR_ARROWS[DIRS.find((d) => DIR_NAMES[d] === line.dir)!]} ${pl.ref.replace(/^the /, '')}`, cmd: pl.cmd });

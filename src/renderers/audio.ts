@@ -2,7 +2,7 @@
 // whoosh for going inside, and a gentle sea hush. Off by default; this module
 // is plain TS with no three.js so the HUD can own it.
 
-type Name = 'step' | 'pop' | 'bell' | 'whoosh' | 'chime' | 'land' | 'tap' | 'jump' | 'jump2' | 'splash' | 'swim';
+type Name = 'step' | 'pop' | 'bell' | 'whoosh' | 'chime' | 'land' | 'tap' | 'jump' | 'jump2' | 'splash' | 'swim' | 'spray' | 'beep' | 'go';
 
 export class Sound {
   private ctx: AudioContext | null = null;
@@ -142,6 +142,18 @@ export class Sound {
       }
       case 'swim':
         noise(620 + Math.random() * 160, 1.4, 0.2, 0.05, 'lowpass');
+        break;
+      case 'spray':
+        // The boat at speed: a bright hiss of spray off the bow.
+        noise(3200 + Math.random() * 900, 0.6, 0.26, 0.05, 'highpass');
+        break;
+      case 'beep':
+        // The race countdown: three short beeps, then a higher 'go'.
+        osc('square', 660, 660, 0.14, 0.05);
+        break;
+      case 'go':
+        osc('square', 1320, 1320, 0.32, 0.05);
+        osc('sine', 660, 1320, 0.2, 0.06);
         break;
       case 'land':
         osc('sine', 180, 60, 0.18, 0.25);

@@ -66,6 +66,51 @@ describe('reduce', () => {
   });
 });
 
+describe('laps round the island', () => {
+  it('keeps the fastest lap and says whether each one beat it', () => {
+    const a = reduce(w, emptyState(), { type: 'lap', time: 41.5 });
+    expect(a.state.progress.bestLap).toBe(41.5);
+    expect(a.events).toEqual([{ type: 'lap', time: 41.5, best: true, previous: null }]);
+    const b = reduce(w, a.state, { type: 'lap', time: 44 });
+    expect(b.state).toBe(a.state);
+    expect(b.events).toEqual([{ type: 'lap', time: 44, best: false, previous: 41.5 }]);
+    const c = reduce(w, a.state, { type: 'lap', time: 39.25 });
+    expect(c.state.progress.bestLap).toBe(39.25);
+    expect(c.events).toEqual([{ type: 'lap', time: 39.25, best: true, previous: 41.5 }]);
+  });
+
+  it('ignores times that cannot be real', () => {
+    for (const time of [NaN, -3, 0, 0.5, Infinity, 99999]) expect(reduce(w, emptyState(), { type: 'lap', time }).events).toEqual([]);
+  });
+
+  it('keeps the record when the word hoard is reset', () => {
+    let s = reduce(w, emptyState(), { type: 'lap', time: 40 }).state;
+    s = reduce(w, s, { type: 'find', id: 'attercop' }).state;
+    const r = reduce(w, s, { type: 'reset' }).state;
+    expect(r.progress.found).toEqual([]);
+    expect(r.progress.bestLap).toBe(40);
+  });
+
+  it('reads a saved record back, and drops a broken one', () => {
+    expect(sanitize(w, { progress: { bestLap: 38.2 } }).progress.bestLap).toBe(38.2);
+    expect(sanitize(w, { progress: { bestLap: 'fast' } }).progress.bestLap).toBe(null);
+    expect(sanitize(w, { progress: { bestLap: -1 } }).progress.bestLap).toBe(null);
+  });
+
+  it('saves a new record, and tells whoever finished a lap how it went', () => {
+    const local = memory();
+    const store = createStore(w, { local, session: memory() });
+    const seen: unknown[] = [];
+    store.subscribe((_, events) => seen.push(...events));
+    expect(store.dispatch({ type: 'lap', time: 50 })).toEqual([{ type: 'lap', time: 50, best: true, previous: null }]);
+    expect(store.dispatch({ type: 'lap', time: 55 })).toEqual([{ type: 'lap', time: 55, best: false, previous: 50 }]);
+    // Only a new record changes anything worth announcing.
+    expect(seen).toEqual([{ type: 'lap', time: 50, best: true, previous: null }]);
+    expect(JSON.parse(local.m.get('world:progress:v1')!).bestLap).toBe(50);
+    expect(createStore(w, { local, session: memory() }).state.progress.bestLap).toBe(50);
+  });
+});
+
 describe('pickCatch', () => {
   it('prefers posts not caught yet', () => {
     const s = reduce(w, emptyState(), { type: 'catch', slug: 'first' }).state;
@@ -76,7 +121,7 @@ describe('pickCatch', () => {
 describe('sanitize', () => {
   it('drops progress for words and posts that no longer exist', () => {
     const s = sanitize(w, { progress: { found: ['attercop', 'gone', 'attercop', 7], caught: ['first', 'deleted'], night: true }, presence: { at: 'nowhere', pos: { x: 'a' } } });
-    expect(s.progress).toEqual({ found: ['attercop'], caught: ['first'], night: false });
+    expect(s.progress).toEqual({ found: ['attercop'], caught: ['first'], night: false, bestLap: null });
     expect(s.presence).toEqual({ at: null, pos: null, inside: null });
   });
 

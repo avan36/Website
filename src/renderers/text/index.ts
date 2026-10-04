@@ -6,6 +6,7 @@
 import './text.css';
 import type { RendererContext, RendererHandle } from '../types';
 import { createEngine, type EngineState, type Result } from './engine';
+import { boatOf, wishForBoat } from '../boat';
 import type { Block } from './output';
 import { Typewriter } from './typewriter';
 import { h, renderTurn } from './view';
@@ -138,6 +139,14 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
         case 'view':
           later(() => document.querySelector<HTMLButtonElement>(`[data-view-set="${e.id}"]`)?.click(), 450);
           break;
+        case 'boat': {
+          // Straight into the boat at the pier, on the 3D island.
+          const pier = world.places.find((p) => p.id === boatOf(world)?.place);
+          if (pier) store.dispatch({ type: 'move', at: pier.id, pos: geo.door(pier) });
+          wishForBoat();
+          later(() => document.querySelector<HTMLButtonElement>('[data-view-set="island"]')?.click(), ctx.reducedMotion ? 60 : 700);
+          break;
+        }
         case 'portal':
           later(() => {
             typewriter.finish();
@@ -157,7 +166,7 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
   /** The engine's state, with progress fresh from the store (another view, or the hoard card, may have changed it). */
   function sync(): EngineState {
     const p = progress();
-    state = { ...state, found: p.found, caught: p.caught, night: p.night };
+    state = { ...state, found: p.found, caught: p.caught, night: p.night, bestLap: p.bestLap };
     return state;
   }
 
