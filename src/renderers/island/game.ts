@@ -217,6 +217,7 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
   let strokes = 0;
   player.onStroke = (kick) => (kick || ++strokes % 2 === 0) && o.sound.play('swim');
   player.lowJumps = o.reducedMotion;
+  player.calm = o.reducedMotion;
   // Swimmers go round the pier (their heads would go through its deck) and the rowboat tied to it.
   const boatZ = PIER.end - ROWBOAT.fromEnd;
   const boatX = PIER.x + ROWBOAT.x;
@@ -570,7 +571,7 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
   };
   const onGestureMove = (e: PointerEvent) => {
     if (turning && e.pointerId === turning.pointerId) {
-      turnBy((turning.x - e.clientX) * 0.008);
+      turnBy((turning.x - e.clientX) * 0.005);
       turning.x = e.clientX;
       return true;
     }
@@ -583,7 +584,7 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     // Twisting the fingers clockwise turns the island clockwise with them.
     let da = now.angle - twist.angle;
     da = Math.atan2(Math.sin(da), Math.cos(da));
-    rig.turn = twist.turn - da;
+    rig.turn = twist.turn + da;
     rig.zoom = clamp((twist.zoom * twist.dist) / now.dist, ZOOM_MIN, ZOOM_MAX);
     return true;
   };
