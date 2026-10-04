@@ -643,7 +643,10 @@ const VIEWS = [
     html[data-view='text'] .isl-brand__text { display: none; }
     .isl-views__menu { position: fixed; top: calc(max(16px, env(safe-area-inset-top)) + 56px); right: 16px; width: min(292px, calc(100vw - 32px)); }
     .isl-card { width: calc(100vw - 32px - 56px); }
-    .isl-card.is-collapsed { width: 262px; }
+    .isl-card.is-collapsed { width: min(292px, calc(100vw - 32px - 56px)); }
+    /* The view switcher keeps its chevron, so it's a small pill, not a circle. */
+    .isl-chip.isl-views__toggle { width: auto; padding: 0 8px 0 11px; gap: 0; }
+    .isl-brand__name, .isl-brand__role { white-space: nowrap; }
     .isl-hint { bottom: auto; top: calc(max(16px, env(safe-area-inset-top)) + 64px); }
   }
   @media (max-width: 420px) {
@@ -657,5 +660,11 @@ const VIEWS = [
     .isl-wave { width: 30px; height: 30px; }
     .isl-card__body p { font-size: 14.5px; }
     .isl-label__card { width: 228px; }
+  }
+  @media (max-width: 350px) {
+    .isl-nav { gap: 4px; }
+    .isl-brand { min-width: 0; padding-right: 10px; gap: 8px; }
+    .isl-brand__name { font-size: 14px; }
+    .isl-card__title { font-size: 17px; gap: 8px; }
   }
 </style>

@@ -14,6 +14,7 @@
     z-index: 60;
     display: grid;
     justify-items: center;
+    align-content: start;
     gap: 8px;
     width: min(420px, calc(100vw - 32px));
     transform: translateX(-50%);
@@ -57,7 +58,7 @@
   /* In the text view the bottom of the screen is the prompt. */
   html[data-view='text'] .w-toasts { bottom: calc(max(24px, env(safe-area-inset-bottom)) + 104px); }
   @media (max-width: 720px) {
-    html.isl-mode-play .w-toasts { bottom: auto; top: calc(max(16px, env(safe-area-inset-top)) + 64px); }
+    html.isl-mode-play[data-view] .w-toasts { bottom: auto; top: calc(max(16px, env(safe-area-inset-top)) + 118px); }
   }
 
   /* ---------- Dialog ---------- */
