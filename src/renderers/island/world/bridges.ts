@@ -519,7 +519,8 @@ function towerBridge(b: Bridge) {
     const cx = s * T.walkX;
     k.box(T.walkHW * 2 + 0.06, 0.08, wl, BLUE, { p: [cx, T.walkY0 + 0.04, (wz0 + wz1) / 2] });
     k.box(T.walkHW * 2 + 0.16, 0.09, wl + 0.06, BLUE, { p: [cx, T.walkY1, (wz0 + wz1) / 2] });
-    k.box(T.walkHW * 2 + 0.02, 0.05, wl, WHITE, { p: [cx, T.walkY1 + 0.07, (wz0 + wz1) / 2], jitter: 0 });
+    k.box(T.walkHW * 2 - 0.1, 0.05, wl - 0.1, BLUE_DEEP, { p: [cx, T.walkY1 + 0.07, (wz0 + wz1) / 2] });
+    for (const f of [-1, 1]) k.box(0.05, 0.05, wl + 0.06, WHITE, { p: [cx + f * (T.walkHW + 0.06), T.walkY1 + 0.06, (wz0 + wz1) / 2], jitter: 0 });
     wk.addGlow(new BoxGeometry(T.walkHW * 2 - 0.12, T.walkY1 - T.walkY0 - 0.12, wl), '#ffffff', { p: [cx, (T.walkY0 + T.walkY1) / 2, (wz0 + wz1) / 2] });
     for (const f of [-1, 1]) {
       const x = cx + f * T.walkHW;

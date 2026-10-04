@@ -1722,7 +1722,8 @@ export function buildMall(color: string): Built {
   const glassDay = glass.color.clone();
   const glassNight = new Color('#ffd28c');
   const group = k.build();
-  group.add(gk.build({ glowMaterial: glass }));
+  // The glass straight into the same group, so that when the mall opens up its roof's panes lift off with the roof (see Landmark.open).
+  group.add(...gk.build({ glowMaterial: glass }).children);
 
   // The sliding doors: glass in thin dark frames, opening as you come near.
   const doors = [-1, 1].map((s) => {
@@ -1738,12 +1739,12 @@ export function buildMall(color: string): Built {
   });
 
   // The signs: WESTFIELD in big red letters on the beam, FIVE GUYS in white on its red band.
-  const signTex = painted(1024, 160, (g, font) => {
+  const signTex = painted(1024, 176, (g, font) => {
     g.fillStyle = color;
     g.textAlign = 'center';
     g.textBaseline = 'middle';
-    g.font = `800 132px ${font}`;
-    g.fillText('WESTFIELD', 512, 86, 990);
+    g.font = `800 158px ${font}`;
+    g.fillText('WESTFIELD', 512, 96, 1000);
   });
   const fiveTex = painted(512, 128, (g, font) => {
     g.fillStyle = '#ffffff';
@@ -1753,7 +1754,7 @@ export function buildMall(color: string): Built {
     g.fillText('FIVE GUYS', 256, 68, 480);
   });
   const signMat = new MeshStandardMaterial({ map: signTex, transparent: true, roughness: 0.6, emissive: '#ffffff', emissiveMap: signTex, emissiveIntensity: 0.25 });
-  const sign = new Mesh(new PlaneGeometry(2.8, 0.44), signMat);
+  const sign = new Mesh(new PlaneGeometry(2.9, 0.5), signMat);
   sign.position.set(0, 3.25, ez + 0.39);
   group.add(sign);
   const fiveMat = new MeshStandardMaterial({ map: fiveTex, transparent: true, roughness: 0.6, emissive: '#ffffff', emissiveMap: fiveTex, emissiveIntensity: 0.3 });

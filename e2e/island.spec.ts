@@ -119,6 +119,39 @@ test.describe('3D island', () => {
     expect(errors).toEqual([]);
   });
 
+  test('Tower Bridge takes you over to the mall, dry, and in you go', async ({ page }) => {
+    const errors = await openIsland(page);
+    // Click-to-walk from the plaza to Westfield's door: down past the bus on the quay and over the bridge, never through the sea.
+    const walk = await page.evaluate(() => {
+      const d = (window as DebugWindow).__island!.debug;
+      const p = d.places().find((x) => x.id === 'westfield')!;
+      d.walkTo(p.stand.x, p.stand.z);
+      let wet = 0;
+      let east = 0;
+      for (let i = 0; i < 80; i++) {
+        d.tick(0.5);
+        const me = d.player();
+        if (me.water !== 'dry') wet++;
+        east = Math.max(east, me.x);
+        if (Math.hypot(me.x - p.stand.x, me.z - p.stand.z) < 0.6) break;
+      }
+      const me = d.player();
+      return { wet, east, left: Math.hypot(me.x - p.stand.x, me.z - p.stand.z), near: d.near() };
+    });
+    expect(walk.wet, 'half-seconds spent in the water').toBe(0);
+    expect(walk.east, 'out over the bridge').toBeGreaterThan(46);
+    expect(walk.left, 'how far from the door it stopped').toBeLessThan(0.6);
+    expect(walk.near, 'at its door').toBe('westfield');
+
+    // In: the mall opens up where it stands, and you're in its room.
+    await page.keyboard.press('Enter');
+    await expect
+      .poll(async () => (await tick(page, 0.2), page.evaluate(() => (window as DebugWindow).__island!.debug.inside()?.at ?? null)), { timeout: 60_000 })
+      .toBe('westfield');
+    await expect(page.locator('#w-room')).toBeVisible();
+    expect(errors).toEqual([]);
+  });
+
   test('stepping through the portal switches the view', async ({ page }) => {
     const errors = await openIsland(page);
     // Just in front of the ring on the plaza.
