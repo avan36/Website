@@ -73,6 +73,7 @@ export function ref(p: Place): string {
 }
 
 /** A scenery item's display name, with its article: "the journal". */
-export const thing = (s: Scenery) => `the ${s.names[0]}`;
+/** A thing as you'd say it: "the swing", but a name of its own (Five Guys) without "the". */
+export const thing = (s: Scenery) => (/^[A-Z]/.test(s.names[0]) ? s.names[0] : `the ${s.names[0]}`);
 /** "it" or "them", for a scenery item. */
 export const pronoun = (s: Scenery) => (/[^s]s$/.test(s.names[0]) ? 'them' : 'it');

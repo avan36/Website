@@ -95,7 +95,8 @@ export function createRoomUI(world: World, announce: (s: string) => void, toast:
 
   const person = (id: string) => place?.interior?.people.find((c) => c.id === id) ?? null;
   const thing = (id: string) => place?.interior?.things.find((t) => t.id === id) ?? null;
-  const thingName = (t: Thing) => `the ${t.names[0]}`;
+  // A name of its own (Five Guys) goes without "the".
+  const thingName = (t: Thing) => (/^[A-Z]/.test(t.names[0]) ? t.names[0] : `the ${t.names[0]}`);
   const internal = (href: string) => href.startsWith('/') && !href.startsWith('/busybeer/');
 
   function link(l: Pointer | undefined) {

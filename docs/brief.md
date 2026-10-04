@@ -86,10 +86,11 @@ Things that worked here and could be borrowed, remixed or taken further:
 - **A boat race** round the island against the clock and a ghost of your best lap.
 - **Seven mini-games:** skipping stones (timing), crab boop (whack-a-mole) and crate stack (precision) on the island, and four over footbridges on two islets that each teach something true about a project: Ask the bartender (busy beer), Spot the dark pattern (privacy), Etymology race (Etymon) and Sort the tree of life (Map of Evolution). All seven are in the pack.
 - **A wardrobe** you earn by visiting places: a scarf from the cabin, a hard hat from the taproom, reading glasses from the library.
-- **Islanders** in every building: a caretaker, a barkeep, a librarian, a lighthouse keeper, a teacher and a sorter, each with a few things to talk about.
+- **Islanders** in every building: a caretaker, a barkeep, a librarian, a lighthouse keeper, a teacher, a sorter, and in the mall a fry cook and a shopper, each with a few things to talk about.
 - **Rooms you walk into**, built as a dollhouse in 3D and a pixel room on the map.
 - **Real time.** The island keeps the clock of the place it was made in: morning light, dusk, lit windows after dark, and a commuter train that runs at rush hour.
-- **Islets and bridges.** The island grew two islets off its west coast, joined to it by footbridges with railings: Root Isle for where words and living things come from, Boardwalk Isle with a beach bar and a pushy cookie-banner billboard.
+- **Islets and bridges.** The island grew two islets off its west coast, joined to it by footbridges with railings: Root Isle for where words and living things come from, Boardwalk Isle with a beach bar and a pushy cookie-banner billboard. Off the east end, Tower Bridge runs from the quay (where the London bus is parked, facing it) out to Little London.
+- **A memory you can walk into.** Not everything on the island is work. Westfield, over Tower Bridge, is a building with a room and no page, with Five Guys inside, and one line in Ambrose's words: "I spent a lot of time here growing up, with my dad." In the data it's a place of kind `memory`.
 - **A toy on every project page:** a journal chat that types itself out, a five-axis taste match, a tree of life that grows, a word that morphs through its history, a lighthouse beam over 11,000 dots, a barcode scan, a pop quiz.
 - **A name card** told the way Etymon tells a word's story.
 - **A word jar** that counts up from the number a returning visitor last saw.

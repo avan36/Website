@@ -273,7 +273,7 @@ export function createEngine(world: World, geo: Geo, { random = Math.random }: E
       { kind: 'title', text: `Inside ${ref(pl)}`, color: pl.color },
       p(room.description),
       peopleLine(pl),
-      { kind: 'p', spans: ['You could examine ', ...orList(room.things.map((t) => cmd(`the ${t.names[0]}`, `examine ${t.names[0]}`)))], tone: 'dim' },
+      { kind: 'p', spans: ['You could examine ', ...orList(room.things.map((t) => cmd(thing(t), `examine ${t.names[0]}`)))], tone: 'dim' },
       { kind: 'p', spans: md(openLine(pl)), tone: 'dim' },
     ];
   }
@@ -315,7 +315,7 @@ export function createEngine(world: World, geo: Geo, { random = Math.random }: E
     const c = personAt(here, noun)[0];
     if (c) return greet(s, c);
     const t = thingAt(here, noun)[0];
-    if (t) return result(s, [say(`You say hello to the ${t.names[0]}. It doesn't say anything back, which is fair.`)]);
+    if (t) return result(s, [say(`You say hello to ${thing(t)}. It doesn't say anything back, which is fair.`)]);
     return result(s, [p(`There's nobody called '${noun}' in here. `, ...orList(ps.map((x) => cmd(x.name, talkCmd(x))), ' and ', ps.length > 1 ? ' are here.' : ' is here.'))]);
   }
 
@@ -366,7 +366,7 @@ export function createEngine(world: World, geo: Geo, { random = Math.random }: E
   function examineInside(s: EngineState, noun: string, searching: boolean): Result | null {
     const here = place(s.at);
     if (!noun) {
-      const all = [...things(here).map((t) => cmd(`the ${t.names[0]}`, `examine ${t.names[0]}`)), ...people(here).map((c) => cmd(c.name, `examine ${key(c.name)}`))];
+      const all = [...things(here).map((t) => cmd(thing(t), `examine ${t.names[0]}`)), ...people(here).map((c) => cmd(c.name, `examine ${key(c.name)}`))];
       return result(s, [p(searching ? 'Search what? ' : 'Examine what? ', 'You could try ', ...orList(all))]);
     }
     const t = thingAt(here, noun)[0];
@@ -1047,7 +1047,7 @@ export function createEngine(world: World, geo: Geo, { random = Math.random }: E
         if (!noun || lex.places(noun).some((x) => x.id === here.id) || ['room', 'building', 'door'].includes(noun)) return enter(s);
         return null;
       case 'take':
-        if (thingAt(here, noun).length) return result(s, [say(`Better not. ${people(here)[0].name} is watching, and the ${thingAt(here, noun)[0].names[0]} lives here.`)]);
+        if (thingAt(here, noun).length) return result(s, [say(`Better not. ${people(here)[0].name} is watching, and ${thing(thingAt(here, noun)[0])} lives here.`)]);
         return null;
       case 'fish':
         return result(s, [say('Not indoors. The pier is the place for that.')]);
