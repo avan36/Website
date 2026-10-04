@@ -131,6 +131,41 @@ export function formatIslandTime(date: Date): string {
   return `${h12}:${String(t.minute).padStart(2, '0')} ${t.hour < 12 ? 'am' : 'pm'}`;
 }
 
+/** What the island's sky is doing: dark before dawn or after dusk, the light changing, or full day. */
+export type DayPart = 'small-hours' | 'dawn' | 'morning' | 'afternoon' | 'evening' | 'dusk' | 'night';
+
+export function dayPart(date: Date): DayPart {
+  const light = daylight(date);
+  const { hours } = islandTime(date);
+  if (light < 0.05) return hours < 12 ? 'small-hours' : 'night';
+  if (light < 0.95) return hours < 12 ? 'dawn' : 'dusk';
+  return hours < 12 ? 'morning' : hours < 17 ? 'afternoon' : 'evening';
+}
+
+const SKY: Record<DayPart, string> = {
+  'small-hours': "Everyone's asleep, so tread softly.",
+  dawn: 'The sun is just coming up over the water.',
+  morning: "Good morning: the light is fresh and the day's just starting.",
+  afternoon: 'Broad daylight, a fine time for a walk.',
+  evening: 'The light is going gold.',
+  dusk: 'The sun is going down and the lamps are coming on.',
+  night: 'Night has fallen: the lanterns are lit and the windows glow.',
+};
+
+/**
+ * A line for the home page about island time, so the light makes sense:
+ * "It's 10:26 pm on the island, Pacific time. Night has fallen: ...". A
+ * visitor who found every lost word can have night in the middle of the day
+ * (`night`), and the line says why.
+ */
+export function timeLine(date: Date, o: { commute: boolean; night: boolean }): { part: DayPart; text: string } {
+  const real = dayPart(date);
+  const dark = real === 'night' || real === 'small-hours';
+  const part = o.night && !dark ? 'night' : real;
+  const sky = o.night && !dark ? "You found every lost word, so it's night here anyway." : SKY[real];
+  return { part, text: `It's ${formatIslandTime(date)} on the island, Pacific time. ${sky}${o.commute ? ' The Caltrain is running.' : ''}` };
+}
+
 /**
  * The island's clock for a page: real time, or, for checking how things look
  * at any hour, an override from the URL. `?time=22:00` sets the clock to ten

@@ -550,8 +550,8 @@ const places: PlaceInput[] = [
       { id: 'sign', names: ['sign', 'swinging sign'], description: 'It reads: "Know what you\'ll love before you order."' },
       { id: 'mugs', names: ['mugs', 'mug', 'table', 'stools'], description: 'Two mugs, one full, one empty. Somebody already knows what they like.' },
       { id: 'lights', names: ['lights', 'string lights', 'bulbs'], description: 'Warm little bulbs on a sagging wire. They hum faintly.' },
-      { id: 'train', names: ['train', 'railway', 'rails', 'tracks', 'station', 'platform', 'carriages'], description: "Out past the taproom, a little railway loops round the east end of the island. The commuter train is silver, two decks high, with a red nose at each end. It keeps island time: on weekday mornings and evenings it goes round and round, stopping at the platform every lap; the rest of the time it waits there with its doors open." },
-      { id: 'bus', names: ['bus', 'double-decker', 'double decker', 'quay'], description: "Down on the stone quay by the water, a red double-decker bus is parked with its engine off, a long way from home. The destination blind is lit but blank. It isn't going anywhere today." },
+      { id: 'train', names: ['train', 'caltrain', 'railway', 'rails', 'tracks', 'station', 'platform', 'carriages'], description: "Out past the taproom, a little railway loops round the east end of the island. The train is a Caltrain: silver, two decks high, with a red nose at each end and its name painted down the sides. It keeps island time: on weekday mornings and evenings it goes round and round, stopping at the platform every lap; the rest of the time it waits there with its doors open." },
+      { id: 'bus', names: ['bus', 'london bus', 'double-decker', 'double decker', 'quay'], description: "Down on the stone quay by the water, a red London double-decker is parked with its engine off, a long way from home. LONDON is painted in gold down its sides, and the lit blind over the cab says LONDON too, which seems optimistic. It isn't going anywhere today." },
     ],
   }),
   projectPlace('map-of-evolution', {
