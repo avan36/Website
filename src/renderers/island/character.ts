@@ -61,6 +61,11 @@ const CURRENT = 2.6;
 /** How far a swimmer keeps from the pier and the boat (their heads would go through the deck). */
 const SWIM_R = 0.6;
 
+// Running (Shift held, or a double-click on where to go)
+/** How much faster running is, on land and in the water. */
+const RUN = 1.7;
+const RUN_WET = 1.3;
+
 export type Water = 'dry' | 'wade' | 'swim';
 
 /** Something in the water to swim round: a segment with a radius, as high as its top. */
@@ -140,6 +145,18 @@ export class Explorer {
   /** Shrinks and spins the explorer (going through the portal, or coming out of it). */
   warp = 1;
   spin = 0;
+  /** Drawn toward `pullTo` (0..1): into the portal's swirl. */
+  pull = 0;
+  readonly pullTo = new Vector3();
+  /** Want to run (Shift, or a double-click). */
+  sprint = false;
+  /** No dust kicked up while running (reduced motion). */
+  calm = false;
+  /** How much running there is in the stride, eased in and out. */
+  private runAmt = 0;
+  private strides = 0;
+  /** Took off from the water: the pier's deck is out of reach (no climbing out onto it). */
+  private fromSea = false;
   private jumping = false;
   private jumpBuffer = 0;
   private airJumped = false;
@@ -334,6 +351,7 @@ export class Explorer {
     this.flipT = -1;
     this.flipG.rotation.x = 0;
     this.dip.snap(0);
+    this.fromSea = false;
     this.pos.set(x, 0, z);
     // In the sea you start out afloat (or wading), not dropped in from above.
     const wet = !isWalkable(x, z);
@@ -404,6 +422,7 @@ export class Explorer {
     this.jumping = true;
     this.jumpBuffer = 0;
     this.land.kick(7);
+    this.fromSea = this.water !== 'dry';
     if (this.water === 'wade') this.splash(0.3, true);
     this.onJump?.(false);
   }
@@ -500,11 +519,17 @@ export class Explorer {
     return wet ? Math.max(ground, waveHeight(x, z, this.now) - SINK) : ground;
   }
 
-  /** How fast you can go here, as a share of walking. */
+  /** How fast you can go here, as a share of walking (running included). */
   private pace(x: number, z: number) {
-    if (this.water === 'swim') return SWIM_PACE;
-    if (this.water === 'dry' || !this.grounded) return 1;
-    return lerp(1, WADE_PACE, smoothstep(0, 0.3, -heightAt(x, z)));
+    const run = 1 + ((this.water === 'dry' ? RUN : RUN_WET) - 1) * this.runAmt;
+    if (this.water === 'swim') return SWIM_PACE * run;
+    if (this.water === 'dry' || !this.grounded) return run;
+    return lerp(1, WADE_PACE, smoothstep(0, 0.3, -heightAt(x, z))) * run;
+  }
+
+  /** Running right now (for tests): Shift's down and the legs are going. */
+  get sprinting() {
+    return this.runAmt > 0.5 && this.speed > 1;
   }
 
   /**
@@ -518,7 +543,8 @@ export class Explorer {
     const g = groundAt(x, z);
     if (g > feet + (this.grounded ? MAX_STEP : 0.2)) return false;
     const h = heightAt(x, z);
-    if (g > h + 0.01) return true; // the pier's deck is flat
+    // The pier's deck is flat, but out of reach from the water, even jumping.
+    if (g > h + 0.01) return !this.fromSea || groundAt(this.pos.x, this.pos.z) > this.hHere + 0.01;
     if (h <= this.hHere + 0.002 || h < feet - 1) return true; // not climbing, or well above it
     return gradient(x, z, this.grad).length() < CLIFF;
   }
@@ -583,6 +609,8 @@ export class Explorer {
    * blocked (so click-to-walk can give up instead of pushing into a wall).
    */
   move(dt: number, wish: Vector2, colliders: Collider[]) {
+    // Ease into a run and back out of it, but in the air keep whatever you took off with.
+    if (this.grounded) this.runAmt = damp(this.runAmt, this.sprint ? 1 : 0, this.sprint ? 5 : 3, dt);
     const len = wish.length();
     const swim = this.water === 'swim';
     let max = SPEED * this.pace(this.pos.x, this.pos.z) * clamp(len, 0, 1);
@@ -696,6 +724,7 @@ export class Explorer {
         this.grounded = true;
         this.jumping = false;
         this.airJumped = false;
+        this.fromSea = false;
         this.water = !wet ? 'dry' : depth > SWIM_IN ? 'swim' : 'wade';
         if (this.water === 'swim') {
           // Sink in a little and bob back up. No jumping out again.
@@ -745,6 +774,15 @@ export class Explorer {
         }
       } else {
         puffs.spawn(px, this.pos.y + 0.06, pz, { vy: 0.7, vx: -this.vel.x * 0.12, vz: -this.vel.y * 0.12, size: 0.11 + Math.random() * 0.05, life: 0.45, color: '#f6ead2', drag: 4 });
+        // Running kicks up a little more, every other step.
+        if (this.runAmt > 0.5 && !this.calm && ++this.strides % 2 === 0) {
+          for (let i = 0; i < 3; i++) {
+            puffs.spawn(px - fx * 0.15, this.pos.y + 0.08, pz - fz * 0.15, {
+              vx: -fx * (1.1 + Math.random() * 0.6) + (Math.random() - 0.5) * 0.8, vz: -fz * (1.1 + Math.random() * 0.6) + (Math.random() - 0.5) * 0.8, vy: 0.9 + Math.random() * 0.6,
+              size: 0.13 + Math.random() * 0.07, life: 0.55, color: '#f6ead2', drag: 3.5,
+            });
+          }
+        }
       }
     }
     this.lastSin = s;
@@ -799,7 +837,7 @@ export class Explorer {
     const pull = 0.4 + 0.6 * this.strokeAmt;
     this.bodyG.position.y = 0.12 + bob * (1 - sw) + Math.sin(st * 2) * 0.025 * sw;
     // Afloat you lean into the water, rocking a little with each stroke.
-    this.bodyG.rotation.x = lerp(0.14 * this.walkAmt + Math.sin(this.phase * 2) * 0.03 * this.walkAmt, 0.16 + 0.08 * this.strokeAmt + Math.sin(st * 2) * 0.05 * pull, sw);
+    this.bodyG.rotation.x = lerp((0.14 + 0.12 * this.runAmt) * this.walkAmt + Math.sin(this.phase * 2) * 0.03 * this.walkAmt, 0.16 + 0.08 * this.strokeAmt + Math.sin(st * 2) * 0.05 * pull, sw);
     this.bodyG.rotation.z = lerp(Math.sin(this.phase) * 0.06 * this.walkAmt, Math.sin(st) * 0.07 * pull, sw);
 
     // The double jump's somersault (and a tuck while it turns)
@@ -879,6 +917,7 @@ export class Explorer {
 
   private sync() {
     this.root.position.set(this.pos.x, this.pos.y + this.air + this.dip.value, this.pos.z);
+    if (this.pull > 0) this.root.position.lerp(this.pullTo, this.pull);
     this.root.rotation.y = this.yaw + this.spin;
     this.root.scale.setScalar(SCALE * Math.max(this.warp, 0.001));
     const ground = groundAt(this.pos.x, this.pos.z);
