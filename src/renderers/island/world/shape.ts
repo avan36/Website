@@ -51,7 +51,27 @@ const METRICS: Record<PlaceKind, { labelY: number; hitR: number; hitH: number; r
 const world = readWorld();
 const geo = readGeo();
 
-export const { coastRadius, rockiness, heightAt, groundAt, isWalkable, pathDist, isOpenGround, depthAt, swimRoom, isSwimmable } = geo;
+export const { coastRadius, rockiness, heightAt, groundAt, isWalkable, pathDist, isOpenGround, depthAt, swimRoom, isSwimmable, islandOf, owner, nextStop, swimEdge, clearOfBridges } = geo;
+/** The main island (0) and the islets off it, and the footbridges out to them. */
+export const ISLANDS = geo.islands;
+export const BRIDGES = geo.bridges;
+
+/** A circle round all the land (every island's coast and the end of the pier): what the sun's shadows have to cover. */
+export const LAND = (() => {
+  const pts = ISLANDS.flatMap((s) =>
+    Array.from({ length: 96 }, (_, k) => {
+      const th = (k / 96) * Math.PI * 2;
+      const r = s.coast(th);
+      return { x: s.x + Math.cos(th) * r, z: s.z + Math.sin(th) * r };
+    }),
+  );
+  pts.push({ x: geo.pier.x, z: geo.pier.end });
+  const xs = pts.map((p) => p.x);
+  const zs = pts.map((p) => p.z);
+  const x = (Math.min(...xs) + Math.max(...xs)) / 2;
+  const z = (Math.min(...zs) + Math.max(...zs)) / 2;
+  return { x, z, r: Math.max(...pts.map((p) => Math.hypot(p.x - x, p.z - z))) };
+})();
 export { SWIM_REACH } from '../../../world/geo';
 export const PLAZA = geo.hub.at;
 /** The hub: where you are when you're on the plaza and not at any place. */

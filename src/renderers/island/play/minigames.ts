@@ -1,16 +1,19 @@
 // The mini-games on the island: a little prop at each spot (a pile of flat
 // stones on the beach, holes in the sand with a crab peeking out, a stack of
-// crates by the depot), each with a signpost in its game's color, and a
+// crates by the depot, and the islets' bar, billboard, lectern and sapling
+// from isletProps.ts), each with a signpost in its game's color, and a
 // prompt like the fishing spot's that opens as you walk up. The games
 // themselves run in the shared games card (src/renderers/games/overlay.ts);
 // this only puts them on the island and says when you're close enough.
 
 import { CylinderGeometry, Group, Mesh, MeshBasicMaterial, Vector3, type PerspectiveCamera, type Raycaster } from 'three';
 import { GAME_INFO, scoreText, type GameId } from '../../games/catalog';
+import type { Glow } from '../landmarks/builders';
 import type { Rect } from '../labels';
 import { Kit } from '../world/kit';
 import type { Collider } from '../world/nature';
 import { ACTIVITIES, groundAt, isWalkable } from '../world/shape';
+import { isletProp, type IsletProp } from './isletProps';
 import { Prompt, type PromptText } from './prompt';
 
 export { playGame } from '../../games/overlay';
@@ -40,6 +43,8 @@ export class MiniGames {
   open: GameId | null = null;
   private crab: Group | null = null;
   private crabAt = { x: 0, z: 0, y: 0 };
+  private islet: IsletProp[] = [];
+  private lamps: { halos: Glow[]; pools: Glow[] } = { halos: [], pools: [] };
 
   constructor(
     host: HTMLElement,
@@ -64,6 +69,10 @@ export class MiniGames {
       this.spots.push({ id, x: a.x, z: a.z, stand, anchor: new Vector3(a.x, y + 2.3, a.z), prompt, hit, text: null });
       this.colliders.push({ x: a.x - 0.95, z: a.z - 0.15, r: 0.22 });
       if (id === 'crates') this.colliders.push({ x: a.x + 0.35, z: a.z - 0.2, r: 0.75 });
+      for (const c of prop.userData.solid ?? []) this.colliders.push({ x: a.x + c.x, z: a.z + c.z, r: c.r });
+      const g = prop.userData.glows as IsletProp['glows'];
+      const at = ([x, gy, z, s]: Glow): Glow => [a.x + x, y + gy, a.z + z, s];
+      if (g) (this.lamps.halos.push(...g.halos.map(at)), this.lamps.pools.push(...g.pools.map(at)));
     }
     this.refresh();
   }
@@ -100,6 +109,15 @@ export class MiniGames {
       this.crab.position.set(0.4, 0, 0.25);
       this.crabAt = { x: 0.4, z: 0.25, y: 0 };
       root.add(this.crab);
+    } else if (id !== 'crates') {
+      // Out on the islets: their own props.
+      const p = isletProp(id, color);
+      if (p) {
+        root.add(p.root);
+        root.userData.solid = p.solid;
+        root.userData.glows = p.glows;
+        this.islet.push(p);
+      }
     } else {
       // A stack of crates, a little untidy, in the depot's bin colors.
       k.rbox(0.62, 0.42, 0.62, 0.04, '#20a464', { p: [0.05, 0.21, -0.2], r: [0, 0.1, 0] });
@@ -111,6 +129,12 @@ export class MiniGames {
     root.add(k.build());
     return root;
   }
+
+  /** The islet props' lamps, in world space: the night lights them like a landmark's. */
+  glows() {
+    return this.lamps;
+  }
+  night() {}
 
   /** Point the prompts at your current bests. */
   refresh() {
@@ -156,6 +180,7 @@ export class MiniGames {
   }
 
   update(time: number) {
+    for (const p of this.islet) p.update?.(time, this.o.reducedMotion);
     if (!this.crab) return;
     // The crab pops up, looks about, and ducks back down.
     const k = (time * 0.45) % 1;
@@ -182,6 +207,7 @@ export class MiniGames {
   }
 
   dispose() {
+    for (const p of this.islet) p.dispose?.();
     for (const s of this.spots) {
       s.prompt.dispose();
       s.hit.geometry.dispose();

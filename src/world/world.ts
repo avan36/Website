@@ -1050,8 +1050,8 @@ const geography: WorldInput['geography'] = {
     { id: 'boardwalk-isle', name: 'Boardwalk Isle', at: { x: -33.1, z: 14.1 }, coast: { radius: 6.6, ripples: [{ freq: 3, amp: 0.5, phase: 2.6 }, { freq: 4, amp: 0.35, phase: 0.9 }] } },
   ],
   bridges: [
-    { from: { x: -15.6, z: -10.5 }, to: { x: -27, z: -13.5 }, width: 2.2, deck: 1.15 },
-    { from: { x: -16.8, z: 11 }, to: { x: -28.3, z: 13.2 }, width: 2.2, deck: 1.15 },
+    { from: { x: -15.6, z: -10.5 }, to: { x: -27, z: -13.5 }, width: 2.4, deck: 1.15 },
+    { from: { x: -16.8, z: 11 }, to: { x: -28.3, z: 13.2 }, width: 2.4, deck: 1.15 },
   ],
   spawn: { x: 0, z: 7.5 },
 };

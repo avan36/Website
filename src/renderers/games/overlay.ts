@@ -277,8 +277,10 @@ export function playGame(id: GameId, o: PlayOptions): () => void {
       return;
     }
     waiting = false;
-    if (load) mountPanel(true);
-    else round = START[id]!(env);
+    if (load) {
+      mountPanel(true);
+      dialog.scrollTo({ top: 0 });
+    } else round = START[id]!(env);
     mode = 'play';
     endT = 0;
     confetti.length = 0;
@@ -322,7 +324,7 @@ export function playGame(id: GameId, o: PlayOptions): () => void {
       }
     }
     // A tall stage (a game of buttons and words) scrolls back up to the score.
-    if (panel) stage.scrollIntoView({ block: 'start', behavior: o.reducedMotion ? 'auto' : 'smooth' });
+    if (panel) dialog.scrollTo({ top: 0, behavior: o.reducedMotion ? 'auto' : 'smooth' });
     // A short pause before Play again takes a press, so the last tap of the round doesn't start the next.
     guardUntil = performance.now() + 450;
     againBtn.disabled = true;
@@ -337,6 +339,7 @@ export function playGame(id: GameId, o: PlayOptions): () => void {
   function review() {
     if (mode !== 'end' || !panel?.review) return;
     mode = 'review';
+    confetti.length = 0;
     endPanel.hidden = true;
     hud.hidden = false;
     body!.inert = false;

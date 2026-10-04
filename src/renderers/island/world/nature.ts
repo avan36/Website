@@ -17,7 +17,7 @@ import {
   type WebGLProgramParametersWithUniforms,
 } from 'three';
 import { Kit } from './kit';
-import { ACTIVITIES, heightAt, isOpenGround, rockiness, PLAZA, PLACES, WORDS } from './shape';
+import { ACTIVITIES, clearOfBridges, heightAt, isOpenGround, ISLANDS, owner, rockiness, PLAZA, PLACES, WORDS } from './shape';
 import { rng } from '../util/math';
 
 export interface SharedUniforms {
@@ -192,6 +192,10 @@ function petalGeometry() {
 
 type Spot = { x: number; z: number; y: number; s: number; rot: number };
 
+/** Where a scatter throws its props: round the main island's middle, or an islet's. */
+type Around = { x: number; z: number; r: number; isle: number };
+const MAIN: Around = { x: 0, z: 0, r: 34, isle: 0 };
+
 function scatter(
   count: number,
   rand: () => number,
@@ -199,17 +203,19 @@ function scatter(
   minDist: number,
   taken: Spot[] = [],
   scale: [number, number] = [0.85, 1.2],
+  around: Around = MAIN,
 ) {
   const out: Spot[] = [];
   let tries = 0;
   while (out.length < count && tries < count * 200) {
     tries++;
     const a = rand() * Math.PI * 2;
-    const r = Math.sqrt(rand()) * 34;
-    const x = Math.cos(a) * r;
-    const z = Math.sin(a) * r;
+    const r = Math.sqrt(rand()) * around.r;
+    const x = around.x + Math.cos(a) * r;
+    const z = around.z + Math.sin(a) * r;
     const h = heightAt(x, z);
-    if (!accept(x, z, h)) continue;
+    // Each island's props on its own ground (the main island's never wander onto an islet).
+    if (owner(x, z) !== around.isle || !accept(x, z, h)) continue;
     let ok = true;
     for (const o of out) if ((o.x - x) ** 2 + (o.z - z) ** 2 < minDist * minDist) { ok = false; break; }
     if (ok) for (const o of taken) if ((o.x - x) ** 2 + (o.z - z) ** 2 < (minDist * 0.7) ** 2) { ok = false; break; }
@@ -309,11 +315,14 @@ export function buildNature(uniforms: SharedUniforms, lite = false) {
     (Math.abs(x) < 6 && z > 0 && z < 16) ||
     Math.hypot(x - PLACES.find((p) => p.kind === 'tree')!.x, z - PLACES.find((p) => p.kind === 'tree')!.z) < 8.5;
 
-  const palmOk: Accept = (x, z, h) => h > 0.42 && h < 1.05 && rockiness(x, z) < 0.25 && isOpenGround(x, z, 0.6) && !(z > 10 && Math.abs(x - 2) < 7);
-  const treeOk: Accept = (x, z, h) => h > 1.0 && rockiness(x, z) < 0.3 && isOpenGround(x, z, 1.4) && !nearPlaza(x, z) && !blocksView(x, z);
-  const pineOk: Accept = (x, z, h) => h > 1.0 && z < -2 && rockiness(x, z) < 0.5 && isOpenGround(x, z, 1.2) && !blocksView(x, z);
-  const bushOk: Accept = (x, z, h) => h > 0.75 && isOpenGround(x, z, 0.4) && !nearPlaza(x, z);
-  const rockOk: Accept = (x, z, h) => (h > 0.0 && h < 0.5 && isOpenGround(x, z, 0)) || (rockiness(x, z) > 0.5 && h > 0.2 && isOpenGround(x, z, -0.6));
+  // The main island's scatter leaves the bridges out (so it keeps the layout it
+  // had before there were any) and clears them afterwards.
+  const open = (x: number, z: number, m: number) => isOpenGround(x, z, m, false);
+  const palmOk: Accept = (x, z, h) => h > 0.42 && h < 1.05 && rockiness(x, z) < 0.25 && open(x, z, 0.6) && !(z > 10 && Math.abs(x - 2) < 7);
+  const treeOk: Accept = (x, z, h) => h > 1.0 && rockiness(x, z) < 0.3 && open(x, z, 1.4) && !nearPlaza(x, z) && !blocksView(x, z);
+  const pineOk: Accept = (x, z, h) => h > 1.0 && z < -2 && rockiness(x, z) < 0.5 && open(x, z, 1.2) && !blocksView(x, z);
+  const bushOk: Accept = (x, z, h) => h > 0.75 && open(x, z, 0.4) && !nearPlaza(x, z);
+  const rockOk: Accept = (x, z, h) => (h > 0.0 && h < 0.5 && open(x, z, 0)) || (rockiness(x, z) > 0.5 && h > 0.2 && open(x, z, -0.6));
   let palms = scatter(17, rand, palmOk, 3.4, all, [0.85, 1.15]);
   all.push(...palms);
   let trees = scatter(16, rand, treeOk, 4.2, all);
@@ -322,20 +331,55 @@ export function buildNature(uniforms: SharedUniforms, lite = false) {
   all.push(...pines);
   let bushes = scatter(30, rand, bushOk, 1.8, all, [0.7, 1.3]);
   let rocks = scatter(34, rand, rockOk, 1.5, all, [0.6, 1.5]);
-  let tufts = scatter(lite ? 120 : 230, rand, (x, z, h) => h > 0.7 && isOpenGround(x, z, -0.7), 0.6, [], [0.8, 1.4]);
-  let flowers = scatter(lite ? 80 : 120, rand, (x, z, h) => h > 0.85 && isOpenGround(x, z, -0.5) && rockiness(x, z) < 0.3, 0.45, [], [0.8, 1.25]);
-
+  let tufts = scatter(lite ? 120 : 230, rand, (x, z, h) => h > 0.7 && open(x, z, -0.7), 0.6, [], [0.8, 1.4]);
+  let flowers = scatter(lite ? 80 : 120, rand, (x, z, h) => h > 0.85 && open(x, z, -0.5) && rockiness(x, z) < 0.3, 0.45, [], [0.8, 1.25]);
   // Nothing may bury a lost word or the fishing spot, or hide it from the
   // camera. Settled after scattering, so the rest of the island keeps exactly
   // the layout it always had: a prop in the way steps aside if there's room.
   const [topX, topY] = palmTrunk();
-  palms = settle(palms, all, 1.6, { x: topX, y: topY - 0.3, r: 1.7 }, palmOk, 3);
-  trees = settle(trees, all, 1.6, { x: 0, y: 2.6, r: 1.5 }, treeOk, 3.5);
+  const palmCrown = { x: topX, y: topY - 0.3, r: 1.7 };
+  const treeCrown = { x: 0, y: 2.6, r: 1.5 };
+  const bushCrown = { x: 0, y: 0.35, r: 0.75 };
+  const rockCrown = { x: 0, y: 0.2, r: 0.55 };
+  palms = settle(palms, all, 1.6, palmCrown, palmOk, 3);
+  trees = settle(trees, all, 1.6, treeCrown, treeOk, 3.5);
   pines = settle(pines, all, 1.5, { x: 0, y: 1.9, r: 1.1 }, pineOk, 2.6);
-  bushes = settle(bushes, all, 1.2, { x: 0, y: 0.35, r: 0.75 }, bushOk, 1.6);
-  rocks = settle(rocks, all, 1.0, { x: 0, y: 0.2, r: 0.55 }, rockOk, 1.3);
+  bushes = settle(bushes, all, 1.2, bushCrown, bushOk, 1.6);
+  rocks = settle(rocks, all, 1.0, rockCrown, rockOk, 1.3);
   tufts = settle(tufts, [], 0.5);
   flowers = settle(flowers, [], 0.45);
+  const offBridges = (m: number) => (p: Spot) => clearOfBridges(p.x, p.z, m);
+  palms = palms.filter(offBridges(0.6));
+  trees = trees.filter(offBridges(1.4));
+  pines = pines.filter(offBridges(1.2));
+  bushes = bushes.filter(offBridges(0.4));
+  rocks = rocks.filter(offBridges(0));
+  tufts = tufts.filter(offBridges(-0.7));
+  flowers = flowers.filter(offBridges(-0.5));
+
+  // (Which trees take which of the two shapes stays as it was, too.)
+  const half = Math.ceil(trees.length / 2);
+
+  // The islets: a few palms on the beach, a tree or two, bushes, rocks, grass
+  // and flowers, each islet scattered on its own (so the main island's layout
+  // never moves), and nothing tall in front of a game.
+  for (const isle of ISLANDS.slice(1)) {
+    const r = rng(70 + isle.i * 13);
+    const around: Around = { x: isle.x, z: isle.z, r: isle.outer, isle: isle.i };
+    const games = ACTIVITIES.filter((a) => Math.hypot(a.x - isle.x, a.z - isle.z) < isle.outer);
+    // The camera looks from the south: keep a ring round each game clear, and the strip in front of it.
+    const nearGame = (x: number, z: number, ring: number, front: number) => games.some((g) => Math.hypot(x - g.x, z - g.z) < ring || (z > g.z && z - g.z < front && Math.abs(x - g.x) < 2.6));
+    const p = settle(scatter(4, r, (x, z, h) => h > 0.42 && h < 0.95 && isOpenGround(x, z, 0.6) && !nearGame(x, z, 3.2, 6), 3.4, all, [0.8, 1.05], around), [], 1.6, palmCrown);
+    all.push(...p);
+    const t = settle(scatter(2, r, (x, z, h) => h > 1.0 && isOpenGround(x, z, 1.4) && !nearGame(x, z, 3.6, 8), 4.2, all, [0.8, 1.0], around), [], 1.6, treeCrown);
+    all.push(...t);
+    palms.push(...p);
+    trees.push(...t);
+    bushes.push(...settle(scatter(4, r, (x, z, h) => h > 0.75 && isOpenGround(x, z, 0.4) && !nearGame(x, z, 2.4, 3), 1.8, all, [0.7, 1.1], around), [], 1.2, bushCrown));
+    rocks.push(...settle(scatter(4, r, (x, z, h) => h > 0.0 && h < 0.5 && isOpenGround(x, z, 0), 1.5, all, [0.6, 1.2], around), [], 1.0, rockCrown));
+    tufts.push(...scatter(lite ? 12 : 22, r, (x, z, h) => h > 0.7 && isOpenGround(x, z, -0.7) && !nearGame(x, z, 1.6, 0), 0.6, [], [0.8, 1.3], around));
+    flowers.push(...scatter(lite ? 10 : 16, r, (x, z, h) => h > 0.85 && isOpenGround(x, z, -0.5) && !nearGame(x, z, 1.6, 0), 0.45, [], [0.8, 1.2], around));
+  }
 
   const palmM = swayMaterials(uniforms, 0.0045, 1.1);
   const treeM = swayMaterials(uniforms, 0.006, 1.3);
@@ -343,7 +387,6 @@ export function buildNature(uniforms: SharedUniforms, lite = false) {
   const grassM = swayMaterials(uniforms, 0.35, 2.2);
 
   group.add(instanced(palmGeometry(), palmM, palms, true, 0.1));
-  const half = Math.ceil(trees.length / 2);
   group.add(instanced(roundTreeGeometry(0), treeM, trees.slice(0, half), true));
   group.add(instanced(roundTreeGeometry(1), treeM, trees.slice(half), true));
   group.add(instanced(pineGeometry(), treeM, pines, true));

@@ -109,6 +109,8 @@ describe('the bridges', () => {
 describe('walking between islands', () => {
   const w = world();
   const geo = createGeo(w);
+  // Buildings are solid, as they are on the island: a step into one is pushed back out (and you slide round).
+  const solid = w.places.filter((p) => p.kind !== 'hub' && p.archetype !== 'pier' && p.archetype !== 'bottle').map((p) => ({ ...p.at, r: p.footprint + 0.5 }));
   /** Step toward wherever nextStop says, a little at a time, until there (or lost). */
   const walk = (from: { x: number; z: number }, to: { x: number; z: number }) => {
     let p = { ...from };
@@ -121,6 +123,10 @@ describe('walking between islands', () => {
       const dz = stop.z - p.z;
       const k = Math.min(0.25, Math.hypot(dx, dz)) / (Math.hypot(dx, dz) || 1);
       p = { x: p.x + dx * k, z: p.z + dz * k };
+      for (const s of solid) {
+        const e = Math.hypot(p.x - s.x, p.z - s.z);
+        if (e < s.r) p = { x: s.x + ((p.x - s.x) / e) * s.r, z: s.z + ((p.z - s.z) / e) * s.r };
+      }
       if (!geo.isWalkable(p.x, p.z)) wet++;
     }
     return { arrived: false, wet };
@@ -138,6 +144,15 @@ describe('walking between islands', () => {
     // From one islet to the other, by way of the main island.
     const [a, b] = games.filter((g, i, all) => all.findIndex((x) => geo.islandOf(x.at.x, x.at.z) === geo.islandOf(g.at.x, g.at.z)) === i);
     expect(walk(a.at, b.at)).toEqual({ arrived: true, wet: 0 });
+  });
+
+  it('goes round a building in the way instead of walking into it', () => {
+    // The schoolhouse stands between the plaza and the bridge out to Boardwalk Isle.
+    const school = w.places.find((p) => p.id === 'quizmate')!;
+    const behind = { x: school.at.x - school.footprint - 2, z: school.at.z };
+    const stop = geo.nextStop({ x: 0, z: school.at.z }, behind);
+    expect(Math.hypot(stop.x - school.at.x, stop.z - school.at.z)).toBeGreaterThan(school.footprint + 1);
+    expect(walk({ x: 0, z: school.at.z }, behind)).toEqual({ arrived: true, wet: 0 });
   });
 
   it('heads straight there on the same island, or into the sea', () => {

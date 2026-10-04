@@ -228,6 +228,8 @@ export function createGeo(world: World) {
   /** Distance to the nearest bridge's middle line (Infinity with none). */
   const bridgeSegs: Segment[] = bridges.map((b) => ({ ax: b.ax, az: b.az, bx: b.bx, bz: b.bz }));
   const bridgeDist = (x: number, z: number) => (bridges.length ? segDist(bridgeSegs, x, z) : Infinity);
+  /** Clear of every bridge, its railings and a step round its ends. */
+  const clearOfBridges = (x: number, z: number, margin = 0) => bridges.every((b) => segDist([bridgeSegs[b.i]], x, z) >= b.width / 2 + 1.2 + margin);
 
   /** Ground height of the island (without the pier deck or the bridges). */
   function heightAt(x: number, z: number) {
@@ -316,12 +318,44 @@ export function createGeo(world: World) {
     return Infinity;
   }
 
+  /** The buildings (and the old tree) a walk has to go round: every place but the hub, the pier and the bottle. */
+  const solids = world.places.filter((p) => p !== hub && p.archetype !== 'pier' && p.archetype !== 'bottle').map((p) => ({ x: p.at.x, z: p.at.z, r: p.footprint + 0.6 }));
+
+  /** Heading straight from `a` to `b`: if a building's in the way, a point beside it to step round it by. */
+  function around(a: Vec2, b: Vec2): Vec2 {
+    const dx = b.x - a.x;
+    const dz = b.z - a.z;
+    const L2 = dx * dx + dz * dz;
+    if (L2 < 1e-6) return b;
+    let hit: { x: number; z: number; r: number; t: number; cx: number; cz: number } | null = null;
+    for (const s of solids) {
+      if (Math.hypot(b.x - s.x, b.z - s.z) < s.r) continue; // going right up to it (its door)
+      const t = ((s.x - a.x) * dx + (s.z - a.z) * dz) / L2;
+      if (t <= 0 || t >= 1) continue;
+      const cx = a.x + dx * t;
+      const cz = a.z + dz * t;
+      if (Math.hypot(cx - s.x, cz - s.z) < s.r && (!hit || t < hit.t)) hit = { ...s, t, cx, cz };
+    }
+    if (!hit) return b;
+    // Out to whichever side the line passes, a little past the building's edge.
+    let nx = hit.cx - hit.x;
+    let nz = hit.cz - hit.z;
+    if (Math.hypot(nx, nz) < 1e-3) (nx = -dz), (nz = dx);
+    const n = Math.hypot(nx, nz);
+    return { x: hit.x + (nx / n) * (hit.r + 0.9), z: hit.z + (nz / n) * (hit.r + 0.9) };
+  }
+
   /**
    * Walking from `from` toward `to`, where to head next: straight there on the
    * same island (or to or from the water), or else over the bridges, one
-   * landing at a time.
+   * landing at a time; and round any building in the way.
    */
   function nextStop(from: Vec2, to: Vec2): Vec2 {
+    return around(from, bridgeStop(from, to));
+  }
+
+  /** The next stop on the way over the bridges (or `to` itself, on the same island). */
+  function bridgeStop(from: Vec2, to: Vec2): Vec2 {
     if (!bridges.length) return to;
     const goal = islandOf(to.x, to.z);
     if (goal === null) return to;
@@ -466,8 +500,12 @@ export function createGeo(world: World) {
     return { place: best, distance: bestD };
   }
 
-  /** True if a spot is clear of places, paths, the pier and the hub (for scattering props). */
-  function isOpenGround(x: number, z: number, margin = 0) {
+  /**
+   * True if a spot is clear of places, paths, the pier, the railway and the
+   * bridges (for scattering props). `clearBridges: false` leaves the bridges out,
+   * for a scatter that keeps its old layout and clears them afterwards.
+   */
+  function isOpenGround(x: number, z: number, margin = 0, clearBridges = true) {
     if (pathDist(x, z) < 1.4 + margin) return false;
     for (const p of world.places) {
       if (p === hub) continue;
@@ -480,7 +518,7 @@ export function createGeo(world: World) {
     if (railDist(x, z) < 1.6 + margin) return false;
     if (quayDist(x, z) < 0.8 + margin) return false;
     // Nothing grows on a bridge or its landings.
-    for (const b of bridges) if (segDist([bridgeSegs[b.i]], x, z) < b.width / 2 + 1.2 + margin) return false;
+    if (clearBridges && !clearOfBridges(x, z, margin)) return false;
     // A plot keeps a little more than its clearing free, so no canopy hangs over it.
     for (const p of plots) if (Math.hypot(x - p.x, z - p.z) < p.r + 1.2 + margin) return false;
     if (station && Math.hypot(x - station.x, z - station.z) < 3.2 + margin) return false;
@@ -518,6 +556,7 @@ export function createGeo(world: World) {
     bridges,
     deckAt,
     bridgeDist,
+    clearOfBridges,
     islandOf,
     /** Whose ground (x, z) is, land or sea floor: the island whose own height is highest there. */
     owner: (x: number, z: number) => (islets.length ? owner(x, z).i : 0),

@@ -16,7 +16,8 @@ import { heightAt, pathDist, rockiness } from './shape';
 import { fbm, noise2 } from '../util/noise';
 import { clamp, rng, smoothstep } from '../util/math';
 
-export const TERRAIN_SIZE = 96;
+/** The square the land is built over: the main island, the islets off its west coast, and their shelves. */
+export const TERRAIN_SIZE = 112;
 
 const C = {
   sandDry: new Color('#f4dca6'),
@@ -34,7 +35,7 @@ const C = {
 };
 
 export function buildTerrain() {
-  const N = 132;
+  const N = 154; // about 0.73 a cell
   const size = TERRAIN_SIZE;
   const cell = size / N;
   const rand = rng(42);
@@ -128,7 +129,7 @@ function faceColor(c: Color, x: number, y: number, z: number, steep: number, ran
  * The island's height baked into a texture so the water shader can tint the
  * shallows and draw foam exactly where sand meets the sea.
  */
-export function buildHeightTexture(res = 256, extent = TERRAIN_SIZE) {
+export function buildHeightTexture(res = 300, extent = TERRAIN_SIZE) {
   const data = new Uint8Array(res * res * 4);
   for (let j = 0; j < res; j++) {
     for (let i = 0; i < res; i++) {
