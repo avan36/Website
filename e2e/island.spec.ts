@@ -58,6 +58,33 @@ test.describe('3D island', () => {
     expect(errors).toEqual([]);
   });
 
+  test('going into a building opens it up where it stands, and leaving closes it', async ({ page }) => {
+    const errors = await openIsland(page);
+    const id = await page.evaluate(() => (window as DebugWindow).__world!.world.places.find((p) => p.interior)!.id);
+    const state = () => page.evaluate(() => (window as DebugWindow).__island!.debug.state());
+    await page.evaluate((id) => {
+      const d = (window as DebugWindow).__island!.debug;
+      const p = d.places().find((x) => x.id === id)!;
+      d.teleport(p.stand.x, p.stand.z);
+    }, id);
+    await tick(page, 0.5);
+    expect(await page.evaluate(() => (window as DebugWindow).__island!.debug.near()), 'at its door').toBe(id);
+
+    // In: the house opens up (waiting a moment for the room's shaders), and you're in its room, on the island.
+    await page.keyboard.press('Enter');
+    await expect
+      .poll(async () => (await tick(page, 0.2), page.evaluate(() => (window as DebugWindow).__island!.debug.inside()?.at ?? null)), { timeout: 60_000 })
+      .toBe(id);
+    await expect(page.locator('#w-room')).toBeVisible();
+
+    // Out by the Leave button: the house closes up behind you and you're outside its door.
+    await page.locator('#w-room [data-room="leave"]').click();
+    await expect.poll(async () => (await tick(page, 0.2), state()), { timeout: 60_000 }).toBe('play');
+    expect(await page.evaluate(() => (window as DebugWindow).__island!.debug.inside())).toBeNull();
+    expect(await page.evaluate(() => (window as DebugWindow).__island!.debug.near())).toBe(id);
+    expect(errors).toEqual([]);
+  });
+
   test('stepping through the portal switches the view', async ({ page }) => {
     const errors = await openIsland(page);
     // Just in front of the ring on the plaza.

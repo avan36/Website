@@ -32,18 +32,26 @@ export interface Place {
   stand: { x: number; z: number };
   /** How close the explorer must be for the prompt to open. */
   enterRange: number;
+  /** Where the walls end and the roof begins, above the ground (for opening it up to show the room inside). */
+  eaves: number;
+  /** The level ground round it: the radius it's flat out to. */
+  clearing: number;
 }
 
-/** Per-archetype 3D metrics: where the label floats and how big the click target is. */
-const METRICS: Record<PlaceKind, { labelY: number; hitR: number; hitH: number; range?: number }> = {
+/**
+ * Per-archetype 3D metrics: where the label floats, how big the click target
+ * is, and where the eaves are (the roof lifts off from there when the house
+ * opens up; the lighthouse's whole tower does).
+ */
+const METRICS: Record<PlaceKind, { labelY: number; hitR: number; hitH: number; range?: number; eaves?: number }> = {
   tree: { labelY: 8.6, hitR: 4.2, hitH: 10.5 },
-  cabin: { labelY: 3.5, hitR: 3.2, hitH: 4.8 },
-  schoolhouse: { labelY: 4.3, hitR: 3.0, hitH: 6.2 },
-  taproom: { labelY: 3.7, hitR: 3.2, hitH: 4.6 },
-  depot: { labelY: 3.1, hitR: 3.2, hitH: 4.0 },
+  cabin: { labelY: 3.5, hitR: 3.2, hitH: 4.8, eaves: 2.6 },
+  schoolhouse: { labelY: 4.3, hitR: 3.0, hitH: 6.2, eaves: 2.66 },
+  taproom: { labelY: 3.7, hitR: 3.2, hitH: 4.6, eaves: 2.75 },
+  depot: { labelY: 3.1, hitR: 3.2, hitH: 4.0, eaves: 2.5 },
   workshop: { labelY: 4.0, hitR: 2.9, hitH: 5.0 },
-  library: { labelY: 5.4, hitR: 3.2, hitH: 7.4 },
-  lighthouse: { labelY: 8.2, hitR: 2.4, hitH: 10 },
+  library: { labelY: 5.4, hitR: 3.2, hitH: 7.4, eaves: 2.86 },
+  lighthouse: { labelY: 8.2, hitR: 2.4, hitH: 10, eaves: 0.6 },
   pier: { labelY: 2.7, hitR: 1.6, hitH: 3, range: 2.6 },
   bottle: { labelY: 1.4, hitR: 1.6, hitH: 1.6, range: 2.4 },
 };
@@ -118,6 +126,8 @@ export const PLACES: Place[] = world.places
       labelY: m.labelY,
       stand: geo.door(p),
       enterRange: m.range ?? p.footprint + 2.6,
+      eaves: m.eaves ?? m.hitH,
+      clearing: p.clearing,
     };
   });
 

@@ -67,6 +67,37 @@ test.describe('map', () => {
     expect(errors).toEqual([]);
   });
 
+  test('a building opens up where it stands, and closes behind you', async ({ page }) => {
+    const errors = await openMap(page);
+    await closeDialog(page);
+    const building = await page.evaluate(() => {
+      const w = (window as DebugWindow).__world!.world;
+      const id = w.places.find((p) => p.interior)!.id;
+      return (window as DebugWindow).__map!.places().find((p) => p.id === id)!;
+    });
+    const outside = await page.evaluate(() => (window as DebugWindow).__map!.scale());
+    await page.evaluate((d) => (window as DebugWindow).__map!.teleport(d.x, d.z + 1.2), building.door);
+    await page.keyboard.down('ArrowUp');
+    await page.waitForFunction(() => (window as DebugWindow).__map!.mode() === 'door', null, { timeout: 20_000 });
+    await page.keyboard.up('ArrowUp');
+
+    // The camera lands zoomed in on the room, on whole pixels, with the room's bar up.
+    await page.waitForFunction(() => (window as DebugWindow).__map!.mode() === 'inside', null, { timeout: 20_000 });
+    const inside = await page.evaluate(() => (window as DebugWindow).__map!.scale());
+    expect(inside.Z, 'zoomed in').toBeGreaterThan(outside.S);
+    expect(Number.isInteger(inside.Z), `a whole scale, not ${inside.Z}`).toBe(true);
+    await expect(page.locator('#w-room')).toBeVisible();
+
+    // Leave: the room closes, the camera comes back out, and you're on the doorstep.
+    await page.locator('#w-room [data-room="leave"]').click();
+    await page.waitForFunction(() => (window as DebugWindow).__map!.mode() === 'play' && !(window as DebugWindow).__map!.inside(), null, { timeout: 20_000 });
+    expect((await page.evaluate(() => (window as DebugWindow).__map!.scale())).Z).toBe(outside.S);
+    const at = await player(page);
+    expect(Math.hypot(at.x - building.door.x, at.z - building.door.z), `out at ${JSON.stringify(at)}`).toBeLessThan(0.3);
+    await expect(page.locator('#w-room')).toBeHidden();
+    expect(errors).toEqual([]);
+  });
+
   test('jumps, and jumps again in the air', async ({ page }) => {
     const errors = await openMap(page);
     await closeDialog(page);
@@ -140,7 +171,8 @@ test.describe('map', () => {
     await page.keyboard.press('Escape');
     await expect(page.locator('#w-dialog')).not.toHaveAttribute('open', '');
     expect(await page.evaluate(() => document.documentElement.dataset.view)).toBe('map');
-    await page.waitForTimeout(250); // the menu's close event lands a moment after it shuts
+    // The menu's close event lands a moment after it shuts: Enter before then does nothing.
+    await expect.poll(() => page.evaluate(() => (window as DebugWindow).__map!.portal())).toMatchObject({ tag: true, choosing: false });
     // ...and Enter at it opens the menu again; the text adventure is tucked underneath.
     await page.keyboard.press('Enter');
     const text = page.locator('#w-dialog .w-portal__more[value="text"]');

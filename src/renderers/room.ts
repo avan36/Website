@@ -80,11 +80,19 @@ export function createRoomUI(world: World, announce: (s: string) => void, toast:
   /** Where focus was before the box opened, to go back to. */
   let returnFocus: HTMLElement | null = null;
   /**
-   * The box is showing the room as you come in. It doesn't hold the keys or
-   * take focus: the first step (or a tap on the room) puts it away, and you're
-   * walking. Going into the box (Tab, E, a click) makes it an ordinary box.
+   * The box is showing the room's overview at rest: the work this building
+   * stands for, who's here, what to look at. It doesn't hold the keys or take
+   * focus, so you walk about with it up. On a wide screen it stays docked
+   * beside the room (a conversation takes its place, and it comes back after);
+   * on a narrow one it's there as you come in, and your first step or a tap on
+   * the room puts it away. Going into it (Tab, a click) makes it an ordinary box.
    */
   let passive = false;
+  /** What the box is showing. */
+  let showing: 'look' | 'talk' | 'thing' | null = null;
+  /** The overview was put away (its close button, or Look around again): it stays away this visit. */
+  let tucked = false;
+  const docked = () => boxDocksRight(window.innerWidth, window.innerHeight);
 
   const person = (id: string) => place?.interior?.people.find((c) => c.id === id) ?? null;
   const thing = (id: string) => place?.interior?.things.find((t) => t.id === id) ?? null;
@@ -98,23 +106,43 @@ export function createRoomUI(world: World, announce: (s: string) => void, toast:
   }
 
   /** Open the box with this inside it, and move focus in (unless it's only passing, see `passive`). */
-  function show(html: string, color: string, label: string, passing = false) {
+  function show(html: string, color: string, label: string, what: NonNullable<typeof showing>, passing = false) {
     passive = passing;
+    showing = what;
     if (box.hidden && !passing) returnFocus = document.activeElement instanceof HTMLElement && document.activeElement !== document.body ? document.activeElement : null;
     box.innerHTML = html;
     box.style.setProperty('--c', color);
     box.setAttribute('aria-label', label);
     box.hidden = false;
+    if (passing) return paintNudge();
     nudge.hidden = true;
-    if (passing) return;
     const first = box.querySelector<HTMLElement>('[data-first]') ?? box.querySelector<HTMLElement>('.w-talk__choice') ?? box.querySelector<HTMLElement>('a, button');
     first?.focus({ preventScroll: true });
   }
 
+  /** Done with whatever's in the box: back to the overview at rest beside the room (on a wide screen), or to just walking. */
   function hush() {
+    if (box.hidden || passive) return;
+    close();
+    rest();
+  }
+
+  function rest() {
+    if (place?.interior && docked() && !tucked) look(true, true);
+  }
+
+  /** Put the overview away for this visit. */
+  function tuck() {
+    tucked = true;
+    close();
+  }
+
+  /** Take the box down altogether. */
+  function close() {
     if (box.hidden) return;
     const passing = passive;
     passive = false;
+    showing = null;
     const hadFocus = box.contains(document.activeElement);
     box.hidden = true;
     box.innerHTML = '';
@@ -127,10 +155,23 @@ export function createRoomUI(world: World, announce: (s: string) => void, toast:
     paintNudge();
   }
 
-  /** The room's overview. Coming in, it only passes by (see `passive`); asked for, it's a box like any other. */
-  function look(entering = false) {
+  /** The room's overview: the work, who's here, what to look at. At rest it's `passive`; asked for, it's a box like any other. */
+  function look(passing = false, quiet = false) {
     if (!place?.interior) return;
     const room = place.interior;
+    const work = place.project ? world.projects.find((x) => x.slug === place!.project) : undefined;
+    const shots = (work?.shots ?? [])
+      .slice(0, 3)
+      .map((x) => `<img class="w-talk__shot is-${x.frame}" src="${esc(x.src)}" alt="${esc(x.alt)}" width="${x.width}" height="${x.height}" loading="lazy" decoding="async">`)
+      .join('');
+    const about = work
+      ? `<div class="w-talk__work">
+           <p class="w-talk__headline">${esc(work.headline)}</p>
+           ${work.body.map((b) => `<p class="w-talk__body">${esc(b)}</p>`).join('')}
+           ${shots ? `<div class="w-talk__shots">${shots}</div>` : ''}
+           <div class="w-talk__links">${work.links.map((l) => link(l)).join('')}</div>
+         </div>`
+      : '';
     const people = room.people
       .map((c) => `<button type="button" class="w-talk__choice" data-talk="person:${c.id}" style="--who:${c.color}"><i aria-hidden="true"></i>Talk to ${esc(c.name)}, ${esc(c.role)}</button>`)
       .join('');
@@ -138,21 +179,24 @@ export function createRoomUI(world: World, announce: (s: string) => void, toast:
     const p = place;
     show(
       `${CLOSE}
-       <div class="w-talk__head"><div class="w-talk__who"><span class="w-talk__kicker">Inside</span><h2 class="w-talk__name" id="w-talk-title">${esc(cap(the(p)))}</h2></div></div>
+       <div class="w-talk__head"><div class="w-talk__who"><span class="w-talk__kicker">Inside ${esc(the(p))}</span><h2 class="w-talk__name" id="w-talk-title">${esc(work ? work.name : cap(the(p)))}</h2></div></div>
+       ${about}
+       <p class="w-talk__label">The room</p>
        <p class="w-talk__desc">${esc(room.description)}</p>
        <p class="w-talk__label">Who's here</p>
        <div class="w-talk__choices" role="group" aria-label="Who's here">${people}</div>
        <p class="w-talk__label">Have a look at</p>
        <div class="w-talk__choices" role="group" aria-label="Things to look at">${things}</div>
        <div class="w-talk__foot">
-         <a class="w-talk__choice w-talk__choice--go" href="${esc(p.href ?? '/')}" data-talk-link>See ${esc(p.name)} <span aria-hidden="true">→</span></a>
+         <a class="w-talk__choice w-talk__choice--go" href="${esc(p.href ?? '/')}" data-talk-link>The full page <span aria-hidden="true">→</span></a>
          <button type="button" class="w-talk__choice" data-talk="leave">Leave ${esc(the(p))}</button>
        </div>`,
       p.color,
       `Inside ${the(p)}`,
-      entering,
+      'look',
+      passing,
     );
-    announce(`Inside ${the(p)}. ${room.description}`);
+    if (!quiet) announce(`Inside ${the(p)}. ${work ? `${work.name}: ${work.headline} ` : ''}${room.description}`);
   }
 
   function talk(id: string, topicId?: string) {
@@ -166,8 +210,10 @@ export function createRoomUI(world: World, announce: (s: string) => void, toast:
     const topic = topicId ? c.topics.find((t) => t.id === topicId) : undefined;
     if (topic) done.add(topic.id);
     const line = topic ? topic.reply : c.greeting;
+    // A topic named for a project keeps the project's own case: busy beer, QuizMate, eQoScan.
+    const label = (name: string) => world.projects.find((x) => x.name.toLowerCase() === name)?.name ?? cap(name);
     const choices = c.topics
-      .map((t) => `<button type="button" class="w-talk__choice${done.has(t.id) ? ' is-asked' : ''}" data-talk="topic:${t.id}"${t.id === topic?.id ? ' aria-current="true"' : ''}>${esc(cap(t.names[0]))}</button>`)
+      .map((t) => `<button type="button" class="w-talk__choice${done.has(t.id) ? ' is-asked' : ''}" data-talk="topic:${t.id}"${t.id === topic?.id ? ' aria-current="true"' : ''}>${esc(label(t.names[0]))}</button>`)
       .join('');
     show(
       `${CLOSE}
@@ -179,6 +225,7 @@ export function createRoomUI(world: World, announce: (s: string) => void, toast:
        <div class="w-talk__foot"><button type="button" class="w-talk__choice" data-talk="bye">Goodbye</button>${place.interior!.people.length > 1 ? `<button type="button" class="w-talk__choice" data-talk="look">Someone else</button>` : ''}</div>`,
       place.color,
       `Talking to ${c.name}`,
+      'talk',
     );
     // Keep focus on the topic just asked (so arrows carry on from there), or the first one.
     const current = topic ? box.querySelector<HTMLElement>(`[data-talk="topic:${topic.id}"]`) : null;
@@ -199,6 +246,7 @@ export function createRoomUI(world: World, announce: (s: string) => void, toast:
        <div class="w-talk__foot"><button type="button" class="w-talk__choice" data-talk="close" data-first>Done</button></div>`,
       place.color,
       cap(t.names[0]),
+      'thing',
     );
     announce(`${cap(t.names[0])}. ${t.description}`);
   }
@@ -225,9 +273,9 @@ export function createRoomUI(world: World, announce: (s: string) => void, toast:
     const b = (e.target as HTMLElement).closest<HTMLElement>('[data-talk]');
     if (!b) return;
     const [cmd, arg] = b.dataset.talk!.split(':');
-    if (cmd === 'close') hush();
+    if (cmd === 'close') showing === 'look' ? tuck() : hush();
     else if (cmd === 'bye') bye();
-    else if (cmd === 'leave') (hush(), on?.leave());
+    else if (cmd === 'leave') (close(), on?.leave());
     else if (cmd === 'look') look();
     else if (cmd === 'person') talk(arg);
     else if (cmd === 'thing') inspect(arg);
@@ -235,19 +283,25 @@ export function createRoomUI(world: World, announce: (s: string) => void, toast:
   });
   // Taps on the box shouldn't walk the explorer somewhere behind it.
   for (const el of [box, bar, nudge]) el.addEventListener('pointerdown', (e) => e.stopPropagation());
-  // The box you came in to stops passing once you go into it; a tap anywhere else puts it away.
-  box.addEventListener('focusin', () => (passive = false));
+  // Tabbing into the overview makes it an ordinary box (arrows between its choices); a
+  // click in it (a link, say) doesn't. On a narrow screen, a tap anywhere else puts it away.
+  let clicked = false;
+  box.addEventListener('pointerdown', () => (clicked = true), true);
+  box.addEventListener('focusin', () => {
+    if (!clicked) passive = false;
+    clicked = false;
+  });
   const onDown = (e: PointerEvent) => {
     const t = e.target as Node;
-    if (passive && !box.hidden && !box.contains(t) && !bar.contains(t) && !nudge.contains(t)) hush();
+    if (passive && !box.hidden && !docked() && !box.contains(t) && !bar.contains(t) && !nudge.contains(t)) close();
   };
   window.addEventListener('pointerdown', onDown, true);
 
   bar.addEventListener('click', (e) => {
     const b = (e.target as HTMLElement).closest<HTMLElement>('[data-room]');
     if (!b) return;
-    if (b.dataset.room === 'leave') (hush(), on?.leave());
-    else if (b.dataset.room === 'look') (box.hidden || talking ? look() : hush());
+    if (b.dataset.room === 'leave') (close(), on?.leave());
+    else if (b.dataset.room === 'look') showing === 'look' ? tuck() : ((tucked = false), look());
   });
 
   nudge.addEventListener('click', () => act());
@@ -269,20 +323,21 @@ export function createRoomUI(world: World, announce: (s: string) => void, toast:
     if (e.key === 'Escape') {
       e.preventDefault();
       e.stopPropagation();
-      if (!box.hidden) hush();
-      else on?.leave();
+      // The overview at rest beside the room is part of being inside: Escape leaves.
+      if (box.hidden || (passive && docked())) on?.leave();
+      else if (passive) close();
+      else hush();
       return;
     }
-    if (!box.hidden && passive && !box.contains(t)) {
-      // Just in the door: a step puts the room's overview away and walks (a key still held
-      // from walking in through the door keeps walking, with the overview up); E talks to
-      // whoever's in reach.
-      if (/^Arrow|^Key[WASD]$|^Space$/.test(e.code)) return void (e.repeat || hush());
+    if (!box.hidden && passive) {
+      // The overview at rest: the keys walk (on a narrow screen a step puts it away, though
+      // not a key still held from walking in through the door); E talks to whoever's in reach.
+      if (/^Arrow|^Key[WASD]$|^Space$/.test(e.code)) return void (e.repeat || docked() || close());
       const control = t !== document.body && (t.tagName === 'A' || t.tagName === 'BUTTON');
       if ((e.code === 'KeyE' || (e.key === 'Enter' && !control)) && !e.repeat) {
         e.preventDefault();
         e.stopPropagation();
-        if (within) (hush(), act());
+        if (within) act();
         else box.querySelector<HTMLElement>('.w-talk__choice')?.focus();
       }
       return;
@@ -317,7 +372,7 @@ export function createRoomUI(world: World, announce: (s: string) => void, toast:
   window.addEventListener('keydown', onKey, true);
 
   function paintNudge() {
-    if (!place || !within || !box.hidden) return void (nudge.hidden = true);
+    if (!place || !within || (!box.hidden && !passive)) return void (nudge.hidden = true);
     const c = within.kind === 'person' ? person(within.id) : null;
     const t = within.kind === 'thing' ? thing(within.id) : null;
     const text = c ? `Talk to ${c.name}` : t ? `Look at ${thingName(t)}` : '';
@@ -341,12 +396,13 @@ export function createRoomUI(world: World, announce: (s: string) => void, toast:
       barTitle.textContent = cap(the(p));
       bar.setAttribute('aria-label', `Inside ${the(p)}`);
       bar.hidden = false;
-      if (opts.quiet) announce(`Inside ${the(p)}. Press Escape to leave.`);
+      tucked = false;
+      if (opts.quiet) (announce(`Inside ${the(p)}. Press Escape to leave.`), rest());
       else look(true);
     },
     exit() {
       if (!place) return;
-      hush();
+      close();
       place = null;
       on = null;
       within = null;

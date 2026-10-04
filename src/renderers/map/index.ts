@@ -14,13 +14,13 @@ import { SWIM_REACH } from '../../world/geo';
 import type { Place } from '../../world/schema';
 import { PORTAL_COLOR, PORTAL_NEXT, portalExit, portalOf } from '../portal';
 import type { RendererContext, RendererHandle, ViewId } from '../types';
-import { clampAxis, damp, pickScale } from './camera';
+import { between, clampAxis, damp, ease, frameOn, pickScale, roomArea, type View } from './camera';
 import { facingFor, paintExplorer, type Facing } from './explorer';
 import { Fishing } from './fishing';
 import { createBoatCard } from './boat';
 import { boatOf } from '../boat';
 import { createMapGames } from './minigames';
-import { BODY_R, layoutPlaces, scatterProps, type MapPlace } from './layout';
+import { BODY_R, HALF_WIDTH, layoutPlaces, scatterProps, type MapPlace } from './layout';
 import { createOverlay, type FishPrompt } from './overlay';
 import { HEX } from './palette';
 import { bayer, col, nightColor, toHex } from './pixels';
@@ -28,8 +28,8 @@ import { findPath, nearestOpen, smooth, type Grid, type Pt } from './path';
 import { hash2 } from './rng';
 import { crab, lampPost, paintLandmark, paintScenery, portal as paintPortal, rowboat, scroll, shells, workshopCursor, type Landmark, type Sprite } from './sprites';
 import { buildTerrain, RECT, TEX } from './terrain';
-import { createInside, type Inside } from './inside';
-import { paintRoom } from './room';
+import { createInside, fitFrame, openRect, type Frame, type Inside } from './inside';
+import { paintRoom, type MapRoom } from './room';
 import { bus, drawTrain, shelter } from './commute';
 import { daylight, pageClock } from '../../world/clock';
 import { createTrain } from '../../world/train';
@@ -45,8 +45,8 @@ const DOOR_RANGE = 1.6;
 /** Pixels the HUD covers along the top: the camera centres the explorer below it. */
 const HUD_TOP = 70;
 /** Running (Shift, or double-click where to go): how much faster, on land and in the water. */
-const RUN = 1.7;
-const RUN_WET = 1.3;
+const RUN = 2.3;
+const RUN_WET = 1.5;
 /** Speed in the water, against walking: wading through the shallows, swimming further out. */
 const WADE = 0.78;
 const SWIM = 0.6;
@@ -61,7 +61,7 @@ const FOAM2 = [HEX.foam2, nightHex(HEX.foam2)];
 const UNDER = [HEX.sea, nightHex(HEX.sea)];
 const DEEP = [HEX.deep, nightHex(HEX.deep)];
 
-/** 'inside': in a building's room; 'door': the iris closing and opening on the way in or out. */
+/** 'inside': in a building's room; 'door': the building opening up round you on the way in, or closing behind you on the way out. */
 type Mode = 'play' | 'entering' | 'cheer' | 'portal' | 'inside' | 'door';
 
 /** Something drawn in the y-sorted pass, standing at (x, z). */
@@ -361,79 +361,121 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
   let dismissed: string | null = returning?.place.id ?? (arrived ? 'portal' : null);
 
   // ---------- Inside a building ----------
-  // Through a door with a room behind it: an iris closes on the door, opens
-  // on the room, and the same in reverse on the way out, back where you went in.
+  // Through a door with a room behind it, the building opens up where it
+  // stands: the camera eases in, the roof lifts off, the walls fade, and the
+  // room (inside.ts) grows out of the building's footprint while the island
+  // round it dims. The room is drawn into the map at the map's own pixels,
+  // its doorway on the building's door, so you walk straight in. Leaving plays
+  // it backwards: the room closes behind you, and you're on the doorstep.
   let inside: Inside | null = null;
   let insideOf: MapPlace | null = null;
-  const rooms = new Map<string, ReturnType<typeof paintRoom>>();
+  /** The open room's top-left, in map pixels (whole ones). */
+  const roomAt = { x: 0, y: 0 };
+  /** How far open it is, from 0 (just the building) to 1 (in), and which way it's going. */
+  let openK = 0;
+  let openDir = 0;
+  /** Seconds to open up, and to close. */
+  const OPEN = 0.8;
+  const CLOSE = 0.6;
+  /** On the way in: from where you stood to just inside the door, in world units. */
+  const walkIn = { x0: 0, z0: 0, x1: 0, z1: 0 };
+  const rooms = new Map<string, MapRoom>();
   const roomOf = (m: MapPlace) => {
     let r = rooms.get(m.place.id);
     if (!r) rooms.set(m.place.id, (r = paintRoom(m.place)));
     return r;
   };
-  /** The iris: closing over the old scene toward (x, y), then opening on the new one. CSS pixels. */
-  let iris: { t: number; closing: boolean; x: number; y: number; color: string; mid: (() => { x: number; y: number }) | null } | null = null;
-  const IRIS = 0.32;
-  function irisThrough(color: string, from: { x: number; y: number }, mid: () => { x: number; y: number }) {
-    if (!motion) {
-      mid();
-      return;
-    }
-    mode = 'door';
-    iris = { t: 0, closing: true, x: from.x, y: from.y, color, mid };
-  }
 
-  function goInside(m: MapPlace, quiet = false) {
+  /** Open a building's room round you. `snap` skips the camera move (reduced motion, or already inside). */
+  function openRoom(m: MapPlace, { snap = !motion, quiet = false } = {}) {
+    const room = roomOf(m);
     insideOf = m;
-    inside = createInside({ room: roomOf(m), hero, ui: ctx.ui.room, motion, sound: ctx.sound, leave: () => leaveRoom() });
-    mode = 'inside';
+    inside = createInside({ room, hero, talk: ctx.ui.room, motion, sound: ctx.sound, leave: () => leaveRoom() });
+    // The room's doorway on the building's door, its front wall along the building's front.
+    const a = art.get(m.place.id)!;
+    roomAt.x = Math.round((m.base.x - RECT.x0) * TEX) + a.door.dx - room.px(0);
+    roomAt.y = Math.round((m.base.z - RECT.z0) * TEX) + 3 - room.h;
+    const entry = room.plan.entry;
+    Object.assign(walkIn, { x0: pos.x, z0: pos.z, x1: RECT.x0 + (roomAt.x + room.px(entry.x)) / TEX, z1: RECT.z0 + (roomAt.y + room.py(entry.z)) / TEX });
+    mode = 'door';
     modeT = 0;
+    openDir = 1;
+    openK = 0;
     path = null;
     pendingEnter = null;
     clearKeys();
     overlay.tag(null);
     overlay.fish(null);
     canvas.style.cursor = '';
+    if (fishing.phase !== 'idle') fishing.cancel();
     store.dispatch({ type: 'inside', at: m.place.id });
-    const room = inside;
+    if (snap) (openK = 1), roomUp(quiet), inRoom();
+  }
+
+  /** The room's bar and its box (the description, unless `quiet`): up half way through opening. */
+  let roomUI = false;
+  function roomUp(quiet = false) {
+    const m = insideOf!;
+    const room = inside!;
+    roomUI = true;
     ctx.ui.room.enter(
       m.place.id,
       {
         leave: () => leaveRoom(),
-        page: (href) => ctx.go(m.place.id, clampToView(room.screen(0, room.room.plan.d / 2)), href),
+        page: (href) => ctx.go(m.place.id, clampToView(room.point(0, room.room.plan.d / 2, roomFrame())), href),
         engage: (t) => room.engage(t),
       },
       { quiet },
     );
   }
 
+  /** All the way in: the room is yours to walk about. */
+  function inRoom() {
+    mode = 'inside';
+    modeT = 0;
+    openDir = 0;
+    pos.x = walkIn.x1;
+    pos.z = walkIn.z1;
+    facing = 'up';
+    moving = false;
+    up.width = up.height = 1;
+  }
+
+  /** Out of the room (or, half way in, back out again): it closes behind you. */
   function leaveRoom() {
     const m = insideOf;
-    if (!m || !inside || mode === 'door') return;
+    if (!m || !inside || !(mode === 'inside' || (mode === 'door' && openDir > 0))) return;
     ctx.sound.play('step');
-    const here = inside.screen(inside.pos.x, inside.pos.z);
-    irisThrough(m.place.color, here, () => {
-      ctx.ui.room.exit();
-      inside = null;
-      insideOf = null;
-      mode = 'play';
-      modeT = 0;
-      // Back out where you went in, facing the way you came.
-      pos.x = m.door.x;
-      pos.z = m.door.z;
-      facing = 'down';
-      wet = 0;
-      dismissed = m.place.id;
-      near = m;
-      doorShy = true;
-      store.dispatch({ type: 'inside', at: null });
-      aimCamera();
-      cam.x = camGoal.x;
-      cam.z = camGoal.z;
-      render();
-      if (motion) hopT = 0;
-      return toScreen(pos.x, pos.z - 0.6);
-    });
+    if (roomUI) ctx.ui.room.exit();
+    roomUI = false;
+    store.dispatch({ type: 'inside', at: null });
+    // Back out where you went in, facing the way you came.
+    pos.x = m.door.x;
+    pos.z = m.door.z;
+    facing = 'down';
+    wet = 0;
+    moving = false;
+    dismissed = m.place.id;
+    near = m;
+    doorShy = true;
+    aimCamera();
+    cam.x = camGoal.x;
+    cam.z = camGoal.z;
+    if (motion) hopT = 0;
+    mode = 'door';
+    openDir = -1;
+    if (!motion) shut();
+  }
+
+  /** Shut: just the building again, and the island all round. */
+  function shut() {
+    inside = null;
+    insideOf = null;
+    openK = 0;
+    openDir = 0;
+    mode = 'play';
+    modeT = 0;
+    up.width = up.height = 1;
   }
 
   // ---------- Overlay ----------
@@ -464,10 +506,15 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
   let cssH = 1;
   let dpr = 1;
   let S = 2; // device pixels per map pixel
+  /** The same, as the camera has it right now: S outside, the room's zoom inside, anything in between on the way. */
+  let Z = 2;
   const buf = document.createElement('canvas');
   const b = buf.getContext('2d')!;
   const bufN = document.createElement('canvas');
   const bN = bufN.getContext('2d')!;
+  /** For zooms between whole scales: the buffer blown up a whole number of times, then eased down (see blit). Let go of once the zoom lands. */
+  const up = document.createElement('canvas');
+  const u = up.getContext('2d')!;
   let bw = 1;
   let bh = 1;
   const cam = { x: pos.x, z: pos.z };
@@ -485,17 +532,29 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
     canvas.width = Math.round(cssW * dpr);
     canvas.height = Math.round(cssH * dpr);
     S = pickScale(cssW, cssH, dpr);
-    bw = Math.ceil(canvas.width / S) + 2;
-    bh = Math.ceil(canvas.height / S) + 2;
     for (const c of [buf, bufN]) {
-      c.width = bw;
-      c.height = bh;
+      c.width = Math.ceil(canvas.width / S) + 2;
+      c.height = Math.ceil(canvas.height / S) + 2;
     }
+    Z = insideOf ? view().z : S;
+    sizeBuffers(Z);
     g.imageSmoothingEnabled = false;
     b.imageSmoothingEnabled = false;
     bN.imageSmoothingEnabled = false;
   }
-  resize();
+
+  /** The buffers hold what's in view at zoom z: grown if it's further out than the map's own scale. */
+  function sizeBuffers(z: number) {
+    bw = Math.ceil(canvas.width / z) + 2;
+    bh = Math.ceil(canvas.height / z) + 2;
+    if (bw <= buf.width && bh <= buf.height) return;
+    for (const c of [buf, bufN]) {
+      c.width = Math.max(c.width, bw);
+      c.height = Math.max(c.height, bh);
+    }
+    b.imageSmoothingEnabled = false;
+    bN.imageSmoothingEnabled = false;
+  }
 
   /** The camera's goal: the explorer, a little below the HUD's middle. */
   const camGoal = { x: 0, z: 0 };
@@ -506,14 +565,37 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
     camGoal.x = clampAxis(pos.x, halfW, VIEW.x0, VIEW.x1);
     camGoal.z = clampAxis(pos.z - lift, halfH, VIEW.z0, VIEW.z1);
   }
+
+  /**
+   * What the camera sees. Outside, the map at its own scale round `cam`.
+   * Inside, the room at the biggest whole zoom that fits it clear of the HUD
+   * and the conversation box (its pixels are the map's, so the island round
+   * it zooms with it), but no more than twice the map's own, so the island
+   * still reads as the island. On the way in or out, part way between the
+   * two, with the room's doorway sliding straight across the screen.
+   */
+  function view(): View {
+    const out: View = { z: S, l: (cam.x - RECT.x0) * TEX - canvas.width / S / 2, t: (cam.z - RECT.z0) * TEX - canvas.height / S / 2 };
+    if (!insideOf || !inside) return out;
+    const room = inside.room;
+    const area = roomArea(cssW, cssH, dpr);
+    const z = Math.min(S * 2, fitFrame(room.w, room.h, area).scale);
+    const into = frameOn({ x: roomAt.x, y: roomAt.y, w: room.w, h: room.h }, area, z);
+    return between(out, into, roomAt.x + room.px(0), roomAt.y + room.h, ease(openK));
+  }
+
+  /** The open room's frame in CSS pixels, for taps, the pointer and wipes. */
+  const roomFrame = (): Frame => ({ x: ((roomAt.x - viewL) * Z) / dpr, y: ((roomAt.y - viewT) * Z) / dpr, scale: Z / dpr });
+
+  resize();
   aimCamera();
   cam.x = camGoal.x;
   cam.z = camGoal.z;
 
   /** A world point in CSS pixels (into `out`, so the frame loop can reuse one). */
   const toScreen = (x: number, z: number, out = { x: 0, y: 0 }) => {
-    out.x = (((x - RECT.x0) * TEX - viewL) * S) / dpr;
-    out.y = (((z - RECT.z0) * TEX - viewT) * S) / dpr;
+    out.x = (((x - RECT.x0) * TEX - viewL) * Z) / dpr;
+    out.y = (((z - RECT.z0) * TEX - viewT) * Z) / dpr;
     return out;
   };
   const scratch = { x: 0, y: 0 };
@@ -523,8 +605,8 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
   };
   const clampToView = (p: { x: number; y: number }) => ({ x: Math.min(cssW, Math.max(0, p.x)), y: Math.min(cssH, Math.max(0, p.y)) });
   const fromScreen = (cx: number, cy: number) => ({
-    x: RECT.x0 + ((cx * dpr) / S + viewL) / TEX,
-    z: RECT.z0 + ((cy * dpr) / S + viewT) / TEX,
+    x: RECT.x0 + ((cx * dpr) / Z + viewL) / TEX,
+    z: RECT.z0 + ((cy * dpr) / Z + viewT) / TEX,
   });
 
   // ---------- Input ----------
@@ -662,7 +744,7 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
     if (!e.isPrimary || e.button > 0 || busy()) return;
     if (mode === 'inside' && inside) {
       const rr = canvas.getBoundingClientRect();
-      inside.tap(e.clientX - rr.left, e.clientY - rr.top);
+      inside.tap(e.clientX - rr.left, e.clientY - rr.top, roomFrame());
       return;
     }
     if (mode === 'door') return;
@@ -700,7 +782,7 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
     const r = canvas.getBoundingClientRect();
     const w = fromScreen(e.clientX - r.left, e.clientY - r.top);
     if (!press || e.pointerId !== press.id) {
-      if (e.pointerType === 'mouse' && mode === 'inside' && inside) canvas.style.cursor = inside.over(e.clientX - r.left, e.clientY - r.top) ? 'pointer' : '';
+      if (e.pointerType === 'mouse' && mode === 'inside' && inside) canvas.style.cursor = inside.over(e.clientX - r.left, e.clientY - r.top, roomFrame()) ? 'pointer' : '';
       else if (e.pointerType === 'mouse') canvas.style.cursor = mode === 'play' && (hitLandmark(w.x, w.z) || hitPortal(w.x, w.z)) ? 'pointer' : '';
       return;
     }
@@ -864,6 +946,11 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
 
   function enter(m: MapPlace) {
     if (mode !== 'play') return;
+    // A building with a room: it opens up round you. Anywhere else, on to its page.
+    if (m.place.interior) {
+      ctx.sound.play('step');
+      return openRoom(m);
+    }
     mode = 'entering';
     modeT = 0;
     enteringId = m.place.id;
@@ -1001,16 +1088,25 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
     if (marker.t < 1) marker.t = Math.min(1, marker.t + dt * 1.6);
     if (busy()) clearKeys();
 
-    if (iris) {
-      iris.t += dt;
-      if (iris.closing && iris.t >= IRIS) {
-        // Closed: swap the scene underneath, then open on the new one.
-        const at = iris.mid!();
-        iris = { ...iris, t: 0, closing: false, x: at.x, y: at.y, mid: null };
-      } else if (!iris.closing && iris.t >= IRIS) iris = null;
-    }
     if (mode === 'door') {
       moving = false;
+      openK = Math.min(1, Math.max(0, openK + (openDir > 0 ? dt / OPEN : -dt / CLOSE)));
+      if (openDir > 0) {
+        // In through the door and a step inside, as the room opens up round you.
+        const w = Math.min(1, openK / 0.75);
+        const x = walkIn.x0 + (walkIn.x1 - walkIn.x0) * w;
+        const z = walkIn.z0 + (walkIn.z1 - walkIn.z0) * w;
+        const d = Math.hypot(x - pos.x, z - pos.z);
+        if (d > 1e-4) {
+          moving = true;
+          walked += d;
+          facing = facingFor(x - pos.x, z - pos.z, facing);
+        }
+        pos.x = x;
+        pos.z = z;
+        if (openK >= 0.5 && !roomUI) roomUp();
+        if (openK >= 1) inRoom();
+      } else if (openK <= 0) shut();
       return;
     }
     if (mode === 'inside' && inside) {
@@ -1022,16 +1118,7 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
       if (!wiped && modeT > (motion ? 0.3 : 0)) {
         wiped = true;
         const m = byId.get(enteringId!)!;
-        // A building with a room: in through the door. Anywhere else, on to its page.
-        if (m.place.interior) {
-          ctx.sound.play('step');
-          irisThrough(m.place.color, clampToView(doorScreen(m)), () => {
-            goInside(m);
-            const room = inside!;
-            room.draw(g, canvas.width, canvas.height, dpr, time, night);
-            return room.screen(room.pos.x, room.pos.z);
-          });
-        } else ctx.go(m.place.id, clampToView(doorScreen(m)));
+        ctx.go(m.place.id, clampToView(doorScreen(m)));
       }
       moving = false;
       return;
@@ -1741,7 +1828,8 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
       crabThing.sprite = crabArt[motion && Math.cos(t * 0.7) !== 0 ? Math.floor(t * 5) % 2 : 0];
     }
     dynShown.length = 0;
-    dynShown.push(heroThing);
+    // In a building (or on the way), the explorer is drawn with the room: see drawRoom.
+    if (!insideOf) dynShown.push(heroThing);
     if (bottlePlace) dynShown.push(crabThing);
     for (let i = 0; i < words.length; i++) if (words[i].here) dynShown.push(wordThings[i]);
     // Insertion sort: a handful of items, no allocation.
@@ -1762,17 +1850,94 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
     }
     // A ghost of the explorer over everything, so you can still see yourself
     // behind a roof or a tree (where nothing covers you it changes nothing).
-    c.globalAlpha = 0.4;
-    drawHero(c, true);
-    c.globalAlpha = 1;
+    if (!insideOf) {
+      c.globalAlpha = 0.4;
+      drawHero(c, true);
+      c.globalAlpha = 1;
+    }
     if (night) {
       if (store.state.progress.night) drawFlies(c);
       drawLighthouseBeam(c);
     }
+    if (insideOf && inside) drawRoom(c, insideOf, inside);
+  }
+
+  /**
+   * A building opening up (or open): the island round it dims, the room
+   * grows out of the building's walls, the walls fade and the roof lifts off.
+   * On the way in or out the explorer is drawn here too, over it all.
+   */
+  function drawRoom(c: CanvasRenderingContext2D, m: MapPlace, room: Inside) {
+    const k = openK;
+    const r = room.room;
+    const a = art.get(m.place.id)!;
+    const s = a.sprite;
+    const x = roomAt.x - bufL;
+    const y = roomAt.y - bufT;
+    c.fillStyle = night ? 'rgb(4,6,22)' : 'rgb(38,26,16)';
+    c.globalAlpha = Math.min(1, k / 0.6) * (night ? 0.45 : 0.38);
+    c.fillRect(0, 0, bw, bh);
+    c.globalAlpha = 1;
+    // The building's top-left, its walls' top and its sides, in buffer pixels.
+    const sx = bx(m.base.x) - s.ax;
+    const sy = by(m.base.z) - s.ay;
+    const roof = a.roof ?? s.h >> 1;
+    const hw = Math.round(HALF_WIDTH[m.kind] * TEX);
+    const walls = { x: bx(m.base.x) - hw - x, y: sy + roof - y, w: hw * 2, h: r.h - (sy + roof - y) };
+    const clip = k < 1 ? openRect(ease(Math.max(0, k - 0.1) / 0.9), walls, { x: 0, y: 0, w: r.w, h: r.h }) : undefined;
+    room.draw(c, { x, y, scale: 1 }, { time, night, clip, hero: mode === 'inside' });
+    if (k < 1) {
+      const img = night ? s.night : s.day;
+      // The walls dissolve into the room behind them...
+      dissolve(c, img, roof, s.h - roof, sx, sy + roof, 1 - Math.min(1, Math.max(0, (k - 0.15) / 0.3)));
+      // ...and the roof lifts off.
+      const lift = Math.min(1, k / 0.4);
+      dissolve(c, img, 0, roof, sx, sy - Math.round(14 * lift * (2 - lift)), 1 - lift);
+    }
+    if (mode === 'door') {
+      // Lit by the room once you're in the door.
+      const was = night;
+      if (openDir > 0 && k > 0.3) night = false;
+      drawHero(c);
+      night = was;
+    }
+  }
+
+  // Fading a building away a dither at a time, the old way, not with see-through
+  // pixels: rows y..y+h of a sprite through a 4x4 Bayer mask with `k` of it kept.
+  const fadeCv = document.createElement('canvas');
+  const fc = fadeCv.getContext('2d')!;
+  const masks: CanvasPattern[] = [];
+  function dissolve(c: CanvasRenderingContext2D, img: HTMLCanvasElement, y: number, h: number, dx: number, dy: number, k: number) {
+    const level = Math.round(Math.min(1, Math.max(0, k)) * 16);
+    const w = img.width;
+    if (level <= 0 || h <= 0) return;
+    if (level >= 16) return c.drawImage(img, 0, y, w, h, dx, dy, w, h);
+    if (fadeCv.width < w || fadeCv.height < h) {
+      fadeCv.width = Math.max(fadeCv.width, w);
+      fadeCv.height = Math.max(fadeCv.height, h);
+    }
+    if (!masks[level]) {
+      const cv = document.createElement('canvas');
+      cv.width = cv.height = 4;
+      const m = cv.getContext('2d')!;
+      m.fillStyle = '#000';
+      for (let j = 0; j < 4; j++) for (let i = 0; i < 4; i++) if (bayer(i, j) < level / 16) m.fillRect(i, j, 1, 1);
+      masks[level] = fc.createPattern(cv, 'repeat')!;
+    }
+    fc.clearRect(0, 0, w, h);
+    fc.drawImage(img, 0, y, w, h, 0, 0, w, h);
+    fc.globalCompositeOperation = 'destination-in';
+    fc.fillStyle = masks[level];
+    fc.fillRect(0, 0, w, h);
+    fc.globalCompositeOperation = 'source-over';
+    c.drawImage(fadeCv, 0, 0, w, h, dx, dy, w, h);
   }
 
   function drawThing(c: CanvasRenderingContext2D, th: Thing) {
     if (th === heroThing) return drawHero(c);
+    // A building with its room open is drawn with the room.
+    if (insideOf && th === landmarkThing.get(insideOf.place.id)) return;
     const x = bx(th.x);
     let y = by(th.z);
     if (th.sprite === scrollArt) {
@@ -1795,60 +1960,34 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
   let readied = false;
 
   function render() {
-    if (inside) {
-      inside.draw(g, canvas.width, canvas.height, dpr, time, nightK > 0.5);
-      overlay.tag(null);
-      overlay.fish(null);
-      drawIris();
-      return;
-    }
-    renderIsland();
-    drawIris();
-  }
-
-  /** The iris over everything: a circle of the room's color closing in, or opening out. */
-  function drawIris() {
-    if (!iris) return;
-    const k = Math.min(1, iris.t / IRIS);
-    const x = iris.x * dpr;
-    const y = iris.y * dpr;
-    const R = Math.hypot(Math.max(x, canvas.width - x), Math.max(y, canvas.height - y)) + 4;
-    const e = iris.closing ? 1 - k * k : k * (2 - k);
-    // In steps, like an old handheld's screen transition.
-    const step = 8 * S;
-    const r = Math.max(0, Math.round((R * e) / step) * step);
-    g.fillStyle = iris.color;
-    g.beginPath();
-    g.rect(0, 0, canvas.width, canvas.height);
-    g.arc(x, y, r, 0, Math.PI * 2, true);
-    g.fill('evenodd');
-  }
-
-  function renderIsland() {
-    // The camera: eased toward the explorer (or snapped, with reduced motion).
+    // The camera: eased toward the explorer (or snapped, with reduced motion), or on the room.
     aimCamera();
-    const viewWpx = canvas.width / S;
-    const viewHpx = canvas.height / S;
-    viewL = (cam.x - RECT.x0) * TEX - viewWpx / 2;
-    viewT = (cam.z - RECT.z0) * TEX - viewHpx / 2;
+    const v = view();
+    Z = v.z;
+    viewL = v.l;
+    viewT = v.t;
+    sizeBuffers(Z);
     bufL = Math.floor(viewL);
     bufT = Math.floor(viewT);
-    const ox = -Math.round((viewL - bufL) * S);
-    const oy = -Math.round((viewT - bufT) * S);
+    const ox = -Math.round((viewL - bufL) * Z);
+    const oy = -Math.round((viewT - bufT) * Z);
 
+    // Day and night are drawn apart and mixed at map resolution, then scaled up once.
+    let out = buf;
     if (nightK < 1) {
       night = false;
       drawScene(b);
-      g.globalAlpha = 1;
-      g.drawImage(buf, 0, 0, bw, bh, ox, oy, bw * S, bh * S);
     }
     if (nightK > 0) {
       night = true;
       drawScene(bN);
-      g.globalAlpha = nightK;
-      g.drawImage(bufN, 0, 0, bw, bh, ox, oy, bw * S, bh * S);
-      g.globalAlpha = 1;
+      if (nightK < 1) {
+        b.globalAlpha = nightK;
+        b.drawImage(bufN, 0, 0, bw, bh, 0, 0, bw, bh);
+        b.globalAlpha = 1;
+      } else out = bufN;
     }
+    blit(out, ox, oy);
 
     // HTML bits follow the map. On the pier the door and the fishing spot
     // are close: only the nearer one gets a prompt.
@@ -1858,7 +1997,7 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
       else if (fishing.phase === 'cast' || fishing.phase === 'wait') fp = 'wait';
       else if (fishing.phase === 'idle' && atFishing()) fp = 'cast';
     }
-    let tagFor = mode !== 'cheer' && near && near.place.id !== dismissed ? near : null;
+    let tagFor = mode !== 'cheer' && !insideOf && near && near.place.id !== dismissed ? near : null;
     if (tagFor && fp && (fp !== 'cast' || Math.hypot(pos.x - fishSpot!.at.x, pos.z - fishSpot!.at.z) < Math.hypot(pos.x - tagFor.door.x, pos.z - tagFor.door.z))) tagFor = null;
     if (tagFor && fp === 'cast') fp = null;
     tagPlace = tagFor;
@@ -1876,6 +2015,32 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
       overlay.fish(fp, p.x, p.y);
     } else overlay.fish(null);
     games.render((x, z) => toScreen(x, z, scratch), mode === 'play' && !tagFor && !tagPortal);
+  }
+
+  /**
+   * The buffer onto the screen, Z device pixels to a map pixel. At a whole
+   * Z (always, at rest) that's a straight nearest-neighbour scale. Part way
+   * through a zoom it's blown up to the next whole scale first, then eased
+   * down the rest of the way, so every map pixel stays a square: the same
+   * size as its neighbours, with edges soft by at most a device pixel,
+   * rather than some a pixel wider than others and shimmering as they move.
+   */
+  function blit(src: HTMLCanvasElement, ox: number, oy: number) {
+    if (Number.isInteger(Z)) {
+      g.drawImage(src, 0, 0, bw, bh, ox, oy, bw * Z, bh * Z);
+      return;
+    }
+    const n = Math.ceil(Z);
+    if (up.width < bw * n || up.height < bh * n) {
+      up.width = Math.max(up.width, bw * n);
+      up.height = Math.max(up.height, bh * n);
+    }
+    u.imageSmoothingEnabled = false;
+    u.drawImage(src, 0, 0, bw, bh, 0, 0, bw * n, bh * n);
+    g.imageSmoothingEnabled = true;
+    g.imageSmoothingQuality = 'low';
+    g.drawImage(up, 0, 0, bw * n, bh * n, ox, oy, bw * Z, bh * Z);
+    g.imageSmoothingEnabled = false;
   }
 
   function frame(now: number) {
@@ -1897,12 +2062,10 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
     train.update(dt, commuting, pos);
     nightK = motion ? Math.max(0, Math.min(1, nightK + Math.max(-dt * 1.6, Math.min(dt * 1.6, nightGoal - nightK)))) : nightGoal; // eases to a goal that can be anywhere in 0..1 at dusk
     aimCamera();
-    if (motion) {
-      cam.x = damp(cam.x, camGoal.x, 5, dt);
-      cam.z = damp(cam.z, camGoal.z, 5, dt);
-    } else {
-      cam.x = camGoal.x;
-      cam.z = camGoal.z;
+    // With a room open the camera's on the room (see view()); `cam` keeps its place outside, for the way back.
+    if (!insideOf) {
+      cam.x = motion ? damp(cam.x, camGoal.x, 5, dt) : camGoal.x;
+      cam.z = motion ? damp(cam.z, camGoal.z, 5, dt) : camGoal.z;
     }
     render();
     presence(now);
@@ -1916,7 +2079,7 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
   {
     const inAt = store.state.presence.inside;
     const m = inAt ? byId.get(inAt) : null;
-    if (m?.place.interior && !returning && !arrived) goInside(m, true);
+    if (m?.place.interior && !returning && !arrived) openRoom(m, { snap: true, quiet: true });
     else if (inAt) store.dispatch({ type: 'inside', at: null });
   }
 
@@ -1940,7 +2103,7 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
       player: () => ({ x: pos.x, z: pos.z, air: jump.y, twice: jump.twice, wet, vx: vel.x, vz: vel.z, facing, run: runK }),
       swimRoom: () => geo.swimRoom(pos.x, pos.z),
       heroScreen: () => toScreen(pos.x, pos.z),
-      portal: () => ({ near: nearPortal, tag: tagPortal, screen: portal ? portalScreen() : null }),
+      portal: () => ({ near: nearPortal, tag: tagPortal, choosing, screen: portal ? portalScreen() : null }),
       teleport: (x: number, z: number) => {
         pos.x = x;
         pos.z = z;
@@ -1959,22 +2122,22 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
       near: () => near?.place.id ?? null,
       mode: () => mode,
       /** Inside a building: where, where you're standing in the room, who's within reach, and whether you're talking. */
-      inside: () => (inside && insideOf ? { at: insideOf.place.id, x: inside.pos.x, z: inside.pos.z, within: inside.within?.id ?? null, busy: ctx.ui.room.busy } : null),
+      inside: () => (inside && insideOf && openDir >= 0 ? { at: insideOf.place.id, x: inside.pos.x, z: inside.pos.z, within: inside.within?.id ?? null, busy: ctx.ui.room.busy } : null),
       /** In a room: walk over to someone or something and talk to it or look at it, as a tap would. */
       approach: (id: string) => inside?.go(id) ?? false,
       /** In a room: where a room point is on screen. */
-      roomScreen: (x: number, z: number) => inside?.screen(x, z) ?? null,
+      roomScreen: (x: number, z: number) => inside?.point(x, z, roomFrame()) ?? null,
       /** Go straight into a building (as if through its door). */
       enter: (id: string) => {
         const m = byId.get(id);
-        if (m?.place.interior && mode === 'play') goInside(m);
+        if (m?.place.interior && mode === 'play') openRoom(m, { snap: true });
         return !!inside;
       },
       fishing: () => fishing.phase,
       games: () => games.debug(),
       play: (id: Parameters<typeof games.play>[0]) => games.play(id),
       frames: () => frames,
-      scale: () => ({ S, dpr, bw, bh }),
+      scale: () => ({ S, Z, dpr, bw, bh }),
       places: () => places.map((m) => ({ id: m.place.id, door: m.door, worldDoor: m.worldDoor, base: m.base })),
       canStand,
       /** Every sprite, big, on a sheet over the page (for reviewing the art). */

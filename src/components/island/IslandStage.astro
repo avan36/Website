@@ -90,6 +90,7 @@ const VIEWS = [
       <div id="isl-card-body" class="isl-card__body">
         <div class="isl-card__inner">
           <p>I build apps people love to use and tools that keep the web honest. Explore the island: every place is something I've made.</p>
+          <p class="isl-card__time" data-isl-time hidden></p>
           <a class="isl-card__more" href="/about">More about me <span aria-hidden="true">→</span></a>
         </div>
       </div>
@@ -285,6 +286,25 @@ const VIEWS = [
   }
   .isl-card__body p { color: var(--ink-2); font-size: 15.5px; line-height: 1.5; }
   .isl-card__inner { min-height: 0; overflow: hidden; display: grid; justify-items: start; gap: 2px; }
+  /* Island time: a sun, a low sun or a moon, and why the light looks the way it does. */
+  .isl-card__body .isl-card__time { position: relative; margin-top: 6px; padding-left: 20px; color: var(--ink-3); font-size: 14px; line-height: 1.45; }
+  .isl-card__time[hidden] { display: none; }
+  .isl-card__time::before {
+    content: '';
+    position: absolute;
+    left: 1px;
+    top: 0.32em;
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    background: var(--sun);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--sun) 28%, transparent);
+  }
+  .isl-card__time[data-part='dawn']::before,
+  .isl-card__time[data-part='dusk']::before,
+  .isl-card__time[data-part='evening']::before { background: var(--coral); box-shadow: 0 0 0 3px color-mix(in srgb, var(--coral) 26%, transparent); }
+  .isl-card__time[data-part='night']::before,
+  .isl-card__time[data-part='small-hours']::before { background: transparent; box-shadow: inset -4px -2px 0 0 #9fb0e8; }
   .isl-card.is-collapsed .isl-card__inner { visibility: hidden; transition: visibility 0s 420ms; }
   .isl-card__more {
     display: inline-flex;
