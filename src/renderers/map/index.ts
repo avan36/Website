@@ -408,6 +408,7 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
       wet = 0;
       dismissed = m.place.id;
       near = m;
+      doorShy = true;
       store.dispatch({ type: 'inside', at: null });
       aimCamera();
       cam.x = camGoal.x;
@@ -794,6 +795,9 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
   let choosing = false;
   /** Closed the menu without picking: walking into the portal again waits until you've stepped back. */
   let portalShy = false;
+  /** How long you've been walking into a building's door, and whether you've only just come out of it. */
+  let doorPushT = 0;
+  let doorShy = false;
   function stepIn() {
     if (mode !== 'play' || !portal || choosing) return;
     choosing = true;
@@ -1147,6 +1151,17 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
       const dz = pos.z - portal.at.z;
       if (dz > 1 || Math.abs(dx) > 1) portalShy = false;
       if (!portalShy && Math.abs(dx) < 0.7 && dz > 0 && dz < 0.62 && held.z < 0 && Math.abs(held.x) <= -held.z) return stepIn();
+    }
+
+    // A building's door: walk up into it, a moment, and in you go. (Fresh out of one,
+    // let go of the keys first, so you don't bounce straight back in.)
+    if (!held.x && !held.z) doorShy = false;
+    const doorAt = near?.place.interior && !jump.air && wet === 0 && !doorShy ? near : null;
+    const intoDoor = !!doorAt && held.z < 0 && Math.abs(held.x) <= -held.z && Math.abs(pos.x - doorAt.door.x) < 0.6 && pos.z < doorAt.door.z + 0.35;
+    doorPushT = intoDoor ? doorPushT + dt : 0;
+    if (doorAt && doorPushT > 0.12) {
+      doorPushT = 0;
+      return enter(doorAt);
     }
 
     // Lost words: walk over one to pick it up.

@@ -489,6 +489,8 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
   let portalDismissed = false;
   let pendingPortal = false;
   let pushT = 0;
+  /** How long you've been walking into a building's door (a moment of it and you go in). */
+  let doorPushT = 0;
   let portalT = 0;
   let portalled: { x: number; y: number } | null = null;
   /** Stepping out of the portal on arrival (counts up from 0, -1 once done). */
@@ -1349,6 +1351,25 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
       pushT = !portalShy && into && Math.abs(side) < 0.7 && front > 0 && front < 1.2 ? pushT + dt : 0;
       if (pushT > 0.12) return stepIn();
     } else pushT = 0;
+    // Walking into a building's door, on foot (with the keys, or steering with a drag): in you go.
+    const doorL = nearId ? byId.get(nearId) : null;
+    if (doorL && placeOf(doorL.place.id)?.interior && (keys.size || press?.ground) && player.grounded && !player.inWater && wish.lengthSq() > 0.01) {
+      const p = doorL.place;
+      // The door's axis: from the middle of the building out to where you stand to go in.
+      const ax = p.stand.x - p.x;
+      const az = p.stand.z - p.z;
+      const len = Math.hypot(ax, az) || 1;
+      const rx = player.pos.x - p.x;
+      const rz = player.pos.z - p.z;
+      const along = (rx * ax + rz * az) / len;
+      const side = Math.abs(rx * az - rz * ax) / len;
+      const into = -(wish.x * ax + wish.y * az) / (len * wish.length());
+      doorPushT = along > 0 && side < 1.1 && along < p.radius + 1.1 && into > 0.6 ? doorPushT + dt : 0;
+      if (doorPushT > 0.12) {
+        doorPushT = 0;
+        return enter(p.id);
+      }
+    } else doorPushT = 0;
     player.sprint = shiftHeld || (!!walkTarget && runTo);
     const blocked = player.move(dt, wish, colliders);
     if (walkTarget && blocked) {
