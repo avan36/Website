@@ -41,7 +41,8 @@ import { Puffs } from './world/particles';
 import { Ripples } from './world/ripples';
 import { buildBuoys } from './world/buoys';
 import { ROWBOAT } from './landmarks/builders';
-import { ACTIVITIES, groundAt, heightAt, HUB, isSwimmable, isWalkable, PIER, PLACES, PLAZA, SPAWN, swimRoom, WORDS } from './world/shape';
+import { ACTIVITIES, groundAt, heightAt, HUB, isSwimmable, isWalkable, PIER, PLACES, placeOf, PLAZA, SPAWN, swimRoom, WORDS } from './world/shape';
+import { buildRoom, type IslandRoom } from './room';
 import { buildHeightTexture, buildTerrain } from './world/terrain';
 import { buildSky, HORIZON } from './world/sky';
 import { buildWater, waveHeight } from './world/water';
@@ -52,8 +53,8 @@ export interface GameOptions {
   /** The page's HUD, so labels can keep out of its way. */
   hud: HTMLElement;
   labelsHost: HTMLElement;
-  /** Open a place's page, wiping in from (x, y) on screen. */
-  go: (id: string, from: { x: number; y: number }) => void;
+  /** Open a place's page (or `href`, a page that belongs to it), wiping in from (x, y) on screen. */
+  go: (id: string, from: { x: number; y: number }, href?: string) => void;
   /** Step through the portal into the next view, swirling out from (x, y) on screen. */
   portal: (from: { x: number; y: number }) => void;
   /** Just came through the portal from another view: step out of this one. */
@@ -65,7 +66,7 @@ export interface GameOptions {
   sound: { play(name: SoundName): void };
   /** Progress and presence, shared with every other view. */
   store: WorldStore;
-  ui: Pick<RendererContext['ui'], 'announce' | 'toast' | 'showWord' | 'showCatch'>;
+  ui: Pick<RendererContext['ui'], 'announce' | 'toast' | 'showWord' | 'showCatch' | 'room'>;
   /** The first frame is up. `reveal`: where the cover should shrink back to (coming out of the portal). */
   onReady: (reveal?: { x: number; y: number }) => void;
   onFirstMove: () => void;
@@ -116,10 +117,19 @@ export interface GameHandle {
     fish: () => void;
     /** How far night has fallen, 0..1. */
     night: () => number;
+    /** Inside a building: which, where you stand in the room, who's within reach, and whether you're talking. */
+    inside: () => { at: string; x: number; z: number; within: string | null; busy: boolean } | null;
+    /** In a room: walk over to someone or something and talk to it or look at it, as a tap would. */
+    approach: (id: string) => boolean;
+    /** In a room: where a room point is on screen. */
+    roomScreen: (x: number, z: number) => { x: number; y: number } | null;
+    /** Go straight into a building, as if through its door. */
+    enter: (id: string) => boolean;
   };
 }
 
-type State = 'intro' | 'play' | 'entering' | 'portal';
+/** 'inside': in a building's room; 'door': the wipe on the way in or out of one. */
+type State = 'intro' | 'play' | 'entering' | 'portal' | 'inside' | 'door';
 
 const INTRO = 3.0;
 /** How far the view can be zoomed in and out, as a share of the usual distance, and how far Q and E turn it. */
@@ -133,6 +143,10 @@ const POP_OUT = 0.5;
 export async function createGame(o: GameOptions): Promise<GameHandle> {
   const { stage, touch } = o;
   const mobile = touch || Math.min(window.innerWidth, window.innerHeight) < 600;
+
+  /** The room you're in, when you're inside a building (see "Inside a building" below). */
+  let room: IslandRoom | null = null;
+  let roomId: string | null = null;
 
   // ---------- Renderer ----------
   const renderer = new WebGLRenderer({ antialias: true, powerPreference: 'high-performance', alpha: false });
@@ -343,6 +357,7 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     basePitch = aspect < 0.8 ? 0.86 : aspect < 1.2 ? 0.74 : 0.68;
     night.resize(viewH * renderer.getPixelRatio(), camera.fov);
     portal?.resize(viewH * renderer.getPixelRatio(), camera.fov);
+    room?.resize(viewW, viewH);
   };
   resize();
   const ro = new ResizeObserver(resize);
@@ -385,6 +400,7 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
   o.labelsHost.addEventListener('focusout', () => (labelFocus = null));
 
   // ---------- State ----------
+  let destroyed = false;
   let state: State = 'intro';
   let introT = 0;
   let introSpeed = 1;
@@ -425,9 +441,12 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
   const resume = !returning && saved && (isWalkable(saved.x, saved.z) || isSwimmable(saved.x, saved.z)) ? saved : null;
   // Through the portal from another view: out of this one's, facing south.
   const arriving = !returning && o.viaPortal && !!portal;
+  // Inside a building in another view: still inside it here (unless just back from its page, or through the portal).
+  const startInside = !returning && !arriving && store.state.presence.inside && placeOf(store.state.presence.inside)?.interior ? store.state.presence.inside : null;
+  if (!startInside && store.state.presence.inside) store.dispatch({ type: 'inside', at: null });
 
   // ---------- Start pose ----------
-  if (returning || resume || arriving || o.reducedMotion) {
+  if (returning || resume || arriving || startInside || o.reducedMotion) {
     state = 'play';
     const p = returning?.place;
     if (p) player.place(p.stand.x, p.stand.z, Math.atan2(p.x - p.stand.x, p.z - p.stand.z) + Math.PI);
@@ -595,7 +614,7 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     if (fingers.size < 2) twist = null;
   };
   const onWheel = (e: WheelEvent) => {
-    if (state === 'intro') return;
+    if (state === 'intro' || room || state === 'door') return;
     e.preventDefault();
     // A trackpad pinch comes as a wheel with Ctrl held, in much smaller steps.
     zoomBy(Math.exp(clamp(e.deltaY, -120, 120) * (e.ctrlKey ? 0.01 : 0.0012)));
@@ -603,6 +622,13 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
   const onContextMenu = (e: Event) => e.preventDefault();
 
   const onPointerDown = (e: PointerEvent) => {
+    if (room || state === 'door') {
+      // In a room: no turning or zooming, just walking over to things.
+      if (!e.isPrimary || e.button > 0 || state !== 'inside' || !room) return;
+      setNdc(e);
+      room.tap(ndc);
+      return;
+    }
     if (onGestureDown(e)) return;
     if (!e.isPrimary || e.button > 0) return;
     o.sound.play('tap');
@@ -662,6 +688,11 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     }
   };
   const onPointerMove = (e: PointerEvent) => {
+    if (room) {
+      setNdc(e);
+      if (e.pointerType === 'mouse') canvas.style.cursor = room.over(ndc) ? 'pointer' : '';
+      return;
+    }
     if (onGestureMove(e)) return;
     setNdc(e);
     pointerInside = true;
@@ -700,6 +731,19 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     if (e.metaKey || e.ctrlKey || e.altKey || isTyping(document.activeElement)) return;
     // A card is up: the island waits until it's closed.
     if (dialog?.open) return keys.clear();
+    if (room || state === 'door') {
+      // In a room: walking and jumping. E, Enter and Escape are the room's (see room.ts).
+      if (state !== 'inside' || !room || o.ui.room.busy) return keys.clear();
+      if (MOVE_KEYS[e.code]) {
+        e.preventDefault();
+        keys.add(e.code);
+        room.halt();
+      } else if (e.code === 'Space' && !(document.activeElement instanceof HTMLButtonElement || document.activeElement instanceof HTMLAnchorElement)) {
+        e.preventDefault();
+        if (!e.repeat) room.jump();
+      }
+      return;
+    }
     if (state === 'intro') {
       if (e.code !== 'Tab') skipIntro();
       if (MOVE_KEYS[e.code]) e.preventDefault();
@@ -757,7 +801,7 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
   const onKeyUp = (e: KeyboardEvent) => {
     keys.delete(e.code);
     if (e.key === 'Shift') shiftHeld = false;
-    if (e.code === 'Space') player.releaseJump();
+    if (e.code === 'Space') (player.releaseJump(), room?.releaseJump());
   };
   const onBlur = () => {
     keys.clear();
@@ -944,8 +988,100 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     const v = l.focus(new Vector3()).project(camera);
     const x = (v.x * 0.5 + 0.5) * viewW;
     const y = (-v.y * 0.5 + 0.5) * viewH;
-    o.go(l.place.id, { x, y });
+    // A building with a room: in through the door. Anywhere else, on to its page.
+    if (placeOf(l.place.id)?.interior) doorWipe(l.place.color, { x, y }, () => goInside(l.place.id));
+    else o.go(l.place.id, { x, y });
   };
+
+  // ---------- Inside a building ----------
+  // A room is its own little scene with its own camera (see room.ts). A wipe
+  // in the building's color takes you in, and the same takes you back out,
+  // to stand in front of the door you went in by.
+  const doorEl = document.createElement('div');
+  doorEl.className = 'isl-door-wipe';
+  doorEl.style.cssText = 'position:absolute;inset:0;z-index:6;pointer-events:none';
+  doorEl.hidden = true;
+  stage.append(doorEl);
+  /** Cover the screen in `color` from `from`, swap scenes, and uncover it from wherever `mid` says. */
+  function doorWipe(color: string, from: { x: number; y: number }, mid: () => { x: number; y: number }) {
+    if (o.reducedMotion) return void mid();
+    state = 'door';
+    const R = (p: { x: number; y: number }) => Math.hypot(Math.max(p.x, viewW - p.x), Math.max(p.y, viewH - p.y)) + 20;
+    doorEl.style.background = color;
+    doorEl.hidden = false;
+    const a = doorEl.animate([{ clipPath: `circle(0px at ${from.x}px ${from.y}px)` }, { clipPath: `circle(${R(from)}px at ${from.x}px ${from.y}px)` }], { duration: 380, easing: 'cubic-bezier(.7,0,.25,1)', fill: 'forwards' });
+    a.onfinish = () => {
+      if (destroyed) return;
+      const at = mid();
+      present(performance.now());
+      const b = doorEl.animate([{ clipPath: `circle(${R(at)}px at ${at.x}px ${at.y}px)` }, { clipPath: `circle(0px at ${at.x}px ${at.y}px)` }], { duration: 460, easing: 'cubic-bezier(.6,0,.2,1)', fill: 'forwards' });
+      a.cancel();
+      b.onfinish = () => {
+        doorEl.hidden = true;
+        b.cancel();
+      };
+    };
+  }
+
+  function goInside(id: string, quiet = false) {
+    const place = placeOf(id);
+    if (!place?.interior) return { x: viewW / 2, y: viewH / 2 };
+    room?.dispose();
+    const r = buildRoom({ place, ui: o.ui.room, night: nightWant, reducedMotion: o.reducedMotion, sound: o.sound, leave: () => leaveRoom() });
+    r.resize(viewW, viewH);
+    room = r;
+    roomId = id;
+    state = 'inside';
+    enteringId = null;
+    walkTarget = null;
+    pendingEnter = null;
+    keys.clear();
+    stopFishing();
+    canvas.style.cursor = '';
+    prompt?.show(false);
+    store.dispatch({ type: 'inside', at: id });
+    o.ui.room.enter(
+      id,
+      {
+        leave: () => leaveRoom(),
+        page: (href) => o.go(id, r.screen(0, r.plan.d / 2), href),
+        engage: (t) => r.engage(t),
+      },
+      { quiet },
+    );
+    return r.screen(r.at.x, r.at.z);
+  }
+
+  function leaveRoom() {
+    const r = room;
+    const id = roomId;
+    const l = id ? byId.get(id) : null;
+    if (!r || !l || state !== 'inside') return;
+    o.sound.play('step');
+    const from = r.screen(r.at.x, r.at.z);
+    const out = () => {
+      o.ui.room.exit();
+      r.dispose();
+      room = null;
+      roomId = null;
+      state = 'play';
+      keys.clear();
+      // Back out in front of the door you went in by, facing away from it.
+      const p = l.place;
+      player.place(p.stand.x, p.stand.z, Math.atan2(p.x - p.stand.x, p.z - p.stand.z) + Math.PI);
+      dismissedId = p.id;
+      nearId = p.id;
+      rig.target.set(player.pos.x, player.pos.y + 0.8, player.pos.z);
+      rig.dist = baseDist * rig.zoom;
+      rig.pitch = basePitch;
+      store.dispatch({ type: 'inside', at: null });
+      reportPresence(0, true);
+      if (!o.reducedMotion) player.hop(5);
+      l.bounce(1);
+      return toScreen(player.head(new Vector3()));
+    };
+    doorWipe(l.place.color, from, out);
+  }
 
   // ---------- Return reveal ----------
   let revealT = returning ? 0 : -1;
@@ -1141,6 +1277,7 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     return Math.hypot(player.pos.x - PLAZA.x, player.pos.z - PLAZA.z) < HUB.radius ? HUB.id : null;
   };
   function reportPresence(dt: number, force = false) {
+    if (room) return;
     presenceT += dt;
     const at = hereAt();
     const x = player.pos.x;
@@ -1155,14 +1292,25 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
   }
 
   /** Everything that moves, one step on: the game, the explorer, the effects, the camera. */
+  const roomWish = new Vector2();
   const simulate = (dt: number, raw: number) => {
     time += dt;
     uniforms.uTime.value = time;
     water.material.uniforms.uTime.value = time;
+    if (room) {
+      // Inside: the room runs, and the island waits outside.
+      roomWish.set(0, 0);
+      if (state === 'inside') for (const k of keys) {
+        const m = MOVE_KEYS[k];
+        if (m) (roomWish.x += m[0]), (roomWish.y += m[1]);
+      }
+      room.update(time, dt, roomWish, shiftHeld);
+      return;
+    }
 
     if (state === 'intro') updateIntro(raw);
     else if (state === 'play') updatePlay(dt);
-    else if (state === 'entering') player.move(dt, wish.set(0, 0), colliders);
+    else if (state === 'entering' || state === 'door') player.move(dt, wish.set(0, 0), colliders);
     else if (state === 'portal') updatePortal(dt);
 
     // Stepping out of the portal on arrival: a pop, a spin and a hop onto the plaza.
@@ -1288,6 +1436,11 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
 
   /** Draw: the labels over the scene, then the scene. */
   const present = (now: number) => {
+    if (room) {
+      prompt?.show(false);
+      renderer.render(room.scene, room.camera);
+      return;
+    }
     const hoverId = state === 'play' ? labelHover ?? labelFocus ?? pointerHover : null;
 
     // Labels (kept out of the HUD's way, re-measured a few times a second
@@ -1341,6 +1494,8 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
   }
   later.forEach((x) => (x.visible = false));
   renderer.render(scene, camera);
+  if (startInside) goInside(startInside, true);
+  if (room) present(performance.now());
   o.onReady(arriving ? toScreen(portal!.middle) : undefined);
 
   const start = () => {
@@ -1359,11 +1514,13 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
   if (state === 'play' && !returning) o.onIntroDone();
   if (returning) o.onIntroDone();
 
-  let destroyed = false;
   const destroy = () => {
     if (destroyed) return;
     destroyed = true;
     stop();
+    room?.dispose();
+    room = null;
+    doorEl.remove();
     ro.disconnect();
     document.removeEventListener('visibilitychange', onVis);
     canvas.removeEventListener('pointerdown', onPointerDown);
@@ -1379,7 +1536,7 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     canvas.removeEventListener('webglcontextlost', onLost);
     o.labelsHost.removeEventListener('focusin', onFocusIn);
     // Leave the store knowing exactly where you were standing.
-    if (state === 'play') reportPresence(0, true);
+    if (state === 'play' && !room) reportPresence(0, true);
     unsubscribe();
     labels.dispose();
     prompt?.dispose();
@@ -1465,6 +1622,14 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
       fishing: () => fishing?.phase ?? null,
       fish: () => void fishAction(),
       night: () => night.amount,
+      inside: () => (room && roomId ? { at: roomId, x: room.at.x, z: room.at.z, within: room.within?.id ?? null, busy: o.ui.room.busy } : null),
+      approach: (id: string) => room?.go(id) ?? false,
+      roomScreen: (x: number, z: number) => room?.screen(x, z) ?? null,
+      enter: (id: string) => {
+        if (state !== 'play' || !placeOf(id)?.interior) return false;
+        goInside(id);
+        return true;
+      },
       screen: (id: string) => {
         const l = byId.get(id);
         if (!l) return null;

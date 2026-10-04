@@ -25,6 +25,8 @@ import { findPath, nearestOpen, smooth, type Grid, type Pt } from './path';
 import { hash2 } from './rng';
 import { crab, lampPost, paintLandmark, paintScenery, portal as paintPortal, rowboat, scroll, shells, type Landmark, type Sprite } from './sprites';
 import { buildTerrain, RECT, TEX } from './terrain';
+import { createInside, type Inside } from './inside';
+import { paintRoom } from './room';
 
 /** World units per second. */
 const SPEED = 4.6;
@@ -53,7 +55,8 @@ const FOAM2 = [HEX.foam2, nightHex(HEX.foam2)];
 const UNDER = [HEX.sea, nightHex(HEX.sea)];
 const DEEP = [HEX.deep, nightHex(HEX.deep)];
 
-type Mode = 'play' | 'entering' | 'cheer' | 'portal';
+/** 'inside': in a building's room; 'door': the iris closing and opening on the way in or out. */
+type Mode = 'play' | 'entering' | 'cheer' | 'portal' | 'inside' | 'door';
 
 /** Something drawn in the y-sorted pass, standing at (x, z). */
 interface Thing {
@@ -322,6 +325,81 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
   wet = wetAt(pos.x, pos.z);
   let dismissed: string | null = returning?.place.id ?? (arrived ? 'portal' : null);
 
+  // ---------- Inside a building ----------
+  // Through a door with a room behind it: an iris closes on the door, opens
+  // on the room, and the same in reverse on the way out, back where you went in.
+  let inside: Inside | null = null;
+  let insideOf: MapPlace | null = null;
+  const rooms = new Map<string, ReturnType<typeof paintRoom>>();
+  const roomOf = (m: MapPlace) => {
+    let r = rooms.get(m.place.id);
+    if (!r) rooms.set(m.place.id, (r = paintRoom(m.place)));
+    return r;
+  };
+  /** The iris: closing over the old scene toward (x, y), then opening on the new one. CSS pixels. */
+  let iris: { t: number; closing: boolean; x: number; y: number; color: string; mid: (() => { x: number; y: number }) | null } | null = null;
+  const IRIS = 0.32;
+  function irisThrough(color: string, from: { x: number; y: number }, mid: () => { x: number; y: number }) {
+    if (!motion) {
+      mid();
+      return;
+    }
+    mode = 'door';
+    iris = { t: 0, closing: true, x: from.x, y: from.y, color, mid };
+  }
+
+  function goInside(m: MapPlace, quiet = false) {
+    insideOf = m;
+    inside = createInside({ room: roomOf(m), hero, ui: ctx.ui.room, motion, sound: ctx.sound, leave: () => leaveRoom() });
+    mode = 'inside';
+    modeT = 0;
+    path = null;
+    pendingEnter = null;
+    clearKeys();
+    overlay.tag(null);
+    overlay.fish(null);
+    canvas.style.cursor = '';
+    store.dispatch({ type: 'inside', at: m.place.id });
+    const room = inside;
+    ctx.ui.room.enter(
+      m.place.id,
+      {
+        leave: () => leaveRoom(),
+        page: (href) => ctx.go(m.place.id, clampToView(room.screen(0, room.room.plan.d / 2)), href),
+        engage: (t) => room.engage(t),
+      },
+      { quiet },
+    );
+  }
+
+  function leaveRoom() {
+    const m = insideOf;
+    if (!m || !inside || mode === 'door') return;
+    ctx.sound.play('step');
+    const here = inside.screen(inside.pos.x, inside.pos.z);
+    irisThrough(m.place.color, here, () => {
+      ctx.ui.room.exit();
+      inside = null;
+      insideOf = null;
+      mode = 'play';
+      modeT = 0;
+      // Back out where you went in, facing the way you came.
+      pos.x = m.door.x;
+      pos.z = m.door.z;
+      facing = 'down';
+      wet = 0;
+      dismissed = m.place.id;
+      near = m;
+      store.dispatch({ type: 'inside', at: null });
+      aimCamera();
+      cam.x = camGoal.x;
+      cam.z = camGoal.z;
+      render();
+      if (motion) hopT = 0;
+      return toScreen(pos.x, pos.z - 0.6);
+    });
+  }
+
   // ---------- Overlay ----------
   const overlay = createOverlay(
     root,
@@ -446,6 +524,23 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
   const onKeyDown = (e: KeyboardEvent) => {
     shift = e.shiftKey;
     if (e.metaKey || e.ctrlKey || e.altKey || typing(document.activeElement) || busy()) return;
+    if (mode === 'door') return void (MOVE[e.code] && e.preventDefault());
+    if (mode === 'inside' && inside) {
+      // The room's own keys (E, Enter, Escape) are room.ts's; here, walking and hopping.
+      if (ctx.ui.room.busy) return clearKeys();
+      if (MOVE[e.code]) {
+        e.preventDefault();
+        keys.add(e.code);
+        sumKeys();
+        inside.halt();
+        return;
+      }
+      if (e.key === ' ' && !(document.activeElement instanceof HTMLButtonElement || document.activeElement instanceof HTMLAnchorElement)) {
+        e.preventDefault();
+        if (!e.repeat) inside.hop();
+      }
+      return;
+    }
     if (MOVE[e.code]) {
       e.preventDefault();
       keys.add(e.code);
@@ -523,6 +618,12 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
 
   const onPointerDown = (e: PointerEvent) => {
     if (!e.isPrimary || e.button > 0 || busy()) return;
+    if (mode === 'inside' && inside) {
+      const rr = canvas.getBoundingClientRect();
+      inside.tap(e.clientX - rr.left, e.clientY - rr.top);
+      return;
+    }
+    if (mode === 'door') return;
     const r = canvas.getBoundingClientRect();
     const w = fromScreen(e.clientX - r.left, e.clientY - r.top);
     press = { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now() };
@@ -556,7 +657,8 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
     const r = canvas.getBoundingClientRect();
     const w = fromScreen(e.clientX - r.left, e.clientY - r.top);
     if (!press || e.pointerId !== press.id) {
-      if (e.pointerType === 'mouse') canvas.style.cursor = mode === 'play' && (hitLandmark(w.x, w.z) || hitPortal(w.x, w.z)) ? 'pointer' : '';
+      if (e.pointerType === 'mouse' && mode === 'inside' && inside) canvas.style.cursor = inside.over(e.clientX - r.left, e.clientY - r.top) ? 'pointer' : '';
+      else if (e.pointerType === 'mouse') canvas.style.cursor = mode === 'play' && (hitLandmark(w.x, w.z) || hitPortal(w.x, w.z)) ? 'pointer' : '';
       return;
     }
     // Hold and drag to steer.
@@ -758,6 +860,7 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
   let sentX = NaN;
   let sentZ = NaN;
   function presence(now: number) {
+    if (inside || mode === 'door') return;
     let at: string | null = near ? near.place.id : null;
     if (!at && Math.hypot(pos.x - geo.hub.at.x, pos.z - geo.hub.at.z) < 3.4) at = geo.hub.id;
     const changed = at !== lastAt;
@@ -819,11 +922,37 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
     if (marker.t < 1) marker.t = Math.min(1, marker.t + dt * 1.6);
     if (busy()) clearKeys();
 
+    if (iris) {
+      iris.t += dt;
+      if (iris.closing && iris.t >= IRIS) {
+        // Closed: swap the scene underneath, then open on the new one.
+        const at = iris.mid!();
+        iris = { ...iris, t: 0, closing: false, x: at.x, y: at.y, mid: null };
+      } else if (!iris.closing && iris.t >= IRIS) iris = null;
+    }
+    if (mode === 'door') {
+      moving = false;
+      return;
+    }
+    if (mode === 'inside' && inside) {
+      moving = false;
+      inside.update(dt, held, shift);
+      return;
+    }
     if (mode === 'entering') {
       if (!wiped && modeT > (motion ? 0.3 : 0)) {
         wiped = true;
         const m = byId.get(enteringId!)!;
-        ctx.go(m.place.id, clampToView(doorScreen(m)));
+        // A building with a room: in through the door. Anywhere else, on to its page.
+        if (m.place.interior) {
+          ctx.sound.play('step');
+          irisThrough(m.place.color, clampToView(doorScreen(m)), () => {
+            goInside(m);
+            const room = inside!;
+            room.draw(g, canvas.width, canvas.height, dpr, time, night);
+            return room.screen(room.pos.x, room.pos.z);
+          });
+        } else ctx.go(m.place.id, clampToView(doorScreen(m)));
       }
       moving = false;
       return;
@@ -1560,6 +1689,36 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
   let readied = false;
 
   function render() {
+    if (inside) {
+      inside.draw(g, canvas.width, canvas.height, dpr, time, nightK > 0.5);
+      overlay.tag(null);
+      overlay.fish(null);
+      drawIris();
+      return;
+    }
+    renderIsland();
+    drawIris();
+  }
+
+  /** The iris over everything: a circle of the room's color closing in, or opening out. */
+  function drawIris() {
+    if (!iris) return;
+    const k = Math.min(1, iris.t / IRIS);
+    const x = iris.x * dpr;
+    const y = iris.y * dpr;
+    const R = Math.hypot(Math.max(x, canvas.width - x), Math.max(y, canvas.height - y)) + 4;
+    const e = iris.closing ? 1 - k * k : k * (2 - k);
+    // In steps, like an old handheld's screen transition.
+    const step = 8 * S;
+    const r = Math.max(0, Math.round((R * e) / step) * step);
+    g.fillStyle = iris.color;
+    g.beginPath();
+    g.rect(0, 0, canvas.width, canvas.height);
+    g.arc(x, y, r, 0, Math.PI * 2, true);
+    g.fill('evenodd');
+  }
+
+  function renderIsland() {
     // The camera: eased toward the explorer (or snapped, with reduced motion).
     aimCamera();
     const viewWpx = canvas.width / S;
@@ -1638,6 +1797,14 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
     }
   }
 
+  // Inside a building in another view (and not just back from its page or through the portal): still inside here.
+  {
+    const inAt = store.state.presence.inside;
+    const m = inAt ? byId.get(inAt) : null;
+    if (m?.place.interior && !returning && !arrived) goInside(m, true);
+    else if (inAt) store.dispatch({ type: 'inside', at: null });
+  }
+
   // First frame right away, so the loader can go.
   render();
   presence(performance.now());
@@ -1676,6 +1843,18 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
       path: () => (path ? path.slice(pathIx) : null),
       near: () => near?.place.id ?? null,
       mode: () => mode,
+      /** Inside a building: where, where you're standing in the room, who's within reach, and whether you're talking. */
+      inside: () => (inside && insideOf ? { at: insideOf.place.id, x: inside.pos.x, z: inside.pos.z, within: inside.within?.id ?? null, busy: ctx.ui.room.busy } : null),
+      /** In a room: walk over to someone or something and talk to it or look at it, as a tap would. */
+      approach: (id: string) => inside?.go(id) ?? false,
+      /** In a room: where a room point is on screen. */
+      roomScreen: (x: number, z: number) => inside?.screen(x, z) ?? null,
+      /** Go straight into a building (as if through its door). */
+      enter: (id: string) => {
+        const m = byId.get(id);
+        if (m?.place.interior && mode === 'play') goInside(m);
+        return !!inside;
+      },
       fishing: () => fishing.phase,
       frames: () => frames,
       scale: () => ({ S, dpr, bw, bh }),

@@ -99,3 +99,6 @@ export const PLACES: Place[] = world.places
       enterRange: m.range ?? p.footprint + 2.6,
     };
   });
+
+/** The world's place, with its room if it's a building you can walk into. */
+export const placeOf = (id: string) => world.places.find((p) => p.id === id) ?? null;

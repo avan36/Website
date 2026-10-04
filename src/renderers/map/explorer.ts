@@ -5,11 +5,11 @@
 // added when it's drawn.
 
 import { HEX } from './palette';
-import { col, nightData, Pix, type Color } from './pixels';
+import { CLEAR, col, nightData, Pix, shade, type Color } from './pixels';
 
 export type Facing = 'down' | 'up' | 'left' | 'right';
 
-const PAL: Record<string, Color> = {
+const BASE: Record<string, Color> = {
   o: col(HEX.ink),
   w: col('#fffaf1'),
   s: col('#e9dfcf'),
@@ -86,7 +86,7 @@ const STEPS: { l: number; r: number; dy: number }[] = [
   { l: 0, r: 0, dy: 1 }, // breathing out (idle)
 ];
 
-function frame(body: string[], facing: Facing, step: number, hold: 'none' | 'up') {
+function frame(body: string[], facing: Facing, step: number, hold: 'none' | 'up', PAL: Record<string, Color> = BASE) {
   const p = new Pix(W, H);
   const { l, r, dy } = STEPS[step];
   // Feet first, peeking out under the body.
@@ -127,16 +127,24 @@ export interface ExplorerSprites {
   cheerNight: HTMLCanvasElement;
 }
 
-export function paintExplorer(): ExplorerSprites {
+/**
+ * The explorer, or (with a scarf color) one of the islanders who live in the
+ * buildings: the same round marshmallow in their own scarf (and a satchel
+ * to match), with no sprout, so you can always tell which one is you.
+ */
+export function paintExplorer(scarf?: string): ExplorerSprites {
+  const PAL = scarf
+    ? { ...BASE, r: col(scarf), R: col(shade(scarf, -0.14)), g: CLEAR, G: CLEAR, t: col(shade(scarf, 0.12)), T: col(shade(scarf, -0.06)) }
+    : BASE;
   const bodies: Record<Facing, string[]> = { down: DOWN, up: UP, left: SIDE, right: SIDE };
   const frames = {} as Record<Facing, HTMLCanvasElement[]>;
   const framesNight = {} as Record<Facing, HTMLCanvasElement[]>;
   for (const f of ['down', 'up', 'left', 'right'] as Facing[]) {
-    const pix = STEPS.map((_, s) => frame(bodies[f], f, s, 'none'));
+    const pix = STEPS.map((_, s) => frame(bodies[f], f, s, 'none', PAL));
     frames[f] = pix.map((p) => p.canvas());
     framesNight[f] = pix.map((p) => p.canvas(nightData(p.data)));
   }
-  const cheer = frame(DOWN, 'down', 0, 'up');
+  const cheer = frame(DOWN, 'down', 0, 'up', PAL);
   return { w: W, h: H, frames, framesNight, cheer: cheer.canvas(), cheerNight: cheer.canvas(nightData(cheer.data)) };
 }
 
