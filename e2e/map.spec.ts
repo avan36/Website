@@ -50,6 +50,23 @@ test.describe('map', () => {
     expect(errors).toEqual([]);
   });
 
+  test('walking up into a door goes inside', async ({ page }) => {
+    const errors = await openMap(page);
+    await closeDialog(page);
+    const building = await page.evaluate(() => {
+      const w = (window as DebugWindow).__world!.world;
+      const id = w.places.find((p) => p.interior)!.id;
+      return (window as DebugWindow).__map!.places().find((p) => p.id === id)!;
+    });
+    // A step below the door, then up into it.
+    await page.evaluate((d) => (window as DebugWindow).__map!.teleport(d.x, d.z + 1.2), building.door);
+    await page.keyboard.down('ArrowUp');
+    await page.waitForFunction(() => !!(window as DebugWindow).__map!.inside(), null, { timeout: 20_000 });
+    await page.keyboard.up('ArrowUp');
+    expect(await page.evaluate(() => (window as DebugWindow).__map!.inside()!.at)).toBe(building.id);
+    expect(errors).toEqual([]);
+  });
+
   test('jumps, and jumps again in the air', async ({ page }) => {
     const errors = await openMap(page);
     await closeDialog(page);

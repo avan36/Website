@@ -101,6 +101,7 @@ export type MapHandle = {
   swimRoom(): number;
   portal(): { near: boolean; tag: boolean };
   places(): { id: string; door: { x: number; z: number } }[];
+  inside(): { at: string } | null;
 };
 export type IslandPlayer = { x: number; z: number; y: number; airborne: boolean; water: string; doubleJumped: boolean };
 export type IslandDebug = {
@@ -115,7 +116,7 @@ export type IslandDebug = {
   portalled(): { x: number; y: number } | null;
 };
 export type WorldHandle = {
-  world: { activities: { kind: string; at: { x: number; z: number } }[] };
+  world: { activities: { kind: string; at: { x: number; z: number } }[]; places: { id: string; interior?: unknown }[] };
   geo: { coastRadius(theta: number): number };
   setView(v: string): Promise<void>;
 };
