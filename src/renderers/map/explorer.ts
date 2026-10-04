@@ -3,8 +3,8 @@
 // walk (stand, left foot, stand, right foot), a breathing idle frame, and a
 // pose for holding something up (a found word). Hops and the fishing rod are
 // added when it's drawn. Whatever the visitor wears from the wardrobe is
-// painted on top: hats (which push the sprite up a few pixels), glasses, the
-// scarf in another color, a vest or a tool belt.
+// painted on top: hats (which push the sprite up a few pixels) and a baseball
+// cap, glasses, the scarf in another color, a vest or a tool belt.
 
 import { HEX } from './palette';
 import { CLEAR, col, nightData, Pix, shade, type Color } from './pixels';
@@ -95,6 +95,18 @@ const HATS: Record<string, string[]> = {
   'leaf-crown': ['...A..AA..A...', '..AaAAaaAAaA..', '..aPaaAaaaPa..'],
 };
 const HAT_PAL = { o: col(HEX.ink), Y: col('#f5c542'), G: col('#5b7a4a'), B: col('#2b5fa8'), P: col('#ffb7c9') };
+/**
+ * A baseball cap sits lower than a hat and has a peak, so it's drawn for each
+ * facing: the peak across the forehead from the front, sticking out side on,
+ * and from behind the gap over the strap. Rows start one above the head (body
+ * row 1). Letters as for hats, plus h for the shine on the crown and w for the
+ * head showing through.
+ */
+const CAP: Record<'down' | 'up' | 'right', string[]> = {
+  down: ['.....oooo.....', '...ooAhAAoo...', '..oAAhAAAAAo..', '..oAAAAAAAAo..', '.oaaaaaaaaaao.', '.....aaaa.....'],
+  up: ['.....oooo.....', '....oAAAAo....', '...oAAAAAAo...', '..oAAAwwAAAo..', '..oaaaaaaaao..'],
+  right: ['.....oooo.....', '....oAhAAo....', '...oAAAAAAo...', '..oAAAAAAAAoo.', '..oaaaaaaaaaao'],
+};
 
 /** Per frame: how far each foot drops (left, right) and how the body bobs. */
 const STEPS: { l: number; r: number; dy: number }[] = [
@@ -208,7 +220,10 @@ function dressUp(p: Pix, worn: readonly Wearable[], facing: Facing, oy: number) 
     }
   }
   const head = worn.find((o) => o.slot === 'head');
-  if (head) {
+  if (head?.id === 'red-cap') {
+    const pal = { ...HAT_PAL, A: col(head.color), a: col(shade(head.color, -0.14)), h: col(shade(head.color, 0.16)), w: BASE.w };
+    p.map(CAP[facing === 'left' ? 'right' : facing], pal, 0, oy + 1);
+  } else if (head) {
     const rows = HATS[head.id] ?? HATS['hard-hat'];
     const pal = { ...HAT_PAL, A: col(head.color), a: col(shade(head.color, head.id === 'sailor-hat' ? -0.08 : -0.14)) };
     p.map(rows, pal, 0, oy + 3 - (rows.length - 1));

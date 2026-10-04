@@ -20,7 +20,7 @@ import { Fishing } from './fishing';
 import { createBoatCard } from './boat';
 import { boatOf } from '../boat';
 import { createMapGames } from './minigames';
-import { BODY_R, HALF_WIDTH, layoutPlaces, scatterProps, type MapPlace } from './layout';
+import { BODY_R, HALF_WIDTH, layoutPlaces, layoutStreet, scatterProps, type MapPlace } from './layout';
 import { createOverlay, type FishPrompt } from './overlay';
 import { HEX } from './palette';
 import { bayer, col, nightColor, toHex } from './pixels';
@@ -28,6 +28,8 @@ import { findPath, nearestOpen, smooth, type Grid, type Pt } from './path';
 import { hash2 } from './rng';
 import { crab, lampPost, paintLandmark, paintScenery, portal as paintPortal, rowboat, scroll, shells, workshopCursor, type Landmark, type Sprite } from './sprites';
 import { buildTerrain, RECT, TEX } from './terrain';
+import { paintTowerBridge, planTowerBridge } from './towerBridge';
+import { bench, phoneBox, pillarBox, streetLamp } from './street';
 import { createInside, fitFrame, openRect, type Frame, type Inside } from './inside';
 import { paintRoom, type MapRoom } from './room';
 import { bus, drawTrain, shelter } from './commute';
@@ -90,11 +92,13 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
   // ---------- The world, on the map ----------
   const places = layoutPlaces(world, geo);
   const byId = new Map(places.map((m) => [m.place.id, m]));
-  const terrain = await buildTerrain(
-    geo,
-    places.filter((m) => m.spur.length).map((m) => m.spur),
-  );
+  // Little London's street: the path from Tower Bridge to the mall, its lamps, the telephone box.
+  const street = layoutStreet(geo, places);
+  const paintT0 = performance.now();
+  const terrain = await buildTerrain(geo, [...places.filter((m) => m.spur.length).map((m) => m.spur), ...(street ? [street.walk] : [])]);
   const { W, H } = terrain;
+  /** How long the ground took to paint, in ms (for the debug handle). */
+  const paintMs = performance.now() - paintT0;
 
   const art = new Map<string, Landmark>(places.map((m) => [m.place.id, paintLandmark(m.kind, m.place.color, Math.round(m.doorDx * TEX))]));
   const scenery = paintScenery();
@@ -156,6 +160,7 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
     for (const b of m.boxes) stampBox(b.x0, b.z0, b.x1, b.z1);
   }
   for (const p of props) if (p.r) stampCircle(p.x, p.z, p.r + BODY_R * 0.5);
+  for (const t of street?.things ?? []) stampCircle(t.x, t.z, t.r + BODY_R * 0.5);
   const lampAt = { x: pier.x - pier.width / 2 + 0.25, z: pier.end - 3.4 };
   stampCircle(lampAt.x, lampAt.z, 0.15 + BODY_R * 0.5);
   // The rowboat moored by the pier, to swim round; the portal's ring and plinth, to walk round.
@@ -292,6 +297,27 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
   if (busAt) things.push({ x: busAt.x, z: busAt.z, sprite: bus() });
   if (shelterAt) things.push({ x: shelterAt.x, z: shelterAt.z, sprite: shelter() });
   if (bottlePlace) things.push({ x: bottlePlace.base.x + 1.3, z: bottlePlace.base.z + 0.9, sprite: shells() });
+  // Tower Bridge: its towers, walkways and chains, each sorted where it stands, and its lamps.
+  const lampArt = streetLamp();
+  const lamps: { x: number; z: number }[] = [];
+  /** The bridge's sprites and the street furniture, for the debug sheet. */
+  const extras: Sprite[] = [];
+  for (const br of geo.bridges) {
+    if (br.style !== 'tower') continue;
+    const plan = planTowerBridge(br);
+    const pieces = paintTowerBridge(plan);
+    things.push(...pieces);
+    extras.push(...pieces.map((p) => p.sprite));
+    for (const l of plan.lamps) things.push({ x: l.x, z: l.z, sprite: lampArt }), lamps.push(l);
+  }
+  if (street) {
+    const furniture = { lamp: lampArt, 'phone-box': phoneBox(), 'pillar-box': pillarBox(), bench: bench() };
+    extras.push(...Object.values(furniture));
+    for (const t of street.things) {
+      things.push({ x: t.x, z: t.z, sprite: furniture[t.kind] });
+      if (t.kind === 'lamp') lamps.push(t);
+    }
+  }
   things.sort((a, b) => a.z - b.z);
 
   // Things that move: the explorer, the lost words, the crab. Re-sorted each frame (a handful).
@@ -385,7 +411,7 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
   const rooms = new Map<string, MapRoom>();
   const roomOf = (m: MapPlace) => {
     let r = rooms.get(m.place.id);
-    if (!r) rooms.set(m.place.id, (r = paintRoom(m.place)));
+    if (!r) rooms.set(m.place.id, (r = paintRoom(m.place, world.outfits)));
     return r;
   };
 
@@ -1191,15 +1217,18 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
       const rate = wish.x || wish.z ? 4 : 1.6;
       vel.x = damp(vel.x, wish.x * speed * k, rate, dt);
       vel.z = damp(vel.z, wish.z * speed * k, rate, dt);
-      // Near the drop-off the current holds you back, but only going further out.
+      // Near the drop-off the current holds you back, but only going further out:
+      // down the slope of the swimming room, round whichever island's water this is.
       const room = geo.swimRoom(pos.x, pos.z);
       if (room < 1.1) {
-        const r = Math.hypot(pos.x, pos.z) || 1;
-        const out = (vel.x * pos.x + vel.z * pos.z) / r;
+        const gx = geo.swimRoom(pos.x - 0.25, pos.z) - geo.swimRoom(pos.x + 0.25, pos.z);
+        const gz = geo.swimRoom(pos.x, pos.z - 0.25) - geo.swimRoom(pos.x, pos.z + 0.25);
+        const r = Math.hypot(gx, gz) || 1;
+        const out = (vel.x * gx + vel.z * gz) / r;
         if (out > 0) {
           const hold = 1 - Math.max(0, room) / 1.1;
-          vel.x -= (pos.x / r) * out * hold;
-          vel.z -= (pos.z / r) * out * hold;
+          vel.x -= (gx / r) * out * hold;
+          vel.z -= (gz / r) * out * hold;
         }
       }
     } else {
@@ -1706,6 +1735,7 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
     .filter((m) => m.kind !== 'tree' && m.kind !== 'bottle' && m.kind !== 'postbox')
     .map((m) => ({ x: m.base.x + m.doorDx, z: m.base.z + 0.5 }));
   pools.push({ x: lampAt.x + 0.3, z: lampAt.z + 0.2 });
+  for (const l of lamps) pools.push({ x: l.x, z: l.z + 0.1 });
   // The portal lights the plaza violet.
   const glow = (() => {
     const cv = document.createElement('canvas');
@@ -2140,18 +2170,33 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
       games: () => games.debug(),
       play: (id: Parameters<typeof games.play>[0]) => games.play(id),
       frames: () => frames,
+      /** How long the ground took to paint, and how big it is, in map pixels. */
+      paint: () => ({ ms: Math.round(paintMs), w: W, h: H }),
       scale: () => ({ S, Z, dpr, bw, bh }),
       places: () => places.map((m) => ({ id: m.place.id, door: m.door, worldDoor: m.worldDoor, base: m.base })),
       canStand,
-      /** Every sprite, big, on a sheet over the page (for reviewing the art). */
-      sheet: (zoom = 4, nightToo = false) => {
+      /**
+       * Every sprite, big, on a sheet over the page (for reviewing the art). `only`: just one place's
+       * landmark (by id), 'bridge' for Tower Bridge and the street furniture, or 'hero' for the explorer as dressed.
+       */
+      sheet: (zoom = 4, nightToo = false, only?: string) => {
         const all: HTMLCanvasElement[] = [];
-        for (const a of art.values()) all.push(a.sprite.day);
-        for (const k of Object.values(scenery)) for (const s of k) all.push(s.day);
-        all.push(boat.day, scrollArt.day, crabArt[0].day, crabArt[1].day, portalArt.ring.day, ...portalArt.swirl.slice(0, 3));
-        for (const f of ['down', 'up', 'left', 'right'] as Facing[]) all.push(...hero.frames[f]);
-        all.push(hero.cheer);
-        if (nightToo) for (const a of art.values()) all.push(a.sprite.night);
+        if (only === 'hero') {
+          for (const f of ['down', 'up', 'left', 'right'] as Facing[]) all.push(...hero.frames[f]);
+          all.push(hero.cheer);
+        } else if (only) {
+          const sprites = only === 'bridge' ? extras : [art.get(only)?.sprite].filter((s): s is Sprite => !!s);
+          for (const s of sprites) all.push(s.day);
+          if (nightToo) for (const s of sprites) all.push(s.night);
+        } else {
+          for (const a of art.values()) all.push(a.sprite.day);
+          for (const k of Object.values(scenery)) for (const s of k) all.push(s.day);
+          all.push(boat.day, scrollArt.day, crabArt[0].day, crabArt[1].day, portalArt.ring.day, ...portalArt.swirl.slice(0, 3));
+          for (const s of extras) all.push(s.day);
+          for (const f of ['down', 'up', 'left', 'right'] as Facing[]) all.push(...hero.frames[f]);
+          all.push(hero.cheer);
+          if (nightToo) for (const a of art.values()) all.push(a.sprite.night);
+        }
         const sheet = document.createElement('canvas');
         sheet.width = innerWidth;
         sheet.height = innerHeight;

@@ -5,7 +5,8 @@
 // way the old overworlds drew towns. Each is a Pix plus an anchor: the pixel
 // that stands on the sprite's base point in the world.
 
-import type { LandmarkKind } from './layout';
+import { drawText, textWidth } from './font';
+import { HALF_WIDTH, type LandmarkKind } from './layout';
 import { HEX } from './palette';
 import { CLEAR, col, nightData, Pix, shade, type Color } from './pixels';
 
@@ -54,6 +55,22 @@ const SCREEN_BG = col('#1c3b33');
 const SCREEN = col('#8ff0be');
 const SCREEN_HI = col('#ffd27a');
 
+// The mall's glass: its upper floor and its wavy roof glow softly from inside after dark.
+const MALL_GLASS = col('#8cc6dd');
+const MALL_GLASS_LIGHT = col('#c3e5f0');
+const ROOF_A = col('#bfe5f1');
+const ROOF_B = col('#8fc8de');
+const ROOF_C = col('#679fbe');
+const ROOF_RIB = col('#e3f2f8');
+const ROOF_RIM = col('#ffffff');
+const MALL_LIGHTS: [Color, Color][] = [
+  [MALL_GLASS, col('#ffe2a0')],
+  [MALL_GLASS_LIGHT, col('#fff0c8')],
+  [ROOF_A, col('#cdb27a')],
+  [ROOF_B, col('#b99a62')],
+  [ROOF_C, col('#a4854f')],
+];
+
 const LIGHTS = new Map<Color, Color>([
   [GLASS, col('#ffcf6e')],
   [GLASS_SHINE, col('#ffe6a2')],
@@ -67,7 +84,7 @@ const LIGHTS = new Map<Color, Color>([
 /** A five-step ramp from an accent color: lightest to darkest. */
 const ramp = (hex: string) => [shade(hex, 0.16), shade(hex, 0.07), hex, shade(hex, -0.1), shade(hex, -0.2)].map((h) => col(h));
 
-function finish(p: Pix, ax: number, ay: number, shadow?: { rx: number; ry: number; dy?: number }, fine?: (p: Pix) => void): Sprite {
+function finish(p: Pix, ax: number, ay: number, shadow?: { rx: number; ry: number; dy?: number }, fine?: (p: Pix) => void, lights = LIGHTS): Sprite {
   p.outline(INK);
   // Fine details (ropes, poles) go on after the outline so they stay one pixel thin.
   fine?.(p);
@@ -78,7 +95,7 @@ function finish(p: Pix, ax: number, ay: number, shadow?: { rx: number; ry: numbe
     s.stamp(p, 0, 0);
     p.data.set(s.data);
   }
-  return { w: p.w, h: p.h, ax, ay, day: p.canvas(), night: p.canvas(nightData(p.data, LIGHTS)), data: p.data };
+  return { w: p.w, h: p.h, ax, ay, day: p.canvas(), night: p.canvas(nightData(p.data, lights)), data: p.data };
 }
 
 // ---------- Building parts ----------
@@ -549,6 +566,119 @@ function depot(accent: string, doorDx: number): Landmark {
   return { sprite: finish(p, ax, base, { rx: 27, ry: 4, dy: 4 }), door: { dx: doorDx, dy: -8 }, top: 3, roof: 18 };
 }
 
+/**
+ * The shopping centre: a long glass front under a wavy glass roof, its name in
+ * big letters over the sliding doors, and at the far end from the doors a
+ * little burger bar in red and white tiles. Lit up from inside after dark.
+ */
+function mall(accent: string, doorDx: number): Landmark {
+  const hw = Math.round(HALF_WIDTH.mall * 8);
+  const W = hw * 2 + 8;
+  const ax = W >> 1;
+  const base = 56;
+  const p = new Pix(W, base + 5);
+  const L = ax - hw;
+  const R = ax + hw - 1;
+  const RED_SIGN = col(accent);
+  const CLAD = col('#f3efe7');
+  const CLAD_SHADE = col('#d8d1c4');
+  const STEEL = col('#9aa7b0');
+  const STEEL_LIGHT = col('#dfe6ea');
+  const DOOR_GAP = col('#33424c');
+  const SIGN_BG = col('#fdfbf6');
+  const FG_RED = col('#d42a32');
+  const FG_WHITE = col('#fbf5ea');
+  const PAVE = col('#e3ddd2');
+  const PAVE_DARK = col('#c4bcae');
+
+  // The roof: a lattice of glass rippling across the whole building, lit on the slopes that face west.
+  const eave = 20;
+  for (let x = L - 2; x <= R + 2; x++) {
+    const a = ((x - L) / 26) * Math.PI * 2 + 0.7;
+    const top = Math.round(7 + Math.sin(a) * 2.4);
+    const lit = Math.cos(a);
+    const c = lit > 0.35 ? ROOF_A : lit < -0.35 ? ROOF_C : ROOF_B;
+    for (let y = top; y < eave; y++) {
+      const rib = (x + y * 2) % 10 === 0 || (x - y * 2 + 100) % 10 === 0;
+      p.px(x, y, y === top ? ROOF_RIM : rib ? ROOF_RIB : c);
+    }
+  }
+  p.hline(L - 2, R + 2, eave, CLAD);
+  p.hline(L - 2, R + 2, eave + 1, CLAD_SHADE);
+
+  // The front: a band of cladding, an upper floor of glass, a slab, and shopfronts below.
+  const top = 22;
+  p.rect(L, top, R - L + 1, base - top, CLAD);
+  for (let y = top + 2; y <= 35; y++) {
+    for (let x = L + 2; x <= R - 2; x++) {
+      const mullion = (x - L - 2) % 6 === 5;
+      p.px(x, y, mullion ? STEEL_LIGHT : (x + y) % 13 < 2 ? MALL_GLASS_LIGHT : MALL_GLASS);
+    }
+  }
+  p.hline(L, R, 36, CLAD);
+  p.hline(L, R, 37, CLAD_SHADE);
+  for (let y = 38; y < base; y++) {
+    for (let x = L + 2; x <= R - 2; x++) p.px(x, y, (x - L - 2) % 8 === 7 ? STEEL : y < 40 ? GLASS_SHINE : GLASS);
+  }
+
+  // The burger bar, at the far end from the doors: its name on a white board up on the
+  // first floor, a lit window, and red and white tiles under it.
+  const fw = 19;
+  const fx = doorDx <= 0 ? R - 1 - fw : L + 2;
+  p.rect(fx, 23, fw, 14, FG_RED);
+  p.rect(fx + 1, 24, fw - 2, 12, SIGN_BG);
+  drawText(p, 'FIVE', fx + ((fw - textWidth('FIVE')) >> 1), 25, FG_RED);
+  drawText(p, 'GUYS', fx + ((fw - textWidth('GUYS')) >> 1), 31, FG_RED);
+  p.rect(fx, 38, fw, base - 38, FG_RED);
+  p.rect(fx + 1, 39, fw - 2, base - 47, GLASS);
+  p.hline(fx + 1, fx + fw - 2, 39, GLASS_SHINE);
+  p.hline(fx + 1, fx + fw - 2, base - 9, FG_RED); // the counter inside
+  for (let y = base - 7; y < base; y++) for (let x = fx; x < fx + fw; x++) p.px(x, y, ((x - fx) >> 1) % 2 === ((y - base) >> 1) % 2 ? FG_RED : FG_WHITE);
+
+  // The entrance: a tall glass box through the roof with the name across its top,
+  // a canopy, and sliding doors (left a crack open).
+  const sign = 'WESTFIELD';
+  const pw = textWidth(sign) + 6;
+  const doorX = ax + doorDx;
+  const pl = Math.min(R + 1 - pw, Math.max(L, doorX - (pw >> 1)));
+  p.rect(pl, 12, pw, base - 12, CLAD);
+  p.rect(pl + 1, 13, pw - 2, 8, SIGN_BG);
+  p.hline(pl + 1, pl + pw - 2, 20, CLAD_SHADE);
+  drawText(p, sign, pl + 3, 14, RED_SIGN);
+  for (let y = 22; y < base - 15; y++) {
+    for (let x = pl + 2; x < pl + pw - 2; x++) {
+      const bar = (x - pl - 2) % 5 === 4 || (y - 22) % 6 === 5;
+      p.px(x, y, bar ? STEEL_LIGHT : (x - y) % 9 === 0 ? GLASS_SHINE : GLASS);
+    }
+  }
+  p.hline(pl - 1, pl + pw, base - 15, CLAD);
+  p.hline(pl - 1, pl + pw, base - 14, CLAD_SHADE);
+  // Its ground floor is glass too, either side of the doors.
+  for (let y = base - 13; y < base; y++) for (let x = pl + 2; x < pl + pw - 2; x++) p.px(x, y, (x - pl - 2) % 6 === 5 ? STEEL : y < base - 11 ? GLASS_SHINE : GLASS);
+  const dX = doorX - 6;
+  p.rect(dX - 1, base - 13, 14, 13, STEEL);
+  p.rect(dX, base - 12, 5, 12, GLASS);
+  p.rect(dX + 7, base - 12, 5, 12, GLASS);
+  p.rect(dX + 5, base - 12, 2, 12, DOOR_GAP);
+  for (let k = 0; k < 4; k++) (p.px(dX + 1 + k, base - 11 + k, GLASS_SHINE), p.px(dX + 8 + k, base - 11 + k, GLASS_SHINE));
+  // Shoppers inside, behind the glass on either side of the doors and along the front.
+  const coats = [col('#3a86ff'), col('#2f8f6b'), col('#ffbe0b'), col('#8e7cc3'), col('#ff7a45'), col('#e5484d')];
+  const free = (x: number) => (x < dX - 2 || x > dX + 13) && (x < fx - 2 || x > fx + fw + 1) && x > L + 3 && x < R - 3;
+  for (let i = 0, x = L + 6; x < R - 3; x += 5 + ((i * 7) % 4), i++) {
+    if (!free(x) || !free(x + 1) || (i * 5) % 7 === 3) continue;
+    const y = base - 2 - (i % 2);
+    p.px(x, y - 4, col('#f2c9a0'));
+    p.rect(x, y - 3, 2, 3, coats[i % coats.length]);
+    if (i % 3 === 1) p.px(x + 2, y - 1, col('#fff3df')); // a shopping bag
+  }
+  // The pavement out front, and a mat at the doors.
+  p.hline(L - 1, R + 1, base, PAVE);
+  p.hline(L - 1, R + 1, base + 1, PAVE_DARK);
+  p.hline(dX, dX + 11, base, col('#7b7f86'));
+  const lights = new Map<Color, Color>([...LIGHTS, ...MALL_LIGHTS, [RED_SIGN, col('#ff4a5c')], [SIGN_BG, col('#fff9e8')], [FG_WHITE, col('#ffe9c8')]]);
+  return { sprite: finish(p, ax, base, { rx: hw + 3, ry: 4, dy: 2 }, undefined, lights), door: { dx: doorDx, dy: -7 }, top: 4, roof: top };
+}
+
 /** Where the workshop's big window goes, given its door: on the other side of the front. */
 function workshopWindow(doorDx: number) {
   const ax = 30;
@@ -700,8 +830,9 @@ export function paintLandmark(kind: LandmarkKind, accent: string, doorDx: number
     case 'schoolhouse':
       return schoolhouse(accent, doorDx);
     case 'depot':
-    case 'mall':
       return depot(accent, doorDx);
+    case 'mall':
+      return mall(accent, doorDx);
     case 'workshop':
       return workshop(accent, doorDx);
     case 'postbox':
