@@ -60,6 +60,10 @@ const VIEWS = [
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H11v16H5.5A1.5 1.5 0 0 1 4 18.5Z" /><path d="M20 5.5A1.5 1.5 0 0 0 18.5 4H13v16h5.5a1.5 1.5 0 0 0 1.5-1.5Z" /></svg>
           <span class="isl-hoard__count" data-hoard-count>0/8</span>
         </button>
+        <button type="button" class="isl-chip isl-wardrobe-top" data-wardrobe-open aria-label="Wardrobe">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 7.5a2.5 2.5 0 1 1 3.4 2.3c-.6.3-.9.8-.9 1.4V12" /><path d="m12 12 8.6 5.4c1 .6.6 2.1-.6 2.1H4c-1.2 0-1.6-1.5-.6-2.1Z" /></svg>
+          <span class="isl-hoard__count" data-wardrobe-count>0/9</span>
+        </button>
         <a class="isl-chip" href="/blog">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16Z" /><path d="M13.5 6.5l4 4" /></svg>
           <span class="isl-chip__label">Writing</span>
@@ -99,6 +103,11 @@ const VIEWS = [
     <button type="button" class="isl-chip isl-chip--icon isl-hoard-fab" data-hoard-open aria-label="Word hoard">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H11v16H5.5A1.5 1.5 0 0 1 4 18.5Z" /><path d="M20 5.5A1.5 1.5 0 0 0 18.5 4H13v16h5.5a1.5 1.5 0 0 0 1.5-1.5Z" /></svg>
       <span class="isl-hoard__badge" data-hoard-count>0/8</span>
+    </button>
+
+    <button type="button" class="isl-chip isl-chip--icon isl-wardrobe-fab" data-wardrobe-open aria-label="Wardrobe">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 7.5a2.5 2.5 0 1 1 3.4 2.3c-.6.3-.9.8-.9 1.4V12" /><path d="m12 12 8.6 5.4c1 .6.6 2.1-.6 2.1H4c-1.2 0-1.6-1.5-.6-2.1Z" /></svg>
+      <span class="isl-hoard__badge" data-wardrobe-count>0/9</span>
     </button>
 
     <p class="isl-hint" aria-hidden="true">
@@ -466,6 +475,8 @@ const VIEWS = [
     line-height: 1.3;
     font-variant-numeric: tabular-nums;
   }
+  .isl-wardrobe-fab { display: none; }
+  [data-wardrobe-open].is-bump { animation: isl-bump 700ms var(--ease-spring); }
   [data-hoard-open].is-bump { animation: isl-bump 700ms var(--ease-spring); }
   @keyframes isl-bump { 30% { transform: scale(1.18) rotate(-4deg); } }
   html.isl-hoard-full [data-hoard-open] { background: #1f2a44; color: #ffe9a8; }
@@ -622,7 +633,19 @@ const VIEWS = [
       opacity: 0;
       transition: opacity 600ms var(--ease-out) 1.9s, transform var(--dur-2) var(--ease-spring);
     }
-    html.isl-hud-on .isl-sound-fab, html.isl-hud-on .isl-hoard-fab { opacity: 1; }
+    html.isl-hud-on .isl-sound-fab, html.isl-hud-on .isl-hoard-fab, html.isl-hud-on .isl-wardrobe-fab { opacity: 1; }
+    .isl-wardrobe-top { display: none; }
+    .isl-wardrobe-fab {
+      display: inline-flex;
+      position: absolute;
+      right: max(16px, env(safe-area-inset-right));
+      bottom: calc(max(16px, env(safe-area-inset-bottom)) + 112px);
+      opacity: 0;
+      transition: opacity 600ms var(--ease-out) 1.9s, transform var(--dur-2) var(--ease-spring);
+    }
+    html[data-view='text'] .isl-wardrobe-fab { display: none; }
+    html[data-view='text'] .isl-wardrobe-top { display: inline-flex; position: relative; }
+    html[data-view='text'] .isl-wardrobe-top .isl-hoard__count { position: absolute; top: -4px; right: -6px; min-width: 26px; padding: 2px 5px; border-radius: var(--r-pill); background: #f1e8da; color: #14110d; font-size: 11px; font-weight: 750; line-height: 1.3; }
     .isl-hoard-top { display: none; }
     .isl-hoard-fab {
       display: inline-flex;

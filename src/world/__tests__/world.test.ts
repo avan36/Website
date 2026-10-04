@@ -61,6 +61,87 @@ describe('the authored world', () => {
   });
 });
 
+describe('the commute: railway, quay and the spare plot', () => {
+  const w = world();
+  const geo = createGeo(w);
+  const rail = geo.rail!;
+
+  it('lays the railway on level land, clear of every place, door and lost word', () => {
+    expect(rail).toBeTruthy();
+    for (const p of rail.points) {
+      expect(geo.heightAt(p.x, p.z)).toBeCloseTo(w.geography.railway!.bed, 1);
+      expect(geo.isWalkable(p.x, p.z)).toBe(true);
+    }
+    for (const p of w.places) {
+      const d = geo.railDist(p.at.x, p.at.z);
+      expect(d, p.id).toBeGreaterThan(p.footprint + 1.5);
+      const door = geo.door(p);
+      expect(geo.railDist(door.x, door.z), `${p.id} door`).toBeGreaterThan(1.5);
+    }
+    for (const lw of w.lostWords) expect(geo.railDist(lw.at.x, lw.at.z), lw.id).toBeGreaterThan(1.5);
+  });
+
+  it('samples the loop evenly and closes it', () => {
+    const a = rail.at(0);
+    const b = rail.at(rail.length);
+    expect(Math.hypot(a.x - b.x, a.z - b.z)).toBeLessThan(1e-6);
+    const step = rail.length / rail.points.length;
+    for (let i = 1; i < rail.points.length; i++) {
+      const d = Math.hypot(rail.points[i].x - rail.points[i - 1].x, rail.points[i].z - rail.points[i - 1].z);
+      expect(d).toBeCloseTo(step, 1);
+    }
+  });
+
+  it('puts the station on dry, open land beside the track', () => {
+    const s = geo.station!;
+    expect(geo.railDist(s.x, s.z)).toBeGreaterThan(1.6);
+    expect(geo.railDist(s.x, s.z)).toBeLessThan(3);
+    expect(geo.heightAt(s.x, s.z)).toBeGreaterThan(0.5);
+    expect(geo.isOpenGround(s.x, s.z)).toBe(false); // nothing grows on the platform
+  });
+
+  it('builds the quay out over the water, walkable, with the bus parked on it', () => {
+    const q = geo.quay!;
+    expect(geo.isWalkable(q.bus.x, q.bus.z)).toBe(true);
+    expect(geo.quayDist(q.bus.x, q.bus.z)).toBeLessThan(-1.2);
+    // Its seaward edge drops straight into the sea; its landward edge meets the beach.
+    expect(geo.heightAt((q.x0 + q.x1) / 2, q.z1 + 1.5)).toBeLessThan(0);
+    expect(geo.isWalkable((q.x0 + q.x1) / 2, q.z0 - 1)).toBe(true);
+  });
+
+  it('keeps every plot level, on the plateau and clear of the railway', () => {
+    expect(w.geography.plots.length).toBeGreaterThan(0);
+    for (const p of geo.plots) {
+      const h = geo.heightAt(p.x, p.z);
+      for (let a = 0; a < 6.3; a += 0.5) expect(geo.heightAt(p.x + Math.cos(a) * p.r * 0.9, p.z + Math.sin(a) * p.r * 0.9), p.id).toBeCloseTo(h, 1);
+      expect(geo.railDist(p.x, p.z), p.id).toBeGreaterThan(p.r + 1.4);
+      expect(geo.isOpenGround(p.x, p.z), p.id).toBe(false);
+      expect(h).toBeGreaterThan(0.8);
+    }
+  });
+
+  it('gives a path across the track a level crossing', () => {
+    // Build on the spare plot, as a future place would, and pave the way there.
+    const w2 = clone(w);
+    const plot = w2.geography.plots[0];
+    const cabin = clone(w2.places.find((p) => p.id === 'middle-place')!);
+    w2.places.push({ ...cabin, id: 'future', project: undefined, kind: 'contact', href: '/x', at: plot.at, clearing: plot.clearing, scenery: [] });
+    w2.geography.plots = [];
+    w2.routes.push({ from: 'plaza', to: 'future', paved: true, bend: 0 });
+    expect(checkWorld(w2)).toEqual([]);
+    const g2 = createGeo(w2);
+    expect(g2.crossings.length).toBeGreaterThan(0);
+    for (const c of g2.crossings) expect(g2.railDist(c.x, c.z)).toBeLessThan(0.1);
+  });
+
+  it('says so when a place is built on a plot that is still reserved', () => {
+    const w2 = clone(w);
+    const cabin = w2.places.find((p) => p.id === 'middle-place')!;
+    cabin.at = { ...w2.geography.plots[0].at };
+    expect(checkWorld(w2).map((i) => i.message).join('\n')).toMatch(/stands on plot "workshop"/);
+  });
+});
+
 describe('validation explains what is wrong', () => {
   const base = world();
   const messages = (w: unknown) => {
@@ -91,6 +172,15 @@ describe('validation explains what is wrong', () => {
     const w = clone(base);
     w.lostWords[0].in = 'nowhere';
     expect(messages(w).join('\n')).toMatch(/doesn't have/);
+  });
+
+  it('catches an outfit unlocked nowhere, or two at one place', () => {
+    const w = clone(base);
+    w.outfits[0].place = 'atlantis';
+    w.outfits[2].place = w.outfits[1].place;
+    const all = messages(w).join('\n');
+    expect(all).toMatch(/Outfit "[a-z-]+" is unlocked at unknown place "atlantis"/);
+    expect(all).toMatch(/give each place one piece/);
   });
 
   it('rejects unknown fields instead of silently ignoring them', () => {

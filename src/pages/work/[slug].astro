@@ -16,6 +16,9 @@ import TreeOfLife from '../../components/work/toys/TreeOfLife.astro';
 import PopQuiz from '../../components/work/toys/PopQuiz.astro';
 import PackScan from '../../components/work/toys/PackScan.astro';
 import WordJourney from '../../components/work/toys/WordJourney.astro';
+import Bartender from '../../components/work/games/Bartender.astro';
+import DarkPatterns from '../../components/work/games/DarkPatterns.astro';
+import WritingDesk from '../../components/life/WritingDesk.astro';
 import { projects, type Project } from '../../data/projects';
 
 export function getStaticPaths() {
@@ -39,6 +42,12 @@ const toys: Record<string, (props: Record<string, never>) => unknown> = {
 };
 const Toy = toys[project.slug];
 
+const games: Record<string, (props: Record<string, never>) => unknown> = {
+  'busy-beer': Bartender,
+  'privacy-research': DarkPatterns,
+};
+const Game = games[project.slug];
+
 const title = `${project.name}: ${project.headline.replace(/[.!]$/, '')} · Ambrose Vannier`;
 const clip = (s: string, n = 158) => (s.length <= n ? s : `${s.slice(0, s.lastIndexOf(' ', n - 1))}…`);
 const description = clip(project.body.join(' '));
@@ -57,6 +66,12 @@ const isExternal = (href: string) => /^https?:/.test(href);
     {Toy && (
       <div class="wrap project__toy">
         <Toy />
+      </div>
+    )}
+
+    {Game && (
+      <div class="wrap project__toy project__game">
+        <Game />
       </div>
     )}
 
@@ -122,6 +137,8 @@ const isExternal = (href: string) => /^https?:/.test(href);
 
     <Shots project={project} />
 
+    {project.slug === 'middle-place' && <WritingDesk />}
+
     {project.credits && (
       <section class="credits wrap" aria-label="Credits">
         <ul class="credits__logos">
@@ -144,6 +161,7 @@ const isExternal = (href: string) => /^https?:/.test(href);
      that make the page scroll sideways. clip, not hidden, so .facts stays sticky. */
   .project { overflow-x: clip; }
   .project__toy { margin-top: var(--space-2); }
+  .project__game { margin-top: clamp(var(--space-6), 5vw, var(--space-8)); }
 
   /* ---------- About ---------- */
   .about {

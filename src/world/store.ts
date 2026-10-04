@@ -1,5 +1,6 @@
 // What a visitor has done, shared by every renderer: where they are, which
-// lost words they've found, what they've caught off the pier. Switch from the
+// lost words they've found, what they've caught off the pier, what they've
+// unlocked for the wardrobe and are wearing. Switch from the
 // island to the map to the text adventure and you're still standing in the
 // same spot with the same pockets.
 //
@@ -7,7 +8,7 @@
 // (state, events), so they're tested without a browser. createStore() wraps it
 // with persistence and subscriptions.
 
-import type { World } from './schema';
+import type { OutfitSlot, World } from './schema';
 
 export type Vec2 = { x: number; z: number };
 
@@ -18,6 +19,10 @@ export type Progress = {
   caught: string[];
   /** Night falls once the word hoard is full; the visitor can toggle it after. */
   night: boolean;
+  /** Outfit pieces unlocked by visiting places, in the order they were unlocked. */
+  wardrobe: string[];
+  /** What the explorer has on: at most one unlocked piece per slot. */
+  worn: Partial<Record<OutfitSlot, string>>;
 };
 
 export type Presence = {
@@ -34,6 +39,12 @@ export type Action =
   | { type: 'find'; id: string }
   | { type: 'catch'; slug: string }
   | { type: 'night'; on: boolean }
+  /** Unlock a piece directly (arriving at its place does this on its own). */
+  | { type: 'unlock'; id: string }
+  /** Put on an unlocked piece, replacing whatever was in its slot. */
+  | { type: 'wear'; id: string }
+  /** Take off whatever is in a slot. */
+  | { type: 'unwear'; slot: OutfitSlot }
   | { type: 'reset' };
 
 export type WorldEvent =
@@ -41,10 +52,14 @@ export type WorldEvent =
   | { type: 'found'; id: string; count: number; total: number }
   | { type: 'hoard-complete' }
   | { type: 'caught'; slug: string; fresh: boolean }
-  | { type: 'night'; on: boolean };
+  | { type: 'night'; on: boolean }
+  | { type: 'unlocked'; id: string; count: number; total: number }
+  | { type: 'wardrobe-complete' }
+  /** A slot changed: `id` is what's in it now (null: nothing). */
+  | { type: 'dressed'; slot: OutfitSlot; id: string | null };
 
 export const emptyState = (): WorldState => ({
-  progress: { found: [], caught: [], night: false },
+  progress: { found: [], caught: [], night: false, wardrobe: [], worn: {} },
   presence: { at: null, pos: null },
 });
 
@@ -56,7 +71,27 @@ export function reduce(world: World, state: WorldState, action: Action): { state
       const at = action.at === undefined ? presence.at : action.at;
       if (at !== null && !world.places.some((p) => p.id === at)) return { state, events };
       if (at !== presence.at) events.push({ type: 'arrived', at });
-      return { state: { progress, presence: { at, pos: action.pos } }, events };
+      // Arriving somewhere (or going in) unlocks the wardrobe piece kept there.
+      let next = progress;
+      for (const o of world.outfits) if (o.place === at) next = unlock(world, next, o.id, events);
+      return { state: { progress: next, presence: { at, pos: action.pos } }, events };
+    }
+    case 'unlock': {
+      const next = unlock(world, progress, action.id, events);
+      return next === progress ? { state, events } : { state: { presence, progress: next }, events };
+    }
+    case 'wear': {
+      const o = world.outfits.find((x) => x.id === action.id);
+      if (!o || !progress.wardrobe.includes(o.id) || progress.worn[o.slot] === o.id) return { state, events };
+      events.push({ type: 'dressed', slot: o.slot, id: o.id });
+      return { state: { presence, progress: { ...progress, worn: { ...progress.worn, [o.slot]: o.id } } }, events };
+    }
+    case 'unwear': {
+      if (!progress.worn[action.slot]) return { state, events };
+      const worn = { ...progress.worn };
+      delete worn[action.slot];
+      events.push({ type: 'dressed', slot: action.slot, id: null });
+      return { state: { presence, progress: { ...progress, worn } }, events };
     }
     case 'find': {
       const total = world.lostWords.length;
@@ -79,9 +114,22 @@ export function reduce(world: World, state: WorldState, action: Action): { state
       events.push({ type: 'night', on });
       return { state: { presence, progress: { ...progress, night: on } }, events };
     }
-    case 'reset':
-      return { state: { presence, progress: emptyState().progress }, events: progress.night ? [{ type: 'night', on: false }] : [] };
+    case 'reset': {
+      // Forgetting words puts them back; the wardrobe is earned by walking, so it stays.
+      const fresh = { ...emptyState().progress, wardrobe: progress.wardrobe, worn: progress.worn };
+      return { state: { presence, progress: fresh }, events: progress.night ? [{ type: 'night', on: false }] : [] };
+    }
   }
+}
+
+/** Add an outfit to the wardrobe (if it exists and isn't there yet), noting what happened in `events`. */
+function unlock(world: World, progress: Progress, id: string, events: WorldEvent[]): Progress {
+  if (progress.wardrobe.includes(id) || !world.outfits.some((o) => o.id === id)) return progress;
+  const wardrobe = [...progress.wardrobe, id];
+  const total = world.outfits.length;
+  events.push({ type: 'unlocked', id, count: wardrobe.length, total });
+  if (wardrobe.length === total) events.push({ type: 'wardrobe-complete' });
+  return { ...progress, wardrobe };
 }
 
 /** Pick something to catch: a post not caught yet if there is one, else any. */
@@ -103,6 +151,15 @@ export function sanitize(world: World, raw: unknown): WorldState {
   s.progress.found = [...new Set(strings(r.progress?.found))].filter((id) => words.has(id));
   s.progress.caught = [...new Set(strings(r.progress?.caught))].filter((slug) => posts.has(slug));
   s.progress.night = r.progress?.night === true && s.progress.found.length === words.size;
+  const outfits = new Map(world.outfits.map((o) => [o.id, o]));
+  s.progress.wardrobe = [...new Set(strings(r.progress?.wardrobe))].filter((id) => outfits.has(id));
+  const worn = r.progress?.worn;
+  if (worn && typeof worn === 'object') {
+    for (const [slot, id] of Object.entries(worn)) {
+      const o = typeof id === 'string' ? outfits.get(id) : undefined;
+      if (o && o.slot === slot && s.progress.wardrobe.includes(o.id)) s.progress.worn[o.slot] = o.id;
+    }
+  }
   const at = r.presence?.at;
   if (typeof at === 'string' && world.places.some((p) => p.id === at)) s.presence.at = at;
   const pos = r.presence?.pos;
@@ -193,5 +250,7 @@ export function createStore(
       return { post, fresh };
     },
     has: (id: string) => state.progress.found.includes(id),
+    /** The outfit pieces being worn right now, by slot. */
+    worn: () => state.progress.worn,
   };
 }

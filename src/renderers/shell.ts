@@ -347,6 +347,41 @@ store.subscribe((_, events) => {
 });
 paintHoard();
 
+// Wardrobe: the count in the HUD, and a toast when a house gives you something to wear.
+const wardrobeButtons = document.querySelectorAll<HTMLButtonElement>('[data-wardrobe-open]');
+const paintWardrobe = (bump = false) => {
+  const n = store.state.progress.wardrobe.length;
+  const total = world.outfits.length;
+  document.querySelectorAll('[data-wardrobe-count]').forEach((el) => (el.textContent = `${n}/${total}`));
+  wardrobeButtons.forEach((b) => {
+    b.setAttribute('aria-label', `Wardrobe: ${n} of ${total} outfit pieces unlocked`);
+    if (bump) b.classList.remove('is-bump'), void b.offsetWidth, b.classList.add('is-bump');
+  });
+};
+wardrobeButtons.forEach((b) => b.addEventListener('click', () => ui.openWardrobe()));
+store.subscribe((state, events) => {
+  for (const e of events) {
+    if (e.type === 'unlocked') {
+      const o = world.outfits.find((x) => x.id === e.id);
+      const place = world.places.find((p) => p.id === o?.place);
+      if (!o) continue;
+      paintWardrobe(true);
+      sound.play('pop');
+      ui.toast({
+        title: `New for your wardrobe: ${o.name}`,
+        body: `Found at ${place ? place.title[0].toLowerCase() + place.title.slice(1) : 'the island'}. ${e.count} of ${e.total} pieces.`,
+        color: o.color,
+        action: state.progress.worn[o.slot] === o.id ? undefined : { label: 'Wear it', run: () => store.dispatch({ type: 'wear', id: o.id }) },
+      });
+    }
+    if (e.type === 'wardrobe-complete')
+      afterCards(() =>
+        ui.toast({ title: 'The wardrobe is full', body: 'You found something to wear at every house.', color: '#c41e3a', action: { label: 'Dress up', run: () => ui.openWardrobe() } }),
+      );
+  }
+});
+paintWardrobe();
+
 // ---------- Page lifecycle ----------
 
 window.addEventListener('hashchange', () => {

@@ -191,6 +191,7 @@ const places: PlaceInput[] = [
       { id: 'note', names: ['note', 'paper', 'message'], description: 'The note inside is blank, waiting. Open the bottle to write one.' },
       { id: 'crab', names: ['crab'], description: 'The crab scuttles sideways, keeping one eye on you.' },
       { id: 'shells', names: ['shells', 'shell', 'starfish', 'sand'], description: 'Shells and a starfish, scattered by the last tide.' },
+      { id: 'guestbook', names: ['guestbook', 'notes', 'rolled notes'], description: 'A few rolled-up notes from earlier visitors, tucked in the sand beside the bottle. Open the bottle to read them, or to leave one of your own.' },
     ],
   },
 ];
@@ -433,6 +434,11 @@ const geography: WorldInput['geography'] = {
   headlands: [{ toward: 'privacy-research', reach: 7.5, spread: 0.17, rocks: 0.24 }],
   hills: [{ at: 'map-of-evolution', height: 1.1, spread: 5.5 }],
   pier: { x: 4, start: 16.9, end: 28, width: 1.9, deck: 0.82 },
+  // New land to the east: room for the railway loop, the quay and a spare plot.
+  shores: [{ toward: { x: 1, z: 0.1 }, reach: 13, spread: 0.45 }],
+  railway: { center: { x: 24, z: 1.5 }, rx: 6.5, rz: 9, square: 3.2, bed: 1.3, station: 0.25 },
+  quay: { x0: 24.5, z0: 16.2, x1: 31.5, z1: 21, deck: 0.7, bus: { x: 28, z: 18.6 }, faces: Math.PI / 2 },
+  plots: [{ id: 'workshop', at: { x: 24, z: 1.5 }, clearing: 3.5 }],
   spawn: { x: 0, z: 7.5 },
 };
 

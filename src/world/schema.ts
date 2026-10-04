@@ -205,6 +205,35 @@ export const GeographySchema = z
     hills: z.array(z.object({ at: Id, height: z.number(), spread: z.number().positive() }).strict()),
     /** The jetty that carries the writing place out to sea, running due south. */
     pier: z.object({ x: z.number(), start: z.number(), end: z.number(), width: z.number().positive(), deck: z.number() }).strict(),
+    /** Gentle shoulders of new land that push the coast out toward a point:
+     *  grass and a sandy beach like the rest of the shore, no rocks. */
+    shores: z.array(z.object({ toward: Vec2, reach: z.number(), spread: z.number().positive() }).strict()).default([]),
+    /** A little railway: a rounded loop (a superellipse, `square` from 2 for an
+     *  oval up to ~6 for a rounded rectangle) laid on a level bed at height
+     *  `bed`. `station` is where the platform stands, as a fraction of the way
+     *  round from due east, turning toward the south (clockwise from above).
+     *  Paved paths cross it on level crossings; it never blocks a walk. */
+    railway: z
+      .object({
+        center: Vec2,
+        rx: z.number().positive(),
+        rz: z.number().positive(),
+        square: z.number().min(2).max(8).default(3),
+        bed: z.number(),
+        station: z.number().min(0).max(1),
+      })
+      .strict()
+      .optional(),
+    /** A stone quay at the water's edge (a level deck between two corners), and
+     *  where on it the bus is parked, facing `faces` (0 = south, π/2 = east). */
+    quay: z
+      .object({ x0: z.number(), z0: z.number(), x1: z.number(), z1: z.number(), deck: z.number(), bus: Vec2, faces: z.number() })
+      .strict()
+      .optional(),
+    /** Level, empty building plots kept for places still to come: nothing grows
+     *  or is laid there. Build on one by adding a place at `at` with this
+     *  clearing, and remove the plot. */
+    plots: z.array(z.object({ id: Id, at: Vec2, clearing: z.number().positive() }).strict()).default([]),
     /** Where a new visitor appears. */
     spawn: Vec2,
   })
@@ -356,6 +385,13 @@ export function checkWorld(w: z.infer<typeof WorldSchema> | World): Issue[] {
   });
   w.geography.headlands.forEach((h, i) => {
     if (!places.has(h.toward)) add(`Headland ${i} points toward unknown place "${h.toward}".`, ['geography', 'headlands', i]);
+  });
+  // A plot is kept free for a place still to come; once one stands there, the plot goes.
+  w.geography.plots.forEach((plot, i) => {
+    for (const p of w.places) {
+      const d = Math.hypot(plot.at.x - p.at.x, plot.at.z - p.at.z);
+      if (d < plot.clearing + p.footprint) add(`"${p.id}" stands on plot "${plot.id}" (${d.toFixed(1)} away): remove the plot from geography.plots now it's built on.`, ['geography', 'plots', i]);
+    }
   });
   w.geography.hills.forEach((h, i) => {
     if (!places.has(h.at)) add(`Hill ${i} is at unknown place "${h.at}".`, ['geography', 'hills', i]);

@@ -1,10 +1,11 @@
 // The overlays every renderer shares: toasts, the lost-word card, the catch
-// card and the word hoard. One <dialog> is reused for all three cards, so
+// card, the word hoard and the wardrobe. One <dialog> is reused for all three cards, so
 // focus handling, Escape and the backdrop come from the platform.
 
 import type { World } from '../world/schema';
 import type { WorldStore } from '../world/store';
 import type { RendererContext } from './types';
+import { avatar, outfitIcon, SLOT_NAMES, SLOTS } from './wardrobe';
 
 type UI = RendererContext['ui'];
 
@@ -29,11 +30,13 @@ export function createUI(world: World, store: WorldStore, announce: (s: string) 
   const placeTitle = (id: string) => world.places.find((p) => p.id === id)?.title ?? '';
   const placeColor = (id: string) => world.places.find((p) => p.id === id)?.color ?? '#d9461f';
 
-  function open(html: string, color: string, wide = false) {
+  function open(html: string, color: string, wide = false, focus?: string) {
+    const scroll = dialog.open ? dialog.scrollTop : 0;
     dialog.innerHTML = `<form method="dialog" class="w-card" style="--c:${color}">${CLOSE}${html}</form>`;
     dialog.classList.toggle('w-dialog--wide', wide);
     if (!dialog.open) dialog.showModal();
-    dialog.querySelector<HTMLElement>('[autofocus]')?.focus();
+    else dialog.scrollTop = scroll;
+    (dialog.querySelector<HTMLElement>(focus ?? '[autofocus]') ?? dialog.querySelector<HTMLElement>('[autofocus]'))?.focus({ preventScroll: !!focus });
   }
   dialog.addEventListener('click', (e) => {
     // A click on the backdrop lands on the dialog itself.
@@ -42,6 +45,8 @@ export function createUI(world: World, store: WorldStore, announce: (s: string) 
     if (!t) return;
     const [cmd, arg] = t.dataset.ui!.split(':');
     if (cmd === 'hoard') openHoard();
+    if (cmd === 'wardrobe') openWardrobe();
+    if (cmd === 'wear') toggleWear(arg);
     if (cmd === 'word') showWord(arg);
     if (cmd === 'night') store.dispatch({ type: 'night', on: !store.state.progress.night }), openHoard();
     if (cmd === 'reset' && confirm('Forget every word you found? They go back where they were hidden.')) store.dispatch({ type: 'reset' }), openHoard();
@@ -115,6 +120,58 @@ export function createUI(world: World, store: WorldStore, announce: (s: string) 
     );
   }
 
+  // ---------- Wardrobe ----------
+
+  const outfitTotal = world.outfits.length;
+
+  function toggleWear(id: string) {
+    const o = world.outfits.find((x) => x.id === id);
+    if (!o) return;
+    const on = store.state.progress.worn[o.slot] === o.id;
+    store.dispatch(on ? { type: 'unwear', slot: o.slot } : { type: 'wear', id: o.id });
+    announce(on ? `Took off the ${o.name}.` : `Wearing the ${o.name}.`);
+    openWardrobe(`[data-ui="wear:${o.id}"]`);
+  }
+
+  function openWardrobe(focus?: string) {
+    const { wardrobe, worn } = store.state.progress;
+    const wearing = world.outfits.filter((o) => worn[o.slot] === o.id);
+    const full = wardrobe.length === outfitTotal;
+    const sections = SLOTS.map((slot) => {
+      const pieces = world.outfits.filter((o) => o.slot === slot);
+      if (!pieces.length) return '';
+      const on = pieces.find((o) => worn[slot] === o.id);
+      const tiles = pieces
+        .map((o) => {
+          const c = placeColor(o.place);
+          const where = esc(placeTitle(o.place));
+          if (wardrobe.includes(o.id)) {
+            const isOn = worn[slot] === o.id;
+            return `<button type="button" class="w-ward__item is-unlocked${isOn ? ' is-on' : ''}" style="--c:${c}" data-ui="wear:${o.id}" aria-pressed="${isOn}" title="${esc(o.description)}">${outfitIcon(o)}<span class="w-ward__text"><span class="w-ward__name">${esc(o.name)}</span><span class="w-slot__where">${where}</span></span><span class="w-ward__state" aria-hidden="true">${isOn ? 'Wearing' : 'Wear'}</span></button>`;
+          }
+          return `<div class="w-ward__item is-locked" style="--c:${c}">${outfitIcon(o, true)}<span class="w-ward__text"><span class="w-ward__name"><span aria-hidden="true">? ? ?</span><span class="visually-hidden">Locked: something for your ${slot}, kept at ${where}.</span></span><span class="w-slot__where" aria-hidden="true">Visit ${where}</span><span class="w-slot__hint">${esc(o.hint)}</span></span></div>`;
+        })
+        .join('');
+      return `<section class="w-ward__slot" aria-labelledby="w-ward-${slot}"><h3 class="w-ward__slot-title" id="w-ward-${slot}">${SLOT_NAMES[slot]}<span>${on ? esc(on.name) : 'nothing'}</span></h3><div class="w-ward__grid">${tiles}</div></section>`;
+    }).join('');
+    const label = wearing.length ? `Your explorer, wearing ${wearing.map((o) => `the ${o.name}`).join(', ')}.` : 'Your explorer, in just a scarf.';
+    open(
+      `<p class="w-kicker">Wardrobe</p>
+       <h2 class="w-title" id="w-dialog-title">${full ? 'Every piece found' : `${wardrobe.length} of ${outfitTotal} unlocked`}</h2>
+       <div class="w-ward__top">
+         <div class="w-ward__avatar" role="img" aria-label="${esc(label)}">${avatar(wearing)}</div>
+         <div class="w-ward__intro">
+           <p class="w-hoard__intro">Every house on the island keeps something to wear. Walk up to one and it's yours. Pick one thing per slot: what you wear here, you wear in every view.</p>
+           <div class="w-progress"><span>${wardrobe.length} of ${outfitTotal} pieces</span><span class="w-progress__track">${world.outfits.map((_, i) => `<i class="${i < wardrobe.length ? 'on' : ''}"></i>`).join('')}</span></div>
+         </div>
+       </div>
+       ${sections}`,
+      '#c41e3a',
+      true,
+      focus,
+    );
+  }
+
   function toast(t: { title: string; body?: string; color?: string; action?: { label: string; run(): void } }) {
     const el = document.createElement('div');
     el.className = 'w-toast';
@@ -141,5 +198,5 @@ export function createUI(world: World, store: WorldStore, announce: (s: string) 
     }
   }
 
-  return { announce, toast, showWord, showCatch, openHoard, close: () => dialog.open && dialog.close() };
+  return { announce, toast, showWord, showCatch, openHoard, openWardrobe: () => openWardrobe(), close: () => dialog.open && dialog.close() };
 }

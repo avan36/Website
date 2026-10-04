@@ -1,0 +1,200 @@
+---
+// The guestbook in a bottle: one-line notes from visitors. New notes go to the
+// contact worker, which emails them to me to read first; nothing is published
+// automatically. Approved notes live in src/data/guestbook.ts, and a few wash
+// up here at random on each visit.
+import { guestbook } from '../../data/guestbook';
+import { GUESTBOOK_MAX_MESSAGE, GUESTBOOK_MAX_NAME, GUESTBOOK_SHOWN, signature } from './guestbook';
+
+// Without JavaScript, the first few; with it, a random few (see the script).
+const initial = guestbook.slice(0, GUESTBOOK_SHOWN);
+---
+<section class="gb" data-guestbook data-notes={JSON.stringify(guestbook)} aria-labelledby="gb-title">
+  <h2 class="gb__title" id="gb-title">The guestbook in a bottle</h2>
+  <p class="gb__lede">Leave a line for the next visitor. I read each one before it washes up here.</p>
+
+  {guestbook.length === 0 ? (
+    <p class="gb__empty">The bottle is empty so far. Be the first.</p>
+  ) : (
+    <ul class="gb__notes" data-gb-notes aria-label="Notes from visitors">
+      {initial.map((n) => (
+        <li class="gb__note">
+          <p class="gb__msg">{n.message}</p>
+          <p class="gb__sig">{signature(n.name)}</p>
+        </li>
+      ))}
+    </ul>
+  )}
+
+  <form class="gb__form" novalidate>
+    <div class="gb__field">
+      <label for="gb-message">Your line</label>
+      <input id="gb-message" name="message" type="text" required maxlength={GUESTBOOK_MAX_MESSAGE * 2} autocomplete="off" placeholder="Say something nice to the island" aria-describedby="gb-count gb-err" />
+      <p class="gb__hint"><span id="gb-count" data-gb-count aria-live="off">0 / {GUESTBOOK_MAX_MESSAGE}</span></p>
+    </div>
+    <div class="gb__field">
+      <label for="gb-name">First name or initials <span class="gb__opt">(optional)</span></label>
+      <input id="gb-name" name="name" type="text" maxlength={GUESTBOOK_MAX_NAME} autocomplete="given-name" placeholder="Leave blank to stay anonymous" />
+    </div>
+    <!-- Honeypot: invisible to people, tempting to bots. Leave empty. -->
+    <input class="gb__hp" type="text" name="company" tabindex="-1" autocomplete="off" aria-hidden="true" />
+    <div class="gb__actions">
+      <button class="btn btn-ghost gb__submit" type="submit">Toss it in</button>
+      <p class="gb__status" id="gb-err" role="status" aria-live="polite"></p>
+    </div>
+  </form>
+</section>
+
+<style>
+  .gb {
+    display: grid;
+    gap: var(--space-4);
+    width: 100%;
+    margin-top: var(--space-6);
+    padding: clamp(20px, 3.5vw, 28px);
+    border-radius: var(--r-lg);
+    background: color-mix(in oklab, var(--sky) 16%, var(--bg-raised));
+    box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--sea) 18%, transparent);
+  }
+  .gb__title { font-size: var(--step-1); font-weight: 700; letter-spacing: -0.02em; }
+  .gb__lede { color: var(--ink-2); }
+  .gb__empty { font-family: var(--font-read); font-style: italic; color: var(--ink-3); }
+
+  .gb__notes { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-3); }
+  /* Rolled-up notes, as if just pulled from the bottle. */
+  .gb__note {
+    padding: var(--space-3) var(--space-4);
+    border-radius: 4px;
+    background: #fff6df;
+    color: #3b3224;
+    box-shadow: var(--shadow-1), inset 0 0 0 1px #ecdcb6;
+    rotate: -0.6deg;
+  }
+  .gb__note:nth-child(2n) { rotate: 0.8deg; }
+  .gb__msg { font-family: var(--font-read); font-size: var(--step-0); line-height: 1.4; overflow-wrap: anywhere; }
+  .gb__sig { margin-top: var(--space-1); font-size: var(--step--1); font-weight: 600; color: #6b5b3e; }
+
+  .gb__form { display: grid; gap: var(--space-3); }
+  .gb__field { display: grid; gap: var(--space-1); }
+  .gb__field label { font-size: var(--step--1); font-weight: 650; color: var(--ink-2); }
+  .gb__opt { font-weight: 500; color: var(--ink-3); }
+  .gb__field input {
+    width: 100%;
+    padding: 11px 14px;
+    border: 0;
+    border-radius: 12px;
+    background: var(--bg-raised);
+    color: var(--ink);
+    font: inherit;
+    box-shadow: inset 0 0 0 1.5px var(--line-strong);
+    transition: box-shadow var(--dur-2);
+  }
+  .gb__field input::placeholder { color: var(--ink-3); opacity: 0.8; }
+  .gb__field input:focus { outline: none; box-shadow: inset 0 0 0 2px var(--accent), 0 0 0 4px color-mix(in oklab, var(--accent) 18%, transparent); }
+  .gb__field input[aria-invalid='true'] { box-shadow: inset 0 0 0 2px var(--coral); }
+  .gb__hint { justify-self: end; font-size: 0.8rem; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+  .gb__hint.is-near { color: color-mix(in oklab, var(--coral) 80%, var(--ink)); font-weight: 650; }
+  .gb__hp { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+  .gb__actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
+  .gb__submit { padding: 10px 18px; font-size: var(--step--1); }
+  .gb__submit[disabled] { opacity: 0.7; cursor: progress; }
+  .gb__status { flex: 1 1 180px; font-size: var(--step--1); font-weight: 600; color: var(--ink-2); }
+  .gb__status.is-error { color: color-mix(in oklab, var(--coral) 75%, var(--ink)); }
+  .gb__status.is-sent { color: var(--sea-deep); }
+  :global(:root[data-theme='dark']) .gb__status.is-sent { color: var(--sky); }
+  @media (prefers-color-scheme: dark) {
+    :global(:root:not([data-theme='light'])) .gb__status.is-sent { color: var(--sky); }
+  }
+</style>
+
+<script>
+  import { checkGuestbook, pickNotes, signature, GUESTBOOK_MAX_MESSAGE } from './guestbook';
+  import type { GuestbookEntry } from '../../data/guestbook';
+
+  // Same worker as the contact form; `type: 'guestbook'` routes it to moderation.
+  const CONTACT_ENDPOINT = 'https://contact-form.todos-thorax09.workers.dev';
+  const SENT = "Your message is bobbing out to sea. It'll wash up here once it's read.";
+
+  for (const root of document.querySelectorAll<HTMLElement>('[data-guestbook]')) {
+    // A random few of the approved notes on each visit.
+    const list = root.querySelector<HTMLUListElement>('[data-gb-notes]');
+    if (list) {
+      let notes: GuestbookEntry[] = [];
+      try { notes = JSON.parse(root.dataset.notes || '[]'); } catch { /* keep the server's pick */ }
+      if (notes.length > 0) {
+        list.replaceChildren(
+          ...pickNotes(notes).map((n) => {
+            const li = document.createElement('li');
+            li.className = 'gb__note';
+            const msg = document.createElement('p');
+            msg.className = 'gb__msg';
+            msg.textContent = n.message;
+            const sig = document.createElement('p');
+            sig.className = 'gb__sig';
+            sig.textContent = signature(n.name);
+            li.append(msg, sig);
+            return li;
+          }),
+        );
+      }
+    }
+
+    const form = root.querySelector<HTMLFormElement>('form')!;
+    const message = form.elements.namedItem('message') as HTMLInputElement;
+    const name = form.elements.namedItem('name') as HTMLInputElement;
+    const honeypot = form.elements.namedItem('company') as HTMLInputElement;
+    const submit = root.querySelector<HTMLButtonElement>('.gb__submit')!;
+    const status = root.querySelector<HTMLElement>('.gb__status')!;
+    const count = root.querySelector<HTMLElement>('[data-gb-count]')!;
+
+    const updateCount = () => {
+      const n = [...message.value].length;
+      count.textContent = `${n} / ${GUESTBOOK_MAX_MESSAGE}`;
+      count.parentElement!.classList.toggle('is-near', n > GUESTBOOK_MAX_MESSAGE - 15);
+    };
+    message.addEventListener('input', () => {
+      updateCount();
+      if (message.getAttribute('aria-invalid') === 'true') message.removeAttribute('aria-invalid');
+    });
+
+    const say = (text: string, kind: '' | 'is-error' | 'is-sent' = '') => {
+      status.className = `gb__status ${kind}`.trim();
+      status.textContent = text;
+    };
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (submit.disabled) return;
+      const check = checkGuestbook({ name: name.value, message: message.value });
+      if (!check.ok) {
+        const el = check.field === 'name' ? name : message;
+        el.setAttribute('aria-invalid', 'true');
+        el.focus();
+        return say(check.error, 'is-error');
+      }
+
+      submit.disabled = true;
+      say('Corking the bottle…');
+      try {
+        const res = await fetch(CONTACT_ENDPOINT, {
+          method: 'POST',
+          // text/plain keeps this a CORS "simple request": no preflight.
+          headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
+          body: JSON.stringify({ type: 'guestbook', ...check.value, company: honeypot.value }),
+        });
+        const data = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+        if (res.ok && data.ok) {
+          form.reset();
+          updateCount();
+          say(SENT, 'is-sent');
+        } else {
+          say(data.error || 'The tide turned it back. Please try again in a moment.', 'is-error');
+        }
+      } catch {
+        say("Couldn't reach the sea just now. Check your connection and try again.", 'is-error');
+      } finally {
+        submit.disabled = false;
+      }
+    });
+  }
+</script>
