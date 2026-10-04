@@ -102,7 +102,7 @@ const VIEWS = [
     </button>
 
     <p class="isl-hint" aria-hidden="true">
-      <span class="isl-hint__desk"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> or click to explore</span>
+      <span class="isl-hint__desk"><span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span>or click to explore<span class="isl-hint__dot">·</span><span><kbd class="is-wide">Space</kbd></span>to jump</span>
       <span class="isl-hint__touch">Tap anywhere to explore</span>
     </p>
   </div>
@@ -348,6 +348,8 @@ const VIEWS = [
     font: 700 12px/1 var(--font-ui);
   }
   .isl-hint kbd:last-of-type { margin-right: 8px; }
+  .isl-hint kbd.is-wide { padding: 0 9px; }
+  .isl-hint__dot { margin: 0 10px; opacity: 0.5; }
   .isl-hint__touch { display: none; }
   html.isl-touch .isl-hint__touch { display: inline; }
   html.isl-touch .isl-hint__desk { display: none; }

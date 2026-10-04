@@ -2,7 +2,7 @@
 // whoosh for going inside, and a gentle sea hush. Off by default; this module
 // is plain TS with no three.js so the HUD can own it.
 
-type Name = 'step' | 'pop' | 'bell' | 'whoosh' | 'chime' | 'land' | 'tap';
+type Name = 'step' | 'pop' | 'bell' | 'whoosh' | 'chime' | 'land' | 'tap' | 'jump';
 
 export class Sound {
   private ctx: AudioContext | null = null;
@@ -123,6 +123,9 @@ export class Sound {
         break;
       case 'pop':
         osc('sine', 520 + Math.random() * 200, 180, 0.14, 0.22);
+        break;
+      case 'jump':
+        osc('triangle', 240 + Math.random() * 40, 640, 0.15, 0.08);
         break;
       case 'land':
         osc('sine', 180, 60, 0.18, 0.25);

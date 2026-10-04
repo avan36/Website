@@ -172,6 +172,10 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
   let moving = false;
   let idleT = 0;
   let hopT = -1;
+  // A real jump (Space, or tap the explorer): height in buffer pixels, a press
+  // remembered for a moment before landing, and a puff of dust when you come down.
+  const JUMP = motion ? { v: 118, g: 520 } : { v: 62, g: 520 };
+  const jump = { y: 0, vy: 0, air: false, buffered: -1, landT: -1 };
   let mode: Mode = 'play';
   let modeT = 0;
   let cheerWord: string | null = null;
@@ -337,13 +341,21 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
         return;
       }
     }
-    if ((e.key === 'Enter' || e.key === ' ') && !onControl && tagPlace) {
+    // Space jumps (unless a button has focus, where it presses the button); Enter goes in.
+    if (e.key === ' ' && !onControl) {
+      e.preventDefault();
+      if (!e.repeat) tryJump();
+      return;
+    }
+    if (e.key === 'Enter' && !onControl && tagPlace) {
       e.preventDefault();
       enter(tagPlace);
     }
     if (e.key === 'Escape' && near) dismissed = near.place.id;
   };
   const onKeyUp = (e: KeyboardEvent) => {
+    // Let go early for a small hop.
+    if (e.key === ' ' && jump.air && jump.vy > 0) jump.vy *= 0.45;
     keys.delete(e.code);
     sumKeys();
   };
@@ -391,6 +403,7 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
     if (mode !== 'play') return;
     firstMove();
     if (fishing.phase !== 'idle') return fishAction();
+    if (hitHero(w.x, w.z)) return tryJump();
     const m = hitLandmark(w.x, w.z);
     if (m) return activate(m);
     if (fishSpot && Math.hypot(w.x - fishSpot.at.x, w.z - fishSpot.at.z) < 0.9) {
@@ -428,6 +441,25 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
   window.addEventListener('blur', onBlur);
   const ro = new ResizeObserver(() => resize());
   ro.observe(root);
+
+  // ---------- Jumping ----------
+  function tryJump() {
+    if (mode !== 'play') return;
+    firstMove();
+    if (jump.air) return void (jump.buffered = 0.12);
+    jump.air = true;
+    jump.vy = JUMP.v;
+    jump.buffered = -1;
+    hopT = -1;
+    ctx.sound.play('jump');
+  }
+
+  /** Is a world point on the explorer as drawn (with a little extra for fingers)? */
+  function hitHero(wx: number, wz: number) {
+    const pad = 3 / TEX;
+    const top = pos.z - (hero.h + jump.y) / TEX - pad;
+    return Math.abs(wx - pos.x) < hero.w / 2 / TEX + pad && wz > top && wz < pos.z + pad;
+  }
 
   // ---------- Going in ----------
   function activate(m: MapPlace) {
@@ -517,6 +549,20 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
       hopT += dt;
       if (hopT > 0.36) hopT = -1;
     }
+    if (jump.air) {
+      jump.vy -= JUMP.g * dt;
+      jump.y += jump.vy * dt;
+      if (jump.y <= 0) {
+        jump.y = 0;
+        jump.vy = 0;
+        jump.air = false;
+        jump.landT = 0;
+        ctx.sound.play('step');
+        if (jump.buffered >= 0) tryJump();
+      }
+    }
+    if (jump.buffered >= 0 && (jump.buffered -= dt) < 0) jump.buffered = -1;
+    if (jump.landT >= 0 && (jump.landT += dt) > 0.24) jump.landT = -1;
     if (marker.t < 1) marker.t = Math.min(1, marker.t + dt * 1.6);
     if (busy()) clearKeys();
 
@@ -676,21 +722,37 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
   function drawHero(c: CanvasRenderingContext2D, ghost = false) {
     const x = bx(pos.x);
     const y = by(pos.z);
-    if (!ghost) c.drawImage(shadowCv, x - 6, y - 2);
-    let lift = 0;
-    if (hopT >= 0) lift = Math.round(Math.sin((hopT / 0.36) * Math.PI) * 6);
+    const air = Math.round(jump.y);
+    // The shadow stays on the ground and shrinks as you rise.
+    if (!ghost) {
+      const sw = 12 - 2 * Math.min(3, air >> 2);
+      c.drawImage(shadowCv, x - (sw >> 1), y - 2, sw, air > 8 ? 3 : 4);
+    }
+    let lift = air;
+    if (hopT >= 0) lift = Math.max(lift, Math.round(Math.sin((hopT / 0.36) * Math.PI) * 6));
     let img: HTMLCanvasElement;
     if (mode === 'cheer') {
       img = night ? hero.cheerNight : hero.cheer;
-      lift = Math.round(Math.min(1, modeT * 6) * 2);
+      lift = Math.max(air, Math.round(Math.min(1, modeT * 6) * 2));
     } else {
       const frames = night ? hero.framesNight[facing] : hero.frames[facing];
       let step = moving ? Math.floor(walked / STRIDE) % 4 : 0;
       if (!moving && motion && idleT > 0.4 && Math.floor(time * 1.6) % 3 === 2) step = 4;
       img = frames[step];
     }
-    c.drawImage(img, x - (hero.w >> 1), y - hero.h + 1 - lift);
+    // Squash on landing, stretch on the way up: two pixels either way.
+    const squash = motion && mode === 'play' ? (jump.landT >= 0 && jump.landT < 0.09 ? 2 : jump.air && jump.vy > JUMP.v * 0.6 ? -2 : 0) : 0;
+    c.drawImage(img, x - ((hero.w + squash) >> 1), y - hero.h + squash + 1 - lift, hero.w + squash, hero.h - squash);
     if (ghost) return;
+    if (motion && jump.landT >= 0) {
+      const k = jump.landT / 0.24;
+      const off = 4 + Math.round(k * 5);
+      c.globalAlpha = 1 - k;
+      c.fillStyle = night ? '#9aa3c4' : '#fbf1dc';
+      c.fillRect(x - off - 2, y - 1 - Math.round(k * 2), 2, 1);
+      c.fillRect(x + off, y - 1 - Math.round(k * 2), 2, 1);
+      c.globalAlpha = 1;
+    }
     if (mode === 'cheer') {
       // The found word, held up high, with a twinkle.
       const k = Math.min(1, modeT * 5);
@@ -1118,7 +1180,7 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
 
   if (debug) {
     (window as unknown as { __map?: unknown }).__map = {
-      player: () => ({ x: pos.x, z: pos.z }),
+      player: () => ({ x: pos.x, z: pos.z, air: jump.y }),
       teleport: (x: number, z: number) => {
         pos.x = x;
         pos.z = z;
