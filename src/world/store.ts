@@ -25,12 +25,15 @@ export type Presence = {
   at: string | null;
   /** Where they're standing, in world units, if a spatial renderer knows. */
   pos: Vec2 | null;
+  /** The building they're inside (its place id), if they've gone in. */
+  inside: string | null;
 };
 
 export type WorldState = { progress: Progress; presence: Presence };
 
 export type Action =
   | { type: 'move'; pos: Vec2 | null; at?: string | null }
+  | { type: 'inside'; at: string | null }
   | { type: 'find'; id: string }
   | { type: 'catch'; slug: string }
   | { type: 'night'; on: boolean }
@@ -38,6 +41,7 @@ export type Action =
 
 export type WorldEvent =
   | { type: 'arrived'; at: string | null }
+  | { type: 'inside'; at: string | null }
   | { type: 'found'; id: string; count: number; total: number }
   | { type: 'hoard-complete' }
   | { type: 'caught'; slug: string; fresh: boolean }
@@ -45,7 +49,7 @@ export type WorldEvent =
 
 export const emptyState = (): WorldState => ({
   progress: { found: [], caught: [], night: false },
-  presence: { at: null, pos: null },
+  presence: { at: null, pos: null, inside: null },
 });
 
 export function reduce(world: World, state: WorldState, action: Action): { state: WorldState; events: WorldEvent[] } {
@@ -56,7 +60,19 @@ export function reduce(world: World, state: WorldState, action: Action): { state
       const at = action.at === undefined ? presence.at : action.at;
       if (at !== null && !world.places.some((p) => p.id === at)) return { state, events };
       if (at !== presence.at) events.push({ type: 'arrived', at });
-      return { state: { progress, presence: { at, pos: action.pos } }, events };
+      // Walking somewhere else takes you back outside.
+      const inside = presence.inside && at !== presence.inside ? null : presence.inside;
+      if (inside !== presence.inside) events.push({ type: 'inside', at: null });
+      return { state: { progress, presence: { at, pos: action.pos, inside } }, events };
+    }
+    case 'inside': {
+      // Only into buildings that have a room.
+      const at = action.at && world.places.some((p) => p.id === action.at && p.interior) ? action.at : null;
+      if (action.at && !at) return { state, events };
+      if (at === presence.inside) return { state, events };
+      events.push({ type: 'inside', at });
+      if (at && at !== presence.at) events.push({ type: 'arrived', at });
+      return { state: { progress, presence: { ...presence, at: at ?? presence.at, inside: at } }, events };
     }
     case 'find': {
       const total = world.lostWords.length;
@@ -107,6 +123,8 @@ export function sanitize(world: World, raw: unknown): WorldState {
   if (typeof at === 'string' && world.places.some((p) => p.id === at)) s.presence.at = at;
   const pos = r.presence?.pos;
   if (pos && Number.isFinite(pos.x) && Number.isFinite(pos.z)) s.presence.pos = { x: pos.x, z: pos.z };
+  const inside = r.presence?.inside;
+  if (typeof inside === 'string' && world.places.some((p) => p.id === inside && p.interior)) s.presence.inside = inside;
   return s;
 }
 

@@ -1,10 +1,12 @@
 // The overlays every renderer shares: toasts, the lost-word card, the catch
 // card and the word hoard. One <dialog> is reused for all three cards, so
-// focus handling, Escape and the backdrop come from the platform.
+// focus handling, Escape and the backdrop come from the platform. Inside a
+// building, room.ts adds the room's bar and the conversation box.
 
 import type { World } from '../world/schema';
 import type { WorldStore } from '../world/store';
 import type { RendererContext, ViewId } from './types';
+import { createRoomUI } from './room';
 
 type UI = RendererContext['ui'];
 
@@ -193,5 +195,19 @@ export function createUI(world: World, store: WorldStore, announce: (s: string) 
     });
   }
 
-  return { announce, toast, showWord, showCatch, openHoard, choosePortal, close: () => dialog.open && dialog.close() };
+  const room = createRoomUI(world, announce, toast);
+
+  return {
+    announce,
+    toast,
+    showWord,
+    showCatch,
+    openHoard,
+    choosePortal,
+    room,
+    close: () => {
+      if (dialog.open) dialog.close();
+      room.exit();
+    },
+  };
 }
