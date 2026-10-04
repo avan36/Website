@@ -36,6 +36,9 @@ const CELL = 4;
 const DOOR_RANGE = 1.6;
 /** Pixels the HUD covers along the top: the camera centres the explorer below it. */
 const HUD_TOP = 70;
+/** Running (Shift, or double-click where to go): how much faster, on land and in the water. */
+const RUN = 1.7;
+const RUN_WET = 1.3;
 /** Speed in the water, against walking: wading through the shallows, swimming further out. */
 const WADE = 0.78;
 const SWIM = 0.6;
@@ -277,6 +280,13 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
   let kickT = -1;
   let splashT = 9;
   let pendingPortal = false;
+  // Running: Shift held, or a path you double-clicked. `runK` eases toward the speed it should be.
+  let shift = false;
+  let runPath = false;
+  let runK = 1;
+  let lastTap = { t: 0, x: 0, y: 0 };
+  const dust = Array.from({ length: 8 }, () => ({ x: 0, z: 0, t: 1, side: 1 }));
+  let dustNext = 0;
   let mode: Mode = 'play';
   let modeT = 0;
   let cheerWord: string | null = null;
@@ -434,6 +444,7 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
   }
 
   const onKeyDown = (e: KeyboardEvent) => {
+    shift = e.shiftKey;
     if (e.metaKey || e.ctrlKey || e.altKey || typing(document.activeElement) || busy()) return;
     if (MOVE[e.code]) {
       e.preventDefault();
@@ -469,12 +480,16 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
     if (e.key === 'Escape' && (near || nearPortal)) dismissed = near ? near.place.id : 'portal';
   };
   const onKeyUp = (e: KeyboardEvent) => {
+    shift = e.shiftKey;
     // Let go early for a small hop.
     if (e.key === ' ' && jump.air && jump.vy > 0) jump.vy *= 0.45;
     keys.delete(e.code);
     sumKeys();
   };
-  const onBlur = () => clearKeys();
+  const onBlur = () => {
+    clearKeys();
+    shift = false;
+  };
 
   let press: { id: number; x: number; y: number; t: number } | null = null;
   const hitLandmark = (wx: number, wz: number): MapPlace | null => {
@@ -527,7 +542,14 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
       walkTo(fishSpot.at.x, fishSpot.at.z);
       return;
     }
-    if (walkTo(w.x, w.z)) ctx.sound.play('tap');
+    // A second click on (about) the same spot, quickly: run there.
+    const now = performance.now();
+    const again = now - lastTap.t < 380 && Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < 40;
+    lastTap = { t: again ? 0 : now, x: e.clientX, y: e.clientY };
+    if (walkTo(w.x, w.z)) {
+      runPath = again;
+      if (!again) ctx.sound.play('tap');
+    }
   };
   let lastRetarget = 0;
   const onPointerMove = (e: PointerEvent) => {
@@ -784,6 +806,7 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
     if (puff.t >= 0 && (puff.t += dt) > 0.32) puff.t = -1;
     if (kickT >= 0 && (kickT += dt) > 0.6) kickT = -1;
     splashT += dt;
+    for (const d of dust) if (d.t < 1) d.t = Math.min(1, d.t + dt / 0.4);
     for (const r of rings) if (r.t < 1) r.t = Math.min(1, r.t + dt / (r.big ? 1.25 : 0.85));
     for (const d of drops) {
       if (d.life <= 0) continue;
@@ -827,7 +850,13 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
     // Where the explorer wants to go.
     wish.x = held.x;
     wish.z = held.z;
-    let speed = SPEED;
+    // Running eases in and out rather than snapping.
+    const running = (shift && (held.x || held.z)) || (runPath && !!path);
+    if (!path) runPath = false;
+    const wetNow = wet > 0 && !jump.air;
+    runK = damp(runK, running ? (wetNow ? RUN_WET : RUN) : 1, running ? 6 : 4, dt);
+    const top = SPEED * runK;
+    let speed = top;
     if (wish.x || wish.z) {
       const l = Math.hypot(wish.x, wish.z);
       wish.x /= l;
@@ -852,7 +881,7 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
       } else {
         wish.x = dx / d;
         wish.z = dz / d;
-        speed = Math.min(SPEED, (d / dt) * 0.98 + 0.01);
+        speed = Math.min(top, (d / dt) * 0.98 + 0.01);
       }
     }
 
@@ -898,7 +927,14 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
         const now = Math.floor(walked / STRIDE);
         if (now !== before && !jump.air) {
           // A soft step on each left footfall: often enough to feel, not to nag. Wading, a splash.
-          if (wet === 0 && now % 4 === 1 && motion) ctx.sound.play('step');
+          const fast = runK > 1.35;
+          if (wet === 0 && now % (fast ? 2 : 4) === 1 && motion) ctx.sound.play('step');
+          // Running kicks up a little dust behind you, every other step.
+          if (wet === 0 && fast && motion && now % 2 === 0) {
+            const d = dust[dustNext];
+            dustNext = (dustNext + 1) % dust.length;
+            Object.assign(d, { x: pos.x - vel.x * 0.05, z: pos.z - vel.z * 0.05, t: 0, side: now % 4 === 0 ? -1 : 1 });
+          }
           if (wet === 1 && now % 2 === 1) (ripple(false), spray(2, 10), now % 4 === 1 && ctx.sound.play('swim'));
         }
         if (wish.x || wish.z) facing = facingFor(wish.x, wish.z, facing);
@@ -1153,6 +1189,21 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
     const fx = x;
     const fy = y - (hero.h >> 1);
     c.drawImage(img, Math.round(fx + (tx - fx) * e) - (w >> 1), Math.round(fy + (ty - fy) * e) - (h >> 1), w, h);
+  }
+
+  /** Dust from running feet: a little puff that drifts up and thins out. */
+  function drawDust(c: CanvasRenderingContext2D) {
+    c.fillStyle = night ? '#8f97b8' : '#f3e2bd';
+    for (const d of dust) {
+      if (d.t >= 1) continue;
+      const x = bx(d.x) + d.side * 3;
+      const y = by(d.z) - 1 - Math.round(d.t * 3);
+      const r = d.t < 0.4 ? 1 : 2;
+      c.globalAlpha = (1 - d.t) * 0.85;
+      c.fillRect(x - r, y, r * 2 + 1, 1);
+      if (r > 1) c.fillRect(x - 1, y - 1, 3, 1);
+    }
+    c.globalAlpha = 1;
   }
 
   /** Rings spreading on the water: dotted ellipses that widen and fade. */
@@ -1432,6 +1483,7 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
     c.drawImage(night ? terrain.night() : terrain.day, bufL, bufT, bw, bh, 0, 0, bw, bh);
     drawWater(c);
     drawRipples(c);
+    drawDust(c);
     if (night) drawPools(c);
 
     // The click marker: a ring that shrinks into the ground.
@@ -1603,7 +1655,7 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
 
   if (debug) {
     (window as unknown as { __map?: unknown }).__map = {
-      player: () => ({ x: pos.x, z: pos.z, air: jump.y, twice: jump.twice, wet, vx: vel.x, vz: vel.z, facing }),
+      player: () => ({ x: pos.x, z: pos.z, air: jump.y, twice: jump.twice, wet, vx: vel.x, vz: vel.z, facing, run: runK }),
       swimRoom: () => geo.swimRoom(pos.x, pos.z),
       heroScreen: () => toScreen(pos.x, pos.z),
       portal: () => ({ near: nearPortal, tag: tagPortal, screen: portal ? portalScreen() : null }),

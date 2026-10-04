@@ -2,6 +2,7 @@
 
 import type { RendererContext, RendererHandle } from '../types';
 import { createGame, type GameHandle } from './game';
+import { PORTAL_NEXT } from '../portal';
 
 export async function mount(ctx: RendererContext): Promise<RendererHandle> {
   const labels = document.createElement('div');
@@ -12,6 +13,8 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
     hud: document.getElementById('isl-stage')!,
     labelsHost: labels,
     go: ctx.go,
+    portal: (from) => ctx.portal(PORTAL_NEXT.island, from),
+    viaPortal: ctx.viaPortal,
     cover: document.getElementById('isl-cover'),
     returnTo: ctx.returnTo,
     reducedMotion: ctx.reducedMotion,
@@ -19,7 +22,8 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
     sound: ctx.sound,
     store: ctx.store,
     ui: ctx.ui,
-    onReady: () => ctx.ready('self'),
+    // Out of the portal, the page shrinks its cover back into it; otherwise the island plays its own return.
+    onReady: (reveal) => ctx.ready(reveal ?? 'self'),
     onFirstMove: ctx.firstMove,
     onIntroDone: () => {},
     onLost: () => ctx.fail(new Error('WebGL context lost')),

@@ -1179,6 +1179,9 @@ export function buildLibrary(color: string): Built {
 
 // ---------------------------------------------------------------- pier
 
+/** The rowboat tied alongside, in the pier's frame (x across, z from its foot): swimmers bump into it. */
+export const ROWBOAT = { x: 1.65, fromEnd: 3.2, halfWidth: 0.52, halfLength: 1.25 };
+
 export function buildPier(color: string): Built {
   const L = PIER.end - PIER.start;
   const k = new Kit(707);
@@ -1226,7 +1229,7 @@ export function buildPier(color: string): Built {
 
   // A little rowboat tied alongside
   const boat = new Group();
-  boat.position.set(1.65, 0.05, L - 3.2);
+  boat.position.set(ROWBOAT.x, 0.05, L - ROWBOAT.fromEnd);
   const rk = new Kit(710);
   rk.lathe([[0, -0.3], [0.38, -0.24], [0.5, 0.0], [0.52, 0.18], [0, 0.18]], '#fffaf0', { s: [1, 1, 2.4] }, 12);
   rk.torus(0.52, 0.06, color, { p: [0, 0.18, 0], r: [Math.PI / 2, 0, 0], s: [1, 2.4, 1] }, 4, 18);

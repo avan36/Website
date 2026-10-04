@@ -11,6 +11,7 @@ import {
   ShaderMaterial,
   UniformsLib,
   UniformsUtils,
+  Vector2,
   Vector3,
   type DataTexture,
 } from 'three';
@@ -69,6 +70,9 @@ export function buildWater(height: { tex: DataTexture; extent: number }, sunDir:
         uTime: { value: 0 },
         uHeight: { value: null },
         uExtent: { value: height.extent },
+        // Where the baked seabed hands over to the open sea: past the furthest
+        // anyone can swim, and inside the texture's square (half of the extent).
+        uFar: { value: new Vector2(height.extent * 0.39, height.extent * 0.48) },
         uShallow: { value: new Color('#5fe0d0') },
         uMid: { value: new Color('#2fa6c9') },
         uSea: { value: new Color('#2b8fb8') },
@@ -105,6 +109,7 @@ export function buildWater(height: { tex: DataTexture; extent: number }, sunDir:
       uniform float uTime;
       uniform sampler2D uHeight;
       uniform float uExtent;
+      uniform vec2 uFar;
       uniform float uRise;
       uniform vec3 uShallow, uMid, uSea, uDeep, uSun;
       uniform float uNight;
@@ -120,9 +125,12 @@ export function buildWater(height: { tex: DataTexture; extent: number }, sunDir:
       }
 
       void main() {
+        // The seabed is baked into a square texture. Well inside its edges it
+        // fades into open-sea depth along a circle, so no straight edge shows
+        // (the headland's rocky shelf would otherwise run right up to one).
         vec2 uv = vWorld.xz / uExtent + 0.5;
-        float inside = step(0.0, uv.x) * step(uv.x, 1.0) * step(0.0, uv.y) * step(uv.y, 1.0);
-        float h = mix(-8.0, texture2D(uHeight, uv).r * 12.0 - 8.0, inside);
+        float far = smoothstep(uFar.x, uFar.y, length(vWorld.xz));
+        float h = mix(texture2D(uHeight, uv).r * 12.0 - 8.0, -8.0, far);
         // While the island rises out of the sea the seabed comes up with it.
         h -= uRise;
         float depth = max(-h, 0.0) + max(vWorld.y, 0.0) * 0.5;
@@ -162,7 +170,9 @@ export function buildWater(height: { tex: DataTexture; extent: number }, sunDir:
         float foam = clamp(max(edge, lap * 0.8) + speck, 0.0, 1.0);
         col = mix(col, mix(vec3(1.0, 0.99, 0.96), vec3(0.36, 0.45, 0.64), uNight), foam);
 
+        // See-through in the shallows; deep water is opaque, so the edges of the seabed never show.
         float alpha = mix(0.62, 0.97, smoothstep(0.1, 2.6, depth));
+        alpha = mix(alpha, 1.0, smoothstep(2.6, 4.5, depth));
         alpha = max(alpha, foam);
         gl_FragColor = vec4(col, alpha);
         #include <tonemapping_fragment>
