@@ -163,6 +163,27 @@ export const ActivitySchema = z
   })
   .strict();
 
+/** Where a piece of the wardrobe goes on the explorer. One item per slot. */
+export const OUTFIT_SLOTS = ['head', 'face', 'neck', 'body'] as const;
+
+/** A piece of clothing for the explorer, unlocked by visiting a place. */
+export const OutfitSchema = z
+  .object({
+    id: Id,
+    /** What it's called, e.g. "hard hat". */
+    name: z.string(),
+    slot: z.enum(OUTFIT_SLOTS),
+    /** The place that unlocks it: arrive there (or go in) and it's yours. */
+    place: Id,
+    /** Its main color; renderers pick their own trim. */
+    color: Hex,
+    /** One line, shown once it's unlocked. */
+    description: z.string(),
+    /** A nudge, shown in the wardrobe before it's unlocked. */
+    hint: z.string(),
+  })
+  .strict();
+
 // ---------- Geography ----------
 
 /** The island's shape, as a recipe. geo.ts turns it into height and coastline. */
@@ -203,6 +224,7 @@ export const WorldSchema = z
     routes: z.array(RouteSchema),
     lostWords: z.array(LostWordSchema),
     activities: z.array(ActivitySchema),
+    outfits: z.array(OutfitSchema).default([]),
     geography: GeographySchema,
   })
   .strict()
@@ -219,6 +241,8 @@ export type Place = z.infer<typeof PlaceSchema>;
 export type Route = z.infer<typeof RouteSchema>;
 export type LostWord = z.infer<typeof LostWordSchema>;
 export type Activity = z.infer<typeof ActivitySchema>;
+export type OutfitSlot = (typeof OUTFIT_SLOTS)[number];
+export type Outfit = z.infer<typeof OutfitSchema>;
 export type Geography = z.infer<typeof GeographySchema>;
 export type World = z.infer<typeof WorldSchema>;
 /** What authors write: defaults may be left out. */
@@ -314,6 +338,21 @@ export function checkWorld(w: z.infer<typeof WorldSchema> | World): Issue[] {
 
   w.activities.forEach((a, i) => {
     if (!places.has(a.place)) add(`Activity "${a.id}" is at unknown place "${a.place}".`, ['activities', i, 'place']);
+  });
+
+  // Every outfit is unlocked somewhere real (and somewhere you can go into or
+  // arrive at, not the hub you start in), one piece per place.
+  const outfitIds = new Set<string>();
+  const outfitAt = new Map<string, string>();
+  (w.outfits ?? []).forEach((o, i) => {
+    if (outfitIds.has(o.id)) add(`Two outfits share the id "${o.id}".`, ['outfits', i, 'id']);
+    outfitIds.add(o.id);
+    const p = places.get(o.place);
+    if (!p) return add(`Outfit "${o.id}" is unlocked at unknown place "${o.place}".`, ['outfits', i, 'place']);
+    if (p.kind === 'hub') add(`Outfit "${o.id}" is unlocked at the hub, where everyone starts; pick a place to visit.`, ['outfits', i, 'place']);
+    const other = outfitAt.get(o.place);
+    if (other) add(`"${o.place}" unlocks both "${other}" and "${o.id}"; give each place one piece.`, ['outfits', i, 'place']);
+    outfitAt.set(o.place, o.id);
   });
   w.geography.headlands.forEach((h, i) => {
     if (!places.has(h.toward)) add(`Headland ${i} points toward unknown place "${h.toward}".`, ['geography', 'headlands', i]);

@@ -335,6 +335,92 @@ const activities: WorldInput['activities'] = [
   },
 ];
 
+// The explorer's wardrobe: one piece at every house, yours the moment you
+// arrive. Wear one per slot (head, face, neck, body), in any view.
+const outfits: WorldInput['outfits'] = [
+  {
+    id: 'cardinal-scarf',
+    name: 'cardinal scarf',
+    slot: 'neck',
+    place: 'middle-place',
+    color: '#c41e3a',
+    description: 'A long knitted scarf in Wesleyan cardinal red, warm enough for a winter of writing on the porch.',
+    hint: 'Someone left a scarf on the cabin porch, by the journal.',
+  },
+  {
+    id: 'hard-hat',
+    name: 'hard hat',
+    slot: 'head',
+    place: 'busy-beer',
+    color: '#f5b82e',
+    description: 'A yellow hard hat from the taproom, where the brewing gets serious. Safety first, then a pint.',
+    hint: 'The taproom keeps one by the barrels for brew days.',
+  },
+  {
+    id: 'leaf-crown',
+    name: 'leaf crown',
+    slot: 'head',
+    place: 'map-of-evolution',
+    color: '#57c15a',
+    description: 'A crown of leaves and blossom woven from the ancient tree. Every leaf a different branch of the family.',
+    hint: 'The oldest tree on the island sheds something to wear.',
+  },
+  {
+    id: 'reading-glasses',
+    name: 'reading glasses',
+    slot: 'face',
+    place: 'etymon',
+    color: '#8a5a2b',
+    description: 'Round tortoiseshell glasses from the library, for very small print and very old words.',
+    hint: 'The library lends more than books.',
+  },
+  {
+    id: 'sunglasses',
+    name: 'sunglasses',
+    slot: 'face',
+    place: 'privacy-research',
+    color: '#1f2a44',
+    description: "The lighthouse keeper's dark glasses. The beam sees everything; now it can't see your eyes.",
+    hint: 'The lighthouse beam is bright. The keeper keeps something for that.',
+  },
+  {
+    id: 'mortarboard',
+    name: 'graduation cap',
+    slot: 'head',
+    place: 'quizmate',
+    color: '#24304a',
+    description: 'A mortarboard with a golden tassel, from the schoolhouse. You passed the quiz.',
+    hint: 'Pass by the schoolhouse and you might graduate.',
+  },
+  {
+    id: 'recycling-vest',
+    name: 'recycling vest',
+    slot: 'body',
+    place: 'eqoscan',
+    color: '#3faa5b',
+    description: 'A green high-visibility vest from the recycling depot, with reflective stripes. Sort responsibly.',
+    hint: 'The depot crew wear something bright. Ask at the conveyor.',
+  },
+  {
+    id: 'fishing-hat',
+    name: 'fishing hat',
+    slot: 'head',
+    place: 'blog',
+    color: '#b9a06a',
+    description: 'A floppy bucket hat with a fly hooked in the band, from the end of the pier.',
+    hint: 'Walk out to the end of the pier, where the anglers stand.',
+  },
+  {
+    id: 'sailor-hat',
+    name: "sailor's cap",
+    slot: 'head',
+    place: 'contact',
+    color: '#f4f1ea',
+    description: "A white sailor's cap that washed up beside the bottle. It smells of salt and good news.",
+    hint: 'Something besides a bottle washed up on the quiet beach.',
+  },
+];
+
 const geography: WorldInput['geography'] = {
   coast: {
     radius: 23.5,
@@ -374,6 +460,7 @@ export function buildWorld(posts: Post[]): World {
     routes,
     lostWords,
     activities,
+    outfits,
     geography,
   } satisfies WorldInput);
 }
