@@ -41,6 +41,14 @@ describe('the map', () => {
     }
   });
 
+  it("draws the main island only: the islets are over bridges words can't cross", () => {
+    const m = drawIsland(world, geo);
+    for (const s of geo.islands.slice(1)) {
+      const { c, r } = m.toCell(s.x, s.z);
+      expect([GROUND.sea, ' '], s.id).toContain(m.rows[r][c]);
+    }
+  });
+
   it('draws sea all round, and land, paths, rocks and the pier inside', () => {
     const { rows } = drawIsland(world, geo);
     const edge = [...rows[0], ...rows[rows.length - 1], ...rows.map((r) => r[0]), ...rows.map((r) => r[r.length - 1])];

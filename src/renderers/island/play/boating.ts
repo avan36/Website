@@ -15,7 +15,7 @@ import type { Explorer } from '../character';
 import type { Rect } from '../labels';
 import type { Puffs } from '../world/particles';
 import type { Ripples } from '../world/ripples';
-import { PIER, type ActivitySpot } from '../world/shape';
+import { BRIDGES, PIER, type ActivitySpot } from '../world/shape';
 import { ROWBOAT } from '../landmarks/builders';
 import { Boat, buildGhost, HALF_LENGTH, HALF_WIDTH, TOP_SPEED, type Bumper } from './boat';
 import { BoatHud, type HudMode } from './boat-hud';
@@ -115,6 +115,8 @@ export function createBoating(o: BoatingOptions) {
     { ax: rowX, az: rowZ - ROWBOAT.halfLength + ROWBOAT.halfWidth, bx: rowX, bz: rowZ + ROWBOAT.halfLength - ROWBOAT.halfWidth, r: ROWBOAT.halfWidth },
     ...o.buoys.map((b) => ({ x: b.x, z: b.z, r: 0.32 })),
     ...gatePosts,
+    // The footbridges out to the islets, posts and all.
+    ...BRIDGES.map((b) => ({ ax: b.ax, az: b.az, bx: b.bx, bz: b.bz, r: b.width / 2 })),
   ];
   // Swimmers go round it while it's tied up, as they do the rowboat.
   const moored = { ax: moor.x, az: moor.z - HALF_LENGTH + HALF_WIDTH, bx: moor.x, bz: moor.z + HALF_LENGTH - HALF_WIDTH, r: HALF_WIDTH, top: 0.35 };

@@ -1,5 +1,5 @@
-// Tiny seeded randomness shared by the project-page mini-games, so rounds can
-// be replayed in tests. Pure: no DOM.
+// Tiny seeded randomness shared by the games' rules, so rounds can be
+// replayed in tests. Pure: no DOM.
 
 export type Rng = () => number;
 

@@ -5,7 +5,7 @@
 // the page sets, and best scores are a mirror of the store's.
 
 import type { Place, World } from '../../world/schema';
-import { GAME_INFO, isGame, scoreText, type GameId } from '../games/catalog';
+import { GAME_INFO, isGame, isletAt, playableIn, scoreText, type GameId } from '../games/catalog';
 import { MAX_STREAK_BONUS, STONES } from '../games/stones';
 import type { EngineState, Result } from './engine';
 import { dim, md, p, say, type Block, type Effect, type Signal, type Span } from './output';
@@ -27,14 +27,22 @@ export const SEA_MS = { wait: [1400, 3400] as [number, number], flat: 1900, ripp
 
 type State = EngineState;
 
-/** Words that mean each game. */
-const NAMES: Record<GameId, string[]> = {
+/** Words that mean each game played here. */
+const NAMES: Partial<Record<GameId, string[]>> = {
   stones: ['stones', 'stone', 'skipping', 'skipping stones', 'skip', 'skimming', 'skim', 'pebbles', 'ducks and drakes'],
   crabs: ['crabs', 'crab', 'crab boop', 'boop', 'whack', 'whack a crab', 'holes'],
   crates: ['crates', 'crate', 'crate stack', 'stack', 'stacking', 'tower', 'crane', 'boxes'],
 };
+/** The games out on the islets, which only the 3D island can reach so far: asked for by name, the adventure says where they are. */
+const ELSEWHERE: Partial<Record<GameId, string[]>> = {
+  bartender: ['ask the bartender', 'bartender game', 'vibes'],
+  patterns: ['spot the dark pattern', 'dark pattern', 'dark patterns', 'patterns'],
+  etymology: ['etymology race', 'etymology', 'race words', 'word race'],
+  evolution: ['sort the tree of life', 'tree of life', 'sorter', 'sort'],
+};
 
-export const gameNamed = (noun: string): GameId | null => (Object.keys(NAMES) as GameId[]).find((id) => NAMES[id].includes(noun)) ?? null;
+const named = (table: Partial<Record<GameId, string[]>>, noun: string) => (Object.keys(table) as GameId[]).find((id) => table[id]!.includes(noun)) ?? null;
+export const gameNamed = (noun: string): GameId | null => named(NAMES, noun);
 
 const NUMBERS = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
 const plips = (n: number) => Array(Math.min(n, 6)).fill('plip').join(', ');
@@ -47,11 +55,21 @@ export function createTextGames(o: {
   ref: (pl: Place) => string;
 }) {
   const { world, random } = o;
-  const spots = world.activities.flatMap((a) => (a.kind === 'minigame' && a.game && isGame(a.game) ? [{ id: a.game, activity: a, place: world.places.find((x) => x.id === a.place)! }] : []));
+  // Only the games words can play (or open the card for): the islets' are for the 3D island.
+  const spots = world.activities.flatMap((a) => (a.kind === 'minigame' && a.game && isGame(a.game) && playableIn(a.game, 'text') ? [{ id: a.game, activity: a, place: world.places.find((x) => x.id === a.place)! }] : []));
   const here = (at: string) => spots.find((g) => g.place.id === at) ?? null;
   const spotOf = (id: GameId) => spots.find((g) => g.id === id) ?? null;
   const bestOf = (s: State, id: GameId) => s.bests[id] ?? 0;
   const res = (state: State, out: Block[] = [], effects: Effect[] = []): Result => ({ state, out, effects });
+
+  /** Asked for a game out on an islet: where it is, and that words can't get there yet. */
+  function isletGame(noun: string) {
+    const id = named(ELSEWHERE, noun);
+    const a = id && world.activities.find((x) => x.game === id);
+    if (!id || !a) return null;
+    const isle = isletAt(world, a.at);
+    return `${GAME_INFO[id].name} is out on ${isle?.name ?? 'an islet'}, over a bridge that only the 3D island has so far.`;
+  }
 
   /** One line for a place's description: what game is played here, and how to start. */
   function describe(pl: Place): Block[] {
@@ -79,6 +97,8 @@ export function createTextGames(o: {
   function play(s: State, noun: string): Result {
     const named = noun ? gameNamed(noun) : here(s.at)?.id ?? null;
     if (!named) {
+      const away = noun ? isletGame(noun) : null;
+      if (away) return res(s, [say(away), ...list(s)]);
       if (noun) return res(s, [say(`There's no game called '${noun}' on the island.`), ...list(s)]);
       return res(s, list(s));
     }

@@ -1,6 +1,6 @@
-// Pure game logic for Evolution Sorter (EvolutionSorter.astro): dealing a
-// round, checking a placement, scoring, and laying out the little cladogram.
-// No DOM here; see __tests__/evolutionSorter.test.ts.
+// Rules for Sort the tree of life (Map of Evolution's island game, played in
+// ../evolution.ts): dealing a round, checking a placement, scoring, and laying
+// out the little cladogram. No DOM here; see __tests__/evolutionSorter.test.ts.
 
 import { shuffle, type Rng } from './rng';
 import type { Branch, BranchId, Clade, Species } from './evolutionSorterData';

@@ -7,7 +7,7 @@
 // breaking the build.
 
 import type { World } from '../../world/schema';
-import { createGeo, SWIM_REACH, type Vec2 } from '../../world/geo';
+import { createGeo, type Vec2 } from '../../world/geo';
 
 export const esc = (s: string) =>
   s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
@@ -144,18 +144,34 @@ export type Drawing = ReturnType<typeof drawIsland>;
 /** Everything the blueprint draws, in world units (SVG x = world x, SVG y = world z, so north is up). */
 export function drawIsland(world: World) {
   const geo = createGeo(world);
-  const ring = (extra: number, n = 180) => {
+  // Each island's coast (the main one and the islets off it), and the edge of the swimming water round them all.
+  const ring = (s: (typeof geo.islands)[number], n = 180) => {
     const pts: Vec2[] = [];
     for (let i = 0; i < n; i++) {
       const th = (i / n) * Math.PI * 2;
-      const r = geo.coastRadius(th) + extra;
-      pts.push({ x: Math.cos(th) * r, z: Math.sin(th) * r });
+      const r = s.coast(th);
+      pts.push({ x: s.x + Math.cos(th) * r, z: s.z + Math.sin(th) * r });
     }
     return pts;
   };
-  const coastPts = ring(0);
-  const swimPts = ring(SWIM_REACH);
+  const coasts = geo.islands.map((s) => ring(s, s.i ? 72 : 180));
+  const swimRuns = geo.swimEdge(0, 0.6);
+  const swimPts = swimRuns.flat();
   const poly = (pts: Vec2[]) => `M${pts.map(pt).join('L')}Z`;
+  // A run that goes all the way round (nothing breaks it) closes up.
+  const run = (pts: Vec2[]) => (Math.hypot(pts[0].x - pts[pts.length - 1].x, pts[0].z - pts[pts.length - 1].z) < 1 ? poly(pts) : `M${pts.map(pt).join('L')}`);
+  // The footbridges, as decks seen from above, and the islet each one goes out to.
+  const bridges = geo.bridges.map((b) => {
+    const side = { x: (b.uz * b.width) / 2, z: (-b.ux * b.width) / 2 };
+    const d = poly([
+      { x: b.ax + side.x, z: b.az + side.z },
+      { x: b.bx + side.x, z: b.bz + side.z },
+      { x: b.bx - side.x, z: b.bz - side.z },
+      { x: b.ax - side.x, z: b.az - side.z },
+    ]);
+    const isle = geo.islands[Math.max(...b.joins)];
+    return { d, length: b.length, to: isle && isle.i ? isle.name : null };
+  });
 
   const pier = geo.pier;
   const xs = [...swimPts.map((p) => p.x), pier.x - pier.width, pier.x + pier.width];
@@ -239,8 +255,11 @@ export function drawIsland(world: World) {
   return {
     viewBox: `${r1(box.x0)} ${r1(box.z0)} ${r1(box.x1 - box.x0)} ${r1(box.z1 - box.z0)}`,
     box,
-    coast: poly(coastPts),
-    swim: poly(swimPts),
+    coast: coasts.map(poly).join(''),
+    swim: swimRuns.map(run).join(''),
+    bridges,
+    /** The islets, by name, for a label each. */
+    islets: geo.islands.slice(1).map((s) => ({ id: s.id, name: s.name, x: s.x, z: s.z, r: s.coast(Math.PI / 2) })),
     contours: levels,
     routes,
     places,

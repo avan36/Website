@@ -60,6 +60,18 @@ describe('the games, in words', () => {
     expect(say('plaza', 'play chess')).toMatch(/no game called 'chess'/);
   });
 
+  it('leaves the islet games to the 3D island: never listed or offered, only placed when asked for', () => {
+    const list = say('plaza', 'play');
+    for (const name of ['bartender', 'dark pattern', 'Etymology', 'tree of life', 'BARTENDER', 'PATTERNS', 'ETYMOLOGY', 'EVOLUTION']) expect(list).not.toContain(name);
+    // The places the islet games belong to don't offer them either.
+    for (const at of ['busy-beer', 'privacy-research', 'etymon', 'map-of-evolution']) {
+      expect(say(at, 'look'), at).not.toMatch(/PLAY (BARTENDER|PATTERNS|ETYMOLOGY|EVOLUTION)/);
+      expect(engine.suggest(engine.initial(at)).map((c) => c.cmd).filter((c) => /^play (bartender|patterns|etymology|evolution)/.test(c)), at).toEqual([]);
+    }
+    expect(say('plaza', 'play etymology race')).toMatch(/Etymology race is out on Root Isle, over a bridge that only the 3D island has so far/);
+    expect(effects(play('plaza', 'play dark patterns').last, 'game')).toEqual([]);
+  });
+
   it('walks you to a game first, then plays it', () => {
     const r = play('plaza', 'play crates');
     expect(r.state.at).toBe('eqoscan');

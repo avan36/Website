@@ -65,11 +65,14 @@ export type IslandMap = {
 };
 
 export function drawIsland(world: World, geo: Geo, cols = MAP_COLS, rowsN = MAP_ROWS): IslandMap {
+  // The main island only: the islets off its west coast are over bridges words
+  // can't cross yet, so here they're open sea.
+  const heightAt = (x: number, z: number) => (geo.owner(x, z) === 0 ? geo.heightAt(x, z) : -6);
   // Frame everything that isn't open sea, plus a little water all round.
   let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
   for (let z = -60; z <= 60; z += 1) {
     for (let x = -60; x <= 60; x += 1) {
-      if (geo.heightAt(x, z) < -0.6) continue;
+      if (heightAt(x, z) < -0.6) continue;
       x0 = Math.min(x0, x), x1 = Math.max(x1, x), z0 = Math.min(z0, z), z1 = Math.max(z1, z);
     }
   }
@@ -109,7 +112,7 @@ export function drawIsland(world: World, geo: Geo, cols = MAP_COLS, rowsN = MAP_
     const row: string[] = [];
     for (let c = 0; c < cols; c++) {
       const { x, z } = toWorld(c, r);
-      const ht = geo.heightAt(x, z);
+      const ht = heightAt(x, z);
       // Thin things (paths, the pier) are looked for across the whole cell, not just its middle.
       const onPier = c === pierCol && z + uz / 2 > pier.start && z - uz / 2 < pier.end;
       const nearPath = [-uz / 3, 0, uz / 3].some((dz) => pathDist(x, z + dz) < 0.62);

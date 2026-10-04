@@ -46,8 +46,9 @@ import { buildNight } from './world/night';
 import { Puffs } from './world/particles';
 import { Ripples } from './world/ripples';
 import { buildBuoys } from './world/buoys';
+import { buildBridges } from './world/bridges';
 import { ROWBOAT } from './landmarks/builders';
-import { ACTIVITIES, groundAt, heightAt, HUB, isSwimmable, isWalkable, PIER, PLACES, placeOf, PLAZA, SPAWN, swimRoom, WORDS } from './world/shape';
+import { ACTIVITIES, groundAt, heightAt, HUB, isSwimmable, isWalkable, LAND, nextStop, PIER, PLACES, placeOf, PLAZA, SPAWN, swimRoom, WORDS } from './world/shape';
 import { fitScale, frameRoom } from './interior/frame';
 import { buildInterior, type Interior } from './interior/room';
 import { buildHeightTexture, buildTerrain, pressGround } from './world/terrain';
@@ -114,6 +115,8 @@ export interface GameHandle {
     frames: () => number;
     places: () => { id: string; x: number; z: number; stand: { x: number; z: number } }[];
     teleport: (x: number, z: number) => void;
+    /** Look at (x, z) from `dist` away, at a pitch and a turn (for still shots: pause() first, then render()). */
+    look: (x: number, z: number, dist?: number, pitch?: number, yaw?: number) => void;
     screen: (id: string) => { x: number; y: number } | null;
     /** Every lost word: where it lies, whether it's showing, and where it is on screen. */
     words: () => { id: string; x: number; z: number; shown: boolean; screen: { x: number; y: number } }[];
@@ -190,15 +193,17 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
   const hemi = new HemisphereLight('#cfe8ff', '#e8c48e', 1.05);
   scene.add(hemi);
   const sun = new DirectionalLight('#fff1dc', 3.1);
-  sun.position.copy(sunDir).multiplyScalar(60);
+  // Shadows over all the land, islets and all: the sun looks at the middle of it, from far enough to see the lot.
+  sun.position.copy(sunDir).multiplyScalar(60).add(new Vector3(LAND.x, 0, LAND.z));
+  sun.target.position.set(LAND.x, 0, LAND.z);
   sun.castShadow = true;
   const sm = mobile ? 1024 : 2048;
   sun.shadow.mapSize.set(sm, sm);
   const sc = sun.shadow.camera;
-  sc.left = -36;
-  sc.right = 36;
-  sc.top = 36;
-  sc.bottom = -36;
+  sc.left = -LAND.r - 2;
+  sc.right = LAND.r + 2;
+  sc.top = LAND.r + 2;
+  sc.bottom = -LAND.r - 2;
   sc.near = 10;
   sc.far = 130;
   sun.shadow.bias = -0.0006;
@@ -232,6 +237,9 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
   // The railway, the train, the quay and its bus; and the city across the water.
   const commute = buildCommute();
   island.add(commute.group);
+  // The footbridges out to the islets.
+  const bridges = buildBridges();
+  island.add(bridges.group);
   const skyline = buildSkyline();
   scene.add(skyline.group);
 
@@ -244,6 +252,7 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     ...nature.colliders,
     ...landmarks.map((l) => ({ x: l.place.x, z: l.place.z, r: l.place.radius })),
     ...commute.colliders,
+    ...bridges.colliders,
   ];
 
   const player = new Explorer(puffs, ripples);
@@ -265,6 +274,7 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
   player.obstacles = [
     { ax: PIER.x, az: PIER.start, bx: PIER.x, bz: PIER.end, r: PIER.width / 2, top: PIER.deck },
     { ax: boatX, az: boatZ - ROWBOAT.halfLength + ROWBOAT.halfWidth, bx: boatX, bz: boatZ + ROWBOAT.halfLength - ROWBOAT.halfWidth, r: ROWBOAT.halfWidth, top: 0.3 },
+    ...bridges.obstacles,
   ];
   // Dressed in whatever the visitor picked from the wardrobe (in any view).
   const worn = () => o.store.world.outfits.filter((x) => o.store.state.progress.worn[x.slot] === x.id);
@@ -372,7 +382,7 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
   /** Walking over to a game to play it (cancelled if you head somewhere else). */
   let pendingGame: { id: GameId; target: Vector2 } | null = null;
 
-  const night = buildNight({ scene, hemi, sun, sky, water: water.material, ambient, landmarks: [...landmarks, commute], extras: [skyline], mobile });
+  const night = buildNight({ scene, hemi, sun, sky, water: water.material, ambient, landmarks: [...landmarks, commute, bridges, games], extras: [skyline], mobile });
   scene.add(night.group);
   let nightWant = store.state.progress.night;
   /** Night waits for the last word's card to close, so you see it fall. */
@@ -1548,7 +1558,10 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
         else if (pend) enter(pend.place.id);
         else if (pendingCast) (pendingCast = false), !player.inWater && fishing?.cast();
       } else {
-        wish.set(dx / d, dz / d).multiplyScalar(swim ? clamp(d / 2.4 + 0.1) : clamp(d / 1.4 + 0.3));
+        // On another island: over the bridge, one landing at a time (at the pace the whole way calls for).
+        const stop = nextStop({ x: player.pos.x, z: player.pos.z }, { x: walkTarget.x, z: walkTarget.y });
+        const sd = Math.hypot(stop.x - player.pos.x, stop.z - player.pos.z) || 1;
+        wish.set((stop.x - player.pos.x) / sd, (stop.z - player.pos.z) / sd).multiplyScalar(swim ? clamp(d / 2.4 + 0.1) : clamp(d / 1.4 + 0.3));
       }
     }
     // Pushing into the portal's face from the front, on foot, with the keys: through you go.
@@ -1961,6 +1974,7 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     labels.dispose();
     prompt?.dispose();
     games.dispose();
+    bridges.dispose();
     portal?.dispose();
     words.dispose();
     fishing?.dispose();
@@ -2028,6 +2042,14 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
       near: () => nearId,
       frames: () => frames,
       places: () => PLACES.map((p) => ({ id: p.id, x: p.x, z: p.z, stand: p.stand })),
+      /** Look at (x, z) from `dist` away (for still shots: pause() first, then render()). */
+      look: (x: number, z: number, dist = 70, pitch = 1.0, yaw = 0) => {
+        rig.target.set(x, 0.5, z);
+        rig.dist = dist;
+        rig.pitch = pitch;
+        rig.yaw = yaw;
+        placeCamera(rig.target, dist, pitch, yaw);
+      },
       teleport: (x: number, z: number) => {
         player.place(x, z, 0);
         walkTarget = null;
