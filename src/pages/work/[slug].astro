@@ -4,9 +4,9 @@
 import Base from '../../layouts/Base.astro';
 import SiteHeader from '../../components/SiteHeader.astro';
 import SiteFooter from '../../components/SiteFooter.astro';
-import AppStoreButton from '../../components/AppStoreButton.astro';
 import EntranceReveal from '../../components/work/EntranceReveal.astro';
 import ProjectHero from '../../components/work/ProjectHero.astro';
+import ProjectActions from '../../components/work/ProjectActions.astro';
 import Shots from '../../components/work/Shots.astro';
 import NextStop from '../../components/work/NextStop.astro';
 import TasteMatch from '../../components/work/toys/TasteMatch.astro';
@@ -43,7 +43,6 @@ const title = `${project.name}: ${project.headline.replace(/[.!]$/, '')} · Ambr
 const clip = (s: string, n = 158) => (s.length <= n ? s : `${s.slice(0, s.lastIndexOf(' ', n - 1))}…`);
 const description = clip(project.body.join(' '));
 
-const actions = project.links.filter((l) => l.kind === 'appstore' || l.kind === 'primary');
 const textLinks = project.links.filter((l) => !l.kind || l.kind === 'text');
 const isExternal = (href: string) => /^https?:/.test(href);
 ---
@@ -69,20 +68,7 @@ const isExternal = (href: string) => /^https?:/.test(href);
 
         {project.links.length > 0 && (
           <div class="about__links">
-            {actions.length > 0 && (
-              <div class="about__actions">
-                {actions.map((l) =>
-                  l.kind === 'appstore' ? (
-                    <AppStoreButton href={l.href} app={project.name} />
-                  ) : (
-                    <a class="btn" href={l.href} rel={isExternal(l.href) ? 'noopener' : undefined}>
-                      {l.label}
-                      <span aria-hidden="true">→</span>
-                    </a>
-                  ),
-                )}
-              </div>
-            )}
+            <ProjectActions project={project} />
             {textLinks.length > 0 && (
               <ul class="about__text-links">
                 {textLinks.map((l) => (
@@ -167,7 +153,6 @@ const isExternal = (href: string) => /^https?:/.test(href);
     line-height: 1.5;
   }
   .about__links { display: grid; gap: var(--space-5); margin-top: var(--space-7); }
-  .about__actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-4); }
   .about__text-links {
     list-style: none; margin: 0; padding: 0;
     display: flex; flex-wrap: wrap; gap: var(--space-3) var(--space-6);

@@ -1,8 +1,10 @@
 ---
 import type { Project } from '../../data/projects';
 import Landmark from './Landmark.astro';
+import ProjectActions from './ProjectActions.astro';
 interface Props { project: Project }
 const { project } = Astro.props;
+const hasActions = project.links.some((l) => l.kind === 'appstore' || l.kind === 'primary');
 ---
 <section class="hero">
   <div class="wrap">
@@ -18,6 +20,10 @@ const { project } = Astro.props;
           <span class="hero__name rise" style="--i:1">{project.name}<span class="visually-hidden">: </span></span>
           <span class="hero__headline rise" style="--i:2">{project.headline}</span>
         </h1>
+        <p class="hero__blurb rise" style="--i:3">{project.blurb}</p>
+        {hasActions && (
+          <div class="hero__actions rise" style="--i:4"><ProjectActions project={project} /></div>
+        )}
       </div>
 
       <div class="hero__stage">
@@ -95,6 +101,14 @@ const { project } = Astro.props;
     max-width: 13ch;
     text-wrap: balance;
   }
+
+  .hero__blurb {
+    max-width: 36ch;
+    font-size: var(--step-1);
+    line-height: 1.4;
+    color: var(--ink-2);
+  }
+  .hero__actions { margin-top: var(--space-3); }
 
   .hero__stage {
     order: -1;
