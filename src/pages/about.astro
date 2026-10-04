@@ -6,63 +6,22 @@ import Base from '../layouts/Base.astro';
 import SiteHeader from '../components/SiteHeader.astro';
 import SiteFooter from '../components/SiteFooter.astro';
 import { person, bySlug } from '../data/projects';
+import { name, cares as caresData, path as pathData } from '../data/about';
 import { getPosts, postUrl } from '../components/blog/posts';
 
-const essay = (await getPosts()).find((p) => p.id === 'the-future-of-software');
-const c = (slug: string) => bySlug(slug)?.hex ?? 'var(--accent)';
+const posts = await getPosts();
+const c = (slug?: string) => (slug && bySlug(slug)?.hex) || 'var(--accent)';
 
-// Each stage of a name, oldest first, the way Etymon draws a word's journey.
-const ambrose = [
-  { lang: 'Proto-Indo-European', form: '*mer-', gloss: 'to die' },
-  { lang: 'Ancient Greek', form: 'brotós', gloss: 'mortal' },
-  { lang: 'Ancient Greek', form: 'ámbrotos', gloss: 'not mortal: immortal' },
-  { lang: 'Ancient Greek', form: 'Ambrósios', gloss: 'a name: divine, immortal' },
-  { lang: 'Latin', form: 'Ambrosius', gloss: '' },
-  { lang: 'English', form: 'Ambrose', gloss: '' },
-];
-const vannier = [
-  { lang: 'Latin', form: 'vannus', gloss: 'a winnowing basket' },
-  { lang: 'French', form: 'van', gloss: 'the wide basket for sifting grain' },
-  { lang: 'French', form: 'vannier', gloss: 'one who weaves them: a basket-maker' },
-];
-
-const cares = [
-  {
-    title: 'Your life is yours.',
-    body: 'middle place keeps your journal on your device and in your own iCloud: no accounts, no tracking, nothing sold. With the Privacy Tech Lab, I helped measure whether 11,000+ websites honor a visitor’s request not to sell their data.',
-    links: [
-      { label: 'middle place', href: '/work/middle-place', color: c('middle-place') },
-      { label: 'The research', href: '/work/privacy-research', color: c('privacy-research') },
-    ],
-  },
-  {
-    title: 'Show where things come from.',
-    body: 'Etymon follows English words back through every language they passed through on the way here. Map of Evolution does the same for life, from the first cell to you.',
-    links: [
-      { label: 'Etymon', href: '/work/etymon', color: c('etymon') },
-      { label: 'Map of Evolution', href: '/work/map-of-evolution', color: c('map-of-evolution') },
-    ],
-  },
-  {
-    title: 'Judgment is the scarce thing.',
-    quote: 'The scarce thing was never the code. It was the judgment about what to build, and the people who showed up to use it.',
-    links: essay ? [{ label: essay.data.title, href: postUrl(essay), color: 'var(--sea)' }] : [],
-  },
-  {
-    title: 'Learning should answer back.',
-    body: 'QuizMate gives students feedback the moment they need it. My fieldwork with the Assessment Lab looked at how students learn alongside new technology.',
-    links: [{ label: 'QuizMate', href: '/work/quizmate', color: c('quizmate') }],
-  },
-];
-
-const path = [
-  { what: 'Wesleyan University', detail: 'B.A. in Computer Science & History, May 2026', color: 'var(--accent)' },
-  { what: 'Privacy Tech Lab', detail: 'Research on Global Privacy Control, supported by the National Science Foundation', color: c('privacy-research'), href: '/work/privacy-research' },
-  { what: 'The Assessment Lab', detail: 'Fieldwork on how students learn alongside new technology', color: c('quizmate') },
-  { what: 'WesHack', detail: 'Won with eQoScan, an app that shows a product’s packaging footprint', color: c('eqoscan'), href: '/work/eqoscan' },
-  { what: 'Machine Learning Specialization', detail: 'Stanford Online & DeepLearning.AI: supervised learning and the math underneath', color: c('map-of-evolution') },
-  { what: 'On the App Store', detail: 'QuizMate, busy beer and middle place', color: c('busy-beer'), href: '/#work' },
-];
+// The facts live in src/data/about.ts; here they get their colors and links.
+const cares = caresData.map((x) => ({
+  ...x,
+  links: x.links.flatMap((l) => {
+    if ('project' in l) return [{ label: l.label, href: `/work/${l.project}`, color: c(l.project) }];
+    const post = posts.find((p) => p.id === l.post);
+    return post ? [{ label: post.data.title, href: postUrl(post), color: 'var(--sea)' }] : [];
+  }),
+}));
+const path = pathData.map((x) => ({ ...x, color: c(x.tint) }));
 ---
 <Base title="About · Ambrose Vannier" description="Ambrose Vannier is a software developer who studied computer science and history at Wesleyan. What he cares about, what he's made, and where his name comes from.">
   <SiteHeader current="about" />
@@ -83,24 +42,20 @@ const path = [
 
       <aside class="name rise" style="--i:3" aria-labelledby="name-title">
         <p class="name__kicker" id="name-title">My name, the way Etymon would tell it</p>
-        <div class="name__word">
-          <h2 class="name__head" lang="en">Ambrose</h2>
-          <ol class="name__path">
-            {ambrose.map((s) => (
-              <li><span class="name__lang">{s.lang}</span><span class="name__form" lang={s.lang === 'English' ? 'en' : undefined}>{s.form}</span>{s.gloss && <span class="name__gloss">{s.gloss}</span>}</li>
-            ))}
-          </ol>
-          <p class="name__note">The same root gives us <em>ambrosia</em>, the food that kept the Greek gods from dying.</p>
-        </div>
-        <div class="name__word">
-          <h2 class="name__head" lang="fr">Vannier</h2>
-          <ol class="name__path">
-            {vannier.map((s) => (
-              <li><span class="name__lang">{s.lang}</span><span class="name__form">{s.form}</span>{s.gloss && <span class="name__gloss">{s.gloss}</span>}</li>
-            ))}
-          </ol>
-        </div>
-        <p class="name__sum">So, roughly: an immortal basket-maker. I'll take it.</p>
+        {name.parts.map((w) => (
+          <div class="name__word">
+            <h2 class="name__head" lang={w.lang}>{w.word}</h2>
+            <ol class="name__path">
+              {w.stages.map((s) => (
+                <li><span class="name__lang">{s.lang}</span><span class="name__form" lang={s.lang === 'English' ? 'en' : undefined}>{s.form}</span>{s.gloss && <span class="name__gloss">{s.gloss}</span>}</li>
+              ))}
+            </ol>
+            {w.note && w.em && (
+              <p class="name__note">{w.note.slice(0, w.note.indexOf(w.em))}<em>{w.em}</em>{w.note.slice(w.note.indexOf(w.em) + w.em.length)}</p>
+            )}
+          </div>
+        ))}
+        <p class="name__sum">{name.sum}</p>
       </aside>
     </section>
 
@@ -110,7 +65,7 @@ const path = [
         {cares.map((x) => (
           <li class="care">
             <h3 class="care__title">{x.title}</h3>
-            {x.quote ? (
+            {'quote' in x ? (
               <blockquote class="care__quote"><p>“{x.quote}”</p></blockquote>
             ) : (
               <p class="care__body">{x.body}</p>
