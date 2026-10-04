@@ -30,7 +30,7 @@ export type Verb =
   | 'look' | 'examine' | 'search' | 'go' | 'enter' | 'back' | 'read' | 'open'
   | 'inventory' | 'hint' | 'help' | 'map' | 'fish' | 'reel' | 'wait' | 'take'
   | 'about' | 'work' | 'writing' | 'contact' | 'where' | 'exits' | 'clear' | 'undo'
-  | 'again' | 'view' | 'portal' | 'yes' | 'no' | 'night' | 'day' | 'score'
+  | 'again' | 'view' | 'portal' | 'yes' | 'no' | 'night' | 'day' | 'score' | 'race'
   // A few for fun.
   | 'xyzzy' | 'plugh' | 'sudo' | 'hello' | 'ls' | 'cd' | 'pwd' | 'quit' | 'swim'
   | 'ring' | 'knock' | 'climb' | 'sit' | 'eat' | 'drink' | 'jump' | 'sleep' | 'zork';
@@ -69,6 +69,11 @@ const PHRASES: Record<Verb, string[]> = {
   night: ['night', 'nighttime', 'night time', 'dusk', 'lights off'],
   day: ['day', 'daytime', 'day time', 'dawn', 'lights on'],
   score: ['score', 'progress', 'points'],
+  race: [
+    'race', 'boat race', 'race the boat', 'race a lap', 'race round the island', 'race around the island', 'take the boat', 'take boat', 'take the speedboat',
+    'take speedboat', 'board', 'board the boat', 'board boat', 'get in the boat', 'get in boat', 'get in the speedboat', 'get into the boat', 'sail',
+    'go boating', 'drive the boat', 'drive boat', 'drive the speedboat', 'start the boat', 'untie the boat', 'take the boat out', 'lap',
+  ],
   xyzzy: ['xyzzy'],
   plugh: ['plugh', 'plover'],
   sudo: ['sudo'],

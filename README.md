@@ -28,7 +28,7 @@ Those are four views of **one world**, and the world is data.
 - **Places**: where each thing stands (`at`, in world units, +z is south), what it is (`archetype`: cabin, lighthouse, pier…), what it opens (`href`), and what you see when you get there (`description`, `scenery` you can examine). Project places pull their name, color and blurb from `src/data/projects.ts`.
 - **Routes**: which places connect. Paved ones become paths in the spatial views; the rest are shortcuts the text adventure narrates.
 - **Lost words**: eight words English lost (from [Etymon](https://avan36.github.io/Etymology/)'s museum), each hidden in a specific piece of scenery and at a specific spot.
-- **Activities**: fishing off the pier, which catches a post from the blog.
+- **Activities**: fishing off the pier, which catches a post from the blog, and a speedboat at the end of the pier to race round the island (the course itself is pure math in `src/world/race.ts`).
 - **Geography**: the island's shape as a recipe (coast ripples, a headland, a hill, the pier), which `geo.ts` turns into height, coastline, paths and doors that every spatial renderer shares.
 
 Nothing in it knows about pixels, meshes or fonts. Renderers map archetypes to their own art.
@@ -59,7 +59,7 @@ Renderers are loaded with `import()` only when chosen, so someone reading the li
 
 ## Shared state
 
-`src/world/store.ts` remembers what a visitor has done: the lost words they've found, the posts they've caught, whether night has fallen, and where they're standing. The rules are a pure `reduce(world, state, action) → { state, events }`, tested without a browser. Progress lives in `localStorage`; position lives in `sessionStorage`. Switch views mid-walk and you're still standing in the same spot with the same pockets.
+`src/world/store.ts` remembers what a visitor has done: the lost words they've found, the posts they've caught, whether night has fallen, their best lap round the island in the boat, and where they're standing. The rules are a pure `reduce(world, state, action) → { state, events }`, tested without a browser. Progress lives in `localStorage`; position lives in `sessionStorage`. Switch views mid-walk and you're still standing in the same spot with the same pockets.
 
 ## The rest of the site
 

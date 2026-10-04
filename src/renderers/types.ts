@@ -10,7 +10,7 @@ import type { WorldStore } from '../world/store';
 
 export type ViewId = 'island' | 'map' | 'text' | 'list';
 
-export type SoundName = 'step' | 'tap' | 'pop' | 'land' | 'chime' | 'bell' | 'whoosh' | 'jump' | 'jump2' | 'splash' | 'swim';
+export type SoundName = 'step' | 'tap' | 'pop' | 'land' | 'chime' | 'bell' | 'whoosh' | 'jump' | 'jump2' | 'splash' | 'swim' | 'spray' | 'beep' | 'go';
 
 export interface RendererContext {
   world: World;

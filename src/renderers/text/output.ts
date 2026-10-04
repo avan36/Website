@@ -42,6 +42,8 @@ export type Effect =
   | { type: 'view'; id: ViewId }
   /** Open the portal's menu of views, and go through into the one picked. */
   | { type: 'portal' }
+  /** Off to the 3D island, straight into the speedboat at the pier. */
+  | { type: 'boat' }
   | { type: 'night'; on: boolean }
   | { type: 'clear' }
   | { type: 'timer'; ms: number; signal: Signal }

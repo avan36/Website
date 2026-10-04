@@ -169,10 +169,11 @@ const places: PlaceInput[] = [
     door: { x: 4, z: 25.4 },
     aliases: ['pier', 'jetty', 'dock', 'writing', 'blog', 'post box', 'postbox'],
     description:
-      'The end of a long wooden pier, well out over the water. A post box stands here with a letter peeking out of the slot, and a little rowboat bumps gently against the posts below.',
+      'The end of a long wooden pier, well out over the water. A post box stands here with a letter peeking out of the slot, and a little rowboat bumps gently against the posts below. Tied up at the very end, a red speedboat is ready to go.',
     scenery: [
       { id: 'postbox', names: ['post box', 'postbox', 'box', 'letter'], description: 'Everything I write gets posted from here. The letter in the slot is the latest one.' },
       { id: 'rowboat', names: ['rowboat', 'boat', 'towel'], description: 'A little rowboat, tied up and half full of rainwater. A damp towel lies across the seat.' },
+      { id: 'speedboat', names: ['speedboat', 'motorboat', 'speed boat'], description: 'A small red speedboat, tied up at the very end of the pier and rocking on the swell. Out past the buoys, a ring of gates runs right round the island.' },
       { id: 'water', names: ['water', 'sea', 'fish'], description: 'Clear enough to see fish circling the posts. You could probably catch something from here.' },
     ],
   },
@@ -345,6 +346,14 @@ const activities: WorldInput['activities'] = [
     at: { x: 0, z: 4.5 },
     name: 'The portal',
     description: 'A ring of light in the middle of the plaza. Step through it to see the island another way: in 3D, as a pixel-art map, or as a text adventure.',
+  },
+  {
+    id: 'boat',
+    kind: 'boat',
+    place: 'blog',
+    at: { x: 2, z: 28.4 },
+    name: 'Race round the island',
+    description: 'A little speedboat is tied up at the end of the pier. Take it out for a lap of the island, through every gate, and race the clock.',
   },
 ];
 
