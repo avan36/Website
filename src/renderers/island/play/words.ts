@@ -168,6 +168,9 @@ export class LostWords {
   private letters: Letter[][];
   private palette: Color[] = ['#fff3df', '#f2c14e', '#ffffff'].map((c) => new Color(c));
   private accent = new Color();
+  private right = new Vector3();
+  private up = new Vector3();
+  private tmp = new Vector3();
 
   constructor(
     words: WordSpot[],
@@ -333,9 +336,9 @@ export class LostWords {
     this.heroT = 0;
     this.revealed = false;
     this.burst = false;
-    // Rise from where it lay to a spot between it and the explorer, at head height and a bit.
+    // Rise from where it lay to just above the explorer's head.
     this.heroFrom.set(s.x, s.y + R, s.z);
-    this.heroTo.set(lerp(s.x, from.x, 0.45), Math.max(s.y, from.y) + 2.3, lerp(s.z, from.z, 0.45) + 0.4);
+    this.heroTo.set(lerp(s.x, from.x, 0.75), Math.max(s.y, from.y) + 2.75, lerp(s.z, from.z, 0.75) + 0.35);
     this.o.rotation.set(0, s.yaw, Math.PI / 2);
     this.qFrom.setFromEuler(this.o.rotation);
     this.hero.visible = true;
@@ -415,10 +418,16 @@ export class LostWords {
     if (!this.burst && t >= (rm ? RISE : 0.62)) {
       this.burst = true;
       this.onSound?.('chime');
-      const p = this.hero.position;
       if (!rm) {
-        puffs.ring(p.x, p.y - 0.2, p.z, 10, 2.2, s.color, 0.12);
-        for (let i = 0; i < 12; i++) this.spawnLetter(p, s.color);
+        // Letters spill out of the sheet, outward across the view and up.
+        this.right.set(1, 0, 0).applyQuaternion(this.hero.quaternion);
+        this.up.set(0, 1, 0).applyQuaternion(this.hero.quaternion);
+        for (let i = 0; i < 12; i++) this.spawnLetter(this.hero.position, (i / 12) * Math.PI * 2 + Math.random() * 0.4, s.color);
+        for (const side of [-1, 1]) {
+          const r = this.rollers[side < 0 ? 0 : 1];
+          this.tmp.copy(r.position).applyMatrix4(this.hero.matrixWorld);
+          puffs.ring(this.tmp.x, this.tmp.y, this.tmp.z, 5, 1.2, '#ffe9a8', 0.07);
+        }
       }
     }
     if (!this.revealed && t >= CARD) {
@@ -431,19 +440,25 @@ export class LostWords {
     }
   }
 
-  private spawnLetter(at: Vector3, color: string) {
+  private spawnLetter(at: Vector3, a: number, color: string) {
     const g = Math.floor(Math.random() * this.letters.length);
     const pool = this.letters[g];
     const i = pool.findIndex((l) => !l.alive);
     if (i < 0) return;
     const l = pool[i];
-    const a = Math.random() * Math.PI * 2;
-    const sp = 0.9 + Math.random() * 1.3;
+    const sp = 1.6 + Math.random() * 1.2;
+    // From the sheet's edge, outward in the plane of the view.
+    const ox = Math.cos(a) * 1.1;
+    const oy = Math.sin(a) * 0.4;
+    const r = this.right;
+    const u = this.up;
     Object.assign(l, {
-      alive: true, age: 0, life: 1.1 + Math.random() * 0.5,
-      x: at.x + Math.cos(a) * 0.3, y: at.y, z: at.z + Math.sin(a) * 0.3,
-      vx: Math.cos(a) * sp, vy: 1.4 + Math.random() * 1.4, vz: Math.sin(a) * sp * 0.6,
-      spin: (Math.random() - 0.5) * 6, size: 1.4 + Math.random() * 0.8,
+      alive: true, age: 0, life: 1.0 + Math.random() * 0.5,
+      x: at.x + r.x * ox + u.x * oy, y: at.y + r.y * ox + u.y * oy, z: at.z + r.z * ox + u.z * oy,
+      vx: (r.x * Math.cos(a) + u.x * (Math.sin(a) + 0.6)) * sp,
+      vy: (r.y * Math.cos(a) + u.y * (Math.sin(a) + 0.6)) * sp,
+      vz: (r.z * Math.cos(a) + u.z * (Math.sin(a) + 0.6)) * sp,
+      spin: (Math.random() - 0.5) * 6, size: 0.75 + Math.random() * 0.45,
     });
     const m = this.letterMeshes[g];
     m.setColorAt(i, Math.random() < 0.35 ? this.accent.set(color) : this.palette[Math.floor(Math.random() * this.palette.length)]);
