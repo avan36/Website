@@ -210,8 +210,10 @@ export function createRoomUI(world: World, announce: (s: string) => void, toast:
     const topic = topicId ? c.topics.find((t) => t.id === topicId) : undefined;
     if (topic) done.add(topic.id);
     const line = topic ? topic.reply : c.greeting;
+    // A topic named for a project keeps the project's own case: busy beer, QuizMate, eQoScan.
+    const label = (name: string) => world.projects.find((x) => x.name.toLowerCase() === name)?.name ?? cap(name);
     const choices = c.topics
-      .map((t) => `<button type="button" class="w-talk__choice${done.has(t.id) ? ' is-asked' : ''}" data-talk="topic:${t.id}"${t.id === topic?.id ? ' aria-current="true"' : ''}>${esc(cap(t.names[0]))}</button>`)
+      .map((t) => `<button type="button" class="w-talk__choice${done.has(t.id) ? ' is-asked' : ''}" data-talk="topic:${t.id}"${t.id === topic?.id ? ' aria-current="true"' : ''}>${esc(label(t.names[0]))}</button>`)
       .join('');
     show(
       `${CLOSE}

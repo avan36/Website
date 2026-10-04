@@ -99,6 +99,42 @@ export function buildTerrain() {
   return mesh;
 }
 
+/** A turned rectangle of ground, and the height to keep it under (see pressGround()). */
+export type Press = { x: number; z: number; yaw: number; hw: number; hd: number; y: number };
+
+/**
+ * Press the ground down flat, to no higher than `y`, inside a turned
+ * rectangle: where a building's room has been set down on it, so the slope
+ * of a neighbour's plot doesn't poke up through the floor. Null puts all the
+ * ground back as it was.
+ */
+export function pressGround(mesh: Mesh, at: Press | null) {
+  const pos = mesh.geometry.getAttribute('position') as BufferAttribute;
+  const ys = (mesh.userData.heights ??= Float32Array.from({ length: pos.count }, (_, i) => pos.getY(i))) as Float32Array;
+  const c = at ? Math.cos(at.yaw) : 1;
+  const s = at ? Math.sin(at.yaw) : 0;
+  let lo = Infinity;
+  let hi = -1;
+  for (let i = 0; i < pos.count; i++) {
+    let y = ys[i];
+    if (at) {
+      const dx = pos.getX(i) - at.x;
+      const dz = pos.getZ(i) - at.z;
+      // Into the rectangle's own terms (its +z is the way it faces).
+      if (Math.abs(dx * c - dz * s) < at.hw && Math.abs(dx * s + dz * c) < at.hd) y = Math.min(y, at.y);
+    }
+    if (y !== pos.getY(i)) {
+      pos.setY(i, y);
+      lo = Math.min(lo, i);
+      hi = i;
+    }
+  }
+  if (hi < 0) return;
+  pos.clearUpdateRanges();
+  pos.addUpdateRange(lo * 3, (hi - lo + 1) * 3);
+  pos.needsUpdate = true;
+}
+
 function faceColor(c: Color, x: number, y: number, z: number, steep: number, rand: () => number) {
   const jitter = (rand() - 0.5) * 0.06;
   if (y < 0.02) {
