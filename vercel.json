@@ -3,5 +3,12 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "cleanUrls": true,
-  "trailingSlash": false
+  "trailingSlash": false,
+  "git": {
+    "deploymentEnabled": {
+      "claude/**": false,
+      "claude/elegant-hopper-vo8te3": false,
+      "claude/modest-einstein-f2exnu": false
+    }
+  }
 }
