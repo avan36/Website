@@ -3,10 +3,15 @@
 // can't climb, wading and swimming in the sea) and all the juice: hop, jump
 // and a somersaulting double jump, squash and stretch, dust and splashes,
 // strokes and wakes, blinks, glances. Off the pier it can hold out a little
-// bamboo fishing rod.
+// bamboo fishing rod. And it dresses up: whatever the visitor wears from the
+// wardrobe (a hat, glasses, a scarf in another color, a vest) is built here
+// from a few primitives.
 
 import {
+  BoxGeometry,
   CanvasTexture,
+  CircleGeometry,
+  DoubleSide,
   Group,
   Mesh,
   MeshBasicMaterial,
@@ -26,6 +31,10 @@ import type { Ripples } from './world/ripples';
 import type { Collider } from './world/nature';
 import { groundAt, heightAt, isWalkable, rockiness, swimRoom } from './world/shape';
 import { waveHeight } from './world/water';
+import type { Outfit } from '../../world/schema';
+
+/** What the explorer needs to know about a piece of clothing. */
+export type Wearable = Pick<Outfit, 'id' | 'slot' | 'color'>;
 
 const SPEED = 5.4;
 const BODY_R = 0.5;
@@ -108,6 +117,10 @@ export class Explorer {
   private sprout = new Group();
   private shadow: Mesh;
   private mats: (MeshStandardMaterial | MeshBasicMaterial)[] = [];
+  private outfit = new Group();
+  private outfitMats: MeshStandardMaterial[] = [];
+  private wornKey = '';
+  private scarfMat: MeshStandardMaterial;
   private rod = new Group();
   private rodTipAt = new Object3D();
   private rodAmt = 0;
@@ -228,16 +241,17 @@ export class Explorer {
     this.bodyG.add(this.eyes, mouth);
 
     // Scarf with a fluttering tail
-    const scarf = new Mesh(new TorusGeometry(0.4, 0.085, 10, 28), orange);
+    this.scarfMat = this.mat(new MeshStandardMaterial({ color: '#ff5a36', roughness: 0.75 }));
+    const scarf = new Mesh(new TorusGeometry(0.4, 0.085, 10, 28), this.scarfMat);
     scarf.rotation.x = Math.PI / 2;
     scarf.position.y = 0.27;
     scarf.scale.set(1.04, 1.0, 1.0);
     scarf.castShadow = true;
     this.bodyG.add(scarf);
     this.tail.position.set(0.17, 0.27, -0.38);
-    const t1 = new Mesh(new RoundedBoxGeometry(0.16, 0.34, 0.07, 2, 0.03), orange);
+    const t1 = new Mesh(new RoundedBoxGeometry(0.16, 0.34, 0.07, 2, 0.03), this.scarfMat);
     t1.position.y = -0.15;
-    const t2 = new Mesh(new RoundedBoxGeometry(0.13, 0.12, 0.08, 2, 0.03), orange);
+    const t2 = new Mesh(new RoundedBoxGeometry(0.13, 0.12, 0.08, 2, 0.03), this.scarfMat);
     t2.position.set(0.01, -0.32, 0);
     this.tail.add(t1, t2);
     this.bodyG.add(this.tail);
@@ -284,6 +298,7 @@ export class Explorer {
     };
     this.armL = mkArm(-1);
     this.armR = mkArm(1);
+    this.bodyG.add(this.outfit);
 
     // A bamboo rod in the right hand, hidden until there's fishing to do.
     const bamboo = this.mat(new MeshStandardMaterial({ color: '#d9b26a', roughness: 0.6 }));
@@ -358,6 +373,39 @@ export class Explorer {
   }
   private tRocks(x: number, z: number) {
     return this.indoors ? 0 : rockiness(x, z);
+  }
+
+  /**
+   * Dress up: one piece per slot (head, face, neck, body). The scarf takes the
+   * neck piece's color; hats replace the sprout (a leaf crown grows round it).
+   */
+  wear(items: readonly Wearable[]) {
+    const key = items.map((o) => o.id).sort().join(',');
+    if (key === this.wornKey) return;
+    this.wornKey = key;
+    this.undress();
+    const head = items.find((o) => o.slot === 'head');
+    this.sprout.visible = !head || head.id === 'leaf-crown';
+    this.scarfMat.color.set(items.find((o) => o.slot === 'neck')?.color ?? '#ff5a36');
+    const mat = (color: string, opts: { flat?: boolean; rough?: number; opacity?: number; side?: boolean } = {}) => {
+      const m = new MeshStandardMaterial({ color, roughness: opts.rough ?? 0.65, flatShading: opts.flat ?? false });
+      if (opts.opacity !== undefined) (m.transparent = true), (m.opacity = opts.opacity);
+      if (opts.side) m.side = DoubleSide;
+      this.outfitMats.push(m);
+      return m;
+    };
+    for (const o of items) {
+      const g = dress(o, mat);
+      g.traverse((m) => ((m as Mesh).isMesh && o.slot === 'head' ? ((m as Mesh).castShadow = true) : null));
+      this.outfit.add(g);
+    }
+  }
+
+  private undress() {
+    this.outfit.traverse((o) => (o as Mesh).geometry?.dispose());
+    this.outfit.clear();
+    this.outfitMats.forEach((m) => m.dispose());
+    this.outfitMats = [];
   }
 
   private mat<T extends MeshStandardMaterial | MeshBasicMaterial>(m: T) {
@@ -963,9 +1011,162 @@ export class Explorer {
   }
 
   dispose() {
+    this.undress();
     this.root.traverse((o) => (o as Mesh).geometry?.dispose());
     this.shadow.geometry.dispose();
     (this.shadow.material as MeshBasicMaterial).map?.dispose();
     this.mats.forEach((m) => m.dispose());
   }
+}
+
+// ---------- The wardrobe, in three dimensions ----------
+// Coordinates are the body group's: the marshmallow is a 0.5 sphere centred
+// at y 0.47 (squashed to 0.94 tall), the eyes sit at y 0.56 on the front (+z)
+// and the scarf rings it at y 0.27.
+
+type MatFn = (color: string, opts?: { flat?: boolean; rough?: number; opacity?: number; side?: boolean }) => MeshStandardMaterial;
+
+const darker = (hex: string, k: number) => {
+  const n = parseInt(hex.slice(1), 16);
+  const ch = (v: number) => Math.round(v * (1 - k)).toString(16).padStart(2, '0');
+  return `#${ch((n >> 16) & 255)}${ch((n >> 8) & 255)}${ch(n & 255)}`;
+};
+
+function at<T extends Object3D>(o: T, x: number, y: number, z: number): T {
+  o.position.set(x, y, z);
+  return o;
+}
+
+/** Build one piece of clothing as a group in the body's space. */
+function dress(o: Wearable, mat: MatFn): Group {
+  const g = new Group();
+  const c = o.color;
+  const d = darker(c, 0.25);
+  const hat = (crownR: number, crownH: number, brimR: number, y = 0.84) => {
+    const crown = at(new Mesh(new CylinderGeometry(crownR * 0.86, crownR, crownH, 24), mat(c)), 0, y + crownH / 2, 0);
+    const brim = at(new Mesh(new CylinderGeometry(brimR, brimR, 0.035, 28), mat(d)), 0, y, 0);
+    g.add(crown, brim);
+  };
+  switch (o.id) {
+    case 'hard-hat': {
+      const dome = new Group();
+      dome.scale.set(1, 0.85, 1);
+      dome.position.y = 0.83;
+      dome.add(new Mesh(new SphereGeometry(0.3, 22, 10, 0, Math.PI * 2, 0, Math.PI / 2), mat(c, { rough: 0.35 })));
+      const ridge = new Mesh(new TorusGeometry(0.3, 0.024, 6, 18, Math.PI), mat(d, { rough: 0.35 }));
+      ridge.rotation.y = Math.PI / 2;
+      dome.add(ridge);
+      const brim = at(new Mesh(new CylinderGeometry(0.37, 0.37, 0.035, 28), mat(d, { rough: 0.35 })), 0, 0.84, 0.05);
+      g.add(dome, brim);
+      g.rotation.x = -0.08;
+      return g;
+    }
+    case 'leaf-crown': {
+      const band = at(new Mesh(new TorusGeometry(0.29, 0.028, 6, 24), mat('#8a5a2b')), 0, 0.84, 0);
+      band.rotation.x = Math.PI / 2;
+      g.add(band);
+      const leaf = mat(c, { flat: true, rough: 0.7 });
+      const n = 11;
+      for (let i = 0; i < n; i++) {
+        const a = (i / n) * Math.PI * 2;
+        const l = new Mesh(new SphereGeometry(0.07, 6, 5), leaf);
+        l.scale.set(0.7, 1.5, 0.35);
+        l.position.set(Math.sin(a) * 0.3, 0.9, Math.cos(a) * 0.3);
+        l.rotation.set(0, a, 0);
+        l.rotateX(-0.35);
+        g.add(l);
+      }
+      for (const a of [0.45, -0.5, 2.6]) g.add(at(new Mesh(new SphereGeometry(0.035, 8, 6), mat('#ffb7c9')), Math.sin(a) * 0.31, 0.86, Math.cos(a) * 0.31));
+      return g;
+    }
+    case 'mortarboard': {
+      g.add(at(new Mesh(new CylinderGeometry(0.27, 0.29, 0.14, 24), mat(d)), 0, 0.88, 0));
+      const board = at(new Mesh(new RoundedBoxGeometry(0.66, 0.035, 0.66, 1, 0.012), mat(c)), 0, 0.97, 0);
+      board.rotation.y = Math.PI / 4;
+      const gold = mat('#f5c542', { rough: 0.4 });
+      const button = at(new Mesh(new SphereGeometry(0.03, 8, 6), gold), 0, 0.995, 0);
+      const cord = at(new Mesh(new CylinderGeometry(0.008, 0.008, 0.33, 4), gold), 0.165, 0.99, 0);
+      cord.rotation.z = Math.PI / 2;
+      const tassel = at(new Mesh(new CylinderGeometry(0.02, 0.035, 0.16, 6), gold), 0.33, 0.9, 0);
+      g.add(board, button, cord, tassel);
+      g.rotation.x = -0.1;
+      return g;
+    }
+    case 'fishing-hat': {
+      g.add(at(new Mesh(new CylinderGeometry(0.22, 0.29, 0.2, 20), mat(c, { rough: 0.9 })), 0, 0.95, 0));
+      g.add(at(new Mesh(new CylinderGeometry(0.295, 0.3, 0.06, 20), mat('#5b7a4a')), 0, 0.88, 0));
+      g.add(at(new Mesh(new CylinderGeometry(0.3, 0.46, 0.09, 24, 1, true), mat(d, { rough: 0.9, side: true })), 0, 0.82, 0));
+      g.add(at(new Mesh(new SphereGeometry(0.03, 6, 4), mat('#ff5a36')), 0.2, 0.93, 0.18));
+      return g;
+    }
+    case 'sailor-hat': {
+      g.add(at(new Mesh(new CylinderGeometry(0.25, 0.29, 0.2, 22), mat(c, { rough: 0.8 })), 0, 0.95, 0));
+      g.add(at(new Mesh(new CylinderGeometry(0.292, 0.296, 0.04, 22), mat('#2b5fa8')), 0, 0.9, 0));
+      g.add(at(new Mesh(new CylinderGeometry(0.4, 0.3, 0.12, 24, 1, true), mat(darker(c, 0.06), { rough: 0.8, side: true })), 0, 0.86, 0));
+      g.rotation.z = 0.12;
+      return g;
+    }
+    case 'reading-glasses':
+    case 'sunglasses': {
+      const sun = o.id === 'sunglasses';
+      const rim = mat(c, { rough: 0.4 });
+      const lens = sun ? mat(c, { rough: 0.15 }) : mat('#cfe9f5', { rough: 0.1, opacity: 0.45 });
+      for (const s of [-1, 1]) {
+        g.add(at(new Mesh(new TorusGeometry(sun ? 0.1 : 0.088, 0.016, 8, 22), rim), s * 0.155, 0.56, 0.475));
+        g.add(at(new Mesh(new CircleGeometry(sun ? 0.1 : 0.085, 22), lens), s * 0.155, 0.56, 0.47));
+        const temple = at(new Mesh(new CylinderGeometry(0.012, 0.012, 0.24, 4), rim), s * 0.285, 0.57, 0.36);
+        temple.rotation.x = Math.PI / 2;
+        g.add(temple);
+      }
+      const bridge = at(new Mesh(new TorusGeometry(0.05, 0.013, 6, 10, Math.PI), rim), 0, 0.57, 0.485);
+      g.add(bridge);
+      return g;
+    }
+    case 'cardinal-scarf':
+      // The scarf itself just changes color (see wear()).
+      return g;
+    case 'tool-belt': {
+      // A leather band low on the body, under the scarf, with a brass buckle,
+      // two pouches, a carpenter's pencil and a hammer.
+      const band = at(new Mesh(new CylinderGeometry(0.39, 0.305, 0.075, 28, 1, true), mat(c, { side: true })), 0, 0.125, 0);
+      band.scale.z = 0.97;
+      const buckle = at(new Mesh(new TorusGeometry(0.035, 0.012, 4, 4), mat('#f2c14e', { rough: 0.35 })), 0, 0.125, 0.345);
+      buckle.rotation.z = Math.PI / 4;
+      g.add(band, buckle);
+      for (const s of [-1, 1]) {
+        const a = s * 0.85;
+        const pouch = at(new Mesh(new RoundedBoxGeometry(0.13, 0.15, 0.07, 1, 0.02), mat(d)), Math.sin(a) * 0.36, 0.075, Math.cos(a) * 0.35);
+        pouch.rotation.y = a;
+        g.add(pouch);
+      }
+      const pencil = at(new Mesh(new CylinderGeometry(0.014, 0.014, 0.13, 6), mat('#ffbe0b')), Math.sin(-0.85) * 0.39, 0.15, Math.cos(-0.85) * 0.38);
+      pencil.rotation.z = 0.3;
+      const handle = at(new Mesh(new CylinderGeometry(0.014, 0.014, 0.14, 5), mat('#8a5a2b')), Math.sin(0.85) * 0.39, 0.15, Math.cos(0.85) * 0.38);
+      handle.rotation.z = -0.25;
+      const head = at(new Mesh(new BoxGeometry(0.09, 0.035, 0.035), mat('#6b7280', { rough: 0.4 })), Math.sin(0.85) * 0.39 + 0.018, 0.22, Math.cos(0.85) * 0.38);
+      head.rotation.z = -0.25;
+      g.add(pencil, handle, head);
+      return g;
+    }
+    case 'recycling-vest': {
+      // Wraps the sides and back, open at the front.
+      // Below the face, around the sides and back (under the backpack), open at the front.
+      const open = 0.66;
+      const vest = at(new Mesh(new SphereGeometry(0.515, 32, 12, Math.PI / 2 + open, Math.PI * 2 - 2 * open, 1.3, 1.45), mat(c, { side: true })), 0, 0.47, 0);
+      vest.scale.set(1, 0.94, 0.97);
+      const stripe = at(new Mesh(new SphereGeometry(0.522, 32, 2, Math.PI / 2 + open, Math.PI * 2 - 2 * open, 2.22, 0.1), mat('#e9f1dc', { rough: 0.3, side: true })), 0, 0.47, 0);
+      stripe.scale.copy(vest.scale);
+      g.add(vest, stripe);
+      return g;
+    }
+  }
+  // Something new in the world: a simple shape for its slot, in its color.
+  if (o.slot === 'head') hat(0.26, 0.18, 0.36);
+  else if (o.slot === 'face') for (const s of [-1, 1]) g.add(at(new Mesh(new TorusGeometry(0.088, 0.016, 8, 22), mat(c)), s * 0.155, 0.56, 0.475));
+  else if (o.slot === 'body') {
+    const vest = at(new Mesh(new SphereGeometry(0.515, 32, 12, Math.PI / 2 + 0.82, Math.PI * 2 - 1.64, 1.55, 1.05), mat(c, { side: true })), 0, 0.47, 0);
+    vest.scale.set(1, 0.94, 0.97);
+    g.add(vest);
+  }
+  return g;
 }

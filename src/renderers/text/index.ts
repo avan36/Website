@@ -118,6 +118,13 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
         case 'night':
           store.dispatch({ type: 'night', on: e.on });
           break;
+        case 'wear':
+          store.dispatch({ type: 'wear', id: e.id });
+          ctx.sound.play('pop');
+          break;
+        case 'unwear':
+          store.dispatch({ type: 'unwear', slot: e.slot });
+          break;
         case 'clear':
           typewriter.finish();
           log.replaceChildren();
@@ -179,7 +186,7 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
   /** The engine's state, with progress fresh from the store (another view, or the hoard card, may have changed it). */
   function sync(): EngineState {
     const p = progress();
-    state = { ...state, found: p.found, caught: p.caught, night: p.night, bestLap: p.bestLap, bests: Object.fromEntries(Object.entries(p.games).map(([id, g]) => [id, g.best])) };
+    state = { ...state, found: p.found, caught: p.caught, night: p.night, bestLap: p.bestLap, bests: Object.fromEntries(Object.entries(p.games).map(([id, g]) => [id, g.best])), wardrobe: p.wardrobe, worn: p.worn };
     return state;
   }
 

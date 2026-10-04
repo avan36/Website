@@ -40,6 +40,48 @@ function encodeHeader(str) {
   return /^[\x00-\x7F]*$/.test(str) ? str : `=?UTF-8?B?${b64(str)}?=`;
 }
 
+// ---------- Guestbook in a bottle ----------
+// One-line notes from /contact. They are NEVER published by this Worker: each
+// one is emailed to the owner, who approves it by pasting the line at the end
+// of the email into src/data/guestbook.ts. Limits mirror
+// src/components/contact/guestbook.ts; keep them in step.
+const GUESTBOOK_MAX_MESSAGE = 140;
+const GUESTBOOK_MAX_NAME = 40;
+const GUESTBOOK_LINK = /(https?:\/\/|www\.|\b[a-z0-9-]+\.(com|net|org|io|xyz|ru|info|biz)\b)/i;
+
+const oneLine = (s) => String(s || "").replace(/\s+/g, " ").trim();
+
+function checkGuestbook(data) {
+  const name = oneLine(data.name);
+  const message = oneLine(data.message);
+  if (!message) return { error: "Write a line to put in the bottle." };
+  if ([...message].length > GUESTBOOK_MAX_MESSAGE) return { error: `Keep it to ${GUESTBOOK_MAX_MESSAGE} characters.` };
+  if (GUESTBOOK_LINK.test(message)) return { error: "Links don't fit in the bottle. Just words, please." };
+  if ([...name].length > GUESTBOOK_MAX_NAME || GUESTBOOK_LINK.test(name)) return { error: "A first name or initials is plenty." };
+  return { name, message };
+}
+
+function guestbookEmail(name, message) {
+  const date = new Date().toISOString().slice(0, 10);
+  const entry = name
+    ? `{ name: ${JSON.stringify(name)}, message: ${JSON.stringify(message)}, date: '${date}' },`
+    : `{ message: ${JSON.stringify(message)}, date: '${date}' },`;
+  const subject = `Guestbook note from ${name || "an anonymous visitor"}`;
+  const body =
+`Someone left a note in the guestbook bottle on ambrosevannier.com/contact.
+It is NOT published. To approve it, paste this line into the array in
+src/data/guestbook.ts and deploy the site:
+
+${entry}
+
+From:    ${name || "(no name)"}
+Message: ${message}
+
+To reject it, do nothing.
+`;
+  return { subject, body };
+}
+
 export default {
   async fetch(request, env) {
     const origin = request.headers.get("Origin") || "";
@@ -64,6 +106,42 @@ export default {
       }
     } catch {
       return new Response(JSON.stringify({ ok: false, error: "Invalid request." }), { status: 400, headers });
+    }
+
+    if (data && data.type === "guestbook") {
+      // Moderated, so be strict: only the real site may post, and keep it short.
+      if (!ALLOWED_ORIGINS.has(origin)) {
+        return new Response(JSON.stringify({ ok: false, error: "Not allowed." }), { status: 403, headers });
+      }
+      // A bot filled the hidden field: accept silently, send nothing.
+      if (String(data.company || "").trim()) {
+        return new Response(JSON.stringify({ ok: true }), { status: 200, headers });
+      }
+      const note = checkGuestbook(data);
+      if (note.error) {
+        return new Response(JSON.stringify({ ok: false, error: note.error }), { status: 400, headers });
+      }
+      const { subject, body } = guestbookEmail(note.name, note.message);
+      const raw =
+`From: Portfolio Guestbook <${FROM}>\r
+To: ${TO}\r
+Message-ID: <${crypto.randomUUID()}@ambrosevannier.com>\r
+Date: ${new Date().toUTCString()}\r
+Subject: ${encodeHeader(subject)}\r
+MIME-Version: 1.0\r
+Content-Type: text/plain; charset="utf-8"\r
+Content-Transfer-Encoding: base64\r
+\r
+${b64Body(body)}`;
+      try {
+        await env.EMAIL.send(new EmailMessage(FROM, TO, raw));
+      } catch {
+        return new Response(
+          JSON.stringify({ ok: false, error: "The tide turned it back. Please try again later." }),
+          { status: 502, headers },
+        );
+      }
+      return new Response(JSON.stringify({ ok: true }), { status: 200, headers });
     }
 
     const name = String(data.name || "").trim();

@@ -9,6 +9,7 @@
 
 import type { Geo, Vec2 } from '../../world/geo';
 import { fbm } from '../../world/noise';
+import { paintCommute } from './commute';
 import { polylineDist } from './layout';
 import { C } from './palette';
 import { bayer, nightData, Pix, type Color } from './pixels';
@@ -16,13 +17,13 @@ import { hash2 } from './rng';
 
 /** Map pixels per world unit. */
 export const TEX = 8;
-/** The world rectangle the map paints: the island, the water you can swim in, and the drop-off past it. */
-export const RECT = { x0: -34, z0: -37, x1: 37, z1: 34 };
+/** The world rectangle the map paints: the island (east end and all), the water you can swim in, and the drop-off past it. */
+export const RECT = { x0: -34, z0: -37, x1: 50, z1: 34 };
 /** Deeper than this (world units) you swim; shallower, you wade. */
 export const SWIM_DEPTH = 0.45;
 
 /** What each map pixel is. */
-export const G = { water: 0, wet: 1, sand: 2, bank: 3, grass: 4, rock: 5, cliff: 6, path: 7, plaza: 8, pier: 9 } as const;
+export const G = { water: 0, wet: 1, sand: 2, bank: 3, grass: 4, rock: 5, cliff: 6, path: 7, plaza: 8, pier: 9, rail: 10, quay: 11 } as const;
 
 export interface Terrain {
   W: number;
@@ -303,6 +304,10 @@ export async function buildTerrain(geo: Geo, spurs: Vec2[][]): Promise<Terrain> 
       pix.data[k] = edge ? C.plankDark : gap ? C.plankDark : seam ? C.plankDark : hash2(i, Math.floor(j / 4), 29) < 0.05 ? C.plankLight : (j % 4 === 1 ? C.plankLight : C.plank);
     }
   }
+
+  // ---------- The railway, the station platform and the quay ----------
+  paintCommute(geo, pix, ground, { x0: RECT.x0, z0: RECT.z0, tex: TEX }, { rail: G.rail, quay: G.quay });
+  await breathe();
 
   // ---------- Where you can be ----------
   const solid = new Uint8Array(n);

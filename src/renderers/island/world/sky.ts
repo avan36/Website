@@ -22,6 +22,8 @@ export function buildSky(sunDir: Vector3) {
       uNightMid: { value: new Color('#16204a') },
       uNightTop: { value: new Color('#0a1030') },
       uMoon: { value: MOON_DIR.clone() },
+      /** The moon is part of the reward night only (see night.ts). */
+      uMoonOn: { value: 0 },
     },
     vertexShader: /* glsl */ `
       varying vec3 vDir;
@@ -33,7 +35,7 @@ export function buildSky(sunDir: Vector3) {
     `,
     fragmentShader: /* glsl */ `
       uniform vec3 uHorizon, uMid, uTop, uSun;
-      uniform float uNight;
+      uniform float uNight, uMoonOn;
       uniform vec3 uNightHorizon, uNightMid, uNightTop, uMoon;
       varying vec3 vDir;
       float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
@@ -56,8 +58,8 @@ export function buildSky(sunDir: Vector3) {
           night += vec3(0.85, 0.9, 1.0) * star * (0.5 + 0.5 * fract(h * 91.0));
           // The moon, with a soft halo.
           float m = max(dot(d, uMoon), 0.0);
-          night += vec3(0.75, 0.82, 1.0) * (pow(m, 12.0) * 0.12 + pow(m, 90.0) * 0.25);
-          night = mix(night, vec3(0.97, 0.96, 0.9), smoothstep(0.9993, 0.9996, m));
+          night += vec3(0.75, 0.82, 1.0) * (pow(m, 12.0) * 0.12 + pow(m, 90.0) * 0.25) * uMoonOn;
+          night = mix(night, vec3(0.97, 0.96, 0.9), smoothstep(0.9993, 0.9996, m) * uMoonOn);
           col = mix(col, night, uNight);
         }
         gl_FragColor = vec4(col, 1.0);

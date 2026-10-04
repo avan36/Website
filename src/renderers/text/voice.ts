@@ -20,6 +20,7 @@ export const WAY_IN: Record<Archetype, string> = {
   lighthouse: 'climb the spiral stairs toward the light',
   schoolhouse: 'slip into the schoolhouse and take a seat at the back',
   depot: 'duck under the conveyor and into the depot',
+  workshop: 'step over the sawdust and into the workshop, where the notes are pinned up',
   pier: 'open the post box and pull out the letters',
   bottle: 'pull out the cork and unroll the note',
 };
@@ -34,6 +35,7 @@ export const INVITE: Record<Archetype, string> = {
   lighthouse: 'climb up to the light',
   schoolhouse: 'join the class',
   depot: 'look around the depot',
+  workshop: 'read how the island was built',
   pier: "read everything I've posted from here, or [READ] to list it",
   bottle: 'write me a message',
 };
@@ -44,6 +46,7 @@ export const ARRIVE: Partial<Record<Archetype, string>> = {
   bottle: 'down to the quiet beach where the bottle lies',
   lighthouse: 'out along the rocky headland to the lighthouse',
   tree: 'up the gentle rise to the ancient tree',
+  workshop: 'across the tracks to the workshop inside the railway loop',
 };
 
 /** One extra line for each place after dark. */
@@ -56,6 +59,7 @@ export const NIGHT: Record<Archetype, string> = {
   lighthouse: 'At night the beam is everything: a slow white spoke turning over black water.',
   schoolhouse: 'The schoolhouse is dark. Somebody left the chalk out.',
   depot: 'The conveyor has stopped for the night. Even recycling sleeps.',
+  workshop: 'The workshop is dark except for the monitor, glowing through the window. The cursor is still blinking.',
   pier: 'The sea is black and full of stars, and the fish have come up to look at them.',
   bottle: 'The bottle catches the moonlight. The crab has gone to bed.',
 };

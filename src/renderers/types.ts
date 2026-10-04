@@ -61,6 +61,8 @@ export interface RendererContext {
      * renderer draws the room and says what's within reach; this does the talking.
      */
     room: RoomUI;
+    /** Open the wardrobe: every outfit piece, unlocked or not, and what's being worn. */
+    openWardrobe(): void;
   };
   /**
    * Call once the first frame is on screen: the loader goes away. If the

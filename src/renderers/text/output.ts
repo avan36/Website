@@ -5,6 +5,7 @@
 
 import type { GameId } from '../../world/schema';
 import type { SoundName, ViewId } from '../types';
+import type { OutfitSlot } from '../../world/schema';
 
 /** A run of text. A `cmd` makes it something you can click to type. */
 export type Span = string | { text: string; cmd?: string; href?: string; color?: string; tone?: 'em' | 'key' | 'dim' };
@@ -47,6 +48,8 @@ export type Effect =
   /** Off to the 3D island, straight into the speedboat at the pier. */
   | { type: 'boat' }
   | { type: 'night'; on: boolean }
+  | { type: 'wear'; id: string }
+  | { type: 'unwear'; slot: OutfitSlot }
   | { type: 'clear' }
   | { type: 'timer'; ms: number; signal: Signal }
   /** Open a mini-game's card (the ones words can't draw). */

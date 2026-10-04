@@ -1,0 +1,526 @@
+---
+// Map of Evolution mini-game: drag living things onto their branch of a
+// pocket tree of life (or tap a card, then a branch). Each placement shows a
+// fact from Map of Evolution; see evolutionSorterData.ts for the source.
+// Game rules live in evolutionSorter.ts.
+import ToyFrame from '../ToyFrame.astro';
+import { BRANCHES, SPECIES, TREE } from './evolutionSorterData';
+import { ROUND_SIZE, cladogram } from './evolutionSorter';
+
+const W = 900, H = 120;
+const { segments } = cladogram(TREE, W, H);
+const d = segments.map((s) => `M${s.x1.toFixed(1)} ${s.y1.toFixed(1)}L${s.x2.toFixed(1)} ${s.y2.toFixed(1)}`).join('');
+---
+<ToyFrame
+  id="es"
+  label="Play · Mini-game"
+  title="Sort the tree of life"
+  lede="Is a whale a fish? Is a horseshoe crab a crab? Drag each living thing onto its branch, or tap a card and then a branch. Every placement comes with a fact from the map."
+  note="Heavily simplified: nine tips instead of thousands, and 'fish', 'reptiles' and 'other invertebrates' aren't tidy branches to a biologist (birds are reptiles, and you are, technically, a very modified fish). Species and facts from Map of Evolution."
+>
+  <div class="es" data-es data-species={JSON.stringify(SPECIES)} data-branches={JSON.stringify(BRANCHES)}>
+    <div class="es__hud">
+      <p class="es__stat"><span class="es__k">Placed</span> <span class="es__v"><span data-es-placed>0</span>/{ROUND_SIZE}</span></p>
+      <p class="es__stat"><span class="es__k">Correct</span> <span class="es__v" data-es-correct>0</span></p>
+      <p class="es__how" id="es-how">Drag a card onto a branch. No mouse? Pick a card, then a branch.</p>
+    </div>
+
+    <div class="es__tray" role="group" aria-label="Living things to sort" data-es-tray></div>
+
+    <div class="es__feedback" data-es-feedback aria-live="polite">
+      <p class="es__fb-line" data-es-fb-line>Where does each one belong on the tree?</p>
+      <p class="es__fb-fact" data-es-fb-fact></p>
+    </div>
+
+    <div class="es__end" data-es-end hidden>
+      <p class="es__kicker">Final score</p>
+      <p class="es__final" data-es-final tabindex="-1"></p>
+      <p class="es__verdict" data-es-verdict></p>
+      <ul class="es__misses" data-es-misses></ul>
+      <button type="button" class="es__go" data-es-again>Sort a new batch <span aria-hidden="true">→</span></button>
+    </div>
+
+    <div class="es__tree">
+      <svg class="es__clado" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" aria-hidden="true">
+        <path d={d} />
+      </svg>
+      <ul class="es__branches" aria-label="Branches of the tree of life">
+        {BRANCHES.map((b) => (
+          <li>
+            <button type="button" class="es__branch" data-branch={b.id} aria-describedby="es-selected" title={b.blurb}>
+              <span class="es__bemoji" aria-hidden="true">{b.emoji}</span>
+              <span class="es__blabel">{b.label}</span>
+              <span class="es__count" data-count aria-hidden="true"></span>
+              <span class="es__placed" data-placed aria-hidden="true"></span>
+            </button>
+          </li>
+        ))}
+      </ul>
+      <p class="visually-hidden" id="es-selected" data-es-selected></p>
+    </div>
+  </div>
+</ToyFrame>
+
+<style>
+  .es { display: grid; gap: var(--space-4); }
+
+  .es__hud { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2) var(--space-5); }
+  .es__stat { display: inline-flex; align-items: baseline; gap: var(--space-2); }
+  .es__k { font-size: var(--step--1); font-weight: 650; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); }
+  .es__v { font-family: var(--font-mono); font-size: var(--step-1); font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .es__how { margin-left: auto; font-size: var(--step--1); color: var(--ink-3); }
+  @media (max-width: 640px) { .es__how { margin-left: 0; } }
+
+  /* ---------- Tray ---------- */
+  .es__tray {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--space-3);
+    min-height: 92px;
+  }
+  @media (max-width: 640px) { .es__tray { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .es__tray[hidden] { display: none; }
+  :global(.es__card) {
+    display: grid; justify-items: center; align-content: center; gap: 4px;
+    min-height: 92px;
+    padding: 10px 8px;
+    border: 0;
+    border-radius: var(--r-md);
+    background: var(--bg-raised);
+    box-shadow: var(--shadow-1), inset 0 0 0 1px var(--line-strong);
+    color: var(--ink);
+    font-weight: 650;
+    text-align: center;
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    transition: box-shadow var(--dur-2), transform var(--dur-2) var(--ease-spring), opacity var(--dur-2);
+  }
+  :global(.es__card .e) { font-size: 2rem; line-height: 1; }
+  :global(.es__card .n) { font-size: var(--step--1); line-height: 1.2; overflow-wrap: anywhere; }
+  @media (hover: hover) { :global(.es__card:hover) { box-shadow: var(--shadow-1), inset 0 0 0 2px color-mix(in oklab, var(--p) 60%, transparent); } }
+  :global(.es__card[aria-pressed='true']) {
+    box-shadow: 0 8px 22px -10px color-mix(in oklab, var(--p) 80%, transparent), inset 0 0 0 2.5px var(--p);
+    transform: translateY(-3px);
+  }
+  :global(.es__card.is-lifted) { opacity: 0.35; }
+  :global(.es__card.is-new) { animation: es-pop 420ms var(--ease-spring) both; }
+  :global(.es__ghost) {
+    position: fixed; left: 0; top: 0; z-index: 1000;
+    margin: 0;
+    pointer-events: none;
+    cursor: grabbing;
+    box-shadow: var(--shadow-3), inset 0 0 0 2.5px var(--p) !important;
+    rotate: -3deg;
+  }
+
+  /* ---------- Feedback ---------- */
+  .es__feedback {
+    min-height: 5.2em;
+    padding: var(--space-3) var(--space-4);
+    border-radius: var(--r-md);
+    background: color-mix(in oklab, var(--bg-raised) 70%, transparent);
+    box-shadow: inset 0 0 0 1px var(--line);
+  }
+  .es__feedback[hidden] { display: none; }
+  .es__fb-line { font-weight: 700; color: var(--ink); }
+  .es__fb-line.is-right::before { content: '✓ '; color: color-mix(in oklab, var(--leaf) 65%, var(--ink)); }
+  .es__fb-line.is-wrong::before { content: '✗ '; color: color-mix(in oklab, var(--coral) 75%, var(--ink)); }
+  .es__fb-fact { margin-top: 4px; font-family: var(--font-read); font-size: var(--step-0); line-height: 1.5; color: var(--ink-2); }
+  .es__fb-fact:empty { display: none; }
+
+  /* ---------- Tree ---------- */
+  .es__tree {
+    padding: var(--space-4) var(--space-3) var(--space-3);
+    border-radius: var(--r-lg);
+    background: color-mix(in oklab, var(--bg-raised) 75%, transparent);
+    box-shadow: inset 0 0 0 1px var(--line);
+  }
+  .es__clado { display: block; width: 100%; height: 84px; overflow: visible; }
+  .es__clado path {
+    fill: none;
+    stroke: color-mix(in oklab, var(--p) 55%, var(--line-strong));
+    stroke-width: 2.5;
+    stroke-linecap: round;
+    vector-effect: non-scaling-stroke;
+  }
+  .es__branches {
+    margin: 0; padding: 0; list-style: none;
+    display: grid; grid-template-columns: repeat(9, minmax(0, 1fr));
+  }
+  .es__branches li { padding: 0 3px; display: grid; }
+  .es__branch {
+    position: relative;
+    display: grid; justify-items: center; align-content: start; gap: 2px;
+    min-height: 132px;
+    padding: 10px 4px 8px;
+    border: 0;
+    border-radius: var(--r-md);
+    background: var(--bg-raised);
+    box-shadow: inset 0 0 0 1px var(--line-strong);
+    color: var(--ink);
+    cursor: pointer;
+    transition: box-shadow var(--dur-2), background var(--dur-2), transform var(--dur-2) var(--ease-spring);
+  }
+  .es__branch::before {
+    /* the twig from the tree down into the tip */
+    content: '';
+    position: absolute; top: -10px; left: 50%;
+    width: 2.5px; height: 10px; translate: -50% 0;
+    background: color-mix(in oklab, var(--p) 55%, var(--line-strong));
+  }
+  @media (hover: hover) { .es__branch:hover { box-shadow: inset 0 0 0 2px color-mix(in oklab, var(--p) 60%, transparent); } }
+  .es__branch.is-armed { box-shadow: inset 0 0 0 1.5px color-mix(in oklab, var(--p) 45%, transparent); }
+  .es__branch.is-over {
+    background: color-mix(in oklab, var(--p) 14%, var(--bg-raised));
+    box-shadow: inset 0 0 0 2.5px var(--p);
+    transform: scale(1.04);
+  }
+  .es__branch.is-good { animation: es-good 700ms var(--ease-out); }
+  .es__branch.is-bad { animation: es-bad 420ms var(--ease-out); }
+  .es__bemoji { font-size: 1.7rem; line-height: 1.1; }
+  .es__blabel { max-width: 100%; font-size: var(--step--1); font-weight: 700; line-height: 1.15; text-wrap: balance; hyphens: auto; -webkit-hyphens: auto; }
+  .es__count { font-family: var(--font-mono); font-size: 11px; color: var(--ink-3); min-height: 1.2em; }
+  .es__placed { display: flex; flex-wrap: wrap; justify-content: center; gap: 1px; font-size: 1.05rem; line-height: 1.2; }
+  .es__placed :global(.miss) { opacity: 0.85; border-radius: 6px; box-shadow: 0 0 0 1.5px var(--coral); }
+
+  @media (max-width: 820px) {
+    .es__clado { display: none; }
+    .es__branch::before { display: none; }
+    .es__tree { padding: var(--space-3); }
+    .es__branches { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px 0; }
+    .es__branch { min-height: 96px; }
+    .es__blabel { font-size: 12.5px; }
+  }
+
+  /* ---------- End ---------- */
+  .es__end { display: grid; justify-items: center; gap: var(--space-3); text-align: center; padding: var(--space-4) 0; }
+  .es__end[hidden] { display: none; }
+  .es__kicker { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-3); }
+  .es__final {
+    font-family: var(--font-mono);
+    font-size: clamp(2.6rem, 1.8rem + 4vw, 4.6rem);
+    font-weight: 600; line-height: 1;
+    color: color-mix(in oklab, var(--p) 70%, var(--ink));
+    outline: none;
+  }
+  .es__verdict { font-family: var(--font-read); font-style: italic; font-size: var(--step-1); color: var(--ink); }
+  .es__misses { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; color: var(--ink-2); font-size: var(--step--1); }
+  .es__go {
+    display: inline-flex; align-items: center; gap: var(--space-2);
+    min-height: 48px; padding: 10px 24px;
+    border: 0; border-radius: var(--r-pill);
+    background: var(--p); color: #fff; font-weight: 700;
+    cursor: pointer;
+    transition: transform var(--dur-2) var(--ease-spring), filter var(--dur-2);
+  }
+  @media (hover: hover) { .es__go:hover { filter: brightness(1.08); } }
+  .es__go:active { transform: scale(0.96); }
+
+  @keyframes es-pop { from { opacity: 0; transform: scale(0.85); } to { opacity: 1; transform: none; } }
+  @keyframes es-good {
+    0% { box-shadow: inset 0 0 0 2.5px var(--leaf), 0 0 0 0 color-mix(in oklab, var(--leaf) 50%, transparent); }
+    100% { box-shadow: inset 0 0 0 1px var(--line-strong), 0 0 0 14px transparent; }
+  }
+  @keyframes es-bad {
+    0%, 100% { transform: none; }
+    20%, 60% { transform: translateX(-5px); box-shadow: inset 0 0 0 2.5px var(--coral); }
+    40%, 80% { transform: translateX(5px); box-shadow: inset 0 0 0 2.5px var(--coral); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    :global(.es__card), .es__branch, .es__go { transition: none; }
+    :global(.es__card.is-new), .es__branch.is-good, .es__branch.is-bad { animation: none; }
+    :global(.es__card[aria-pressed='true']) { transform: none; }
+    :global(.es__ghost) { rotate: none; }
+    .es__branch.is-over { transform: none; }
+  }
+</style>
+
+<script>
+  import { makeRng, randomSeed } from './rng';
+  import { dealRound, feedback, isDone, place, startSort, tally, verdict, type SortState } from './evolutionSorter';
+  import type { Branch, BranchId, Species } from './evolutionSorterData';
+  import { reducedMotion } from '../lib';
+
+  const DRAG_START = 6; // px of movement before a press becomes a drag
+
+  for (const root of document.querySelectorAll<HTMLElement>('[data-es]')) {
+    const all = JSON.parse(root.dataset.species || '[]') as Species[];
+    const branches = JSON.parse(root.dataset.branches || '[]') as Branch[];
+    const $ = <T extends HTMLElement = HTMLElement>(sel: string) => root.querySelector<T>(sel)!;
+    const tray = $('[data-es-tray]');
+    const placedEl = $('[data-es-placed]'), correctEl = $('[data-es-correct]');
+    const fbBox = $('[data-es-feedback]'), fbLine = $('[data-es-fb-line]'), fbFact = $('[data-es-fb-fact]');
+    const selectedEl = $('[data-es-selected]');
+    const endEl = $('[data-es-end]'), finalEl = $('[data-es-final]'), verdictEl = $('[data-es-verdict]'), missesEl = $('[data-es-misses]');
+    const targets = [...root.querySelectorAll<HTMLButtonElement>('[data-branch]')];
+    const targetOf = (id: BranchId) => targets.find((t) => t.dataset.branch === id)!;
+    const label = (id: BranchId) => branches.find((b) => b.id === id)?.label ?? id;
+    // Ghosts live on <body>, outside the page's --p: carry the project color along.
+    const accent = () => getComputedStyle(root).getPropertyValue('--p').trim();
+
+    let state: SortState;
+    let selected: string | null = null;
+
+    /* ---- rendering ---- */
+    function card(s: Species, fresh: boolean): HTMLButtonElement {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'es__card' + (fresh && !reducedMotion() ? ' is-new' : '');
+      b.dataset.id = s.id;
+      b.setAttribute('aria-pressed', String(s.id === selected));
+      const e = document.createElement('span');
+      e.className = 'e';
+      e.textContent = s.emoji;
+      e.setAttribute('aria-hidden', 'true');
+      const n = document.createElement('span');
+      n.className = 'n';
+      n.textContent = s.name;
+      b.append(e, n);
+      b.addEventListener('animationend', () => b.classList.remove('is-new'), { once: true });
+      return b;
+    }
+
+    function renderTray(freshId?: string) {
+      const have = new Map([...tray.querySelectorAll<HTMLButtonElement>('.es__card')].map((c) => [c.dataset.id!, c]));
+      tray.replaceChildren(...state.tray.map((s) => have.get(s.id) ?? card(s, s.id === freshId)));
+      syncSelection();
+    }
+
+    function syncSelection() {
+      tray.querySelectorAll<HTMLButtonElement>('.es__card').forEach((c) => c.setAttribute('aria-pressed', String(c.dataset.id === selected)));
+      const s = state.tray.find((x) => x.id === selected);
+      selectedEl.textContent = s ? `Selected: ${s.name}.` : 'Pick a card first.';
+      targets.forEach((t) => t.classList.toggle('is-armed', !!s));
+    }
+
+    function renderCounts() {
+      for (const t of targets) {
+        const id = t.dataset.branch as BranchId;
+        const here = state.placed.filter((p) => p.species.branch === id);
+        const strip = t.querySelector<HTMLElement>('[data-placed]')!;
+        strip.replaceChildren(
+          ...here.map((p) => {
+            const s = document.createElement('span');
+            s.textContent = p.species.emoji;
+            s.title = p.correct ? p.species.name : `${p.species.name} (you said ${label(p.chosen)})`;
+            if (!p.correct) s.className = 'miss';
+            return s;
+          }),
+        );
+        t.querySelector<HTMLElement>('[data-count]')!.textContent = here.length ? String(here.length) : '';
+        t.setAttribute('aria-label', `${label(id)}${here.length ? `, ${here.length} placed: ${here.map((p) => p.species.name).join(', ')}` : ''}`);
+      }
+      const t = tally(state.placed);
+      placedEl.textContent = String(t.total);
+      correctEl.textContent = String(t.correct);
+    }
+
+    function select(id: string | null) {
+      selected = id;
+      syncSelection();
+    }
+
+    /* ---- placing ---- */
+    function flyTo(from: DOMRect, to: HTMLElement, src: HTMLElement) {
+      if (reducedMotion()) return;
+      const end = to.getBoundingClientRect();
+      const ghost = src.cloneNode(true) as HTMLElement;
+      ghost.className = 'es__card es__ghost';
+      ghost.removeAttribute('aria-pressed');
+      ghost.setAttribute('aria-hidden', 'true');
+      Object.assign(ghost.style, { width: `${from.width}px`, height: `${from.height}px` });
+      ghost.style.setProperty('--p', accent());
+      document.body.append(ghost);
+      const dx = end.left + end.width / 2 - from.width / 2, dy = end.top + end.height / 2 - from.height / 2;
+      ghost
+        .animate(
+          [
+            { transform: `translate(${from.left}px, ${from.top}px) scale(1)`, opacity: 1 },
+            { transform: `translate(${dx}px, ${dy}px) scale(0.35)`, opacity: 0 },
+          ],
+          { duration: 420, easing: 'cubic-bezier(.5,0,.3,1)', fill: 'forwards' },
+        )
+        .finished.finally(() => ghost.remove());
+    }
+
+    function bump(t: HTMLElement, cls: 'is-good' | 'is-bad') {
+      if (reducedMotion()) return;
+      t.classList.remove('is-good', 'is-bad');
+      void t.offsetWidth; // restart the animation
+      t.classList.add(cls);
+      t.addEventListener('animationend', () => t.classList.remove(cls), { once: true });
+    }
+
+    function placeOn(branch: BranchId, speciesId = selected, fromRect?: DOMRect) {
+      if (!speciesId) {
+        fbLine.className = 'es__fb-line';
+        fbLine.textContent = 'Pick a card first, then its branch.';
+        fbFact.textContent = '';
+        return;
+      }
+      const cardEl = tray.querySelector<HTMLElement>(`[data-id="${CSS.escape(speciesId)}"]`);
+      const slot = state.tray.findIndex((s) => s.id === speciesId);
+      const r = place(state, speciesId, branch);
+      if (!r) return;
+      state = r.state;
+      const { placement: p } = r;
+      const home = targetOf(p.species.branch);
+      if (cardEl) flyTo(fromRect ?? cardEl.getBoundingClientRect(), home, cardEl);
+      if (p.correct) bump(home, 'is-good');
+      else {
+        bump(targetOf(branch), 'is-bad');
+        setTimeout(() => bump(home, 'is-good'), 300);
+      }
+
+      fbLine.className = `es__fb-line ${p.correct ? 'is-right' : 'is-wrong'}`;
+      fbLine.textContent = feedback(p, branches);
+      fbFact.textContent = `${p.species.what} ${p.species.fact}`;
+
+      // The card that slid into this slot is up next.
+      const next = state.tray[Math.min(slot, state.tray.length - 1)];
+      selected = next ? next.id : null;
+      renderTray(state.tray[slot]?.id);
+      renderCounts();
+      if (isDone(state)) finish();
+      else if (next) selectedEl.textContent = `Selected: ${next.name}.`;
+    }
+
+    function finish() {
+      const t = tally(state.placed);
+      tray.hidden = true;
+      endEl.hidden = false;
+      finalEl.textContent = `${t.correct}/${t.total}`;
+      verdictEl.textContent = verdict(t.correct, t.total);
+      missesEl.replaceChildren(
+        ...t.misses.map((p) => {
+          const li = document.createElement('li');
+          li.textContent = `${p.species.emoji} ${p.species.name}: ${label(p.species.branch)}, not ${label(p.chosen)}`;
+          return li;
+        }),
+      );
+      targets.forEach((x) => x.classList.remove('is-armed'));
+      // Let the last fact be read before the score takes focus.
+      setTimeout(() => finalEl.focus({ preventScroll: true }), 50);
+    }
+
+    function start() {
+      state = startSort(dealRound(all, makeRng(randomSeed())));
+      selected = state.tray[0]?.id ?? null;
+      tray.hidden = false;
+      endEl.hidden = true;
+      tray.replaceChildren();
+      renderTray();
+      renderCounts();
+      fbLine.className = 'es__fb-line';
+      fbLine.textContent = 'Where does each one belong on the tree?';
+      fbFact.textContent = '';
+    }
+
+    /* ---- clicks and keys ---- */
+    let suppressClick = false;
+    tray.addEventListener('click', (e) => {
+      const c = (e.target as HTMLElement).closest<HTMLButtonElement>('.es__card');
+      if (!c || suppressClick) return;
+      select(c.dataset.id!);
+    });
+    targets.forEach((t) => t.addEventListener('click', () => placeOn(t.dataset.branch as BranchId)));
+
+    /* ---- pointer drag (mouse, pen and touch) ---- */
+    type Drag = { id: string; pointer: number; x0: number; y0: number; dx: number; dy: number; card: HTMLElement; ghost?: HTMLElement; over?: HTMLElement | null; w: number; h: number };
+    let drag: Drag | null = null;
+
+    const hit = (x: number, y: number) => {
+      const elAt = document.elementFromPoint(x, y);
+      const t = elAt?.closest<HTMLElement>('[data-branch]');
+      return t && root.contains(t) ? t : null;
+    };
+    const setOver = (t: HTMLElement | null) => {
+      if (drag?.over === t) return;
+      drag?.over?.classList.remove('is-over');
+      t?.classList.add('is-over');
+      if (drag) drag.over = t;
+    };
+
+    tray.addEventListener('pointerdown', (e) => {
+      const c = (e.target as HTMLElement).closest<HTMLElement>('.es__card');
+      if (!c || e.button !== 0 || drag) return;
+      const r = c.getBoundingClientRect();
+      drag = { id: c.dataset.id!, pointer: e.pointerId, x0: e.clientX, y0: e.clientY, dx: e.clientX - r.left, dy: e.clientY - r.top, card: c, w: r.width, h: r.height };
+      c.setPointerCapture(e.pointerId);
+    });
+
+    tray.addEventListener('pointermove', (e) => {
+      if (!drag || e.pointerId !== drag.pointer) return;
+      if (!drag.ghost) {
+        if (Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0) < DRAG_START) return;
+        const g = drag.card.cloneNode(true) as HTMLElement;
+        g.className = 'es__card es__ghost';
+        g.removeAttribute('aria-pressed');
+        g.setAttribute('aria-hidden', 'true');
+        Object.assign(g.style, { width: `${drag.w}px`, height: `${drag.h}px` });
+        g.style.setProperty('--p', accent());
+        document.body.append(g);
+        drag.ghost = g;
+        drag.card.classList.add('is-lifted');
+        select(drag.id);
+      }
+      drag.ghost.style.transform = `translate(${e.clientX - drag.dx}px, ${e.clientY - drag.dy}px)`;
+      lastX = e.clientX;
+      lastY = e.clientY;
+      setOver(hit(e.clientX, e.clientY));
+      if (!scrollRaf) scrollRaf = requestAnimationFrame(edgeScroll);
+    });
+
+    // Near the top or bottom of the screen, scroll so far-off branches come into reach (phones).
+    let lastX = 0, lastY = 0, scrollRaf = 0;
+    const EDGE = 72;
+    function edgeScroll() {
+      scrollRaf = 0;
+      if (!drag?.ghost) return;
+      const v = lastY < EDGE ? -(EDGE - lastY) : lastY > innerHeight - EDGE ? lastY - (innerHeight - EDGE) : 0;
+      if (!v) return;
+      scrollBy(0, Math.round(v / 4));
+      setOver(hit(lastX, lastY));
+      scrollRaf = requestAnimationFrame(edgeScroll);
+    }
+
+    function endDrag(e: PointerEvent, cancelled: boolean) {
+      if (!drag || e.pointerId !== drag.pointer) return;
+      const d = drag;
+      drag = null;
+      cancelAnimationFrame(scrollRaf);
+      scrollRaf = 0;
+      d.card.classList.remove('is-lifted');
+      d.over?.classList.remove('is-over');
+      if (!d.ghost) return; // a plain tap: the click handler selects it
+      suppressClick = true;
+      setTimeout(() => (suppressClick = false), 0);
+      const target = cancelled ? null : hit(e.clientX, e.clientY);
+      const rect = d.ghost.getBoundingClientRect();
+      if (target) {
+        d.ghost.remove();
+        placeOn(target.dataset.branch as BranchId, d.id, rect);
+        return;
+      }
+      // Dropped nowhere: float back to the tray.
+      const home = d.card.getBoundingClientRect();
+      if (reducedMotion()) return d.ghost.remove();
+      d.ghost
+        .animate([{ transform: d.ghost.style.transform }, { transform: `translate(${home.left}px, ${home.top}px)` }], { duration: 260, easing: 'ease-out', fill: 'forwards' })
+        .finished.finally(() => d.ghost!.remove());
+    }
+    tray.addEventListener('pointerup', (e) => endDrag(e, false));
+    tray.addEventListener('pointercancel', (e) => endDrag(e, true));
+
+    $('[data-es-again]').addEventListener('click', () => {
+      start();
+      tray.querySelector<HTMLElement>('.es__card')?.focus({ preventScroll: true });
+      fbBox.scrollIntoView({ block: 'nearest', behavior: reducedMotion() ? 'auto' : 'smooth' });
+    });
+
+    start();
+  }
+</script>

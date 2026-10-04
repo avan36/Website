@@ -609,7 +609,7 @@ export function paintRoom(place: Place): MapRoom {
   const sprites: RoomSprite[] = [];
   for (const spot of plan.spots) {
     if (spot.kind === 'person') {
-      sprites.push({ spot, sprite: null, islander: paintExplorer(spot.color), facing: 'down' });
+      sprites.push({ spot, sprite: null, islander: paintExplorer([], spot.color), facing: 'down' });
       continue;
     }
     const t = things.get(spot.id)!;

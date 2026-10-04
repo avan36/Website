@@ -4,6 +4,13 @@
 // window, pools of lamplight on the ground below them, and fireflies drifting
 // over the grass. One value, 0 (day) to 1 (night), drives it all, so day is
 // exactly the day it always was.
+//
+// Two things bring the dark. The island keeps real time (src/world/clock.ts):
+// after sunset the sky, sea and light go to night and every window and lamp
+// lights up. And finding every lost word brings the reward night at any hour.
+// The darkness is whichever is deeper, max(clock, reward), but the moon and
+// the fireflies belong to the reward alone: an ordinary evening is starry and
+// lamplit; the moonlit night with fireflies is something you earn.
 
 import {
   AdditiveBlending,
@@ -33,6 +40,8 @@ export interface NightTargets {
   water: ShaderMaterial;
   ambient: { night(n: number): void; boatLamp: Mesh };
   landmarks: { night(n: number): void; glows(): { halos: Glow[]; pools: Glow[] } }[];
+  /** Anything else that changes after dark but has no lamps of its own. */
+  extras?: { night(n: number): void }[];
   mobile: boolean;
 }
 
@@ -224,6 +233,8 @@ export function buildNight(o: NightTargets) {
   };
 
   const uniforms = { uTime: { value: 0 }, uNight: { value: 0 }, uScale: { value: 800 } };
+  // Fireflies only come out for the reward.
+  const flyUniforms = { uTime: uniforms.uTime, uNight: { value: 0 }, uScale: uniforms.uScale };
   const halos: Glow[] = [];
   const pools: Glow[] = [];
   for (const l of o.landmarks) {
@@ -234,7 +245,7 @@ export function buildNight(o: NightTargets) {
   const haloMesh = new Points(haloPoints(halos), new ShaderMaterial({ ...haloShader, ...additive, uniforms }));
   haloMesh.frustumCulled = false;
   haloMesh.renderOrder = 4;
-  const flies = new Points(fireflies(o.mobile ? 28 : 52), new ShaderMaterial({ ...fireflyShader, ...additive, uniforms }));
+  const flies = new Points(fireflies(o.mobile ? 28 : 52), new ShaderMaterial({ ...fireflyShader, ...additive, uniforms: flyUniforms }));
   flies.frustumCulled = false;
   flies.renderOrder = 4;
   // The boat's lamp moves, so its halo is a sprite of its own riding along.
@@ -245,11 +256,16 @@ export function buildNight(o: NightTargets) {
 
   let target = 0;
   let p = 0; // progress 0..1, linear in time
-  let shown = 0; // the eased amount last applied (day needs nothing applied)
+  let shown = 0; // the eased reward amount last applied
+  let clockWant = 0; // how dark the real clock says it is
+  let clock = 0; // ...eased, so dusk never jumps
+  let dark = 0; // what's applied: max(clock, reward)
   const lamp = new Vector3();
 
-  function apply(n: number) {
+  function apply(n: number, reward: number) {
     uniforms.uNight.value = n;
+    flyUniforms.uNight.value = reward;
+    if (skyU.uMoonOn) skyU.uMoonOn.value = reward;
     group.visible = n > 0.001;
     (o.scene.background as Color).lerpColors(day.background, night.background, n);
     fog.color.lerpColors(day.fog, night.fog, n);
@@ -266,6 +282,7 @@ export function buildNight(o: NightTargets) {
     o.water.uniforms.uNight.value = n;
     o.ambient.night(n);
     for (const l of o.landmarks) l.night(n);
+    for (const x of o.extras ?? []) x.night(n);
   }
 
   return {
@@ -278,9 +295,18 @@ export function buildNight(o: NightTargets) {
     get on() {
       return target === 1;
     },
-    /** 0..1: how far night has fallen right now. */
+    /** 0..1: how far the reward night has fallen right now. */
     get amount() {
       return shown;
+    },
+    /** 0..1: how dark it is right now, from the clock or the reward, whichever is deeper. */
+    get dark() {
+      return dark;
+    },
+    /** How dark the real clock says it is (1 - daylight). Instant skips the easing (the first frame). */
+    setClock(d: number, instant = false) {
+      clockWant = Math.min(1, Math.max(0, d));
+      if (instant) clock = clockWant;
     },
     /** Pixel scale for the sprites: drawing-buffer height over the view's height at unit distance. */
     resize(bufferHeight: number, fovDeg: number) {
@@ -292,8 +318,15 @@ export function buildNight(o: NightTargets) {
         const step = dt / (quick ? 0.8 : FALL);
         p = target > p ? Math.min(target, p + step) : Math.max(target, p - step);
       }
-      const n = smoothstep(0, 1, p);
-      if (n !== shown) apply((shown = n));
+      // The clock eases at the same pace as the reward, so a ?time= jump or a tab
+      // left open over dusk fades rather than snaps.
+      if (clock !== clockWant) {
+        const step = dt / (quick ? 0.8 : FALL);
+        clock = clockWant > clock ? Math.min(clockWant, clock + step) : Math.max(clockWant, clock - step);
+      }
+      const r = smoothstep(0, 1, p);
+      const n = Math.max(r, smoothstep(0, 1, clock));
+      if (r !== shown || n !== dark) apply((dark = n), (shown = r));
       if (group.visible) {
         o.ambient.boatLamp.getWorldPosition(lamp);
         boatHalo.position.copy(lamp);

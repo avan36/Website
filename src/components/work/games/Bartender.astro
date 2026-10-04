@@ -1,0 +1,367 @@
+---
+// busy beer mini-game: pick three vibes, and the bartender pours a drink with
+// the menu logic laid out on the counter (vibe → axis weights → scores).
+import ToyFrame from '../ToyFrame.astro';
+import { AXES, MAX_VIBES, MENU, VIBES } from './bartender';
+---
+<ToyFrame
+  id="bartender"
+  label="Play · Mini-game"
+  title="Ask the bartender"
+  lede="Tell me the mood in three words and I'll pour you something. No secrets behind the bar: you can watch each vibe push the flavor axes and the menu score itself."
+  note="A toy version of the idea. The vibe weights and drink profiles are rough and made up for fun, not how the app rates real drinks."
+>
+  <div class="bar" data-bartender>
+    <div class="bar__left">
+      <fieldset class="vibes">
+        <legend class="bar__step"><span class="bar__n" aria-hidden="true">1</span>Pick three vibes <span class="vibes__count" data-count>0 of {MAX_VIBES}</span></legend>
+        <div class="vibes__chips">
+          {VIBES.map((v) => (
+            <button type="button" class="vibe" data-vibe={v.id} aria-pressed="false">{v.label}</button>
+          ))}
+        </div>
+        <p class="vibes__hint" data-hint aria-live="polite"></p>
+      </fieldset>
+
+      <div class="ticket">
+        <p class="bar__step"><span class="bar__n" aria-hidden="true">2</span>The order ticket</p>
+        <div class="ticket__scroll">
+          <table class="ticket__table">
+            <caption class="visually-hidden">How each picked vibe leans on the five flavor axes, and the total.</caption>
+            <thead>
+              <tr>
+                <th scope="col"><span class="visually-hidden">Vibe</span></th>
+                {AXES.map((a) => <th scope="col">{a}</th>)}
+              </tr>
+            </thead>
+            <tbody data-ticket-rows>
+              <tr class="ticket__empty"><td colspan={AXES.length + 1}>Nothing on the ticket yet.</td></tr>
+            </tbody>
+            <tfoot>
+              <tr data-ticket-total>
+                <th scope="row">Your lean</th>
+                {AXES.map(() => <td>0</td>)}
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+        <p class="ticket__how">Each drink scores by how far it sits above or below the middle on every axis, times your lean. Low counts as much as high when you lean away.</p>
+      </div>
+    </div>
+
+    <div class="bar__right">
+      <div class="scores">
+        <p class="bar__step"><span class="bar__n" aria-hidden="true">3</span>The menu, scored</p>
+        <ol class="scores__list" data-scores aria-label="Menu scores, best first">
+          {MENU.map((d) => (
+            <li class="sc" data-id={d.id}>
+              <svg class="sc__glass" viewBox="0 0 24 32" width="18" height="24" aria-hidden="true">
+                <path d="M4.4 7 H19.6 L17.9 28.6 Q17.7 30.4 15.9 30.4 H8.1 Q6.3 30.4 6.1 28.6 Z" fill={d.hue} />
+                <path d="M3.6 4.2 Q5.6 1.4 8.6 2.8 Q12 0.6 15.4 2.8 Q18.6 1.2 20.4 4.2 L19.8 8.4 H4.2 Z" fill="#fffaf0" />
+                <path d="M3.8 4 H20.2 L18 28.8 Q17.8 30.6 15.9 30.6 H8.1 Q6.2 30.6 6 28.8 Z" class="sc__outline" />
+              </svg>
+              <span class="sc__name">{d.name}</span>
+              <span class="sc__bar" aria-hidden="true"><span class="sc__fill" style="--w:50%"></span><span class="sc__mid"></span></span>
+              <span class="sc__num" data-num>50</span>
+            </li>
+          ))}
+        </ol>
+      </div>
+
+      <div class="pour" data-pour aria-live="polite">
+        <p class="pour__wait" data-wait>Pick three vibes and I'll pour.</p>
+        <div class="pour__card" data-card hidden>
+          <svg class="pour__glass" viewBox="0 0 24 32" width="48" height="64" aria-hidden="true">
+            <path data-glass-fill d="M4.4 7 H19.6 L17.9 28.6 Q17.7 30.4 15.9 30.4 H8.1 Q6.3 30.4 6.1 28.6 Z" fill="#e0a12e" />
+            <path d="M3.6 4.2 Q5.6 1.4 8.6 2.8 Q12 0.6 15.4 2.8 Q18.6 1.2 20.4 4.2 L19.8 8.4 H4.2 Z" fill="#fffaf0" />
+            <path d="M3.8 4 H20.2 L18 28.8 Q17.8 30.6 15.9 30.6 H8.1 Q6.2 30.6 6 28.8 Z" class="sc__outline" />
+          </svg>
+          <div class="pour__text">
+            <p class="pour__kicker">Tonight you're drinking</p>
+            <p class="pour__name" data-name></p>
+            <p class="pour__line" data-line></p>
+            <ul class="pour__why" data-why></ul>
+          </div>
+        </div>
+        <button type="button" class="pour__reset" data-reset hidden>Start over</button>
+      </div>
+    </div>
+  </div>
+</ToyFrame>
+
+<style>
+  .bar { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-6); }
+  @media (min-width: 900px) {
+    .bar { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(var(--space-6), 4vw, var(--space-8)); align-items: start; }
+  }
+  .bar__left, .bar__right { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-6); min-width: 0; }
+
+  .bar__step {
+    display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap;
+    font-weight: 700; font-size: var(--step-0); color: var(--ink);
+    margin-bottom: var(--space-3);
+  }
+  .bar__n {
+    display: inline-grid; place-items: center;
+    width: 24px; height: 24px; border-radius: 50%;
+    background: var(--p); color: #2a1600;
+    font-size: 13px; font-weight: 800;
+  }
+
+  /* ---------- Vibes ---------- */
+  .vibes { border: 0; margin: 0; padding: 0; min-width: 0; }
+  .vibes legend { padding: 0; }
+  .vibes__count { font-weight: 600; font-size: var(--step--1); color: var(--ink-3); font-variant-numeric: tabular-nums; }
+  .vibes__chips { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+  .vibe {
+    border: 0;
+    min-height: 44px;
+    padding: 8px 16px;
+    border-radius: var(--r-pill);
+    background: var(--bg-raised);
+    box-shadow: inset 0 0 0 1px var(--line-strong);
+    font: inherit; font-size: var(--step--1); font-weight: 650;
+    color: var(--ink-2);
+    cursor: pointer;
+    transition: transform var(--dur-2) var(--ease-spring), box-shadow var(--dur-2), background-color var(--dur-2), color var(--dur-2);
+  }
+  .vibe:hover { color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--p); transform: translateY(-1px); }
+  .vibe:active { transform: scale(0.96); }
+  .vibe[aria-pressed='true'] {
+    background: var(--p); color: #2a1600;
+    box-shadow: inset 0 0 0 1.5px color-mix(in oklab, var(--p) 70%, #000);
+  }
+  .vibe[aria-pressed='true']::before { content: '✓ '; }
+  .vibe[aria-disabled='true'] { opacity: 0.5; cursor: not-allowed; transform: none; }
+  .vibes__hint { min-height: 1.4em; margin-top: var(--space-2); font-size: var(--step--1); color: var(--ink-3); }
+
+  /* ---------- Ticket ---------- */
+  .ticket {
+    padding: var(--space-4);
+    border-radius: var(--r-md);
+    background: var(--bg-raised);
+    box-shadow: var(--shadow-1), inset 0 0 0 1px var(--line);
+  }
+  .ticket .bar__step { margin-bottom: var(--space-2); }
+  .ticket__scroll { overflow-x: auto; }
+  /* Body rows are built by the script, so they need :global to pick up styles. */
+  .ticket__table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: var(--step--1); }
+  .ticket__table :global(th), .ticket__table :global(td) { padding: 6px 4px; text-align: center; border-bottom: 1px solid var(--line); }
+  .ticket__table thead th { font-size: 12px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-3); }
+  .ticket__table :global(tbody th), .ticket__table tfoot th { text-align: left; font-weight: 650; white-space: nowrap; padding-right: var(--space-3); }
+  .ticket__table :global(td) { font-family: var(--font-mono); font-weight: 600; color: var(--ink-3); }
+  .ticket__table :global(td.is-pos) { color: color-mix(in oklab, var(--p) 55%, var(--ink)); }
+  .ticket__table :global(td.is-neg) { color: var(--ink-2); }
+  .ticket__table tfoot :global(th), .ticket__table tfoot :global(td) { border-top: 2px dashed var(--line-strong); border-bottom: 0; }
+  .ticket__table tfoot :global(td) { font-weight: 800; color: var(--ink); }
+  .ticket__table :global(.ticket__empty td) { text-align: left; font-family: var(--font-read); font-style: italic; color: var(--ink-3); }
+  @media (max-width: 420px) {
+    .ticket { padding: var(--space-3); }
+    .ticket__table :global(th), .ticket__table :global(td) { padding: 6px 2px; }
+    .ticket__table thead th { font-size: 10px; letter-spacing: 0; }
+  }
+  .ticket__how { margin-top: var(--space-3); font-size: var(--step--1); color: var(--ink-3); }
+
+  /* ---------- Scores ---------- */
+  .scores__list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+  .sc {
+    display: grid;
+    grid-template-columns: 18px minmax(7.5em, auto) minmax(0, 1fr) 2.2em;
+    align-items: center;
+    gap: var(--space-3);
+    padding: 6px 10px;
+    border-radius: var(--r-sm);
+    transition: background-color var(--dur-3) var(--ease-out);
+  }
+  .sc.is-top { background: color-mix(in oklab, var(--p) 16%, var(--bg-raised)); box-shadow: inset 0 0 0 1.5px color-mix(in oklab, var(--p) 55%, transparent); }
+  .sc__outline { fill: none; stroke: var(--ink); stroke-opacity: 0.22; stroke-width: 1; }
+  .sc__name { font-weight: 650; font-size: var(--step--1); white-space: nowrap; }
+  .sc__bar { position: relative; height: 12px; border-radius: var(--r-pill); background: var(--line); overflow: hidden; }
+  .sc__fill {
+    position: absolute; inset: 0 auto 0 0; width: var(--w);
+    border-radius: inherit;
+    background: color-mix(in oklab, var(--p) 70%, var(--ink-3));
+    transition: width var(--dur-3) var(--ease-out);
+  }
+  .sc.is-top .sc__fill { background: var(--p); }
+  .sc__mid { position: absolute; left: 50%; top: -2px; bottom: -2px; width: 1.5px; background: var(--line-strong); }
+  .sc__num { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; font-size: var(--step--1); }
+
+  /* ---------- Pour ---------- */
+  .pour {
+    display: grid; gap: var(--space-4);
+    padding: var(--space-5);
+    border-radius: var(--r-lg);
+    background: var(--bg-raised);
+    box-shadow: var(--shadow-2);
+    min-height: 120px;
+  }
+  .pour__wait { font-family: var(--font-read); font-style: italic; font-size: var(--step-1); color: var(--ink-2); align-self: center; }
+  .pour__card { display: grid; grid-template-columns: 48px minmax(0, 1fr); gap: var(--space-4); align-items: start; }
+  .pour__card[hidden] { display: none; }
+  .pour__glass { overflow: visible; }
+  .pour.is-poured .pour__glass { animation: slide 620ms var(--ease-spring); }
+  @keyframes slide { from { transform: translateX(-40px) rotate(-8deg); opacity: 0; } }
+  .pour__text { display: grid; gap: var(--space-2); }
+  .pour__kicker { font-size: var(--step--1); font-weight: 650; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); }
+  .pour__name { font-family: var(--font-display); font-size: var(--step-2); font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; }
+  .pour__line { font-family: var(--font-read); font-size: var(--step-0); color: var(--ink-2); }
+  .pour__why { margin: var(--space-2) 0 0; padding-left: 1.1em; display: grid; gap: var(--space-1); font-size: var(--step--1); color: var(--ink-2); }
+  .pour__why li::marker { color: var(--p); }
+  .pour__reset {
+    justify-self: start;
+    border: 0; min-height: 44px; padding: 8px 18px;
+    border-radius: var(--r-pill);
+    background: transparent; box-shadow: inset 0 0 0 1px var(--line-strong);
+    font: inherit; font-size: var(--step--1); font-weight: 650; color: var(--ink);
+    cursor: pointer;
+  }
+  .pour__reset:hover { box-shadow: inset 0 0 0 1.5px var(--p); }
+  .pour__reset[hidden] { display: none; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .vibe, .sc__fill, .sc { transition: none; }
+    .pour.is-poured .pour__glass { animation: none; }
+  }
+</style>
+
+<script>
+  import { AXES, MAX_VIBES, explain, preference, rank, reasonText, signed, toggleVibe, vibe } from './bartender';
+  import { reducedMotion } from '../lib';
+
+  for (const root of document.querySelectorAll<HTMLElement>('[data-bartender]')) init(root);
+
+  function init(root: HTMLElement) {
+    const chips = [...root.querySelectorAll<HTMLButtonElement>('[data-vibe]')];
+    const count = root.querySelector<HTMLElement>('[data-count]')!;
+    const hint = root.querySelector<HTMLElement>('[data-hint]')!;
+    const rowsEl = root.querySelector<HTMLElement>('[data-ticket-rows]')!;
+    const totalCells = [...root.querySelectorAll<HTMLTableCellElement>('[data-ticket-total] td')];
+    const list = root.querySelector<HTMLOListElement>('[data-scores]')!;
+    const rows = new Map([...list.children].map((li) => [(li as HTMLElement).dataset.id!, li as HTMLLIElement]));
+    const pour = root.querySelector<HTMLElement>('[data-pour]')!;
+    const wait = root.querySelector<HTMLElement>('[data-wait]')!;
+    const card = root.querySelector<HTMLElement>('[data-card]')!;
+    const reset = root.querySelector<HTMLButtonElement>('[data-reset]')!;
+    let picked: string[] = [];
+    let lastWinner = '';
+
+    const cell = (n: number, tag: 'td' | 'th' = 'td') => {
+      const c = document.createElement(tag);
+      c.textContent = signed(n);
+      if (n > 0) c.className = 'is-pos';
+      else if (n < 0) c.className = 'is-neg';
+      return c;
+    };
+
+    function render() {
+      count.textContent = `${picked.length} of ${MAX_VIBES}`;
+      const full = picked.length >= MAX_VIBES;
+      for (const chip of chips) {
+        const on = picked.includes(chip.dataset.vibe!);
+        chip.setAttribute('aria-pressed', String(on));
+        if (full && !on) chip.setAttribute('aria-disabled', 'true');
+        else chip.removeAttribute('aria-disabled');
+      }
+
+      // Ticket: one row per vibe, then the summed lean.
+      rowsEl.replaceChildren();
+      if (!picked.length) {
+        const tr = document.createElement('tr');
+        tr.className = 'ticket__empty';
+        const td = document.createElement('td');
+        td.colSpan = AXES.length + 1;
+        td.textContent = 'Nothing on the ticket yet.';
+        tr.append(td);
+        rowsEl.append(tr);
+      }
+      for (const id of picked) {
+        const v = vibe(id)!;
+        const tr = document.createElement('tr');
+        const th = document.createElement('th');
+        th.scope = 'row';
+        th.textContent = v.label;
+        tr.append(th, ...v.weights.map((w) => cell(w)));
+        rowsEl.append(tr);
+      }
+      const pref = preference(picked);
+      totalCells.forEach((td, i) => {
+        td.textContent = signed(pref[i]);
+        td.className = pref[i] > 0 ? 'is-pos' : pref[i] < 0 ? 'is-neg' : '';
+      });
+
+      // Scores: re-rank, FLIP the rows into place.
+      const ranked = rank(picked);
+      const before = new Map([...rows].map(([id, li]) => [id, li.getBoundingClientRect().top]));
+      ranked.forEach((d, i) => {
+        const li = rows.get(d.id)!;
+        li.querySelector<HTMLElement>('.sc__fill')!.style.setProperty('--w', `${d.score.toFixed(1)}%`);
+        li.querySelector<HTMLElement>('[data-num]')!.textContent = String(Math.round(d.score));
+        li.classList.toggle('is-top', full && i === 0);
+        list.append(li);
+      });
+      if (!reducedMotion()) {
+        for (const [id, li] of rows) {
+          const dy = before.get(id)! - li.getBoundingClientRect().top;
+          if (Math.abs(dy) < 0.5) continue;
+          li.animate([{ transform: `translateY(${dy}px)` }, { transform: 'none' }], { duration: 420, easing: 'cubic-bezier(.2,.8,.2,1)' });
+        }
+      }
+
+      // The pour.
+      reset.hidden = picked.length === 0;
+      if (!full) {
+        card.hidden = true;
+        wait.hidden = false;
+        pour.classList.remove('is-poured');
+        const left = MAX_VIBES - picked.length;
+        wait.textContent = picked.length === 0
+          ? "Pick three vibes and I'll pour."
+          : `${left} more and I'll pour. ${left === 1 ? 'Almost there.' : 'Take your time.'}`;
+        lastWinner = '';
+        return;
+      }
+      const top = ranked[0];
+      wait.hidden = true;
+      card.hidden = false;
+      card.querySelector('[data-name]')!.textContent = top.name;
+      card.querySelector('[data-line]')!.textContent = top.pour;
+      card.querySelector('[data-glass-fill]')!.setAttribute('fill', top.hue);
+      const why = card.querySelector<HTMLUListElement>('[data-why]')!;
+      why.replaceChildren(...explain(picked, top).map((r) => {
+        const li = document.createElement('li');
+        li.textContent = reasonText(r);
+        return li;
+      }));
+      const runner = ranked[1];
+      const li = document.createElement('li');
+      li.textContent = `Scored ${Math.round(top.score)}. Runner-up: ${runner.name} at ${Math.round(runner.score)}.`;
+      why.append(li);
+      if (top.id !== lastWinner) {
+        pour.classList.remove('is-poured');
+        void pour.offsetWidth;
+        pour.classList.add('is-poured');
+        lastWinner = top.id;
+      }
+    }
+
+    for (const chip of chips) {
+      chip.addEventListener('click', () => {
+        const id = chip.dataset.vibe!;
+        if (chip.getAttribute('aria-disabled') === 'true') {
+          hint.textContent = 'Three is plenty. Tap one of yours to swap it out.';
+          return;
+        }
+        hint.textContent = '';
+        picked = toggleVibe(picked, id);
+        render();
+      });
+    }
+    reset.addEventListener('click', () => {
+      picked = [];
+      hint.textContent = '';
+      render();
+      chips[0].focus();
+    });
+  }
+</script>

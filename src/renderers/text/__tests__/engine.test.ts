@@ -545,3 +545,77 @@ describe('the voice', () => {
     for (const f of readdirSync(dir).filter((x) => /\.(ts|css)$/.test(x))) expect(readFileSync(join(dir, f), 'utf8'), f).not.toContain('—');
   });
 });
+
+describe('the wardrobe', () => {
+  it('gives you the piece kept at a house when you arrive', () => {
+    const r = play('plaza', 'go to the taproom');
+    expect(r.state.wardrobe).toEqual(['hard-hat']);
+    expect(r.text).toMatch(/hard hat/);
+    expect(r.text).toMatch(/1 of \d+ for your wardrobe/);
+    // Only once.
+    expect(play(r.state, 'go to plaza', 'go to taproom').text).not.toMatch(/for your wardrobe/);
+  });
+
+  it('wears what you have, one per slot, and takes it off again', () => {
+    const r = play('plaza', 'go to taproom', 'go to plaza', 'go to schoolhouse', 'wear hard hat');
+    expect(r.state.worn).toEqual({ head: 'hard-hat' });
+    expect(r.last.effects).toContainEqual({ type: 'wear', id: 'hard-hat' });
+    const swap = play(r.state, 'put on the graduation cap');
+    expect(swap.text).toMatch(/swap the hard hat for the graduation cap/);
+    expect(swap.state.worn).toEqual({ head: 'mortarboard' });
+    const off = play(swap.state, 'take the cap off');
+    expect(off.state.worn).toEqual({});
+    expect(off.last.effects).toEqual([{ type: 'unwear', slot: 'head' }]);
+  });
+
+  it("won't wear what you haven't found, and says where to look", () => {
+    const r = play('plaza', 'wear sunglasses');
+    expect(r.state.worn).toEqual({});
+    expect(r.text).toMatch(/haven't found that yet/);
+  });
+
+  it('lists every piece, locked ones as hints', () => {
+    const r = play('plaza', 'go to library', 'wardrobe');
+    expect(r.text).toMatch(/Your wardrobe: 1 of/);
+    expect(r.text).toMatch(/reading glasses/);
+    expect(r.text).toMatch(/\?\?\?/);
+  });
+});
+
+describe('the workshop', () => {
+  it('walks there from the plaza, across the tracks', () => {
+    const { state, text } = play('plaza', 'go to the workshop');
+    expect(state.at).toBe('workshop');
+    expect(text).toMatch(/across the tracks to the workshop inside the railway loop/);
+    expect(text).toMatch(/A timber workshop inside the railway loop/);
+    expect(play('plaza', 'e').state.at).toBe('workshop');
+  });
+
+  it('knows it by what it is for', () => {
+    for (const name of ['workshop', 'colophon', 'how it was built', 'making of']) expect(play('plaza', `go to ${name}`).state.at, name).toBe('workshop');
+  });
+
+  it('has a terminal with a blinking cursor, and a pinboard of prompts', () => {
+    expect(say('workshop', 'x terminal')).toMatch(/cursor blinks/);
+    expect(say('workshop', 'look at the monitor')).toMatch(/build passed/);
+    expect(say('workshop', 'examine prompts')).toMatch(/Put a little train on the island/);
+    expect(say('workshop', 'x workbench')).toMatch(/Half a lighthouse/);
+  });
+
+  it('opens the page about how the island was built', () => {
+    const r = play('workshop', 'look');
+    expect(r.text).toMatch(/ENTER to read how the island was built\./);
+    expect(effects(play('workshop', 'enter').last, 'go')).toEqual([{ type: 'go', place: 'workshop' }]);
+  });
+
+  it('gives you its tool belt when you arrive, to wear on your body', () => {
+    const r = play('plaza', 'go to workshop', 'wear tool belt');
+    expect(r.state.wardrobe).toContain('tool-belt');
+    expect(r.state.worn).toEqual({ body: 'tool-belt' });
+  });
+
+  it('keeps its monitor on after dark', () => {
+    const night = { ...engine.initial('workshop'), night: true };
+    expect(play(night, 'look').text).toMatch(/dark except for the monitor/);
+  });
+});

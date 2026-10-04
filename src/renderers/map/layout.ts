@@ -14,7 +14,7 @@ import { mulberry32 } from './rng';
 /** How far the explorer's body reaches from its feet, for collisions. */
 export const BODY_R = 0.32;
 
-export type LandmarkKind = 'cabin' | 'taproom' | 'tree' | 'library' | 'lighthouse' | 'schoolhouse' | 'depot' | 'postbox' | 'bottle';
+export type LandmarkKind = 'cabin' | 'taproom' | 'tree' | 'library' | 'lighthouse' | 'schoolhouse' | 'depot' | 'workshop' | 'postbox' | 'bottle';
 
 /** Half the width of each landmark's front wall, in world units. */
 export const HALF_WIDTH: Record<LandmarkKind, number> = {
@@ -25,6 +25,7 @@ export const HALF_WIDTH: Record<LandmarkKind, number> = {
   lighthouse: 1.1,
   schoolhouse: 2.8,
   depot: 3.1,
+  workshop: 2.7,
   postbox: 0.5,
   bottle: 0.6,
 };
@@ -49,7 +50,7 @@ export interface MapPlace {
   boxes: Box[];
 }
 
-const BUILDINGS = new Set<LandmarkKind>(['cabin', 'taproom', 'library', 'schoolhouse', 'depot', 'lighthouse']);
+const BUILDINGS = new Set<LandmarkKind>(['cabin', 'taproom', 'library', 'schoolhouse', 'depot', 'workshop', 'lighthouse']);
 const clamp = (v: number, a: number, b: number) => (v < a ? a : v > b ? b : v);
 
 export function layoutPlaces(world: World, geo: Geo): MapPlace[] {
@@ -147,7 +148,7 @@ export function scatterProps(world: World, geo: Geo, places: MapPlace[], seed = 
   };
 
   for (let gz = -30; gz < 30; gz += CELL) {
-    for (let gx = -30; gx < 32; gx += CELL) {
+    for (let gx = -30; gx < 42; gx += CELL) {
       const x = gx + rnd() * CELL;
       const z = gz + rnd() * CELL;
       const roll = rnd();
