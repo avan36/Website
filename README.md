@@ -75,6 +75,7 @@ npm install
 npm run dev      # http://localhost:4321
 npm test         # vitest: the world, the store, the renderers' pure logic
 npm run build    # astro check, then tests, then the static build in dist/
+npm run test:e2e # browser tests against dist/ (Playwright; see docs/e2e.md)
 ```
 
 Node 22. Deployed on Vercel from `main`.
