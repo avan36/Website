@@ -50,7 +50,8 @@ const METRICS: Record<PlaceKind, { labelY: number; hitR: number; hitH: number; r
 const world = readWorld();
 const geo = readGeo();
 
-export const { coastRadius, rockiness, heightAt, groundAt, isWalkable, pathDist, isOpenGround } = geo;
+export const { coastRadius, rockiness, heightAt, groundAt, isWalkable, pathDist, isOpenGround, depthAt, swimRoom, isSwimmable } = geo;
+export { SWIM_REACH } from '../../../world/geo';
 export const PLAZA = geo.hub.at;
 /** The hub: where you are when you're on the plaza and not at any place. */
 export const HUB = { id: geo.hub.id, radius: Math.max(geo.hub.clearing, 2.5) };

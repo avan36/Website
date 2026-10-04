@@ -23,7 +23,7 @@ import {
   WebGLRenderer,
   type Material,
 } from 'three';
-import { Explorer } from './character';
+import { Explorer, type Water } from './character';
 import { Landmark } from './landmarks';
 import { Labels, type Rect } from './labels';
 import type { RendererContext, SoundName } from '../types';
@@ -36,10 +36,13 @@ import { resetSharedMaterials } from './world/kit';
 import { buildNature, type Collider, type SharedUniforms } from './world/nature';
 import { buildNight } from './world/night';
 import { Puffs } from './world/particles';
-import { ACTIVITIES, groundAt, HUB, isWalkable, PLACES, PLAZA, SPAWN, WORDS } from './world/shape';
+import { Ripples } from './world/ripples';
+import { buildBuoys } from './world/buoys';
+import { ROWBOAT } from './landmarks/builders';
+import { ACTIVITIES, groundAt, heightAt, HUB, isSwimmable, isWalkable, PIER, PLACES, PLAZA, SPAWN, swimRoom, WORDS } from './world/shape';
 import { buildHeightTexture, buildTerrain } from './world/terrain';
 import { buildSky, HORIZON } from './world/sky';
-import { buildWater } from './world/water';
+import { buildWater, waveHeight } from './world/water';
 import { clamp, damp, easeInOutCubic, easeOutBack, easeOutCubic, lerp } from './util/math';
 
 export interface GameOptions {
@@ -70,8 +73,16 @@ export interface GameHandle {
   /** For tests and debugging. */
   debug: {
     state: () => string;
-    /** Where the explorer is; y is its feet's height (up in the air while jumping). */
-    player: () => { x: number; z: number; y: number; airborne: boolean };
+    /** Where the explorer is; y is its feet's height (up in the air while jumping, under the surface afloat). */
+    player: () => { x: number; z: number; y: number; airborne: boolean; water: Water; doubleJumped: boolean; speed: number; flip: number };
+    /** The sea at a spot (the explorer's, by default): depth, room left to swim out, and the swell's height now. */
+    sea: (x?: number, z?: number) => { depth: number; room: number; swimmable: boolean; walkable: boolean; surface: number };
+    /** Where the explorer's head is on screen. */
+    playerScreen: () => { x: number; y: number };
+    /** Run the game on for this many seconds at 60 steps a second, without drawing (headless browsers draw slowly). */
+    tick: (seconds: number) => void;
+    /** Click-to-walk to a spot (as a click on the ground there would); where it will actually go. */
+    walkTo: (x: number, z: number) => { x: number; z: number } | null;
     near: () => string | null;
     frames: () => number;
     places: () => { id: string; x: number; z: number; stand: { x: number; z: number } }[];
@@ -152,6 +163,10 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
   scene.add(ambient.group);
   const puffs = new Puffs();
   scene.add(puffs.mesh);
+  const ripples = new Ripples();
+  scene.add(ripples.mesh);
+  const buoys = buildBuoys();
+  scene.add(buoys.group);
 
   const landmarks = PLACES.map((p) => new Landmark(p));
   const byId = new Map(landmarks.map((l) => [l.place.id, l]));
@@ -163,12 +178,25 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     ...landmarks.map((l) => ({ x: l.place.x, z: l.place.z, r: l.place.radius })),
   ];
 
-  const player = new Explorer();
+  const player = new Explorer(puffs, ripples);
   scene.add(player.root, player.shadowMesh);
-  player.onStep = () => o.sound.play('step');
+  // Wading, every other step is a soft slosh instead of a footfall.
+  let sloshes = 0;
+  player.onStep = () => (player.water === 'wade' ? ++sloshes % 2 === 0 && o.sound.play('swim') : o.sound.play('step'));
   player.onLand = (impact) => (impact > 1.1 ? o.sound.play('land') : impact > 0.15 && o.sound.play('step'));
-  player.onJump = () => o.sound.play('jump');
+  player.onJump = (second) => o.sound.play(second ? 'jump2' : 'jump');
+  player.onSplash = () => o.sound.play('splash');
+  // A paddle every other stroke, and every kick.
+  let strokes = 0;
+  player.onStroke = (kick) => (kick || ++strokes % 2 === 0) && o.sound.play('swim');
   player.lowJumps = o.reducedMotion;
+  // Swimmers go round the pier (their heads would go through its deck) and the rowboat tied to it.
+  const boatZ = PIER.end - ROWBOAT.fromEnd;
+  const boatX = PIER.x + ROWBOAT.x;
+  player.obstacles = [
+    { ax: PIER.x, az: PIER.start, bx: PIER.x, bz: PIER.end, r: PIER.width / 2, top: PIER.deck },
+    { ax: boatX, az: boatZ - ROWBOAT.halfLength + ROWBOAT.halfWidth, bx: boatX, bz: boatZ + ROWBOAT.halfLength - ROWBOAT.halfWidth, r: ROWBOAT.halfWidth, top: 0.3 },
+  ];
   const hill = PLACES.find((p) => p.kind === 'tree');
 
   // ---------- Things to do ----------
@@ -279,6 +307,8 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
       target.y + Math.sin(pitch) * dist + rig.parallax.y * 0.7,
       target.z + Math.cos(yaw) * cp * dist,
     );
+    // However close it leans in, never down to the sea.
+    camera.position.y = Math.max(camera.position.y, target.y + 1.5, 1.2);
     camera.lookAt(target);
   };
 
@@ -328,7 +358,7 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
   const returning = o.returnTo ? byId.get(o.returnTo) ?? null : null;
   // Switched here from another view: stand where you were standing there.
   const saved = store.state.presence.pos;
-  const resume = !returning && saved && isWalkable(saved.x, saved.z) ? saved : null;
+  const resume = !returning && saved && (isWalkable(saved.x, saved.z) || isSwimmable(saved.x, saved.z)) ? saved : null;
 
   // ---------- Start pose ----------
   if (returning || resume || o.reducedMotion) {
@@ -401,19 +431,22 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     }
     return null;
   };
-  /** Clicked the sea? Walk to the nearest bit of shore along the way. */
+  /** Somewhere the explorer can get to: land, or water a little short of the furthest you can swim. */
+  const reachable = (x: number, z: number) => isWalkable(x, z) || (isSwimmable(x, z) && swimRoom(x, z) > 0.6);
+  /** Clicked the open sea? Go as far toward it as you can swim. */
   const toShore = (p: Vector2) => {
-    if (isWalkable(p.x, p.y)) return p;
+    if (reachable(p.x, p.y)) return p;
     const from = new Vector2(player.pos.x, player.pos.z);
     const d = p.distanceTo(from);
     for (let s = 0; s < d; s += 0.25) {
       const q = p.clone().lerp(from, s / d);
-      if (isWalkable(q.x, q.y)) return q;
+      if (reachable(q.x, q.y)) return q;
     }
     return null;
   };
   const showMarker = (p: Vector2) => {
-    marker.position.set(p.x, groundAt(p.x, p.y) + 0.06, p.y);
+    // On the water the ring lies on the surface.
+    marker.position.set(p.x, Math.max(groundAt(p.x, p.y), 0.1) + 0.06, p.y);
     markerT = 0;
   };
 
@@ -594,7 +627,7 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
       fishing.reel();
       return true;
     }
-    if (!fishOpen) return false;
+    if (!fishOpen || player.inWater) return false;
     firstMove();
     // Step up to the spot first, then cast.
     const s = fishing.stand;
@@ -751,13 +784,15 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
       const dz = walkTarget.y - player.pos.z;
       const d = Math.hypot(dx, dz);
       const pend = pendingEnter ? byId.get(pendingEnter) : null;
-      const arrived = d < 0.3 || (pend && Math.hypot(player.pos.x - pend.place.x, player.pos.z - pend.place.z) < pend.place.enterRange - 0.4);
+      // Afloat you glide, so ease off sooner and call it there a little further out.
+      const swim = player.water === 'swim';
+      const arrived = d < (swim ? 0.5 : 0.3) || (pend && Math.hypot(player.pos.x - pend.place.x, player.pos.z - pend.place.z) < pend.place.enterRange - 0.4);
       if (arrived) {
         walkTarget = null;
         if (pend) enter(pend.place.id);
-        else if (pendingCast) (pendingCast = false), fishing?.cast();
+        else if (pendingCast) (pendingCast = false), !player.inWater && fishing?.cast();
       } else {
-        wish.set(dx / d, dz / d).multiplyScalar(clamp(d / 1.4 + 0.3, 0, 1));
+        wish.set(dx / d, dz / d).multiplyScalar(swim ? clamp(d / 2.4 + 0.1) : clamp(d / 1.4 + 0.3));
       }
     }
     const blocked = player.move(dt, wish, colliders);
@@ -767,7 +802,7 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
         const pend = pendingEnter ? byId.get(pendingEnter) : null;
         walkTarget = null;
         if (pend && Math.hypot(player.pos.x - pend.place.x, player.pos.z - pend.place.z) < pend.place.enterRange + 1.5) enter(pend.place.id);
-        else if (pendingCast) fishing?.cast();
+        else if (pendingCast && !player.inWater) fishing?.cast();
         pendingEnter = null;
         pendingCast = false;
       }
@@ -811,7 +846,8 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
       const px = player.pos.x;
       const pz = player.pos.z;
       const pierCard = nearId === fishSpot.place && nearId !== dismissedId;
-      fishOpen = !words.picking && (fishing.active || pendingCast || (fishing.inRange(px, pz) && !pierCard));
+      // Only from the pier: not from the water underneath it.
+      fishOpen = !words.picking && (fishing.active || pendingCast || (fishing.inRange(px, pz) && !pierCard && !player.inWater));
       const far = Math.hypot(px - fishSpot.x, pz - fishSpot.z) > FISH_RANGE + 0.8;
       if ((fishing.active && far) || (!fishing.active && player.rodOut > 0 && !pendingCast && player.speed > 0.6)) fishing.cancel();
     }
@@ -844,13 +880,8 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     store.dispatch({ type: 'move', pos: { x: Math.round(x * 100) / 100, z: Math.round(z * 100) / 100 }, at });
   }
 
-  const frame = (now: number) => {
-    raf = requestAnimationFrame(frame);
-    // A frame stamped before start() (a long first render) must not run time backwards.
-    const raw = clamp((now - last) / 1000, 0, 0.1);
-    const dt = Math.min(raw, 1 / 20);
-    last = now;
-    frames++;
+  /** Everything that moves, one step on: the game, the explorer, the effects, the camera. */
+  const simulate = (dt: number, raw: number) => {
     time += dt;
     uniforms.uTime.value = time;
     water.material.uniforms.uTime.value = time;
@@ -859,23 +890,18 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     else if (state === 'play') updatePlay(dt);
     else if (state === 'entering') player.move(dt, wish.set(0, 0), colliders);
 
-    // Hover (mouse) via the hit volumes
-    if (pointerMoved && pointerInside && state === 'play' && !touch) {
-      const target = pickTarget();
-      pointerHover = target && 'place' in target ? target.place : null;
-      canvas.style.cursor = target ? 'pointer' : '';
-      pointerMoved = false;
-    }
     const hoverId = state === 'play' ? labelHover ?? labelFocus ?? pointerHover : null;
     for (const l of landmarks) {
       l.hover = l.place.id === hoverId || l.place.id === enteringId;
       l.update(time, dt, puffs, state !== 'intro');
     }
 
-    player.update(time, dt, puffs);
+    player.update(time, dt);
     fishing?.update(time, dt);
     words.update(time, dt, camera, puffs, uniforms.uGrow.value);
     puffs.update(dt);
+    ripples.update(time, dt, night.amount);
+    buoys.update(time, uniforms.uGrow.value, night.amount);
     ambient.update(time);
 
     // Night falls (or lifts). After the last word it waits for the card to close.
@@ -894,7 +920,8 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     // Camera
     if (state === 'play') {
       const near = nearId && nearId !== dismissedId ? byId.get(nearId)! : null;
-      camGoal.set(player.pos.x + player.vel.x * 0.18, player.pos.y + 0.8, player.pos.z + player.vel.y * 0.18);
+      // Afloat, follow the sea's level rather than every swell.
+      camGoal.set(player.pos.x + player.vel.x * 0.18, Math.max(player.pos.y, 0) + 0.8, player.pos.z + player.vel.y * 0.18);
       if (near) camGoal.lerp(near.focus(focusV), 0.25);
       // Lean in on a scroll being unrolled, or on the float while fishing.
       let zoom = near ? 0.74 : 1;
@@ -924,6 +951,25 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
       rig.parallax.y = damp(rig.parallax.y, rig.parallaxT.y, 2, dt);
     }
     placeCamera(rig.target, rig.dist, rig.pitch, rig.yaw);
+  };
+
+  const frame = (now: number) => {
+    raf = requestAnimationFrame(frame);
+    // A frame stamped before start() (a long first render) must not run time backwards.
+    const raw = clamp((now - last) / 1000, 0, 0.1);
+    const dt = Math.min(raw, 1 / 20);
+    last = now;
+    frames++;
+
+    // Hover (mouse) via the hit volumes
+    if (pointerMoved && pointerInside && state === 'play' && !touch) {
+      const target = pickTarget();
+      pointerHover = target && 'place' in target ? target.place : null;
+      canvas.style.cursor = target ? 'pointer' : '';
+      pointerMoved = false;
+    }
+    simulate(dt, raw);
+    const hoverId = state === 'play' ? labelHover ?? labelFocus ?? pointerHover : null;
 
     // Labels (kept out of the HUD's way, re-measured a few times a second
     // so the hint fading in or the card folding away are seen promptly)
@@ -1054,7 +1100,33 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     destroy,
     debug: {
       state: () => state,
-      player: () => ({ x: player.pos.x, z: player.pos.z, y: player.root.position.y, airborne: player.airborne }),
+      player: () => ({
+        x: player.pos.x,
+        z: player.pos.z,
+        y: player.root.position.y,
+        airborne: player.airborne,
+        water: player.water,
+        doubleJumped: player.doubleJumped,
+        speed: player.speed,
+        flip: player.flipAngle,
+      }),
+      sea: (x?: number, z?: number) => {
+        const px = x ?? player.pos.x;
+        const pz = z ?? player.pos.z;
+        return { depth: Math.max(0, -heightAt(px, pz)), room: swimRoom(px, pz), swimmable: isSwimmable(px, pz), walkable: isWalkable(px, pz), surface: waveHeight(px, pz, time) };
+      },
+      playerScreen: () => {
+        const v = player.head(new Vector3()).project(camera);
+        return { x: (v.x * 0.5 + 0.5) * viewW, y: (-v.y * 0.5 + 0.5) * viewH };
+      },
+      tick: (seconds: number) => {
+        for (let t = 0; t < seconds - 1e-6; t += 1 / 60) simulate(1 / 60, 1 / 60);
+      },
+      walkTo: (x: number, z: number) => {
+        const p = toShore(new Vector2(x, z));
+        if (p) (walkTarget = p), (pendingEnter = null);
+        return p ? { x: p.x, z: p.y } : null;
+      },
       near: () => nearId,
       frames: () => frames,
       places: () => PLACES.map((p) => ({ id: p.id, x: p.x, z: p.z, stand: p.stand })),
