@@ -184,9 +184,12 @@ async function setView(next: ViewId, { persist = true, focus = false, url }: Vie
 
 // ---------- Going into a place ----------
 
+/** Set while the wipe is up and we're waiting for the next page. */
+let leaving = 0;
+
 function go(placeId: string, from?: { x: number; y: number }) {
   const place = world.places.find((p) => p.id === placeId);
-  if (!place?.href) return;
+  if (!place?.href || leaving) return;
   store.dispatch({ type: 'move', at: placeId, pos: store.state.presence.pos });
   store.flush();
   session.set('island:wipe', JSON.stringify({ slug: placeId, color: place.color }));
@@ -203,7 +206,38 @@ function go(placeId: string, from?: { x: number; y: number }) {
     easing: 'cubic-bezier(.7,0,.25,1)',
     fill: 'forwards',
   });
-  anim.onfinish = () => window.location.assign(place.href!);
+  anim.onfinish = () => {
+    window.location.assign(place.href!);
+    // If we're still here a little later, the navigation never happened: a
+    // back swipe while the page loaded, Escape, a dropped connection. Don't
+    // leave the visitor under a sheet of color; come back out of the place.
+    leaving = window.setTimeout(() => comeBack(placeId), 2500);
+  };
+  leaving = -1;
+}
+
+/**
+ * Back on this page after going into a place, whether the browser restored
+ * it from the back/forward cache or the trip was cancelled: take the wipe
+ * down and play the same return as a fresh visit, under that place's color.
+ */
+function comeBack(placeId: string | null) {
+  window.clearTimeout(leaving);
+  leaving = 0;
+  wipe.getAnimations().forEach((a) => a.cancel());
+  wipe.hidden = true;
+  session.set('island:wipe', null);
+  const place = placeId ? world.places.find((p) => p.id === placeId) : null;
+  returnTo = place ? place.id : null;
+  if (view === 'list') return html.classList.remove('isl-returning');
+  if (place) {
+    html.style.setProperty('--isl-return', place.color);
+    html.classList.add('isl-returning');
+  }
+  unmount();
+  void mount(view as Exclude<ViewId, 'list'>);
+  // Whatever happens, never leave the cover up.
+  window.setTimeout(() => html.classList.remove('isl-returning'), 9000);
 }
 
 /** Coming back out of a place: shrink the cover away, centred on (x, y). */
@@ -318,19 +352,13 @@ document.addEventListener('visibilitychange', () => (document.hidden ? handle?.p
 
 // bfcache: free the GPU when leaving, rebuild when coming back.
 window.addEventListener('pagehide', () => {
+  window.clearTimeout(leaving); // we really are leaving
   store.flush();
   unmount();
   sound.dispose();
 });
 window.addEventListener('pageshow', (e) => {
-  if (!e.persisted) return;
-  wipe.getAnimations().forEach((a) => a.cancel());
-  wipe.hidden = true;
-  returnTo = session.get('island:return');
-  if (view !== 'list') {
-    if (returnTo) html.classList.add('isl-returning');
-    void mount(view);
-  }
+  if (e.persisted) comeBack(session.get('island:return'));
 });
 
 // ---------- Go ----------
@@ -347,5 +375,5 @@ window.addEventListener('pageshow', (e) => {
 
 // Test and debug handle: dev builds, or production with ?debug.
 if (import.meta.env.DEV || new URLSearchParams(location.search).has('debug')) {
-  (window as unknown as { __world?: unknown }).__world = { world, store, geo, setView: (v: ViewId) => setView(v) };
+  (window as unknown as { __world?: unknown }).__world = { world, store, geo, go, setView: (v: ViewId) => setView(v) };
 }
