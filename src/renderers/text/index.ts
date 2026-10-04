@@ -127,7 +127,7 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
           later(() => (typewriter.finish(), ctx.go(e.place, origin())), ctx.reducedMotion ? 60 : 650);
           break;
         case 'open':
-          later(() => window.location.assign(e.href), ctx.reducedMotion ? 60 : 500);
+          later(() => (typewriter.finish(), ctx.go('blog', origin(), e.href)), ctx.reducedMotion ? 60 : 500);
           break;
         case 'view':
           later(() => document.querySelector<HTMLButtonElement>(`[data-view-set="${e.id}"]`)?.click(), 450);

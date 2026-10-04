@@ -316,7 +316,7 @@ export function createEngine(world: World, geo: Geo, { random = Math.random }: E
       { kind: 'title', text: person.name, color: '#e8c48e', sub: person.role },
       p(person.intro),
       say(`This island is my portfolio: every place on it is something I've made. Type [WORK] for the list, [WRITING] for what I've written, or [CONTACT] to say hello.`),
-      p({ text: person.github.replace(/^https?:\/\//, ''), href: person.github }),
+      p({ text: 'More about me', href: person.about }, ' · ', { text: person.github.replace(/^https?:\/\//, ''), href: person.github }),
     ]);
   }
 

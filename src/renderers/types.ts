@@ -24,8 +24,12 @@ export interface RendererContext {
   sound: { play(name: SoundName): void; readonly on: boolean };
   /** The place the visitor just came back out of, if they used this page to go in. */
   returnTo: string | null;
-  /** Go into a place: plays the color wipe from (x, y) in viewport pixels, then opens its page. */
-  go(placeId: string, from?: { x: number; y: number }): void;
+  /**
+   * Go into a place: plays the color wipe from (x, y) in viewport pixels,
+   * then opens its page, or `href` instead (a page on this site that belongs
+   * to that place, like one post at the pier).
+   */
+  go(placeId: string, from?: { x: number; y: number }, href?: string): void;
   ui: {
     /** Say something to screen readers. */
     announce(text: string): void;

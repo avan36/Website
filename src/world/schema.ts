@@ -27,6 +27,8 @@ export const PersonSchema = z
     name: z.string(),
     role: z.string(),
     intro: z.string(),
+    /** The page that says more. */
+    about: z.string(),
     github: z.url(),
   })
   .strict();

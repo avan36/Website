@@ -187,9 +187,10 @@ async function setView(next: ViewId, { persist = true, focus = false, url }: Vie
 /** Set while the wipe is up and we're waiting for the next page. */
 let leaving = 0;
 
-function go(placeId: string, from?: { x: number; y: number }) {
+function go(placeId: string, from?: { x: number; y: number }, href?: string) {
   const place = world.places.find((p) => p.id === placeId);
-  if (!place?.href || leaving) return;
+  const to = href?.startsWith('/') ? href : place?.href;
+  if (!place || !to || leaving) return;
   store.dispatch({ type: 'move', at: placeId, pos: store.state.presence.pos });
   store.flush();
   session.set('island:wipe', JSON.stringify({ slug: placeId, color: place.color }));
@@ -207,7 +208,7 @@ function go(placeId: string, from?: { x: number; y: number }) {
     fill: 'forwards',
   });
   anim.onfinish = () => {
-    window.location.assign(place.href!);
+    window.location.assign(to);
     // If we're still here a little later, the navigation never happened: a
     // back swipe while the page loaded, Escape, a dropped connection. Don't
     // leave the visitor under a sheet of color; come back out of the place.

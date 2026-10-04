@@ -383,7 +383,3 @@
   .g-you, .tx-chip.is-urgent { animation: none; }
 }
 
-/* The shared toasts sit at the bottom on desktop, which in this view is the prompt: lift them above it. */
-@media (min-width: 721px) {
-  html[data-view='text'] .w-toasts { bottom: calc(max(24px, env(safe-area-inset-bottom)) + 104px); }
-}

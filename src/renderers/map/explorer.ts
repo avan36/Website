@@ -1,7 +1,8 @@
 // The explorer, in pixels: the same round marshmallow as on the 3D island,
 // with its orange scarf, sprout and backpack. Four facings, a three-frame
-// walk (stand, left foot, stand, right foot), a breathing idle bob, a hop,
-// and a pose for holding something up (a found word) or a fishing rod.
+// walk (stand, left foot, stand, right foot), a breathing idle frame, and a
+// pose for holding something up (a found word). Hops and the fishing rod are
+// added when it's drawn.
 
 import { HEX } from './palette';
 import { col, nightData, Pix, type Color } from './pixels';

@@ -356,7 +356,7 @@ export function buildWorld(posts: Post[]): World {
     $schema: `${SITE}/world.schema.json`,
     version: 1,
     site: { url: SITE, title: `${person.name} · ${person.role}` },
-    person: { name: person.name, role: person.role, intro: person.intro, github: person.github },
+    person: { name: person.name, role: person.role, intro: person.intro, about: '/about', github: person.github },
     projects: projects.map((p) => ({
       slug: p.slug,
       name: p.name,

@@ -54,6 +54,8 @@
   .w-toast__action:hover { background: rgba(255, 255, 255, 0.24); }
   html.isl-mode-play[data-view='island'] .w-toasts,
   html.isl-mode-play[data-view='map'] .w-toasts { bottom: calc(max(24px, env(safe-area-inset-bottom)) + 64px); }
+  /* In the text view the bottom of the screen is the prompt. */
+  html[data-view='text'] .w-toasts { bottom: calc(max(24px, env(safe-area-inset-bottom)) + 104px); }
   @media (max-width: 720px) {
     html.isl-mode-play .w-toasts { bottom: auto; top: calc(max(16px, env(safe-area-inset-top)) + 64px); }
   }

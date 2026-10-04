@@ -1,6 +1,6 @@
 ---
 // Slim header for every page except the island (which draws its own HUD).
-interface Props { current?: 'work' | 'writing' | 'contact' }
+interface Props { current?: 'work' | 'writing' | 'about' | 'contact' }
 const { current } = Astro.props;
 ---
 <header class="site-header">
@@ -12,6 +12,7 @@ const { current } = Astro.props;
     <nav aria-label="Primary">
       <a href="/#work" aria-current={current === 'work' ? 'page' : undefined}>Work</a>
       <a href="/blog" aria-current={current === 'writing' ? 'page' : undefined}>Writing</a>
+      <a href="/about" aria-current={current === 'about' ? 'page' : undefined}>About</a>
       <a href="/contact" aria-current={current === 'contact' ? 'page' : undefined}>Contact</a>
     </nav>
   </div>
@@ -28,7 +29,7 @@ const { current } = Astro.props;
   .site-header__brand img { border-radius: 9px; transition: transform var(--dur-3) var(--ease-spring); }
   .site-header__brand:hover img { transform: rotate(-10deg) scale(1.08); }
   nav { display: flex; gap: clamp(var(--space-4), 3vw, var(--space-6)); font-weight: 600; }
-  nav a { text-decoration: none; color: var(--ink-2); }
+  nav a { text-decoration: none; color: var(--ink-2); padding-block: 12px; margin-block: -12px; }
   nav a:hover, nav a[aria-current='page'] { color: var(--ink); }
   nav a[aria-current='page'] { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 6px; }
   @media (max-width: 480px) { .site-header__brand span { display: none; } }
