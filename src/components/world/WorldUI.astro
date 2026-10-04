@@ -13,7 +13,6 @@
     <span>Leave</span><kbd aria-hidden="true">Esc</kbd>
   </button>
   <p class="w-room__where"><span class="w-room__kicker">Inside</span><span class="w-room__title" id="w-room-title"></span></p>
-  <button type="button" class="w-room__btn" data-room="look" aria-haspopup="dialog"><span class="w-room__long">Look around</span><span class="w-room__short">Look</span></button>
 </section>
 <button type="button" class="w-near" id="w-near" hidden><span class="w-near__text"></span><kbd aria-hidden="true">E</kbd></button>
 <section class="w-talk" id="w-talk" role="dialog" aria-modal="false" aria-labelledby="w-talk-title" hidden></section>
@@ -526,9 +525,24 @@
   .w-talk__choice.is-asked::after { content: '✓'; font-size: 13px; }
   .w-talk__choice--go { background: color-mix(in srgb, var(--c) 88%, #000); color: #fff; }
   .w-talk__choice--go:hover { background: color-mix(in srgb, var(--c) 78%, #000); }
-  .w-talk__choice i { width: 10px; height: 10px; border-radius: 50%; background: var(--who); flex: none; }
-  .w-talk__foot { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; padding-top: 12px; border-top: 1px solid #ece4d8; }
-  .w-talk__desc { margin-top: 8px; font-family: var(--font-read); font-size: 16px; line-height: 1.5; color: #4a443c; }
+  /* The work's page (the big one) and its own way in (the App Store, the thing
+     itself), held at the foot of the box while you read. */
+  .w-talk__ctas {
+    position: sticky;
+    bottom: 0;
+    z-index: 1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 14px -22px 0;
+    padding: 12px 22px 16px;
+    border-top: 1px solid #ece4d8;
+    background: inherit;
+  }
+  .w-talk__cta { flex: 1 1 auto; justify-content: center; text-align: center; text-decoration: none; }
+  .w-talk__choice--go.w-talk__cta { min-height: 54px; font-size: 17px; font-weight: 720; }
+  .w-talk__choice--alt { background: transparent; box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--c) 40%, #e6dccb); color: color-mix(in oklab, var(--c) 70%, #1d1a16); }
+  .w-talk__choice--alt:hover { background: color-mix(in srgb, var(--c) 8%, #fff); }
   /* The work the building stands for, at the top of the room's overview. */
   .w-talk__work { display: grid; gap: 8px; margin-top: 12px; }
   .w-talk__headline { font-family: var(--font-display); font-size: 20px; font-weight: 700; line-height: 1.2; letter-spacing: -0.015em; text-wrap: balance; }
@@ -536,8 +550,6 @@
   .w-talk__shots { display: flex; gap: 10px; margin: 4px -22px 0; padding: 4px 22px 8px; overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: thin; }
   .w-talk__shot { flex: none; width: auto; height: 210px; border-radius: 16px; background: #f3ecdf; box-shadow: 0 0 0 1px rgba(29, 26, 22, 0.08), 0 6px 16px rgba(60, 40, 10, 0.12); scroll-snap-align: start; }
   .w-talk__shot.is-browser { height: 160px; border-radius: 8px; }
-  .w-talk__links { display: flex; flex-wrap: wrap; gap: 0 16px; }
-  .w-talk__links .w-talk__more { margin-top: 2px; min-height: 36px; }
   @media (max-width: 999px), (max-height: 559px) {
     .w-talk__shot { height: 150px; }
     .w-talk__shot.is-browser { height: 110px; }
@@ -573,7 +585,8 @@
   html[data-view='map'] .w-talk__face { border-radius: 0; box-shadow: inset 0 -12px 0 -2px var(--who, var(--c)), 0 0 0 3px #3a2a24; image-rendering: pixelated; }
   html[data-view='map'] .w-talk__line.is-said { border-radius: 0; border: 2px dashed color-mix(in srgb, var(--who, var(--c)) 50%, #3a2a24); }
   html[data-view='map'] .w-talk__line { font-family: var(--font-display); font-size: 17px; }
-  html[data-view='map'] .w-talk__foot { border-top: 2px dashed #e0c896; }
+  html[data-view='map'] .w-talk__ctas { margin-inline: -16px; padding-inline: 16px; border-top: 2px dashed #e0c896; }
+  html[data-view='map'] .w-talk__choice--go.w-talk__cta { font-size: 14px; }
   html[data-view='map'] .w-near { color: #3a2a24; font: 750 13px/1 var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; }
   html[data-view='map'] .w-near::before { border-radius: 0; box-shadow: none; }
   html[data-view='map'] .w-near kbd { border-radius: 0; background: #3a2a24; color: #fff8e8; }
@@ -592,11 +605,12 @@
       transform: translateY(-38%);
       animation-name: w-talk-side;
     }
+    /* Room for both at full length: the page's button over the other one. */
+    .w-talk__ctas { flex-direction: column; }
     .w-room, .w-near { left: calc(50% - 244px); }
   }
   @keyframes w-talk-side { from { opacity: 0; transform: translate(24px, -38%); } }
 
-  .w-room__short { display: none; }
   @media (max-width: 720px) {
     .w-room {
       top: calc(max(16px, env(safe-area-inset-top)) + 70px);
@@ -610,8 +624,6 @@
     @keyframes w-room-in-narrow { from { opacity: 0; transform: translateY(-12px); } }
     .w-room__where { flex: 1; padding: 0 4px; }
     .w-room__title { font-size: 15px; }
-    .w-room__long { display: none; }
-    .w-room__short { display: inline; }
     html[data-view='map'] .w-room__btn { font-size: 12px; padding: 0 10px; }
     /* A bottom sheet, no taller than the room above it leaves room for. */
     .w-talk { bottom: max(10px, env(safe-area-inset-bottom)); max-height: 46dvh; padding: 14px 14px 12px; border-radius: 22px; }
@@ -619,13 +631,15 @@
     .w-talk__line { margin-top: 10px; font-size: 15.5px; line-height: 1.45; }
     .w-talk__line.is-said { padding: 10px 12px; }
     html[data-view='map'] .w-talk__line { font-size: 15px; }
-    .w-talk__desc { font-size: 15.5px; }
     .w-talk__name { font-size: 19px; }
     .w-talk__label { margin-top: 12px; }
     .w-talk__choices { gap: 6px; }
     .w-talk__choice { min-height: 40px; padding: 0 12px; font-size: 14px; }
     html[data-view='map'] .w-talk__choice { font-size: 11.5px; letter-spacing: 0.04em; }
-    .w-talk__foot { margin-top: 10px; padding-top: 10px; }
+    /* Side by side on a phone, so the long half of each label goes. */
+    .w-talk__ctas { margin: 10px -14px 0; padding: 10px 14px 12px; gap: 6px; }
+    .w-talk__long { display: none; }
+    .w-talk__choice--go.w-talk__cta { min-height: 48px; font-size: 15.5px; }
     /* Out of the way of the word hoard and sound buttons in the corner. */
     .w-near { bottom: calc(max(24px, env(safe-area-inset-bottom)) + 4px); left: calc(50% - 30px); }
   }
