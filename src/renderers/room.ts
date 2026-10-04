@@ -159,35 +159,37 @@ export function createRoomUI(world: World, announce: (s: string) => void, toast:
 
   /**
    * The room's overview: the work this building stands for, its page (the big
-   * button) and where to get it or try it (the smaller one), and what to look
-   * at. The room's own description is read out, not shown. At rest it's
-   * `passive`; asked for, it's a box like any other.
+   * button) and where to get it or try it (the smaller one) right under its
+   * headline, so both are there without scrolling, then the rest of what it
+   * is and what to look at. The room's own description is read out, not
+   * shown. At rest it's `passive`; asked for, it's a box like any other.
    */
   function look(passing = false, quiet = false) {
     if (!place?.interior) return;
     const room = place.interior;
     const work = place.project ? world.projects.find((x) => x.slug === place!.project) : undefined;
+    const p = place;
     const shots = (work?.shots ?? [])
       .slice(0, 3)
       .map((x) => `<img class="w-talk__shot is-${x.frame}" src="${esc(x.src)}" alt="${esc(x.alt)}" width="${x.width}" height="${x.height}" loading="lazy" decoding="async">`)
       .join('');
+    const ctas = `<div class="w-talk__ctas">
+         <a class="w-talk__choice w-talk__choice--go w-talk__cta" href="${esc(p.href ?? '/')}" data-talk-link><span>${work ? `Read more<span class="w-talk__long"> about ${esc(work.name)}</span>` : 'The full page'}</span> <span aria-hidden="true">→</span></a>
+         ${lead(work)}
+       </div>`;
     const about = work
       ? `<div class="w-talk__work">
            <p class="w-talk__headline">${esc(work.headline)}</p>
+           ${ctas}
            ${work.body.map((b) => `<p class="w-talk__body">${esc(b)}</p>`).join('')}
            ${shots ? `<div class="w-talk__shots">${shots}</div>` : ''}
          </div>`
-      : '';
+      : ctas;
     const things = room.things.map((t) => `<button type="button" class="w-talk__choice" data-talk="thing:${t.id}">Look at ${esc(thingName(t))}</button>`).join('');
-    const p = place;
     show(
       `${CLOSE}
        <div class="w-talk__head"><div class="w-talk__who"><span class="w-talk__kicker">Inside ${esc(the(p))}</span><h2 class="w-talk__name" id="w-talk-title">${esc(work ? work.name : cap(the(p)))}</h2></div></div>
        ${about}
-       <div class="w-talk__ctas">
-         <a class="w-talk__choice w-talk__choice--go w-talk__cta" href="${esc(p.href ?? '/')}" data-talk-link><span>${work ? `Read more<span class="w-talk__long"> about ${esc(work.name)}</span>` : 'The full page'}</span> <span aria-hidden="true">→</span></a>
-         ${lead(work)}
-       </div>
        ${things ? `<p class="w-talk__label">Have a look at</p><div class="w-talk__choices" role="group" aria-label="Things to look at">${things}</div>` : ''}`,
       p.color,
       `Inside ${the(p)}`,

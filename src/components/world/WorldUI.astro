@@ -526,19 +526,8 @@
   .w-talk__choice--go { background: color-mix(in srgb, var(--c) 88%, #000); color: #fff; }
   .w-talk__choice--go:hover { background: color-mix(in srgb, var(--c) 78%, #000); }
   /* The work's page (the big one) and its own way in (the App Store, the thing
-     itself), held at the foot of the box while you read. */
-  .w-talk__ctas {
-    position: sticky;
-    bottom: 0;
-    z-index: 1;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin: 14px -22px 0;
-    padding: 12px 22px 16px;
-    border-top: 1px solid #ece4d8;
-    background: inherit;
-  }
+     itself), right under the headline, where they're seen without scrolling. */
+  .w-talk__ctas { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 6px; }
   .w-talk__cta { flex: 1 1 auto; justify-content: center; text-align: center; text-decoration: none; }
   .w-talk__choice--go.w-talk__cta { min-height: 54px; font-size: 17px; font-weight: 720; }
   .w-talk__choice--alt { background: transparent; box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--c) 40%, #e6dccb); color: color-mix(in oklab, var(--c) 70%, #1d1a16); }
@@ -585,7 +574,6 @@
   html[data-view='map'] .w-talk__face { border-radius: 0; box-shadow: inset 0 -12px 0 -2px var(--who, var(--c)), 0 0 0 3px #3a2a24; image-rendering: pixelated; }
   html[data-view='map'] .w-talk__line.is-said { border-radius: 0; border: 2px dashed color-mix(in srgb, var(--who, var(--c)) 50%, #3a2a24); }
   html[data-view='map'] .w-talk__line { font-family: var(--font-display); font-size: 17px; }
-  html[data-view='map'] .w-talk__ctas { margin-inline: -16px; padding-inline: 16px; border-top: 2px dashed #e0c896; }
   html[data-view='map'] .w-talk__choice--go.w-talk__cta { font-size: 14px; }
   html[data-view='map'] .w-near { color: #3a2a24; font: 750 13px/1 var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; }
   html[data-view='map'] .w-near::before { border-radius: 0; box-shadow: none; }
@@ -637,7 +625,7 @@
     .w-talk__choice { min-height: 40px; padding: 0 12px; font-size: 14px; }
     html[data-view='map'] .w-talk__choice { font-size: 11.5px; letter-spacing: 0.04em; }
     /* Side by side on a phone, so the long half of each label goes. */
-    .w-talk__ctas { margin: 10px -14px 0; padding: 10px 14px 12px; gap: 6px; }
+    .w-talk__ctas { margin: 2px 0 4px; gap: 6px; }
     .w-talk__long { display: none; }
     .w-talk__choice--go.w-talk__cta { min-height: 48px; font-size: 15.5px; }
     /* Out of the way of the word hoard and sound buttons in the corner. */
