@@ -75,3 +75,16 @@ test('world.json is valid JSON with places and lost words', async ({ request }) 
   expect(Array.isArray(world.lostWords) && world.lostWords.length).toBeTruthy();
   expect(world.activities.some((a: { kind: string }) => a.kind === 'portal')).toBe(true);
 });
+
+test('pack.json is the portable half: content with every link absolute', async ({ request }) => {
+  const res = await request.get('/pack.json');
+  expect(res.ok()).toBe(true);
+  const pack = await res.json();
+  expect(pack.projects.length).toBeGreaterThan(0);
+  expect(pack.projects.every((p: { page: string }) => p.page.startsWith('https://'))).toBe(true);
+  expect(pack.play.lostWords.length).toBeGreaterThan(0);
+  expect(pack).not.toHaveProperty('places');
+  const schema = await request.get('/pack.schema.json');
+  expect(schema.ok()).toBe(true);
+  expect((await schema.json()).title).toBe('Content pack');
+});

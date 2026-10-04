@@ -72,8 +72,8 @@ const SWIM_R = 0.6;
 
 // Running (Shift held, or a double-click on where to go)
 /** How much faster running is, on land and in the water. */
-const RUN = 1.7;
-const RUN_WET = 1.3;
+const RUN = 2.3;
+const RUN_WET = 1.5;
 
 export type Water = 'dry' | 'wade' | 'swim';
 

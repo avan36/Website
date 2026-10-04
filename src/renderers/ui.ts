@@ -60,7 +60,7 @@ export function createUI(world: World, store: WorldStore, announce: (s: string) 
     if (cmd === 'hoard') openHoard();
     if (cmd === 'wardrobe') openWardrobe();
     if (cmd === 'wear') toggleWear(arg);
-    if (cmd === 'word') showWord(arg);
+    if (cmd === 'word') wordCard(arg);
     if (cmd === 'night') store.dispatch({ type: 'night', on: !store.state.progress.night }), openHoard();
     if (cmd === 'reset' && confirm('Forget every word you found? They go back where they were hidden.')) store.dispatch({ type: 'reset' }), openHoard();
   });
@@ -70,7 +70,28 @@ export function createUI(world: World, store: WorldStore, announce: (s: string) 
       .map((_, i) => `<i class="${i < count ? 'on' : ''}"></i>`)
       .join('')}</span></div>`;
 
+  /**
+   * Just found: a note at the bottom of the screen with the word and what it
+   * meant, and the walk carries on. Its card (the whole story) is a tap away,
+   * there or in the word hoard.
+   */
   function showWord(id: string) {
+    const w = world.lostWords.find((x) => x.id === id);
+    if (!w) return;
+    const count = store.state.progress.found.length;
+    toast({
+      kicker: `Lost word found · ${count} of ${total}`,
+      title: w.word,
+      body: cap(w.gloss),
+      color: placeColor(w.place),
+      word: true,
+      ms: 7000,
+      action: { label: 'Its story', run: () => wordCard(id) },
+    });
+  }
+
+  /** A lost word's card: the story, where it came from, how many are left. */
+  function wordCard(id: string) {
     const w = world.lostWords.find((x) => x.id === id);
     if (!w) return;
     const count = store.state.progress.found.length;
@@ -186,11 +207,11 @@ export function createUI(world: World, store: WorldStore, announce: (s: string) 
     );
   }
 
-  function toast(t: { title: string; body?: string; color?: string; action?: { label: string; run(): void } }) {
+  function toast(t: { title: string; body?: string; color?: string; kicker?: string; word?: boolean; ms?: number; action?: { label: string; run(): void } }) {
     const el = document.createElement('div');
-    el.className = 'w-toast';
+    el.className = t.word ? 'w-toast w-toast--word' : 'w-toast';
     if (t.color) el.style.setProperty('--c', t.color);
-    el.innerHTML = `<span class="w-toast__dot"></span><span class="w-toast__text"><span class="w-toast__title">${esc(t.title)}</span>${t.body ? `<span class="w-toast__body">${esc(t.body)}</span>` : ''}</span>`;
+    el.innerHTML = `<span class="w-toast__dot"></span><span class="w-toast__text">${t.kicker ? `<span class="w-toast__kicker">${esc(t.kicker)}</span>` : ''}<span class="w-toast__title"${t.word ? ' lang="en"' : ''}>${esc(t.title)}</span>${t.body ? `<span class="w-toast__body">${esc(t.body)}</span>` : ''}</span>`;
     if (t.action) {
       const b = document.createElement('button');
       b.type = 'button';
@@ -201,8 +222,8 @@ export function createUI(world: World, store: WorldStore, announce: (s: string) 
     }
     while (toasts.children.length > 2) toasts.firstElementChild!.remove();
     toasts.append(el);
-    announce(t.body ? `${t.title}. ${t.body}` : t.title);
-    let timer = window.setTimeout(dismiss, 5200);
+    announce([t.kicker, t.title, t.body].filter(Boolean).join('. '));
+    let timer = window.setTimeout(dismiss, t.ms ?? 5200);
     el.addEventListener('pointerenter', () => clearTimeout(timer));
     el.addEventListener('pointerleave', () => (timer = window.setTimeout(dismiss, 2400)));
     function dismiss() {

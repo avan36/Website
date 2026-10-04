@@ -1025,6 +1025,7 @@ export function buildWorld(posts: Post[]): World {
       tags: p.tags,
       links: p.links,
       href: `/work/${p.slug}`,
+      shots: p.shots,
     })),
     posts: [...posts].sort((a, b) => b.date.localeCompare(a.date)),
     places,

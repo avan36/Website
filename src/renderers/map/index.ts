@@ -45,8 +45,8 @@ const DOOR_RANGE = 1.6;
 /** Pixels the HUD covers along the top: the camera centres the explorer below it. */
 const HUD_TOP = 70;
 /** Running (Shift, or double-click where to go): how much faster, on land and in the water. */
-const RUN = 1.7;
-const RUN_WET = 1.3;
+const RUN = 2.3;
+const RUN_WET = 1.5;
 /** Speed in the water, against walking: wading through the shallows, swimming further out. */
 const WADE = 0.78;
 const SWIM = 0.6;

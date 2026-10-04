@@ -14,7 +14,7 @@ import type { MapRoom } from './room';
 
 /** Room units per second, walking; and how much faster running is. */
 const SPEED = 3.4;
-const RUN = 1.6;
+const RUN = 2.1;
 /** Room units walked per step of the walk cycle. */
 const STRIDE = 0.42;
 /** CSS pixels kept clear of the HUD and the room's bar along the top, and along the bottom. */
