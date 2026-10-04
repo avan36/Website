@@ -25,6 +25,8 @@ export type Segment = { ax: number; az: number; bx: number; bz: number };
 const DOOR_GAP = 1.4;
 /** Every place's level clearing blends into the land over this distance. */
 const PAD_BLEND = 3;
+/** How far past the shore anyone can swim, in world units. */
+export const SWIM_REACH = 8;
 
 export type Geo = ReturnType<typeof createGeo>;
 
@@ -116,6 +118,18 @@ export function createGeo(world: World) {
     if (onPier(x, z)) return true;
     return heightAt(x, z) > 0.14 && Math.hypot(x, z) < 45;
   }
+
+  /** How deep the sea is here (0 on land). */
+  const depthAt = (x: number, z: number) => Math.max(0, -heightAt(x, z));
+
+  /**
+   * How far you could still swim out from here before the current turns you
+   * back: positive in the swimming water, negative in the open sea beyond.
+   */
+  const swimRoom = (x: number, z: number) => coastRadius(Math.atan2(z, x)) + SWIM_REACH - Math.hypot(x, z);
+
+  /** True in the sea near enough to the shore to swim in (the land and the pier deck are not). */
+  const isSwimmable = (x: number, z: number) => !isWalkable(x, z) && swimRoom(x, z) > 0;
 
   // ---------- Places ----------
 
@@ -219,6 +233,9 @@ export function createGeo(world: World) {
     heightAt,
     groundAt,
     isWalkable,
+    depthAt,
+    swimRoom,
+    isSwimmable,
     facing,
     door,
     paths,

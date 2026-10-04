@@ -98,7 +98,9 @@ export const projects: Project[] = [
       { label: 'View source on GitHub', href: 'https://github.com/avan36/MapOfEvolution', kind: 'text' },
     ],
     shots: [
-      { src: '/media/moe-tree.webp', alt: "Map of Evolution's radial tree of life, with branches for bacteria, plants and animals and a timeline from 4 billion years ago to today.", width: 1200, height: 769, frame: 'browser' },
+      { src: '/media/moe-tree.webp', alt: "Map of Evolution's radial tree of life, with branches for bacteria, plants and animals and a timeline from 4 billion years ago to today.", width: 1856, height: 956, frame: 'browser' },
+      { src: '/media/moe-card.webp', alt: 'Tapping bony fish lights up its lineage and opens a card with photos, when it appeared, what it branches into and its family line back to the first cell.', width: 1856, height: 956, frame: 'browser' },
+      { src: '/media/moe-germs.webp', alt: 'The Germs & medicine spotlight zoomed in on C. diff: the disease it causes and the antibiotics that treat it, including which bacteria they come from.', width: 1856, height: 956, frame: 'browser' },
     ],
   },
   {

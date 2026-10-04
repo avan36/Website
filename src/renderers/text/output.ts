@@ -40,6 +40,7 @@ export type Effect =
   | { type: 'find'; id: string }
   | { type: 'fish' }
   | { type: 'view'; id: ViewId }
+  | { type: 'portal'; id: ViewId }
   | { type: 'night'; on: boolean }
   | { type: 'clear' }
   | { type: 'timer'; ms: number; signal: Signal }

@@ -1,13 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import { findPath, isOpen, lineOfSight, nearestOpen, smooth, type Grid, type Pt } from '../path';
 
-/** A grid from rows of '.' (open) and '#' (blocked). */
+/** A grid from rows of '.' (open), '~' (open water, slow to cross) and '#' (blocked). */
 function grid(rows: string[]): Grid {
   const h = rows.length;
   const w = rows[0].length;
   const blocked = new Uint8Array(w * h);
-  rows.forEach((r, y) => [...r].forEach((c, x) => (blocked[y * w + x] = c === '#' ? 1 : 0)));
-  return { w, h, blocked };
+  const cost = new Uint8Array(w * h).fill(1);
+  rows.forEach((r, y) =>
+    [...r].forEach((c, x) => {
+      blocked[y * w + x] = c === '#' ? 1 : 0;
+      if (c === '~') cost[y * w + x] = 3;
+    }),
+  );
+  return rows.some((r) => r.includes('~')) ? { w, h, blocked, cost } : { w, h, blocked };
 }
 
 const steps = (p: Pt[]) => p.slice(1).every((q, i) => Math.max(Math.abs(q.x - p[i].x), Math.abs(q.y - p[i].y)) === 1);
@@ -41,6 +47,20 @@ describe('findPath', () => {
       '#.',
     ]);
     expect(findPath(g, 0, 0, 1, 1)).toBeNull();
+  });
+
+  it('walks round the bay rather than swim across it, unless the walk is much longer', () => {
+    const bay = grid([
+      '.........',
+      '.~~~~~~~.',
+      '.~~~~~~~.',
+      '.........',
+    ]);
+    const p = findPath(bay, 0, 1, 8, 1)!;
+    expect(p.some((c) => c.y === 1 && c.x > 0 && c.x < 8)).toBe(false);
+    const sea = grid([...Array(10).fill('..~~~~~~~..'), '...........']);
+    // Going round is about 10 down, 8 across and 10 up; seven slow strokes across is quicker.
+    expect(findPath(sea, 1, 0, 9, 0)!.length).toBeLessThan(12);
   });
 
   it('says so when the goal is cut off, or blocked', () => {

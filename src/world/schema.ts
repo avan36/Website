@@ -155,7 +155,7 @@ export const LostWordSchema = z
 export const ActivitySchema = z
   .object({
     id: Id,
-    kind: z.enum(['fishing']),
+    kind: z.enum(['fishing', 'portal']),
     place: Id,
     at: Vec2,
     name: z.string(),

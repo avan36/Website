@@ -2,7 +2,7 @@
 // whoosh for going inside, and a gentle sea hush. Off by default; this module
 // is plain TS with no three.js so the HUD can own it.
 
-type Name = 'step' | 'pop' | 'bell' | 'whoosh' | 'chime' | 'land' | 'tap' | 'jump';
+type Name = 'step' | 'pop' | 'bell' | 'whoosh' | 'chime' | 'land' | 'tap' | 'jump' | 'jump2' | 'splash' | 'swim';
 
 export class Sound {
   private ctx: AudioContext | null = null;
@@ -126,6 +126,22 @@ export class Sound {
         break;
       case 'jump':
         osc('triangle', 240 + Math.random() * 40, 640, 0.15, 0.08);
+        break;
+      case 'jump2':
+        // The double jump: the same rise, a fifth higher, with a sparkle on top.
+        osc('triangle', 360 + Math.random() * 40, 980, 0.16, 0.08);
+        osc('sine', 1320, 1760, 0.12, 0.035, 0.06);
+        break;
+      case 'splash': {
+        // Water breaking: a hiss that falls as the spray comes down, and a plop under it.
+        const f = noise(2200, 0.7, 0.42, 0.2);
+        f.frequency.setValueAtTime(2200, t);
+        f.frequency.exponentialRampToValueAtTime(420, t + 0.4);
+        osc('sine', 320, 90, 0.16, 0.12);
+        break;
+      }
+      case 'swim':
+        noise(620 + Math.random() * 160, 1.4, 0.2, 0.05, 'lowpass');
         break;
       case 'land':
         osc('sine', 180, 60, 0.18, 0.25);

@@ -4,7 +4,15 @@
 // sprites on top at whole map pixels, then scales the buffer up to the
 // screen by a whole number of device pixels, so every map pixel stays a
 // crisp square. Nothing in the frame loop allocates.
+//
+// The sea is part of the map: walk into the shallows and you wade, further
+// out you swim, as far as the drop-off where the open sea begins (geo.ts
+// says where, for every view). Past the painted map the open sea carries on,
+// glints and all, so the edge of the world is never in view.
 
+import { SWIM_REACH } from '../../world/geo';
+import type { Place } from '../../world/schema';
+import { PORTAL_COLOR, PORTAL_NEXT, portalExit, portalOf, VIEW_TITLE } from '../portal';
 import type { RendererContext, RendererHandle } from '../types';
 import { clampAxis, damp, pickScale } from './camera';
 import { facingFor, paintExplorer, type Facing } from './explorer';
@@ -12,9 +20,10 @@ import { Fishing } from './fishing';
 import { BODY_R, layoutPlaces, scatterProps, type MapPlace } from './layout';
 import { createOverlay, type FishPrompt } from './overlay';
 import { HEX } from './palette';
-import { bayer } from './pixels';
+import { bayer, col, nightColor, toHex } from './pixels';
 import { findPath, nearestOpen, smooth, type Grid, type Pt } from './path';
-import { crab, lampPost, paintLandmark, paintScenery, rowboat, scroll, shells, type Landmark, type Sprite } from './sprites';
+import { hash2 } from './rng';
+import { crab, lampPost, paintLandmark, paintScenery, portal as paintPortal, rowboat, scroll, shells, type Landmark, type Sprite } from './sprites';
 import { buildTerrain, RECT, TEX } from './terrain';
 
 /** World units per second. */
@@ -25,12 +34,23 @@ const STRIDE = 0.55;
 const CELL = 4;
 /** How close to a door before its name tag pops up. */
 const DOOR_RANGE = 1.6;
-/** The camera's bounds: the island and a little sea. */
-const VIEW = { x0: -29, z0: -31, x1: 32, z1: 33.5 };
 /** Pixels the HUD covers along the top: the camera centres the explorer below it. */
 const HUD_TOP = 70;
+/** Speed in the water, against walking: wading through the shallows, swimming further out. */
+const WADE = 0.78;
+const SWIM = 0.6;
+/** Rows of the explorer that show above the water when swimming (sprout to scarf). */
+const SWIM_ROWS = 11;
+/** Turning round in a double jump's spin, a quarter at a time. */
+const SPIN: Facing[] = ['down', 'left', 'up', 'right'];
+/** The water's own colors round a swimmer, by day and by night. */
+const nightHex = (hex: string) => toHex(nightColor(col(hex)));
+const FOAM = [HEX.foam, nightHex(HEX.foam)];
+const FOAM2 = [HEX.foam2, nightHex(HEX.foam2)];
+const UNDER = [HEX.sea, nightHex(HEX.sea)];
+const DEEP = [HEX.deep, nightHex(HEX.deep)];
 
-type Mode = 'play' | 'entering' | 'cheer';
+type Mode = 'play' | 'entering' | 'cheer' | 'portal';
 
 /** Something drawn in the y-sorted pass, standing at (x, z). */
 interface Thing {
@@ -74,8 +94,26 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
   const pierPlace = places.find((m) => m.kind === 'postbox');
   const bottlePlace = places.find((m) => m.kind === 'bottle');
   const fishSpot = world.activities.find((a) => a.kind === 'fishing') ?? null;
+  const portal = portalOf(world);
+  const portalArt = paintPortal();
+  const portalTo = PORTAL_NEXT.map;
+  /** The portal's name tag, as if it were a place. */
+  const portalTag = { id: 'portal', title: 'The portal to', name: VIEW_TITLE[portalTo], color: PORTAL_COLOR } as Place;
 
-  // ---------- Where you can stand ----------
+  // The camera's bounds: the island and the water you can swim in, with a little to spare.
+  const VIEW = { x0: Infinity, z0: Infinity, x1: -Infinity, z1: -Infinity };
+  for (let a = 0; a < 180; a++) {
+    const th = (a / 180) * Math.PI * 2;
+    const r = geo.coastRadius(th) + SWIM_REACH;
+    VIEW.x0 = Math.min(VIEW.x0, Math.cos(th) * r - 1.5);
+    VIEW.x1 = Math.max(VIEW.x1, Math.cos(th) * r + 1.5);
+    VIEW.z0 = Math.min(VIEW.z0, Math.sin(th) * r - 1.5);
+    VIEW.z1 = Math.max(VIEW.z1, Math.sin(th) * r + 3);
+  }
+
+  // ---------- Where you can be ----------
+  // 0 open (land, the pier deck, the swimming water), 1 blocked, 2 the water
+  // hugging the pier: you only cross it in the air, jumping off the deck.
   const blocked = terrain.solid.slice();
   const ti = (x: number) => Math.floor((x - RECT.x0) * TEX);
   const tj = (z: number) => Math.floor((z - RECT.z0) * TEX);
@@ -89,41 +127,68 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
       }
     }
   };
+  const stampBox = (x0: number, z0: number, x1: number, z1: number) => {
+    for (let j = Math.max(0, tj(z0 - BODY_R)); j <= Math.min(H - 1, tj(z1 + BODY_R)); j++) {
+      for (let i = Math.max(0, ti(x0 - BODY_R)); i <= Math.min(W - 1, ti(x1 + BODY_R)); i++) blocked[j * W + i] = 1;
+    }
+  };
   for (const m of places) {
     for (const c of m.circles) stampCircle(c.x, c.z, c.r + BODY_R);
-    for (const b of m.boxes) {
-      for (let j = Math.max(0, tj(b.z0 - BODY_R)); j <= Math.min(H - 1, tj(b.z1 + BODY_R)); j++) {
-        for (let i = Math.max(0, ti(b.x0 - BODY_R)); i <= Math.min(W - 1, ti(b.x1 + BODY_R)); i++) blocked[j * W + i] = 1;
-      }
-    }
+    for (const b of m.boxes) stampBox(b.x0, b.z0, b.x1, b.z1);
   }
   for (const p of props) if (p.r) stampCircle(p.x, p.z, p.r + BODY_R * 0.5);
   const lampAt = { x: pier.x - pier.width / 2 + 0.25, z: pier.end - 3.4 };
   stampCircle(lampAt.x, lampAt.z, 0.15 + BODY_R * 0.5);
+  // The rowboat moored by the pier, to swim round; the portal's ring and plinth, to walk round.
+  const boatAt = { x: pier.x + pier.width / 2 + 0.95, z: 22.4 };
+  stampBox(boatAt.x - 0.7, boatAt.z - 2.6, boatAt.x + 0.7, boatAt.z);
+  if (portal) stampBox(portal.at.x - 1.3, portal.at.z - 0.35, portal.at.x + 1.3, portal.at.z + 0.05);
 
-  const canStand = (x: number, z: number) => {
+  const blockedAt = (x: number, z: number) => {
     const i = ti(x);
     const j = tj(z);
-    return i >= 0 && j >= 0 && i < W && j < H && blocked[j * W + i] === 0;
+    return i >= 0 && j >= 0 && i < W && j < H ? blocked[j * W + i] : 1;
   };
+  /** How wet a spot is: 0 dry, 1 wading, 2 swimming. */
+  const wetAt = (x: number, z: number) => {
+    const i = ti(x);
+    const j = tj(z);
+    return i >= 0 && j >= 0 && i < W && j < H ? terrain.water[j * W + i] : 0;
+  };
+  /** Can the explorer move here from where it is now? */
+  const canStand = (x: number, z: number) => {
+    const b = blockedAt(x, z);
+    if (b === 1) return false;
+    // The water by the pier: only in the air, or swimming out of it after landing there.
+    if (b === 2 && !jump.air && blockedAt(pos.x, pos.z) !== 2) return false;
+    // Out of deep water you climb out through the shallows, never straight up onto the deck.
+    return jump.air || wet < 2 || wetAt(x, z) > 0;
+  };
+  const isOpen = (x: number, z: number) => blockedAt(x, z) === 0;
 
-  // A coarse grid for finding paths.
-  const grid: Grid = { w: W / CELL, h: H / CELL, blocked: new Uint8Array((W / CELL) * (H / CELL)) };
+  // A coarse grid for finding paths: swimming costs three times as much as walking, so
+  // a walk round the shore wins unless the swim is a lot shorter.
+  const cells = (W / CELL) * (H / CELL);
+  const grid: Grid = { w: W / CELL, h: H / CELL, blocked: new Uint8Array(cells), cost: new Uint8Array(cells) };
   for (let cj = 0; cj < grid.h; cj++) {
-    for (let ci = 0; ci < grid.w; ci++) grid.blocked[cj * grid.w + ci] = blocked[(cj * CELL + CELL / 2) * W + ci * CELL + CELL / 2];
+    for (let ci = 0; ci < grid.w; ci++) {
+      const k = (cj * CELL + CELL / 2) * W + ci * CELL + CELL / 2;
+      grid.blocked[cj * grid.w + ci] = blocked[k] === 0 ? 0 : 1;
+      grid.cost![cj * grid.w + ci] = terrain.water[k] === 2 ? 3 : 1;
+    }
   }
   const cellOf = (x: number, z: number): Pt => ({ x: Math.floor(((x - RECT.x0) * TEX) / CELL), y: Math.floor(((z - RECT.z0) * TEX) / CELL) });
   const cellCentre = (c: Pt) => ({ x: RECT.x0 + ((c.x + 0.5) * CELL) / TEX, z: RECT.z0 + ((c.y + 0.5) * CELL) / TEX });
   const clearWalk = (ax: number, az: number, bx: number, bz: number) => {
     const d = Math.hypot(bx - ax, bz - az);
     const n = Math.max(1, Math.ceil(d * TEX * 2));
-    for (let k = 0; k <= n; k++) if (!canStand(ax + ((bx - ax) * k) / n, az + ((bz - az) * k) / n)) return false;
+    for (let k = 0; k <= n; k++) if (!isOpen(ax + ((bx - ax) * k) / n, az + ((bz - az) * k) / n)) return false;
     return true;
   };
 
   /** A walkable route from here to there (in world units), or null. */
   function route(fromX: number, fromZ: number, toX: number, toZ: number): { x: number; z: number }[] | null {
-    if (canStand(toX, toZ) && clearWalk(fromX, fromZ, toX, toZ)) return [{ x: toX, z: toZ }];
+    if (isOpen(toX, toZ) && clearWalk(fromX, fromZ, toX, toZ)) return [{ x: toX, z: toZ }];
     const s0 = cellOf(fromX, fromZ);
     const s = nearestOpen(grid, s0.x, s0.y, 3);
     const e0 = cellOf(toX, toZ);
@@ -137,7 +202,10 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
       return clearWalk(p.x, p.z, q.x, q.z);
     }).map(cellCentre);
     pts.shift(); // we're already (about) there
-    const end = canStand(toX, toZ) && Math.hypot(toX - cellCentre(e).x, toZ - cellCentre(e).z) < 0.6 ? { x: toX, z: toZ } : null;
+    // ...about: if the first leg from where we really stand clips something, start from the cell's middle.
+    const first = pts[0] ?? cellCentre(e);
+    if (!clearWalk(fromX, fromZ, first.x, first.z)) pts.unshift(cellCentre(s));
+    const end = isOpen(toX, toZ) && Math.hypot(toX - cellCentre(e).x, toZ - cellCentre(e).z) < 0.6 ? { x: toX, z: toZ } : null;
     if (end) pts.push(end);
     if (!pts.length) pts.push(cellCentre(e));
     return pts;
@@ -153,7 +221,31 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
   }
   for (const p of props) things.push({ x: p.x, z: p.z, sprite: scenery[p.kind][p.variant % scenery[p.kind].length] });
   const boat = rowboat(pierPlace?.place.color ?? HEX.sea);
-  things.push({ x: pier.x + pier.width / 2 + 0.95, z: 22.4, sprite: boat });
+  things.push({ x: boatAt.x, z: boatAt.z, sprite: boat });
+  if (portal) {
+    things.push({
+      x: portal.at.x,
+      z: portal.at.z,
+      sprite: portalArt.ring,
+      after: (c, sx, sy) => {
+        // The swirl turns; motes of light spiral in from all round.
+        const f = motion ? Math.floor(time * 10) % portalArt.swirl.length : 0;
+        c.drawImage(portalArt.swirl[f], sx + portalArt.sx, sy + portalArt.sy);
+        if (!motion) return;
+        const mx = sx + portalArt.cx;
+        const my = sy + portalArt.cy;
+        c.fillStyle = '#ede9fe';
+        for (let i = 0; i < 4; i++) {
+          const k = (time * 0.45 + i / 4) % 1;
+          const r = (1 - k) * 15;
+          const a = i * 1.57 + k * 4.5;
+          c.globalAlpha = Math.min(1, k * 3);
+          c.fillRect(Math.round(mx + Math.cos(a) * r), Math.round(my + Math.sin(a) * r * 0.85), 1, 1);
+        }
+        c.globalAlpha = 1;
+      },
+    });
+  }
   things.push({ x: lampAt.x, z: lampAt.z, sprite: lampPost() });
   if (bottlePlace) things.push({ x: bottlePlace.base.x + 1.3, z: bottlePlace.base.z + 0.9, sprite: shells() });
   things.sort((a, b) => a.z - b.z);
@@ -174,8 +266,17 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
   let hopT = -1;
   // A real jump (Space, or tap the explorer): height in buffer pixels, a press
   // remembered for a moment before landing, and a puff of dust when you come down.
+  // One more jump in mid-air, until you land: it spins you round and leaves a puff of air behind.
   const JUMP = motion ? { v: 118, g: 520 } : { v: 62, g: 520 };
-  const jump = { y: 0, vy: 0, air: false, buffered: -1, landT: -1 };
+  const jump = { y: 0, vy: 0, air: false, twice: false, buffered: -1, landT: -1, spinT: -1 };
+  const puff = { x: 0, z: 0, y: 0, t: -1 };
+  // In the water: how wet you are (0 dry, 1 wading, 2 swimming), how you glide, your strokes.
+  let wet = 0;
+  const vel = { x: 0, z: 0 };
+  let stroke = 0;
+  let kickT = -1;
+  let splashT = 9;
+  let pendingPortal = false;
   let mode: Mode = 'play';
   let modeT = 0;
   let cheerWord: string | null = null;
@@ -189,16 +290,27 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
   let movedOnce = false;
 
   const returning = ctx.returnTo ? byId.get(ctx.returnTo) ?? null : null;
+  const arrived = ctx.viaPortal && portal ? portalExit(portal) : null;
   const stored = store.state.presence.pos;
   if (returning) {
     pos.x = returning.door.x;
     pos.z = returning.door.z;
     facing = 'down';
-  } else if (stored && canStand(stored.x, stored.z)) {
+  } else if (arrived) {
+    // Out of the portal, onto the plaza.
+    pos.x = arrived.x;
+    pos.z = arrived.z;
+    facing = 'down';
+    if (motion) {
+      hopT = 0;
+      Object.assign(puff, { x: pos.x, z: pos.z - 0.5, y: 6, t: 0 });
+    }
+  } else if (stored && isOpen(stored.x, stored.z)) {
     pos.x = stored.x;
     pos.z = stored.z;
   }
-  let dismissed: string | null = returning?.place.id ?? null;
+  wet = wetAt(pos.x, pos.z);
+  let dismissed: string | null = returning?.place.id ?? (arrived ? 'portal' : null);
 
   // ---------- Overlay ----------
   const overlay = createOverlay(
@@ -207,6 +319,7 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
     ctx.touch,
     {
       enter: (id) => {
+        if (id === 'portal') return stepIn();
         const m = byId.get(id);
         if (m) activate(m);
       },
@@ -328,6 +441,7 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
       sumKeys();
       path = null;
       pendingEnter = null;
+      pendingPortal = false;
       if (fishing.phase !== 'idle') fishing.cancel();
       firstMove();
       return;
@@ -347,11 +461,12 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
       if (!e.repeat) tryJump();
       return;
     }
-    if (e.key === 'Enter' && !onControl && tagPlace) {
+    if (e.key === 'Enter' && !onControl && (tagPlace || tagPortal)) {
       e.preventDefault();
-      enter(tagPlace);
+      if (tagPlace) enter(tagPlace);
+      else stepIn();
     }
-    if (e.key === 'Escape' && near) dismissed = near.place.id;
+    if (e.key === 'Escape' && (near || nearPortal)) dismissed = near ? near.place.id : 'portal';
   };
   const onKeyUp = (e: KeyboardEvent) => {
     // Let go early for a small hop.
@@ -381,6 +496,7 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
   function walkTo(x: number, z: number, then: MapPlace | null = null) {
     const r = route(pos.x, pos.z, x, z);
     if (!r) return false;
+    pendingPortal = false;
     path = r;
     pathIx = 0;
     stuckT = 0;
@@ -404,6 +520,7 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
     firstMove();
     if (fishing.phase !== 'idle') return fishAction();
     if (hitHero(w.x, w.z)) return tryJump();
+    if (hitPortal(w.x, w.z)) return activatePortal();
     const m = hitLandmark(w.x, w.z);
     if (m) return activate(m);
     if (fishSpot && Math.hypot(w.x - fishSpot.at.x, w.z - fishSpot.at.z) < 0.9) {
@@ -417,7 +534,7 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
     const r = canvas.getBoundingClientRect();
     const w = fromScreen(e.clientX - r.left, e.clientY - r.top);
     if (!press || e.pointerId !== press.id) {
-      if (e.pointerType === 'mouse') canvas.style.cursor = mode === 'play' && hitLandmark(w.x, w.z) ? 'pointer' : '';
+      if (e.pointerType === 'mouse') canvas.style.cursor = mode === 'play' && (hitLandmark(w.x, w.z) || hitPortal(w.x, w.z)) ? 'pointer' : '';
       return;
     }
     // Hold and drag to steer.
@@ -446,13 +563,99 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
   function tryJump() {
     if (mode !== 'play') return;
     firstMove();
-    if (jump.air) return void (jump.buffered = 0.12);
+    if (!jump.air && wet === 2) return kick();
+    if (jump.air) {
+      if (jump.twice) return void (jump.buffered = 0.12);
+      // The double jump: a touch lower than the first, with a spin and a puff of air underfoot.
+      jump.twice = true;
+      jump.vy = JUMP.v * 0.85;
+      jump.buffered = -1;
+      if (motion) {
+        jump.spinT = 0;
+        Object.assign(puff, { x: pos.x, z: pos.z, y: jump.y, t: 0 });
+      }
+      ctx.sound.play('jump2');
+      return;
+    }
     jump.air = true;
+    jump.twice = false;
     jump.vy = JUMP.v;
     jump.buffered = -1;
     hopT = -1;
     ctx.sound.play('jump');
   }
+
+  // ---------- The water ----------
+  // Rings spreading round a swimmer (and a wader's feet), and drops of spray: small pools, reused.
+  const rings = Array.from({ length: 14 }, () => ({ x: 0, z: 0, t: 1, big: false }));
+  let ringNext = 0;
+  function ripple(big: boolean) {
+    if (!motion) return;
+    const r = rings[ringNext];
+    ringNext = (ringNext + 1) % rings.length;
+    Object.assign(r, { x: pos.x, z: pos.z, t: 0, big });
+  }
+  const drops = Array.from({ length: 28 }, () => ({ x: 0, z: 0, ox: 0, oy: 0, h: 0, vx: 0, vy: 0, vh: 0, life: 0 }));
+  let dropNext = 0;
+  function spray(n: number, power: number) {
+    if (!motion) return;
+    for (let i = 0; i < n; i++) {
+      const d = drops[dropNext];
+      dropNext = (dropNext + 1) % drops.length;
+      const a = (i / n) * Math.PI * 2 + Math.random() * 0.6;
+      const k = 0.5 + Math.random() * 0.5;
+      Object.assign(d, { x: pos.x, z: pos.z, ox: Math.cos(a) * 3, oy: Math.sin(a) * 1.5, h: 2, vx: Math.cos(a) * power * k, vy: Math.sin(a) * power * k * 0.45, vh: power * (1.3 + Math.random()), life: 1 });
+    }
+  }
+  /** Into deep water: a splash, louder from a jump than from wading out. */
+  function splash(big: boolean) {
+    if (splashT < 0.8 && !big) return;
+    splashT = 0;
+    spray(big ? 14 : 6, big ? 30 : 16);
+    ripple(true);
+    ctx.sound.play(big ? 'splash' : 'swim');
+  }
+  /** In deep water there's nothing to push off from: a kick and a splash instead of a jump. */
+  function kick() {
+    if (kickT >= 0 && kickT < 0.35) return;
+    kickT = 0;
+    spray(6, 18);
+    ripple(true);
+    ctx.sound.play('swim');
+  }
+
+  // ---------- The portal ----------
+  /** Is a world point on the portal as drawn? */
+  function hitPortal(wx: number, wz: number) {
+    if (!portal) return false;
+    const a = portalArt.ring;
+    return Math.abs(wx - portal.at.x) < (a.w / 2 - 1) / TEX && wz < portal.at.z + 2 / TEX && wz > portal.at.z - (a.ay - 1) / TEX;
+  }
+  /** Click the portal: walk up to it and step through. */
+  function activatePortal() {
+    if (mode !== 'play' || !portal) return;
+    firstMove();
+    if (Math.abs(pos.x - portal.at.x) < 0.7 && pos.z > portal.at.z && pos.z - portal.at.z < 1.2 && !jump.air) return stepIn();
+    if (walkTo(portal.at.x, portal.at.z + 0.5)) {
+      pendingPortal = true;
+      ctx.sound.play('pop');
+    }
+  }
+  function stepIn() {
+    if (mode !== 'play' || !portal) return;
+    mode = 'portal';
+    modeT = 0;
+    wiped = false;
+    path = null;
+    pendingEnter = null;
+    pendingPortal = false;
+    clearKeys();
+    facing = 'up';
+    if (fishing.phase !== 'idle') fishing.cancel();
+    ctx.sound.play('whoosh');
+  }
+  /** The middle of the swirl, in CSS pixels. */
+  const portalScreen = () => toScreen(portal!.at.x + portalArt.cx / TEX, portal!.at.z + portalArt.cy / TEX);
 
   /** Is a world point on the explorer as drawn (with a little extra for fingers)? */
   function hitHero(wx: number, wz: number) {
@@ -523,8 +726,11 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
 
   // ---------- Presence ----------
   let near: MapPlace | null = null;
-  /** The place whose name tag is showing (Enter goes in). */
+  /** In front of the portal (and no door nearer). */
+  let nearPortal = false;
+  /** The place whose name tag is showing (Enter goes in), or the portal's. */
   let tagPlace: MapPlace | null = null;
+  let tagPortal = false;
   let lastAt: string | null | undefined = undefined;
   let lastSent = 0;
   let sentX = NaN;
@@ -556,13 +762,37 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
         jump.y = 0;
         jump.vy = 0;
         jump.air = false;
-        jump.landT = 0;
-        ctx.sound.play('step');
-        if (jump.buffered >= 0) tryJump();
+        jump.twice = false;
+        wet = wetAt(pos.x, pos.z);
+        if (wet === 2) {
+          // Into the sea: no bounce, just a splash.
+          splash(true);
+          jump.buffered = -1;
+          vel.x *= 0.5;
+          vel.z *= 0.5;
+        } else {
+          jump.landT = 0;
+          if (wet === 1) (spray(4, 14), ripple(false));
+          ctx.sound.play('step');
+          if (jump.buffered >= 0) tryJump();
+        }
       }
     }
     if (jump.buffered >= 0 && (jump.buffered -= dt) < 0) jump.buffered = -1;
     if (jump.landT >= 0 && (jump.landT += dt) > 0.24) jump.landT = -1;
+    if (jump.spinT >= 0 && (jump.spinT += dt) > 0.3) jump.spinT = -1;
+    if (puff.t >= 0 && (puff.t += dt) > 0.32) puff.t = -1;
+    if (kickT >= 0 && (kickT += dt) > 0.6) kickT = -1;
+    splashT += dt;
+    for (const r of rings) if (r.t < 1) r.t = Math.min(1, r.t + dt / (r.big ? 1.25 : 0.85));
+    for (const d of drops) {
+      if (d.life <= 0) continue;
+      d.ox += d.vx * dt;
+      d.oy += d.vy * dt;
+      d.vh -= 300 * dt;
+      d.h += d.vh * dt;
+      if (d.h <= 0) d.life = 0;
+    }
     if (marker.t < 1) marker.t = Math.min(1, marker.t + dt * 1.6);
     if (busy()) clearKeys();
 
@@ -573,6 +803,14 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
         ctx.go(m.place.id, clampToView(doorScreen(m)));
       }
       moving = false;
+      return;
+    }
+    if (mode === 'portal') {
+      moving = false;
+      if (!wiped && modeT > (motion ? 0.42 : 0)) {
+        wiped = true;
+        ctx.portal(portalTo, clampToView(portalScreen()));
+      }
       return;
     }
     if (mode === 'cheer') {
@@ -606,6 +844,10 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
           const then = pendingEnter;
           pendingEnter = null;
           if (then && Math.hypot(pos.x - then.door.x, pos.z - then.door.z) < DOOR_RANGE) return enter(then);
+          if (pendingPortal) {
+            pendingPortal = false;
+            if (portal && Math.abs(pos.x - portal.at.x) < 0.7 && pos.z - portal.at.z < 1.2) return stepIn();
+          }
         }
       } else {
         wish.x = dx / d;
@@ -615,24 +857,51 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
     }
 
     moving = false;
-    if (wish.x || wish.z) {
-      const step = speed * dt;
+    const afloat = wet === 2 && !jump.air;
+    const k = afloat ? SWIM : wet === 1 && !jump.air ? WADE : 1;
+    if (afloat) {
+      // Afloat you glide: strokes build up speed, and you drift to a stop.
+      const rate = wish.x || wish.z ? 4 : 1.6;
+      vel.x = damp(vel.x, wish.x * speed * k, rate, dt);
+      vel.z = damp(vel.z, wish.z * speed * k, rate, dt);
+      // Near the drop-off the current holds you back, but only going further out.
+      const room = geo.swimRoom(pos.x, pos.z);
+      if (room < 1.1) {
+        const r = Math.hypot(pos.x, pos.z) || 1;
+        const out = (vel.x * pos.x + vel.z * pos.z) / r;
+        if (out > 0) {
+          const hold = 1 - Math.max(0, room) / 1.1;
+          vel.x -= (pos.x / r) * out * hold;
+          vel.z -= (pos.z / r) * out * hold;
+        }
+      }
+    } else {
+      vel.x = wish.x * speed * k;
+      vel.z = wish.z * speed * k;
+    }
+    const sp = Math.hypot(vel.x, vel.z);
+    if (sp > 0.02) {
+      const step = sp * dt;
       const ox = pos.x;
       const oz = pos.z;
-      const nx = pos.x + wish.x * step;
-      const nz = pos.z + wish.z * step;
+      const nx = pos.x + vel.x * dt;
+      const nz = pos.z + vel.z * dt;
       if (canStand(nx, nz)) (pos.x = nx), (pos.z = nz);
-      else if (wish.x && canStand(nx, pos.z)) pos.x = nx;
-      else if (wish.z && canStand(pos.x, nz)) pos.z = nz;
+      else if (vel.x && canStand(nx, pos.z)) (pos.x = nx), (vel.z = afloat ? 0 : vel.z);
+      else if (vel.z && canStand(pos.x, nz)) (pos.z = nz), (vel.x = afloat ? 0 : vel.x);
+      else if (afloat) vel.x = vel.z = 0;
       const moved = Math.hypot(pos.x - ox, pos.z - oz);
       if (moved > 1e-4) {
-        moving = true;
+        moving = !afloat || sp > 0.35;
         const before = Math.floor(walked / STRIDE);
         walked += moved;
-        // A soft step on each left footfall: often enough to feel, not to nag.
         const now = Math.floor(walked / STRIDE);
-        if (now !== before && now % 4 === 1 && motion) ctx.sound.play('step');
-        facing = facingFor(wish.x, wish.z, facing);
+        if (now !== before && !jump.air) {
+          // A soft step on each left footfall: often enough to feel, not to nag. Wading, a splash.
+          if (wet === 0 && now % 4 === 1 && motion) ctx.sound.play('step');
+          if (wet === 1 && now % 2 === 1) (ripple(false), spray(2, 10), now % 4 === 1 && ctx.sound.play('swim'));
+        }
+        if (wish.x || wish.z) facing = facingFor(wish.x, wish.z, facing);
         if (fishing.phase !== 'idle' && !atFishing()) fishing.cancel();
       }
       if (path && moved < step * 0.3) {
@@ -646,6 +915,28 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
       } else stuckT = 0;
     }
     idleT = moving ? 0 : idleT + dt;
+
+    // Wet or dry: walking out into deep water, a splash; afloat, strokes and rings.
+    if (!jump.air) {
+      const w = wetAt(pos.x, pos.z);
+      if (w === 2 && wet < 2) splash(false);
+      wet = w;
+    }
+    if (wet === 2 && !jump.air) {
+      const before = Math.floor(stroke);
+      stroke += dt * (moving ? 2.3 : 0.8);
+      if (Math.floor(stroke) !== before) {
+        ripple(false);
+        if (moving && Math.floor(stroke) % 2 === 0) ctx.sound.play('swim');
+      }
+    }
+
+    // The portal: walk into its face to step through.
+    if (portal && !jump.air && wet === 0) {
+      const dx = pos.x - portal.at.x;
+      const dz = pos.z - portal.at.z;
+      if (Math.abs(dx) < 0.7 && dz > 0 && dz < 0.62 && held.z < 0 && Math.abs(held.x) <= -held.z) return stepIn();
+    }
 
     // Lost words: walk over one to pick it up.
     for (const w of words) {
@@ -684,13 +975,23 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
       const d = Math.min(Math.hypot(pos.x - m.door.x, pos.z - m.door.z), Math.hypot(pos.x - m.worldDoor.x, pos.z - m.worldDoor.z) + 0.3);
       if (d < DOOR_RANGE && d < bestD) (best = m), (bestD = d);
     }
-    if (best !== near) {
+    let atPortal = false;
+    if (portal && !jump.air && wet === 0) {
+      const d = Math.hypot(pos.x - portal.at.x, pos.z - portal.at.z - 0.75);
+      if (d < DOOR_RANGE && d < bestD) (best = null), (atPortal = true);
+    }
+    if (best !== near || atPortal !== nearPortal) {
       near = best;
-      if (dismissed && dismissed !== near?.place.id) dismissed = null;
-      if (near && near.place.id !== dismissed) {
+      nearPortal = atPortal;
+      const id = near ? near.place.id : nearPortal ? 'portal' : null;
+      if (dismissed && dismissed !== id) dismissed = null;
+      if (near && id !== dismissed) {
         ctx.sound.play(near.kind === 'schoolhouse' ? 'bell' : 'pop');
         if (motion) hopT = 0;
         ctx.ui.announce(`${near.place.title}: ${near.place.name}. Press Enter to go in.`);
+      } else if (nearPortal && id !== dismissed) {
+        ctx.sound.play('pop');
+        ctx.ui.announce(`The portal to ${VIEW_TITLE[portalTo].toLowerCase()}. Press Enter, or walk into it, to step through.`);
       }
     }
   }
@@ -723,8 +1024,12 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
     const x = bx(pos.x);
     const y = by(pos.z);
     const air = Math.round(jump.y);
-    // The shadow stays on the ground and shrinks as you rise.
-    if (!ghost) {
+    const n = night ? 1 : 0;
+    if (mode === 'portal') return ghost ? undefined : drawIntoPortal(c, x, y);
+    const wading = !jump.air && wet === 1;
+    if (!jump.air && wet === 2) return drawSwimmer(c, x, y, ghost);
+    // The shadow stays on the ground and shrinks as you rise (in the shallows, the water hides it).
+    if (!ghost && !wading) {
       const sw = 12 - 2 * Math.min(3, air >> 2);
       c.drawImage(shadowCv, x - (sw >> 1), y - 2, sw, air > 8 ? 3 : 4);
     }
@@ -735,15 +1040,43 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
       img = night ? hero.cheerNight : hero.cheer;
       lift = Math.max(air, Math.round(Math.min(1, modeT * 6) * 2));
     } else {
-      const frames = night ? hero.framesNight[facing] : hero.frames[facing];
-      let step = moving ? Math.floor(walked / STRIDE) % 4 : 0;
+      // A double jump spins you round, a quarter turn at a time.
+      const face = jump.spinT >= 0 ? SPIN[(SPIN.indexOf(facing) + 1 + Math.floor((jump.spinT / 0.3) * 4)) % 4] : facing;
+      const frames = night ? hero.framesNight[face] : hero.frames[face];
+      let step = moving && !jump.air ? Math.floor(walked / STRIDE) % 4 : 0;
       if (!moving && motion && idleT > 0.4 && Math.floor(time * 1.6) % 3 === 2) step = 4;
       img = frames[step];
     }
     // Squash on landing, stretch on the way up: two pixels either way.
     const squash = motion && mode === 'play' ? (jump.landT >= 0 && jump.landT < 0.09 ? 2 : jump.air && jump.vy > JUMP.v * 0.6 ? -2 : 0) : 0;
-    c.drawImage(img, x - ((hero.w + squash) >> 1), y - hero.h + squash + 1 - lift, hero.w + squash, hero.h - squash);
+    // Wading, the water comes up over your feet.
+    const cut = wading ? 3 : 0;
+    c.drawImage(img, 0, 0, hero.w, hero.h - cut, x - ((hero.w + squash) >> 1), y - hero.h + squash + 1 - lift, hero.w + squash, hero.h - squash - cut);
     if (ghost) return;
+    if (wading) {
+      const wy = y - 2 - lift;
+      c.fillStyle = UNDER[n];
+      c.fillRect(x - 5, wy + 1, 10, 1);
+      c.fillStyle = FOAM[n];
+      c.fillRect(x - 6, wy, 12, 1);
+    }
+    drawSpray(c);
+    if (puff.t >= 0) {
+      // The double jump's puff: a little cloud of air left where you kicked off it.
+      const k = puff.t / 0.32;
+      const px = bx(puff.x);
+      const py = by(puff.z) - Math.round(puff.y) - 1;
+      const off = 3 + Math.round(k * 6);
+      const fall = Math.round(k * 3);
+      c.globalAlpha = 1 - k;
+      c.fillStyle = night ? '#c9cfe8' : '#ffffff';
+      c.fillRect(px - off - 3, py, 3, 1);
+      c.fillRect(px + off, py, 3, 1);
+      c.fillRect(px - off, py + 1 + fall, 2, 1);
+      c.fillRect(px + off - 2, py + 1 + fall, 2, 1);
+      c.fillRect(px - 1, py + 2 + fall, 3, 1);
+      c.globalAlpha = 1;
+    }
     if (motion && jump.landT >= 0) {
       const k = jump.landT / 0.24;
       const off = 4 + Math.round(k * 5);
@@ -762,6 +1095,85 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
       sparkle(c, x - 7, sy + 1, time * 3 + 1.7);
     }
     if (fishing.phase !== 'idle') drawRod(c, x, y - lift);
+  }
+
+  /** Afloat: head and shoulders above the water, bobbing, arms taking turns to pull. */
+  function drawSwimmer(c: CanvasRenderingContext2D, x: number, y: number, ghost: boolean) {
+    const n = night ? 1 : 0;
+    const bob = motion ? (Math.sin(time * 3.1) > 0.35 ? -1 : 0) + (kickT >= 0 && kickT < 0.2 ? -1 : 0) : 0;
+    const wy = y - 3 + bob;
+    const img = (night ? hero.framesNight : hero.frames)[facing][0];
+    c.drawImage(img, 0, 0, hero.w, SWIM_ROWS, x - (hero.w >> 1), wy - SWIM_ROWS, hero.w, SWIM_ROWS);
+    if (ghost) return;
+    // Where the water meets you: a bright line, and the body's shadow just under it.
+    c.fillStyle = UNDER[n];
+    c.fillRect(x - 6, wy + 1, 12, 1);
+    c.fillStyle = FOAM[n];
+    c.fillRect(x - 7, wy, 14, 1);
+    // Hands: one reaches forward while the other pulls back. Treading water, they sway.
+    const s = moving ? stroke % 1 : (Math.sin(time * 2.2) + 1) / 2;
+    const left = moving ? (s < 0.5 ? 2 : 0) : Math.round(s);
+    const right = moving ? (s < 0.5 ? 0 : 2) : Math.round(1 - s);
+    hand(c, x - 10, wy - 1 - left, n);
+    hand(c, x + 8, wy - 1 - right, n);
+    drawSpray(c);
+  }
+
+  function hand(c: CanvasRenderingContext2D, x: number, y: number, n: number) {
+    c.fillStyle = HEX.ink;
+    c.fillRect(x, y - 1, 2, 1);
+    c.fillRect(x - 1, y, 1, 1);
+    c.fillRect(x + 2, y, 1, 1);
+    c.fillStyle = n ? '#b3b9d1' : '#fffaf1';
+    c.fillRect(x, y, 2, 1);
+    c.fillStyle = FOAM[n];
+    c.fillRect(x - 1, y + 1, 4, 1);
+  }
+
+  function drawSpray(c: CanvasRenderingContext2D) {
+    c.fillStyle = night ? FOAM[1] : '#ffffff';
+    for (const d of drops) {
+      if (d.life <= 0) continue;
+      c.fillRect(bx(d.x) + Math.round(d.ox), by(d.z) - 2 + Math.round(d.oy) - Math.round(d.h), 1, 1);
+    }
+  }
+
+  /** Stepping into the portal: drawn in, shrinking and turning, toward the middle of the swirl. */
+  function drawIntoPortal(c: CanvasRenderingContext2D, x: number, y: number) {
+    if (!portal) return;
+    const k = motion ? Math.min(1, modeT / 0.42) : 1;
+    const e = k * k;
+    const face = motion ? SPIN[(SPIN.indexOf('up') + Math.floor(k * 6)) % 4] : 'up';
+    const img = (night ? hero.framesNight : hero.frames)[face][0];
+    const sc = 1 - 0.85 * e;
+    const w = Math.max(1, Math.round(hero.w * sc));
+    const h = Math.max(1, Math.round(hero.h * sc));
+    const tx = bx(portal.at.x) + portalArt.cx;
+    const ty = by(portal.at.z) + portalArt.cy;
+    const fx = x;
+    const fy = y - (hero.h >> 1);
+    c.drawImage(img, Math.round(fx + (tx - fx) * e) - (w >> 1), Math.round(fy + (ty - fy) * e) - (h >> 1), w, h);
+  }
+
+  /** Rings spreading on the water: dotted ellipses that widen and fade. */
+  function drawRipples(c: CanvasRenderingContext2D) {
+    c.fillStyle = FOAM2[night ? 1 : 0];
+    for (const r of rings) {
+      if (r.t >= 1) continue;
+      const rx = (r.big ? 5 : 4) + r.t * (r.big ? 13 : 8);
+      const ry = rx * 0.42;
+      const x = bx(r.x);
+      const y = by(r.z) - 2;
+      if (x + rx < 0 || x - rx > bw || y + ry < 0 || y - ry > bh) continue;
+      c.globalAlpha = (1 - r.t) * 0.9;
+      const m = Math.max(12, Math.round(rx * 2.4));
+      for (let i = 0; i < m; i++) {
+        if ((i & 3) === 3) continue; // broken, like a real ripple
+        const a = (i / m) * Math.PI * 2;
+        c.fillRect(Math.round(x + Math.cos(a) * rx), Math.round(y + Math.sin(a) * ry), 1, 1);
+      }
+    }
+    c.globalAlpha = 1;
   }
 
   function sparkle(c: CanvasRenderingContext2D, x: number, y: number, phase: number) {
@@ -826,26 +1238,12 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
     }
   }
 
-  /** The visible slice of a row-sorted site list, written to `range` as [first, end). */
-  const range = new Int32Array(2);
-  function rowRange(sites: Uint16Array, y0: number, y1: number) {
-    const n = sites.length / 3;
-    let lo = 0;
-    let hi = n;
-    while (lo < hi) {
-      const m = (lo + hi) >> 1;
-      if (sites[m * 3 + 1] < y0) lo = m + 1;
-      else hi = m;
-    }
-    range[0] = lo;
-    hi = n;
-    while (lo < hi) {
-      const m = (lo + hi) >> 1;
-      if (sites[m * 3 + 1] < y1) lo = m + 1;
-      else hi = m;
-    }
-    range[1] = lo;
-  }
+  /**
+   * Is there open water at map pixel (i, j)? Inside the painted map the
+   * terrain says (2 for water deep enough to glint, 1 for any); past it, it's
+   * all open sea.
+   */
+  const openAt = (i: number, j: number, need: number) => (i < 0 || j < 0 || i >= W || j >= H ? true : terrain.open[j * W + i] >= need);
 
   const GLINT_LEN = [1, 2, 3, 2];
   function drawWater(c: CanvasRenderingContext2D) {
@@ -859,37 +1257,39 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
     c.globalAlpha = motion ? Math.max(0, -Math.sin(time * 1.7 + 0.9)) * 0.9 : 0.5;
     if (c.globalAlpha > 0.02) c.drawImage(fb, bufL, bufT, bw, bh, 0, 0, bw, bh);
     c.globalAlpha = 1;
-    // Glints on the open sea.
-    rowRange(terrain.glints, bufT, bufT + bh);
-    const g0 = range[0];
-    const g1 = range[1];
-    const sites = terrain.glints;
+    // Glints on the open sea: one to a cell, jittered, so they never line up, and they carry
+    // on past the painted map as far as the eye can see.
     c.fillStyle = night ? '#4c6c9a' : HEX.wave;
-    for (let k = g0; k < g1; k++) {
-      const x = sites[k * 3] - bufL;
-      if (x < -3 || x > bw) continue;
-      const ph = motion ? (time * 0.45 + sites[k * 3 + 2] / 256) % 1 : sites[k * 3 + 2] / 256;
-      if (ph > 0.4) continue;
-      const len = GLINT_LEN[Math.floor((ph / 0.4) * 4)];
-      c.fillRect(x - (len >> 1), sites[k * 3 + 1] - bufT, len, 1);
+    for (let cj = Math.floor(bufT / 11); cj <= Math.floor((bufT + bh) / 11); cj++) {
+      for (let ci = Math.floor((bufL - 2) / 10); ci <= Math.floor((bufL + bw + 2) / 10); ci++) {
+        const i = ci * 10 + Math.floor(hash2(ci, cj, 54) * 10);
+        const j = cj * 11 + Math.floor(hash2(ci, cj, 55) * 11);
+        if (!openAt(i, j, 2)) continue;
+        const ph0 = hash2(ci, cj, 52);
+        const ph = motion ? (time * 0.45 + ph0) % 1 : ph0;
+        if (ph > 0.4) continue;
+        const len = GLINT_LEN[Math.floor((ph / 0.4) * 4)];
+        c.fillRect(i - bufL - (len >> 1), j - bufT, len, 1);
+      }
     }
     if (!night) return;
-    // Stars on the water.
-    rowRange(terrain.stars, bufT, bufT + bh);
-    const s0 = range[0];
-    const s1 = range[1];
-    const st = terrain.stars;
+    // Stars on the water, the same way.
     c.fillStyle = HEX.star;
-    for (let k = s0; k < s1; k++) {
-      const x = st[k * 3] - bufL;
-      if (x < -2 || x > bw) continue;
-      const tw = motion ? Math.sin(time * (1.3 + (st[k * 3 + 2] & 7) * 0.2) + st[k * 3 + 2]) : 0.5;
-      if (tw < -0.2) continue;
-      const y = st[k * 3 + 1] - bufT;
-      c.fillRect(x, y, 1, 1);
-      if (tw > 0.85) {
-        c.fillRect(x - 1, y, 3, 1);
-        c.fillRect(x, y - 1, 1, 3);
+    for (let cj = Math.floor(bufT / 16); cj <= Math.floor((bufT + bh) / 16); cj++) {
+      for (let ci = Math.floor((bufL - 2) / 16); ci <= Math.floor((bufL + bw + 2) / 16); ci++) {
+        const i = ci * 16 + Math.floor(hash2(ci, cj, 56) * 16);
+        const j = cj * 16 + Math.floor(hash2(ci, cj, 57) * 16);
+        if (!openAt(i, j, 1)) continue;
+        const ph = Math.floor(hash2(ci, cj, 53) * 256);
+        const tw = motion ? Math.sin(time * (1.3 + (ph & 7) * 0.2) + ph) : 0.5;
+        if (tw < -0.2) continue;
+        const x = i - bufL;
+        const y = j - bufT;
+        c.fillRect(x, y, 1, 1);
+        if (tw > 0.85) {
+          c.fillRect(x - 1, y, 3, 1);
+          c.fillRect(x, y - 1, 1, 3);
+        }
       }
     }
   }
@@ -943,6 +1343,18 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
     .filter((m) => m.kind !== 'tree' && m.kind !== 'bottle' && m.kind !== 'postbox')
     .map((m) => ({ x: m.base.x + m.doorDx, z: m.base.z + 0.5 }));
   pools.push({ x: lampAt.x + 0.3, z: lampAt.z + 0.2 });
+  // The portal lights the plaza violet.
+  const glow = (() => {
+    const cv = document.createElement('canvas');
+    cv.width = pool.width;
+    cv.height = pool.height;
+    const x = cv.getContext('2d')!;
+    x.drawImage(pool, 0, 0);
+    x.globalCompositeOperation = 'source-in';
+    x.fillStyle = 'rgb(84,48,150)';
+    x.fillRect(0, 0, cv.width, cv.height);
+    return cv;
+  })();
   function drawPools(c: CanvasRenderingContext2D) {
     c.globalCompositeOperation = 'lighter';
     const flicker = motion ? 0.9 + Math.sin(time * 7.3) * 0.04 + Math.sin(time * 2.1) * 0.06 : 1;
@@ -952,6 +1364,10 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
       const y = by(p.z) - (pool.height >> 1);
       if (x > bw || y > bh || x + pool.width < 0 || y + pool.height < 0) continue;
       c.drawImage(pool, x, y);
+    }
+    if (portal) {
+      c.globalAlpha = motion ? 0.85 + Math.sin(time * 1.7) * 0.15 : 1;
+      c.drawImage(glow, bx(portal.at.x) - (glow.width >> 1), by(portal.at.z) - (glow.height >> 1) + 2);
     }
     c.globalAlpha = 1;
     c.globalCompositeOperation = 'source-over';
@@ -1010,10 +1426,12 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
   }
 
   function drawScene(c: CanvasRenderingContext2D) {
-    c.fillStyle = night ? '#0e2240' : HEX.deep;
+    // The open sea, past the painted map: the same deep blue its edges fade to.
+    c.fillStyle = DEEP[night ? 1 : 0];
     c.fillRect(0, 0, bw, bh);
     c.drawImage(night ? terrain.night() : terrain.day, bufL, bufT, bw, bh, 0, 0, bw, bh);
     drawWater(c);
+    drawRipples(c);
     if (night) drawPools(c);
 
     // The click marker: a ring that shrinks into the ground.
@@ -1127,10 +1545,14 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
     if (tagFor && fp && (fp !== 'cast' || Math.hypot(pos.x - fishSpot!.at.x, pos.z - fishSpot!.at.z) < Math.hypot(pos.x - tagFor.door.x, pos.z - tagFor.door.z))) tagFor = null;
     if (tagFor && fp === 'cast') fp = null;
     tagPlace = tagFor;
+    tagPortal = mode === 'play' && nearPortal && dismissed !== 'portal';
     if (tagFor) {
       const a = art.get(tagFor.place.id)!;
       const p = toScreen(tagFor.base.x, tagFor.base.z - (a.sprite.ay - a.top) / TEX, scratch);
       overlay.tag(tagFor.place, p.x, p.y);
+    } else if (tagPortal && portal) {
+      const p = toScreen(portal.at.x, portal.at.z - (portalArt.ring.ay - 1) / TEX, scratch);
+      overlay.tag(portalTag, p.x, p.y);
     } else overlay.tag(null);
     if (fp) {
       const p = toScreen(pos.x, pos.z - 2.3, scratch);
@@ -1140,7 +1562,8 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
 
   function frame(now: number) {
     raf = requestAnimationFrame(frame);
-    const dt = Math.min((now - last) / 1000, 1 / 20);
+    // The frame's timestamp can come a hair before the start time: never step backwards.
+    const dt = Math.max(0, Math.min((now - last) / 1000, 1 / 20));
     last = now;
     frames++;
     time += dt;
@@ -1159,7 +1582,7 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
     presence(now);
     if (!readied) {
       readied = true;
-      ctx.ready(returning ? clampToView(doorScreen(returning)) : undefined);
+      ctx.ready(returning ? clampToView(doorScreen(returning)) : arrived ? clampToView(portalScreen()) : undefined);
     }
   }
 
@@ -1180,11 +1603,15 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
 
   if (debug) {
     (window as unknown as { __map?: unknown }).__map = {
-      player: () => ({ x: pos.x, z: pos.z, air: jump.y }),
+      player: () => ({ x: pos.x, z: pos.z, air: jump.y, twice: jump.twice, wet, vx: vel.x, vz: vel.z, facing }),
+      swimRoom: () => geo.swimRoom(pos.x, pos.z),
+      heroScreen: () => toScreen(pos.x, pos.z),
+      portal: () => ({ near: nearPortal, tag: tagPortal, screen: portal ? portalScreen() : null }),
       teleport: (x: number, z: number) => {
         pos.x = x;
         pos.z = z;
         path = null;
+        if (!jump.air) wet = wetAt(x, z);
         aimCamera();
         cam.x = camGoal.x;
         cam.z = camGoal.z;
@@ -1194,6 +1621,7 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
         return m ? doorScreen(m) : null;
       },
       walkTo: (x: number, z: number) => walkTo(x, z),
+      path: () => (path ? path.slice(pathIx) : null),
       near: () => near?.place.id ?? null,
       mode: () => mode,
       fishing: () => fishing.phase,
@@ -1206,7 +1634,7 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
         const all: HTMLCanvasElement[] = [];
         for (const a of art.values()) all.push(a.sprite.day);
         for (const k of Object.values(scenery)) for (const s of k) all.push(s.day);
-        all.push(boat.day, scrollArt.day, crabArt[0].day, crabArt[1].day);
+        all.push(boat.day, scrollArt.day, crabArt[0].day, crabArt[1].day, portalArt.ring.day, ...portalArt.swirl.slice(0, 3));
         for (const f of ['down', 'up', 'left', 'right'] as Facing[]) all.push(...hero.frames[f]);
         all.push(hero.cheer);
         if (nightToo) for (const a of art.values()) all.push(a.sprite.night);

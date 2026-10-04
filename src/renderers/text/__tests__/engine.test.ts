@@ -30,6 +30,29 @@ describe('starting out', () => {
   });
 });
 
+describe('the portal', () => {
+  it('stands in the plaza, and stepping through goes on to the 3D island', () => {
+    expect(say('plaza', 'look')).toMatch(/ring of violet light/);
+    for (const said of ['portal', 'step through', 'enter the portal', 'go through the portal', 'step into the portal']) {
+      const r = play('plaza', said).last;
+      expect(effects(r, 'portal'), said).toEqual([{ type: 'portal', id: 'island' }]);
+    }
+    expect(say('plaza', 'examine the portal')).toMatch(/chunky pixels/);
+  });
+
+  it('walks you to the plaza first from anywhere else', () => {
+    const r = play('privacy-research', 'portal').last;
+    expect(effects(r, 'portal')).toEqual([]);
+    expect(r.state.at).toBe('plaza');
+    expect(plain(r.out)).toMatch(/Step through/);
+  });
+
+  it('greets you on the other side', () => {
+    const r = engine.start(engine.initial('plaza'), { portal: true });
+    expect(plain(r.out)).toMatch(/tumble out of the ring of light/);
+  });
+});
+
 describe('looking', () => {
   it('describes the place, its scenery, its way in and its exits', () => {
     const text = say('middle-place', 'look');

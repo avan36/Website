@@ -788,6 +788,96 @@ export function scroll(): Sprite {
   return finish(p, 5, 6, { rx: 4, ry: 1, dy: 0 });
 }
 
+/** The portal: a ring of old stones on a plinth, and the swirl inside it (frames, drawn over the ring). */
+export interface PortalArt {
+  ring: Sprite;
+  /** The swirl, frame by frame, the same by day and by night (it's its own light). */
+  swirl: HTMLCanvasElement[];
+  /** Where the swirl's top-left goes, from the ring's anchor. */
+  sx: number;
+  sy: number;
+  /** The middle of the swirl, from the ring's anchor. */
+  cx: number;
+  cy: number;
+}
+
+export function portal(frames = 12): PortalArt {
+  const W = 24;
+  const H = 32;
+  const ax = 12;
+  const ay = 30;
+  const p = new Pix(W, H);
+  const cx = 12;
+  const cy = 14.5;
+  // The ring: an ellipse of stone with the middle left open for the swirl.
+  const RUNE = col('#c4b5fd');
+  const GEM = col('#a78bfa');
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const dx = (x + 0.5 - cx) / 10;
+      const dy = (y + 0.5 - cy) / 13;
+      const outer = dx * dx + dy * dy <= 1;
+      const ix = (x + 0.5 - cx) / 6.6;
+      const iy = (y + 0.5 - cy) / 9.6;
+      if (!outer || ix * ix + iy * iy <= 1) continue;
+      // Blocks: lit from the top left, a dark seam every few pixels round the ring.
+      const a = Math.atan2(dy, dx);
+      const seam = Math.abs(((a / (Math.PI * 2)) * 14 + 14) % 1) < 0.1;
+      p.px(x, y, seam ? STONE_DARK : dx + dy < -0.35 ? STONE_LIGHT : dx + dy > 0.45 ? STONE_DARK : STONE);
+    }
+  }
+  // Runes on the stones that glow at night, and a gem at the keystone.
+  for (const [x, y] of [[3, 9], [3, 18], [20, 9], [20, 18], [7, 3], [16, 3], [6, 25], [17, 25]] as const) p.px(x, y, RUNE);
+  p.rect(11, 1, 2, 2, GEM);
+  // The plinth: two steps of stone under the ring.
+  p.rect(4, 26, 16, 2, STONE);
+  p.hline(4, 19, 26, STONE_LIGHT);
+  p.rect(2, 28, 20, 2, STONE_DARK);
+  p.hline(2, 21, 28, STONE);
+  const lights = new Map<Color, Color>([...LIGHTS, [RUNE, col('#e9d5ff')], [GEM, col('#f5d0fe')]]);
+  p.outline(INK);
+  const shadow = new Pix(W, H);
+  shadow.ellipse(ax + 1, ay, 10, 2, SHADOW);
+  shadow.stamp(p, 0, 0);
+  p.data.set(shadow.data);
+  const ring: Sprite = { w: W, h: H, ax, ay, day: p.canvas(), night: p.canvas(nightData(p.data, lights)), data: p.data };
+
+  // The swirl: three arms turning slowly inward, bright in the middle, a dark rim with sparks of cyan.
+  const SW = 14;
+  const SH = 20;
+  const sx = Math.round(cx - SW / 2);
+  const sy = Math.round(cy - SH / 2);
+  const BANDS = ['#f0abfc', '#c084fc', '#8b5cf6', '#7c3aed'].map((h) => col(h));
+  const CORE = col('#fdf4ff');
+  const RIM = col('#4c1d95');
+  const SPARK = col('#67e8f9');
+  const swirl: HTMLCanvasElement[] = [];
+  for (let f = 0; f < frames; f++) {
+    const q = new Pix(SW, SH);
+    for (let y = 0; y < SH; y++) {
+      for (let x = 0; x < SW; x++) {
+        const dx = (sx + x + 0.5 - cx) / 6.6;
+        const dy = (sy + y + 0.5 - cy) / 9.6;
+        const r = Math.hypot(dx, dy);
+        if (r > 1) continue;
+        if (r < 0.2) {
+          q.px(x, y, CORE);
+          continue;
+        }
+        if (r > 0.84) {
+          const turn = (Math.atan2(dy, dx) / (Math.PI * 2) + 1 + f / frames) % 1;
+          q.px(x, y, Math.floor(turn * 9) % 3 === 0 && r > 0.9 ? SPARK : RIM);
+          continue;
+        }
+        const v = (Math.atan2(dy, dx) / (Math.PI * 2)) * 3 + r * 2.4 - f / frames;
+        q.px(x, y, BANDS[Math.floor((((v % 1) + 1) % 1) * 4)]);
+      }
+    }
+    swirl.push(q.canvas());
+  }
+  return { ring, swirl, sx: sx - ax, sy: sy - ay, cx: cx - ax, cy: cy - ay };
+}
+
 export type SceneryKind = 'palm' | 'tree' | 'pine' | 'bush' | 'rock' | 'boulder';
 
 /** Every scenery sprite, painted once and shared. */
