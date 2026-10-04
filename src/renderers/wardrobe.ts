@@ -35,6 +35,8 @@ function art(o: Pick<Outfit, 'id' | 'slot' | 'color'>): string {
       return `<path d="M15.5 16c1-4.5 16-4.5 17 0l3 12h-23Z" fill="${c}"/><rect x="13.2" y="23" width="21.6" height="4.5" fill="#5b7a4a"/><path d="M5 31c0-3.2 8-4.5 19-4.5s19 1.3 19 4.5-8 3.5-19 3.5S5 34.2 5 31Z" fill="${d}"/><path d="M30 21.5 34.5 17l1.2 3.6Z" fill="#ff5a36"/>`;
     case 'sailor-hat':
       return `<path d="M13.5 29 15 16.5c3.5-2.6 14.5-2.6 18 0L34.5 29Z" fill="${c}" stroke="${tint(c, 0.18)}" stroke-width="1"/><path d="M15 22.5c4.5 1.6 13.5 1.6 18 0" stroke="#2b5fa8" stroke-width="2.2" fill="none"/><path d="M7 27c4.5 4 29.5 4 34 0l-1.2 6.5c-5 3.5-26.6 3.5-31.6 0Z" fill="${tint(c, 0.08)}" stroke="${tint(c, 0.2)}" stroke-width="1"/>`;
+    case 'red-cap':
+      return `<path d="M8 31.5c0-9.2 5.8-15 13.5-15S35 22.3 35 31.5Z" fill="${c}"/><path d="M21.5 16.5c-2.6 3.4-3.8 8.6-3.8 15M21.5 16.5c2.6 3.4 3.8 8.6 3.8 15" stroke="${d}" stroke-width="1.2" fill="none"/><circle cx="21.5" cy="16.6" r="1.7" fill="${d}"/><path d="M33 29.5c4.6-.2 9 .6 11.5 2.3-.8 1.8-2.6 2.7-5 2.7H33Z" fill="${d}"/><rect x="7" y="30.5" width="27" height="3.5" rx="1.5" fill="${tint(c, 0.12)}"/>`;
     case 'reading-glasses':
       return `<circle cx="14.5" cy="26" r="6.5" fill="#cfe9f5" fill-opacity=".55"/><circle cx="33.5" cy="26" r="6.5" fill="#cfe9f5" fill-opacity=".55"/><g fill="none" stroke="${c}" stroke-width="3" stroke-linecap="round"><circle cx="14.5" cy="26" r="7"/><circle cx="33.5" cy="26" r="7"/><path d="M21.5 25c1.6-1.8 3.4-1.8 5 0M7.5 24.5 3.5 21M40.5 24.5l4-3.5"/></g>`;
     case 'sunglasses':
