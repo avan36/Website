@@ -36,7 +36,7 @@ On a failure, `test-results/` has a screenshot and a trace for each failed test:
 | `smoke.spec.ts` | Every main page (home in all four views, about, colophon, blog, a post, contact, every `/work/*` page, a 404) loads with no page errors, console errors or failed requests, and no sideways scroll, on a desktop and on a phone. `/world.json` is valid. Failures loading from other hosts (fonts, analytics) are ignored. |
 | `phone-layout.spec.ts` | At 320, 375 and 390px (touch, `isMobile`), in the island and map views: the top bar fits and the brand doesn't overlap the nav; the collapsed intro card's title fits; the view switcher pill holds its icon and chevron; a toast stays a small pill; no sideways scroll. |
 | `map.spec.ts` | The pixel map: walking to a door, a jump and a double jump, wading into the sea until you swim, and the portal into the text adventure. |
-| `island.spec.ts` | The 3D island: loads with WebGL and keeps drawing, Space jumps and you land, a building opens up round you as you go in and closes as you leave, and the portal switches to the map. |
+| `island.spec.ts` | The 3D island: loads with WebGL and keeps drawing, Space jumps and you land, a building opens up round you as you go in and closes as you leave, a walk over a footbridge to an islet game that stays dry and opens its card, and the portal switches to the map. |
 | `text.spec.ts` | The text adventure: `help`, `look` and `go to library` answer sensibly, and `portal` steps through to the 3D island. |
 
 ## Writing tests that don't flake

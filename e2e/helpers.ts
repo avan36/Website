@@ -119,6 +119,8 @@ export type IslandDebug = {
   near(): string | null;
   places(): { id: string; x: number; z: number; stand: { x: number; z: number } }[];
   inside(): { at: string; x: number; z: number } | null;
+  walkTo(x: number, z: number): { x: number; z: number } | null;
+  games(): { id: string; x: number; z: number; stand: { x: number; z: number }; open: boolean }[];
 };
 export type WorldHandle = {
   world: { activities: { kind: string; at: { x: number; z: number } }[]; places: { id: string; interior?: unknown }[] };

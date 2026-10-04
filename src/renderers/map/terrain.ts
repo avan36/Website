@@ -17,8 +17,12 @@ import { hash2 } from './rng';
 
 /** Map pixels per world unit. */
 export const TEX = 8;
-/** The world rectangle the map paints: the island (east end and all), the water you can swim in, and the drop-off past it. */
-export const RECT = { x0: -34, z0: -37, x1: 50, z1: 34 };
+/**
+ * The world rectangle the map paints: the island (east end and all), the
+ * islets off its west coast and their bridges, the water you can swim in,
+ * and the drop-off past it.
+ */
+export const RECT = { x0: -51, z0: -37, x1: 50, z1: 34 };
 /** Deeper than this (world units) you swim; shallower, you wade. */
 export const SWIM_DEPTH = 0.45;
 
@@ -305,6 +309,45 @@ export async function buildTerrain(geo: Geo, spurs: Vec2[][]): Promise<Terrain> 
     }
   }
 
+  // ---------- The footbridges out to the islets ----------
+  // Plank decks across the water like the pier's, with a railing down either
+  // side (you can't step off) and its posts showing every so often.
+  const deck = new Uint8Array(n); // 1: deck you can walk on, 2: its railing
+  for (const b of geo.bridges) {
+    const hw = b.width / 2;
+    const xs = [b.ax, b.bx].map((x) => (x - RECT.x0) * TEX);
+    const zs = [b.az, b.bz].map((z) => (z - RECT.z0) * TEX);
+    const pad = (hw + 0.4) * TEX;
+    for (let j = Math.max(0, Math.floor(Math.min(...zs) - pad)); j < Math.min(H, Math.ceil(Math.max(...zs) + pad)); j++) {
+      for (let i = Math.max(0, Math.floor(Math.min(...xs) - pad)); i < Math.min(W, Math.ceil(Math.max(...xs) + pad)); i++) {
+        const k = j * W + i;
+        const rx = wx(i) - b.ax;
+        const rz = wz(j) - b.az;
+        const along = rx * b.ux + rz * b.uz;
+        const across = rx * b.uz - rz * b.ux;
+        const ax = Math.abs(across);
+        if (along < 0 || along > b.length || ax > hw + 0.25) continue;
+        const post = Math.abs((along % 1.25) - 0.62) > 0.5;
+        if (ax >= hw) {
+          // A post sticking out past the rail, or the rail's shadow on the water.
+          if (post) (pix.data[k] = C.post), (ground[k] = G.pier), (deck[k] = 2);
+          else if (ground[k] === G.water && across > 0) pix.data[k] = C.sea;
+          continue;
+        }
+        ground[k] = G.pier;
+        if (ax > hw - 0.22) {
+          deck[k] = 2;
+          pix.data[k] = post || ax > hw - 0.1 ? C.post : C.plankDark;
+          continue;
+        }
+        deck[k] = 1;
+        const plank = Math.floor((along * TEX) / 3);
+        const seam = Math.floor(along * TEX) % 3 === 0;
+        pix.data[k] = seam ? C.plankDark : hash2(plank, Math.floor((across + hw) * 2), 31) < 0.06 ? C.plankLight : plank % 3 === 1 ? C.plankLight : C.plank;
+      }
+    }
+  }
+
   // ---------- The railway, the station platform and the quay ----------
   paintCommute(geo, pix, ground, { x0: RECT.x0, z0: RECT.z0, tex: TEX }, { rail: G.rail, quay: G.quay });
   await breathe();
@@ -323,6 +366,11 @@ export async function buildTerrain(geo: Geo, spurs: Vec2[][]): Promise<Terrain> 
       const x = wx(i);
       const z = wz(j);
       const h = hgt[k];
+      // A bridge's deck is dry and open; its railing isn't.
+      if (deck[k]) {
+        solid[k] = deck[k] === 2 ? 1 : 0;
+        continue;
+      }
       if (pierBox(x, z) && !geo.isWalkable(x, z)) {
         solid[k] = 2;
         water[k] = -h < SWIM_DEPTH ? 1 : 2;

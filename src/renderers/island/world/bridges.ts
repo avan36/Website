@@ -129,7 +129,7 @@ export function buildBridges() {
     arch.add(ak.build());
     const tex = board(isle.name, '#b98352');
     textures.push(tex);
-    const sign = new Mesh(new PlaneGeometry(1.9, 0.48), new MeshStandardMaterial({ map: tex, transparent: true, roughness: 0.9 }));
+    const sign = new Mesh(new PlaneGeometry(1.9, 0.48), new MeshStandardMaterial({ map: tex, transparent: true, roughness: 0.9, emissive: '#ffffff', emissiveMap: tex, emissiveIntensity: 0.22 }));
     sign.position.set(0, 1.86, 0.02);
     sign.castShadow = false;
     arch.add(sign);

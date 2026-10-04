@@ -118,13 +118,16 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
 
   // The camera's bounds: the island and the water you can swim in, with a little to spare.
   const VIEW = { x0: Infinity, z0: Infinity, x1: -Infinity, z1: -Infinity };
-  for (let a = 0; a < 180; a++) {
-    const th = (a / 180) * Math.PI * 2;
-    const r = geo.coastRadius(th) + SWIM_REACH;
-    VIEW.x0 = Math.min(VIEW.x0, Math.cos(th) * r - 1.5);
-    VIEW.x1 = Math.max(VIEW.x1, Math.cos(th) * r + 1.5);
-    VIEW.z0 = Math.min(VIEW.z0, Math.sin(th) * r - 1.5);
-    VIEW.z1 = Math.max(VIEW.z1, Math.sin(th) * r + 3);
+  // (Every island's: the islets off the west coast too.)
+  for (const s of geo.islands) {
+    for (let a = 0; a < 180; a++) {
+      const th = (a / 180) * Math.PI * 2;
+      const r = s.coast(th) + SWIM_REACH;
+      VIEW.x0 = Math.min(VIEW.x0, s.x + Math.cos(th) * r - 1.5);
+      VIEW.x1 = Math.max(VIEW.x1, s.x + Math.cos(th) * r + 1.5);
+      VIEW.z0 = Math.min(VIEW.z0, s.z + Math.sin(th) * r - 1.5);
+      VIEW.z1 = Math.max(VIEW.z1, s.z + Math.sin(th) * r + 3);
+    }
   }
 
   // ---------- Where you can be ----------

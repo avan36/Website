@@ -51,7 +51,8 @@ function painted(w: number, h: number, paint: (g: CanvasRenderingContext2D, font
 }
 
 const face = (tex: CanvasTexture, w: number, h: number) => {
-  const m = new Mesh(new PlaneGeometry(w, h), new MeshStandardMaterial({ map: tex, roughness: 0.85 }));
+  // A little light of its own, so it reads in the shade (and under its lamps after dark).
+  const m = new Mesh(new PlaneGeometry(w, h), new MeshStandardMaterial({ map: tex, roughness: 0.85, emissive: '#ffffff', emissiveMap: tex, emissiveIntensity: 0.18 }));
   m.receiveShadow = true;
   return m;
 };

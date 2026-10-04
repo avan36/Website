@@ -55,6 +55,18 @@ const north = { x: box.x0 + 5, z: box.z0 + 6 };
     </g>
   ))}
 
+  {draw.islets.map((s, i) => (
+    <g class="bp-geo" data-key={`geo:islet:${i}`}>
+      <circle cx={s.x} cy={s.z} r={s.r} class="bp-hill" />
+      <text x={s.x} y={s.z + s.r + 2.2} text-anchor="middle" class="bp-label bp-label--isle">{s.name}</text>
+    </g>
+  ))}
+  {draw.bridges.map((b, i) => (
+    <g class="bp-geo" data-key={`geo:bridge:${i}`}>
+      <path d={b.d} class="bp-pier" />
+    </g>
+  ))}
+
   <g class="bp-geo" data-key="geo:pier">
     <rect x={draw.pier.x - draw.pier.width / 2} y={draw.pier.start} width={draw.pier.width} height={draw.pier.end - draw.pier.start} class="bp-pier" />
   </g>

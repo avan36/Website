@@ -147,27 +147,33 @@ export function scatterProps(world: World, geo: Geo, places: MapPlace[], seed = 
     return hidden(spawn, 2) || Math.hypot(x - spawn.x, z - spawn.z) < 2.5;
   };
 
-  for (let gz = -30; gz < 30; gz += CELL) {
-    for (let gx = -30; gx < 42; gx += CELL) {
-      const x = gx + rnd() * CELL;
-      const z = gz + rnd() * CELL;
-      const roll = rnd();
-      const variant = Math.floor(rnd() * 6);
-      const h = geo.heightAt(x, z);
-      if (h < 0.2 || !geo.isOpenGround(x, z, 0.3)) continue;
-      const rock = geo.rockiness(x, z);
-      let kind: PropKind | null = null;
-      if (rock > 0.45) kind = roll < 0.22 ? 'boulder' : roll < 0.42 ? 'rock' : null;
-      else if (h < 0.62) kind = roll < 0.3 ? 'palm' : roll < 0.36 ? 'rock' : null;
-      else {
-        // Groves where the noise says so, a lone tree or bush elsewhere.
-        const grove = fbm(x * 0.11 + 5, z * 0.11 - 9, 2, 77);
-        if (grove > 0.56) kind = roll < 0.62 ? (h > 1.9 && roll < 0.25 ? 'pine' : 'tree') : roll < 0.8 ? 'bush' : null;
-        else kind = roll < 0.07 ? 'tree' : roll < 0.15 ? 'bush' : roll < 0.17 ? 'rock' : null;
+  /** One prop (or none) per cell of a grid, its own random numbers drawn whatever grows there, so nothing else moves when the land does. */
+  const grow = (x0: number, x1: number, z0: number, z1: number, rnd: () => number) => {
+    for (let gz = z0; gz < z1; gz += CELL) {
+      for (let gx = x0; gx < x1; gx += CELL) {
+        const x = gx + rnd() * CELL;
+        const z = gz + rnd() * CELL;
+        const roll = rnd();
+        const variant = Math.floor(rnd() * 6);
+        const h = geo.heightAt(x, z);
+        if (h < 0.2 || !geo.isOpenGround(x, z, 0.3)) continue;
+        const rock = geo.rockiness(x, z);
+        let kind: PropKind | null = null;
+        if (rock > 0.45) kind = roll < 0.22 ? 'boulder' : roll < 0.42 ? 'rock' : null;
+        else if (h < 0.62) kind = roll < 0.3 ? 'palm' : roll < 0.36 ? 'rock' : null;
+        else {
+          // Groves where the noise says so, a lone tree or bush elsewhere.
+          const grove = fbm(x * 0.11 + 5, z * 0.11 - 9, 2, 77);
+          if (grove > 0.56) kind = roll < 0.62 ? (h > 1.9 && roll < 0.25 ? 'pine' : 'tree') : roll < 0.8 ? 'bush' : null;
+          else kind = roll < 0.07 ? 'tree' : roll < 0.15 ? 'bush' : roll < 0.17 ? 'rock' : null;
+        }
+        if (!kind || hides(kind, x, z)) continue;
+        props.push({ kind, variant, x, z, r: RADIUS[kind] });
       }
-      if (!kind || hides(kind, x, z)) continue;
-      props.push({ kind, variant, x, z, r: RADIUS[kind] });
     }
-  }
+  };
+  grow(-30, 42, -30, 30, rnd);
+  // The islets' far sides, west of that grid, from their own seed.
+  grow(-44, -30, -30, 30, mulberry32(seed + 1));
   return props;
 }

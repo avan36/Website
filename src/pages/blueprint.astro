@@ -91,6 +91,25 @@ const geoCards = [
     lede: `A jetty ${num(geo.pier.width)} m wide running due south from z ${num(geo.pier.start)} to z ${num(geo.pier.end)}, its deck ${num(geo.pier.deck)} m above the sea.`,
     data: geo.pier,
   },
+  ...geo.islets.map((s, i) => {
+    const out = world.activities.filter((a) => Math.hypot(a.at.x - s.at.x, a.at.z - s.at.z) < s.coast.radius + 1);
+    return {
+      key: `geo:islet:${i}`,
+      kicker: 'Geography · islet',
+      title: s.name,
+      rel: [...out.map((a) => `activity:${a.id}`), ...draw.bridges.flatMap((b, j) => (b.to === s.name ? [`geo:bridge:${j}`] : []))],
+      lede: `A little island about ${num(s.coast.radius * 2)} m across, ${num(Math.hypot(s.at.x - hub.at.x, s.at.z - hub.at.z))} m ${compass(Math.atan2(s.at.x - hub.at.x, -(s.at.z - hub.at.z)))} of ${inLine(hub.id)}, with its own coast and beach.${out.length ? ` Out here: ${out.map((a) => a.name).join(' and ')}.` : ''}`,
+      data: s,
+    };
+  }),
+  ...geo.bridges.map((b, i) => ({
+    key: `geo:bridge:${i}`,
+    kicker: 'Geography · bridge',
+    title: draw.bridges[i].to ? `The bridge to ${draw.bridges[i].to}` : `Bridge ${i + 1}`,
+    rel: geo.islets.flatMap((s, j) => (s.name === draw.bridges[i].to ? [`geo:islet:${j}`] : [])),
+    lede: `A footbridge ${num(draw.bridges[i].length)} m long and ${num(b.width)} m wide, its deck ${num(b.deck)} m above the sea, with a railing down either side.`,
+    data: b,
+  })),
   {
     key: 'geo:spawn',
     kicker: 'Geography',
@@ -100,7 +119,7 @@ const geoCards = [
     data: geo.spawn,
   },
 ];
-const geoExtra = renderFields(geo, ['coast', 'headlands', 'hills', 'pier', 'spawn']);
+const geoExtra = renderFields(geo, ['coast', 'headlands', 'hills', 'pier', 'islets', 'bridges', 'spawn']);
 
 // The coast's radius all the way round, as a little line chart for the geography tab.
 const prof = draw.profile;

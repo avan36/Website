@@ -170,6 +170,8 @@
   stroke-linejoin: round;
   pointer-events: none;
 }
+/* The islets' names, under each one. */
+.bp-label--isle { font-style: italic; font-weight: 600; opacity: 0.85; }
 .bp-star { fill: #fff; stroke: var(--c); stroke-width: 0.18; }
 .bp-activity { fill: none; stroke: var(--bp-hi); stroke-width: 0.2; }
 .bp-activity--core { fill: var(--bp-hi); stroke: none; }
