@@ -162,7 +162,7 @@ export function createUI(world: World, store: WorldStore, announce: (s: string) 
     const tag = (v: ViewId) => (v === current ? '<span class="w-portal__here">You are here</span>' : '');
     // Picking the view you're in just closes the menu: you stay where you are.
     const big = (v: ViewId, name: string, note: string) =>
-      `<button class="w-portal__opt w-portal__opt--main${here(v)}" value="${v}"${v === current ? '' : ' autofocus'}><span class="w-portal__icon">${ICON(VIEW_ICONS[v], 30)}</span><span class="w-portal__text"><span class="w-portal__name">${name}${tag(v)}</span><span class="w-portal__note">${note}</span></span></button>`;
+      `<button class="w-portal__opt w-portal__opt--main${here(v)}" value="${v}"><span class="w-portal__icon">${ICON(VIEW_ICONS[v], 30)}</span><span class="w-portal__text"><span class="w-portal__name">${name}${tag(v)}</span><span class="w-portal__note">${note}</span></span></button>`;
     const mid = (v: ViewId, name: string, note: string) =>
       `<button class="w-portal__opt${here(v)}" value="${v}"><span class="w-portal__icon">${ICON(VIEW_ICONS[v])}</span><span class="w-portal__text"><span class="w-portal__name">${name}${tag(v)}</span><span class="w-portal__note">${note}</span></span></button>`;
     const small = (v: ViewId, name: string) =>
@@ -170,14 +170,14 @@ export function createUI(world: World, store: WorldStore, announce: (s: string) 
     dialog.returnValue = '';
     open(
       `<p class="w-kicker">The portal</p>
-       <h2 class="w-title" id="w-dialog-title">Where to?</h2>
+       <h2 class="w-title w-portal__title" id="w-dialog-title" tabindex="-1" autofocus>Where to?</h2>
        <p class="w-portal__intro">One island, a few ways to see it. Pick one and step through.</p>
        ${big('island', 'The 3D island', 'Walk, swim and fish your way around it')}
        <div class="w-portal__row">
          ${mid('map', 'The pixel map', 'Top-down, in pixel art')}
          ${mid('list', 'The list', 'Just the work, plainly')}
        </div>
-       <div class="w-portal__extra"><span>Or</span>${small('text', 'Text adventure')}<a class="w-portal__more" href="/world.json" target="_blank" rel="noopener">${ICON(VIEW_ICONS.data, 16)}The raw data</a><button class="w-btn w-btn--ghost w-portal__stay" value="stay">Stay here</button></div>`,
+       <div class="w-portal__extra"><span>Or</span>${small('text', 'Text adventure')}<a class="w-portal__more" href="/world.json" target="_blank" rel="noopener">${ICON(VIEW_ICONS.data, 16)}The raw data</a></div>`,
       '#8b5cf6',
     );
     announce('The portal. Where to? Pick a way of seeing the island.');

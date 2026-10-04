@@ -102,7 +102,7 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
   /** Where the portal leads this time: picked from its menu as you step up. */
   let portalTo: ViewId = PORTAL_NEXT.map;
   /** The portal's name tag, as if it were a place. */
-  const portalTag = { id: 'portal', title: 'The portal', name: 'Choose a view', color: PORTAL_COLOR } as Place;
+  const portalTag = { id: 'portal', title: 'Step through', name: 'The portal', color: PORTAL_COLOR } as Place;
 
   // The camera's bounds: the island and the water you can swim in, with a little to spare.
   const VIEW = { x0: Infinity, z0: Infinity, x1: -Infinity, z1: -Infinity };
