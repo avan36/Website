@@ -17,6 +17,8 @@ import type { RendererContext, RendererHandle, ViewId } from '../types';
 import { clampAxis, damp, pickScale } from './camera';
 import { facingFor, paintExplorer, type Facing } from './explorer';
 import { Fishing } from './fishing';
+import { createBoatCard } from './boat';
+import { boatOf } from '../boat';
 import { BODY_R, layoutPlaces, scatterProps, type MapPlace } from './layout';
 import { createOverlay, type FishPrompt } from './overlay';
 import { HEX } from './palette';
@@ -150,6 +152,10 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
   const boatAt = { x: pier.x + pier.width / 2 + 0.95, z: 22.4 };
   stampBox(boatAt.x - 0.7, boatAt.z - 2.6, boatAt.x + 0.7, boatAt.z);
   if (portal) stampBox(portal.at.x - 1.3, portal.at.z - 0.35, portal.at.x + 1.3, portal.at.z + 0.05);
+  // The speedboat, tied up at the end of the pier (raced in 3D: see boat.ts).
+  const speedboat = boatOf(world);
+  const speedAt = speedboat ? { x: speedboat.at.x, z: speedboat.at.z + 1.3 } : null;
+  if (speedAt) stampBox(speedAt.x - 0.7, speedAt.z - 2.6, speedAt.x + 0.7, speedAt.z);
 
   const blockedAt = (x: number, z: number) => {
     const i = ti(x);
@@ -229,6 +235,8 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
   for (const p of props) things.push({ x: p.x, z: p.z, sprite: scenery[p.kind][p.variant % scenery[p.kind].length] });
   const boat = rowboat(pierPlace?.place.color ?? HEX.sea);
   things.push({ x: boatAt.x, z: boatAt.z, sprite: boat });
+  const speedArt = rowboat('#e5484d');
+  if (speedAt) things.push({ x: speedAt.x, z: speedAt.z, sprite: speedArt });
   if (portal) {
     things.push({
       x: portal.at.x,
@@ -402,6 +410,7 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
   }
 
   // ---------- Overlay ----------
+  const boatCard = createBoatCard(root, ctx);
   const overlay = createOverlay(
     root,
     places.map((m) => m.place),
@@ -1167,6 +1176,7 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
       const d = Math.hypot(pos.x - portal.at.x, pos.z - portal.at.z - 0.75);
       if (d < DOOR_RANGE && d < bestD) (best = null), (atPortal = true);
     }
+    boatCard.update(pos.x, pos.z);
     if (best !== near || atPortal !== nearPortal) {
       near = best;
       nearPortal = atPortal;
@@ -1931,6 +1941,7 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
       window.removeEventListener('keyup', onKeyUp);
       window.removeEventListener('blur', onBlur);
       overlay.destroy();
+      boatCard.destroy();
       root.remove();
       if (debug) delete (window as unknown as { __map?: unknown }).__map;
     },

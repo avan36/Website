@@ -18,6 +18,8 @@ export type Progress = {
   caught: string[];
   /** Night falls once the word hoard is full; the visitor can toggle it after. */
   night: boolean;
+  /** The fastest lap round the island in the boat, in seconds (null until one is finished). */
+  bestLap: number | null;
 };
 
 export type Presence = {
@@ -37,6 +39,7 @@ export type Action =
   | { type: 'find'; id: string }
   | { type: 'catch'; slug: string }
   | { type: 'night'; on: boolean }
+  | { type: 'lap'; time: number }
   | { type: 'reset' };
 
 export type WorldEvent =
@@ -45,10 +48,15 @@ export type WorldEvent =
   | { type: 'found'; id: string; count: number; total: number }
   | { type: 'hoard-complete' }
   | { type: 'caught'; slug: string; fresh: boolean }
-  | { type: 'night'; on: boolean };
+  | { type: 'night'; on: boolean }
+  /** A lap round the island, finished: whether it beat the best, and the best before it. */
+  | { type: 'lap'; time: number; best: boolean; previous: number | null };
+
+/** A lap time worth keeping: a real number of seconds, not a glitch. */
+export const validLap = (t: unknown): t is number => typeof t === 'number' && Number.isFinite(t) && t > 1 && t < 3600;
 
 export const emptyState = (): WorldState => ({
-  progress: { found: [], caught: [], night: false },
+  progress: { found: [], caught: [], night: false, bestLap: null },
   presence: { at: null, pos: null, inside: null },
 });
 
@@ -95,8 +103,16 @@ export function reduce(world: World, state: WorldState, action: Action): { state
       events.push({ type: 'night', on });
       return { state: { presence, progress: { ...progress, night: on } }, events };
     }
+    case 'lap': {
+      if (!validLap(action.time)) return { state, events };
+      const previous = progress.bestLap;
+      const best = previous === null || action.time < previous;
+      events.push({ type: 'lap', time: action.time, best, previous });
+      return best ? { state: { presence, progress: { ...progress, bestLap: action.time } }, events } : { state, events };
+    }
     case 'reset':
-      return { state: { presence, progress: emptyState().progress }, events: progress.night ? [{ type: 'night', on: false }] : [] };
+      // Forgets the words and the catches; a lap record is kept (the card only asks about words).
+      return { state: { presence, progress: { ...emptyState().progress, bestLap: progress.bestLap } }, events: progress.night ? [{ type: 'night', on: false }] : [] };
   }
 }
 
@@ -119,6 +135,8 @@ export function sanitize(world: World, raw: unknown): WorldState {
   s.progress.found = [...new Set(strings(r.progress?.found))].filter((id) => words.has(id));
   s.progress.caught = [...new Set(strings(r.progress?.caught))].filter((slug) => posts.has(slug));
   s.progress.night = r.progress?.night === true && s.progress.found.length === words.size;
+  const lap = r.progress?.bestLap;
+  s.progress.bestLap = validLap(lap) ? lap : null;
   const at = r.presence?.at;
   if (typeof at === 'string' && world.places.some((p) => p.id === at)) s.presence.at = at;
   const pos = r.presence?.pos;
