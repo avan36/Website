@@ -1,6 +1,6 @@
 // The commute: a little railway looping round the new land in the east, with
-// a station and a commuter train in silver and red, and a red double-decker
-// bus parked on the quay. The train keeps island time: it runs on weekday
+// a station and a Caltrain in silver and red, and a red London double-decker
+// bus parked on the quay. Both wear their names, painted on. The train keeps island time: it runs on weekday
 // mornings and evenings and waits at the platform the rest of the day (see
 // src/world/clock.ts). At night the windows, the station lamp and the bus's
 // lights glow like the rest of the island.
@@ -8,7 +8,20 @@
 // Everything stands where src/world/geo.ts says: the track's loop, the
 // station, the level crossings where paths cross the line, and the quay.
 
-import { BoxGeometry as ThreeBox, BufferAttribute, BufferGeometry, Color, Group, MeshBasicMaterial, type Object3D } from 'three';
+import {
+  BoxGeometry as ThreeBox,
+  BufferAttribute,
+  BufferGeometry,
+  CanvasTexture,
+  Color,
+  Group,
+  Mesh,
+  MeshBasicMaterial,
+  MeshStandardMaterial,
+  PlaneGeometry,
+  SRGBColorSpace,
+  type Object3D,
+} from 'three';
 import { readGeo } from '../../../world/client';
 import { CAR_LEN, CARS, createTrain, type CarKind } from '../../../world/train';
 import type { Glow } from '../landmarks/builders';
@@ -65,6 +78,44 @@ function ballast(points: { x: number; z: number }[], y: number, half: number) {
   return g;
 }
 
+/**
+ * Painted lettering: `text` on a plane `w` by `h`, facing +z. On a transparent
+ * ground it takes the light like the paint around it; on a `ground` (a lit
+ * blind) it glows.
+ */
+function lettering(text: string, w: number, h: number, ink: string, ground?: string) {
+  const c = document.createElement('canvas');
+  c.width = 512;
+  c.height = Math.max(32, Math.round((512 * h) / w));
+  const g = c.getContext('2d')!;
+  if (ground) (g.fillStyle = ground), g.fillRect(0, 0, c.width, c.height);
+  let size = c.height * 0.8;
+  const font = () => `800 ${size}px "Bricolage Grotesque Variable", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif`;
+  g.font = font();
+  while (g.measureText(text).width > c.width * 0.92 && size > 8) (size *= 0.94), (g.font = font());
+  g.fillStyle = ink;
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.fillText(text, c.width / 2, c.height / 2 + size * 0.04);
+  const map = new CanvasTexture(c);
+  map.colorSpace = SRGBColorSpace;
+  map.anisotropy = 4;
+  const mat = ground ? new MeshBasicMaterial({ map }) : new MeshStandardMaterial({ map, transparent: true, roughness: 0.7, metalness: 0, depthWrite: false });
+  return new Mesh(new PlaneGeometry(w, h), mat);
+}
+
+/** The same lettering down both sides of something built along +z, `half` out from its middle. */
+function bothSides(text: string, w: number, h: number, ink: string, half: number, y: number, z = 0) {
+  const g = new Group();
+  for (const side of [1, -1]) {
+    const m = lettering(text, w, h, ink);
+    m.position.set(side * half, y, z);
+    m.rotation.y = (side * Math.PI) / 2;
+    g.add(m);
+  }
+  return g;
+}
+
 /** One car of the train, built along +z (its front), wheels at y = 0. */
 function buildCar(kind: CarKind, glass: MeshBasicMaterial, seed: number) {
   const k = new Kit(seed);
@@ -104,6 +155,9 @@ function buildCar(kind: CarKind, glass: MeshBasicMaterial, seed: number) {
     k.box(W * 0.9, 0.12, 0.2, '#4b4f55', { p: [0, floor - 0.02, zf + 0.04], jitter: 0 }); // pilot
   }
   const g = k.build({ castShadow: true, receiveShadow: true, glowMaterial: glass });
+  // Its name, in red: between the upper windows and the roof on the bilevels, under the louvres on the locomotive.
+  const half = W / 2 + 0.035;
+  g.add(bilevel ? bothSides('Caltrain', 2.0, 0.21, RED, half, floor + 1.41) : bothSides('Caltrain', 2.3, 0.34, RED, half, floor + 0.405, -0.3));
   return g;
 }
 
@@ -135,7 +189,13 @@ function buildBus(glass: MeshBasicMaterial) {
   // The open platform at the back, with its pole.
   k.box(0.6, 0.9, 0.04, '#2b2b2e', { p: [W / 2 - 0.32, base + 0.85, -L / 2 + 0.02], jitter: 0 });
   k.cyl(0.03, 0.03, 1.1, '#e8e2d4', { p: [W / 2 - 0.12, base + 0.82, -L / 2 + 0.25] }, 6);
-  return k.build({ castShadow: true, receiveShadow: true, glowMaterial: glass });
+  const bus = k.build({ castShadow: true, receiveShadow: true, glowMaterial: glass });
+  // Where it's from: in gold along both sides, and on the lit blind over the cab.
+  bus.add(bothSides('LONDON', 2.6, 0.38, '#ffd35a', W / 2 + 0.03, base + 0.38, 0.3));
+  const blind = lettering('LONDON', W * 0.62, 0.14, '#ffc94a', '#1d1a16');
+  blind.position.set(0, base + 1.3, zf + 0.035);
+  bus.add(blind);
+  return bus;
 }
 
 export function buildCommute() {
@@ -205,15 +265,22 @@ export function buildCommute() {
       sk.rbox(1.3, 0.12, 2.8, 0.04, RED, { p: [sx, 2.05, 0], r: [0, 0, -0.12 * out] });
       sk.box(0.45, 0.08, 1.6, '#8a5a3b', { p: [sx + 0.25 * out, 0.68, 0] });
       sk.box(0.08, 0.4, 1.6, '#8a5a3b', { p: [sx + 0.45 * out, 0.9, 0] });
-      // A name board with no name on it, and a clock.
+      // A name board, and a clock.
       for (const dz of [-2.6, 2.6]) sk.cyl(0.04, 0.04, 1.5, '#5c6168', { p: [px + 0.3 * out, 1.07, dz] }, 6);
-      sk.box(0.06, 0.32, 1.0, '#ffffff', { p: [px + 0.3 * out, 1.8, -2.6], jitter: 0 });
-      sk.box(0.07, 0.08, 1.0, RED, { p: [px + 0.3 * out, 1.66, -2.6], jitter: 0 });
+      sk.box(0.06, 0.44, 1.5, '#ffffff', { p: [px + 0.3 * out, 1.86, -2.6], jitter: 0 });
+      sk.box(0.07, 0.08, 1.5, RED, { p: [px + 0.3 * out, 1.66, -2.6], jitter: 0 });
       sk.cyl(0.2, 0.2, 0.06, '#f6f1e4', { p: [px + 0.3 * out, 1.95, 2.6], r: [0, 0, Math.PI / 2] }, 14);
       // A lamp at the far end.
       sk.cyl(0.04, 0.05, 2.3, '#3d3a36', { p: [px + 0.35 * out, 1.47, 3.0] }, 6);
       sk.addGlow(new ThreeBox(0.22, 0.2, 0.22), '#ffe2a0', { p: [px + 0.35 * out, 2.62, 3.0] });
       const st = sk.build({ castShadow: true, receiveShadow: true });
+      // Whose station it is, on both faces of the board.
+      for (const side of [1, -1]) {
+        const name = lettering('Caltrain', 1.4, 0.3, RED);
+        name.position.set(px + 0.3 * out + side * 0.035, 1.9, -2.6);
+        name.rotation.y = (side * Math.PI) / 2;
+        st.add(name);
+      }
       st.position.set(at.x, bedY, at.z);
       st.rotation.y = at.yaw;
       group.add(st);
