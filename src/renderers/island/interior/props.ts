@@ -4,7 +4,7 @@
 // door), in scene units, K per room unit. Some of them move (the fire, the
 // globe, the lens): those add a step to `animated`.
 
-import { BoxGeometry, Color, CylinderGeometry, Group, Mesh, MeshBasicMaterial, MeshStandardMaterial, type Material } from 'three';
+import { BoxGeometry, Color, CylinderGeometry, Group, Mesh, MeshBasicMaterial, MeshStandardMaterial, SphereGeometry, type Material } from 'three';
 import type { Place, Prop } from '../../../world/schema';
 import type { Spot } from '../../roomPlan';
 import { Kit } from '../world/kit';
@@ -21,7 +21,7 @@ export const shade = (hex: string, k: number) => {
 
 /** About how tall each kind of thing is, for its click box. */
 export function propHeight(p: Prop) {
-  return { desk: 1.4, hearth: 2.8, frame: 1.2, board: 1.5, counter: 1.5, bookshelf: 3, cabinet: 2.2, lens: 2.8, cat: 0.7, globe: 1.5, scanner: 1.5, crates: 1.9, grill: 2.4, sacks: 0.9, escalator: 2.8, shopfront: 2.8 }[p];
+  return { desk: 1.4, hearth: 2.8, frame: 1.2, board: 1.5, counter: 1.5, bookshelf: 3, cabinet: 2.2, lens: 2.8, cat: 0.7, globe: 1.5, scanner: 1.5, crates: 1.9, grill: 3.0, sacks: 1.0, escalator: 3.2, shopfront: 2.8 }[p];
 }
 
 /** One thing, built from the kit, standing at the origin facing +z. */
@@ -125,6 +125,49 @@ export function buildProp(prop: Prop, place: Place, s: Spot, mat: <T extends Mat
       break;
     }
     case 'board': {
+      if (place.archetype === 'mall') {
+        // The centre's directory: a lit map, floor by floor, in a steel frame, with a red YOU ARE HERE dot that pulses.
+        const fw = hw * 2 - 0.5;
+        kit.box(fw + 0.16, 1.62, 0.12, '#41464d', { p: [0, 2.0, wallZ] });
+        kit.addGlow(new BoxGeometry(fw - 0.1, 1.38, 0.02), '#f7f5f0', { p: [0, 1.98, wallZ + 0.07] });
+        // A dark header with a line of white "lettering", and a legend down the side.
+        kit.addGlow(new BoxGeometry(fw - 0.1, 0.22, 0.02), '#2f3338', { p: [0, 2.58, wallZ + 0.08] });
+        for (let i = 0; i < 5; i++) kit.addGlow(new BoxGeometry(0.18 + (i % 2) * 0.12, 0.07, 0.02), '#ffffff', { p: [-fw / 2 + 0.3 + i * 0.36, 2.58, wallZ + 0.09] });
+        const UNITS = ['#ff8fab', '#3a86ff', '#ffbe0b', '#2e9c8f', '#c49bff', '#ff9f6b', '#7fd3b0', accent];
+        for (let i = 0; i < 5; i++) {
+          kit.addGlow(new BoxGeometry(0.14, 0.14, 0.02), UNITS[i], { p: [fw / 2 - 0.38, 2.3 - i * 0.2, wallZ + 0.09] });
+          kit.addGlow(new BoxGeometry(0.26, 0.05, 0.02), '#8a8f96', { p: [fw / 2 - 0.16, 2.3 - i * 0.2, wallZ + 0.09] });
+        }
+        // The plan: shop units in colours either side of a white mall, round a court in the middle.
+        const mx0 = -fw / 2 + 0.15;
+        const mx1 = fw / 2 - 0.62;
+        const cols = 6;
+        const uw = (mx1 - mx0) / cols;
+        for (let c = 0; c < cols; c++) {
+          for (const [y, h] of [[2.25, 0.32], [1.62, 0.36]] as const) {
+            const k2 = (c * 3 + (y > 2 ? 1 : 4)) % UNITS.length;
+            if (c === 2 && y < 2) continue;
+            kit.addGlow(new BoxGeometry(uw - 0.05, h, 0.02), shade(UNITS[k2], 0.12), { p: [mx0 + (c + 0.5) * uw, y, wallZ + 0.09] });
+          }
+        }
+        kit.addGlow(new BoxGeometry(mx1 - mx0, 0.16, 0.02), '#ffffff', { p: [(mx0 + mx1) / 2, 1.97, wallZ + 0.095] });
+        kit.addGlow(new BoxGeometry(uw - 0.05, 0.36, 0.02), '#ffffff', { p: [mx0 + 2.5 * uw, 1.62, wallZ + 0.095] });
+        kit.addGlow(new CylinderGeometry(0.17, 0.17, 0.02, 14), '#e8f4fb', { p: [mx0 + 2.5 * uw, 1.7, wallZ + 0.1], r: [Math.PI / 2, 0, 0] });
+        // You are here: a red dot in a white ring, on the mall near the court.
+        const dot = new Mesh(new CylinderGeometry(0.07, 0.07, 0.03, 14), mat(new MeshBasicMaterial({ color: '#e5202e' })));
+        dot.rotation.x = Math.PI / 2;
+        dot.position.set(mx0 + 3.2 * uw, 1.97, wallZ + 0.12);
+        const ringM = new Mesh(new CylinderGeometry(0.11, 0.11, 0.02, 16), mat(new MeshBasicMaterial({ color: '#ffffff' })));
+        ringM.rotation.x = Math.PI / 2;
+        ringM.position.set(mx0 + 3.2 * uw, 1.97, wallZ + 0.105);
+        group.add(dot, ringM);
+        animated.push((t) => {
+          if (!calm) dot.scale.setScalar(1 + 0.25 * Math.max(0, Math.sin(t * 4)));
+        });
+        // A little red tag beside it, where the words would be.
+        kit.addGlow(new BoxGeometry(0.34, 0.1, 0.02), '#e5202e', { p: [mx0 + 3.2 * uw + 0.3, 2.12, wallZ + 0.1] });
+        break;
+      }
       kit.box(hw * 2, 1.45, 0.1, WOOD_DARK, { p: [0, 2.0, wallZ] });
       if (place.archetype === 'library') {
         kit.box(hw * 2 - 0.2, 1.25, 0.06, '#f6e7c4', { p: [0, 2.0, wallZ + 0.04] });
@@ -260,6 +303,176 @@ export function buildProp(prop: Prop, place: Place, s: Spot, mat: <T extends Mat
       bale(-0.3, 0.6, 0, 0.8, 0.55, hd * 2 - 0.3);
       bale(0.5, 0.6, -0.05, 0.7, 0.5, hd * 2 - 0.3);
       bale(0.05, 1.15, 0, 0.8, 0.5, hd * 2 - 0.4);
+      break;
+    }
+    case 'grill': {
+      // Five Guys: a counter in red and white checked tiles with a steel top, the grill and the fryer behind it, and the menu board over it all.
+      const RED = '#d22630';
+      const STEEL = '#c9ced3';
+      const cz = hd - 0.36;
+      kit.box(hw * 2, 1.0, 0.72, '#f4f2ee', { p: [0, 0.5, cz] });
+      const tile = 0.25;
+      const cols = Math.floor((hw * 2 - 0.1) / tile);
+      const x0 = -(cols * tile) / 2;
+      for (let r = 0; r < 4; r++) for (let c = 0; c < cols; c++) kit.box(tile - 0.02, tile - 0.02, 0.03, (r + c) % 2 ? RED : '#ffffff', { p: [x0 + (c + 0.5) * tile, 0.06 + (r + 0.5) * tile, hd + 0.005], jitter: 0.01 });
+      kit.box(hw * 2 + 0.12, 0.08, 0.84, STEEL, { p: [0, 1.04, cz] });
+      kit.box(hw * 2 + 0.12, 0.05, 0.05, '#9aa1a8', { p: [0, 1.0, hd + 0.04], jitter: 0 });
+      // On the counter: a burger in foil, a cup of fries spilling over, a shake, and the till.
+      kit.cyl(0.17, 0.17, 0.12, '#d9dde1', { p: [-1.1, 1.14, cz + 0.05] }, 10);
+      kit.sphere(0.17, '#c8cdd2', { p: [-1.1, 1.2, cz + 0.05], s: [1, 0.45, 1] }, 10, 6);
+      kit.cyl(0.13, 0.1, 0.26, RED, { p: [-0.5, 1.21, cz + 0.12] }, 10);
+      for (let i = 0; i < 9; i++) kit.box(0.035, 0.18, 0.035, '#f2c14e', { p: [-0.5 + ((i * 37) % 7 - 3) * 0.03, 1.38, cz + 0.12 + ((i * 53) % 5 - 2) * 0.03], r: [((i * 13) % 5 - 2) * 0.12, 0, ((i * 7) % 5 - 2) * 0.12], jitter: 0.05 });
+      kit.cyl(0.1, 0.08, 0.32, '#ffffff', { p: [0.05, 1.24, cz + 0.1] }, 10);
+      kit.cyl(0.02, 0.02, 0.22, RED, { p: [0.09, 1.44, cz + 0.1], r: [0, 0, -0.25] }, 5);
+      kit.box(0.42, 0.24, 0.32, '#3d4248', { p: [hw - 0.55, 1.2, cz - 0.05], r: [-0.2, 0, 0] });
+      // Behind: the grill (patties sizzling on it) and the fryer (two baskets of chips).
+      const bz = -hd + 0.32;
+      kit.box(1.5, 0.92, 0.6, STEEL, { p: [-0.75, 0.46, bz] });
+      kit.box(1.44, 0.05, 0.54, '#2b2a28', { p: [-0.75, 0.95, bz], jitter: 0 });
+      for (let i = 0; i < 4; i++) kit.cyl(0.11, 0.11, 0.05, '#7a4a2a', { p: [-1.2 + i * 0.3, 1.0, bz + ((i % 2) - 0.5) * 0.16] }, 10);
+      kit.box(1.2, 0.95, 0.6, STEEL, { p: [0.9, 0.47, bz] });
+      for (const x of [0.62, 1.18]) {
+        kit.box(0.42, 0.06, 0.4, '#5a5f66', { p: [x, 0.97, bz], jitter: 0 });
+        kit.box(0.36, 0.06, 0.34, '#f2c14e', { p: [x, 1.02, bz], jitter: 0.06 });
+        kit.box(0.04, 0.04, 0.3, '#2b2f33', { p: [x, 1.08, bz + 0.3], jitter: 0 });
+      }
+      kit.box(hw * 2 - 0.2, 0.3, 0.2, '#9aa1a8', { p: [0, 2.0, -hd + 0.12] });
+      // The menu board, on two posts: a red header with white lettering, the menu in lines on white.
+      for (const x of [-hw + 0.3, hw - 0.3]) kit.box(0.07, 2.9, 0.07, '#6b7178', { p: [x, 1.45, -hd + 0.06] });
+      const mw = hw * 2 - 0.4;
+      kit.box(mw + 0.1, 0.95, 0.08, '#2b2f33', { p: [0, 2.62, -hd + 0.06] });
+      kit.addGlow(new BoxGeometry(mw - 0.04, 0.26, 0.02), RED, { p: [0, 2.94, -hd + 0.11] });
+      for (let i = 0; i < 4; i++) kit.addGlow(new BoxGeometry(0.2 + (i % 2) * 0.08, 0.08, 0.02), '#ffffff', { p: [-0.5 + i * 0.34, 2.94, -hd + 0.12] });
+      kit.addGlow(new BoxGeometry(mw - 0.04, 0.6, 0.02), '#fbf8f2', { p: [0, 2.48, -hd + 0.11] });
+      for (let c = 0; c < 3; c++) {
+        for (let r = 0; r < 4; r++) {
+          const lx = -mw / 2 + 0.25 + c * (mw / 3);
+          kit.addGlow(new BoxGeometry(mw / 3 - 0.6 - (r % 2) * 0.2, 0.05, 0.02), '#55504a', { p: [lx + (mw / 3 - 0.6) / 2, 2.68 - r * 0.12, -hd + 0.12] });
+          kit.addGlow(new BoxGeometry(0.14, 0.05, 0.02), RED, { p: [lx + mw / 3 - 0.32, 2.68 - r * 0.12, -hd + 0.12] });
+        }
+      }
+      // A wisp of steam off the grill now and then.
+      const steam = new Mesh(new SphereGeometry(0.12, 8, 6), mat(new MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.5, depthWrite: false })));
+      group.add(steam);
+      steam.visible = !calm;
+      animated.push((t) => {
+        if (calm) return;
+        const k = (t * 0.6) % 1;
+        steam.position.set(-0.9 + Math.sin(t * 2) * 0.05, 1.1 + k * 0.9, bz);
+        steam.scale.setScalar(0.6 + k * 1.4);
+        (steam.material as MeshBasicMaterial).opacity = 0.45 * (1 - k);
+      });
+      break;
+    }
+    case 'sacks': {
+      // Sacks of potatoes, stacked, and one left open with potatoes heaped in its mouth.
+      const BURLAP = ['#c9a66b', '#bf9a5c', '#d1b07a'];
+      const sack = (x: number, y: number, z: number, ry: number, i: number) => {
+        kit.rbox(0.62, 0.42, 0.4, 0.16, BURLAP[i % 3], { p: [x, y + 0.21, z], r: [0, ry, 0], jitter: 0.05 });
+        kit.box(0.5, 0.08, 0.41, '#b0402e', { p: [x, y + 0.24, z], r: [0, ry, 0], jitter: 0.02 });
+      };
+      sack(-0.33, 0, -0.18, 0.08, 0);
+      sack(0.32, 0, -0.2, -0.1, 1);
+      sack(0, 0.4, -0.2, 0.15, 2);
+      sack(-0.42, 0, 0.3, -0.25, 1);
+      // The open one: a sack standing up with its neck rolled down and potatoes in it, a few spilled.
+      kit.cyl(0.22, 0.27, 0.5, BURLAP[0], { p: [0.38, 0.25, 0.32] }, 9);
+      kit.torus(0.22, 0.05, '#b8945a', { p: [0.38, 0.5, 0.32], r: [Math.PI / 2, 0, 0] }, 5, 12);
+      for (let i = 0; i < 7; i++) kit.ico(0.075, i % 2 ? '#a8784a' : '#b98352', { p: [0.38 + Math.cos(i * 2.4) * 0.11 * (i % 3), 0.52 + (i % 2) * 0.05, 0.32 + Math.sin(i * 2.4) * 0.11 * (i % 3)], s: [1.2, 0.9, 1] });
+      for (const [x, z] of [[0.66, 0.5], [0.12, 0.58], [0.7, 0.18]]) kit.ico(0.07, '#a8784a', { p: [x, 0.06, z], s: [1.25, 0.85, 1] });
+      break;
+    }
+    case 'escalator': {
+      // An escalator rising to the next floor against the back wall: steel sides, black handrails, and steps that keep on coming.
+      const H = 2.75;
+      const z0 = hd - 0.3;
+      const z1 = -hd + 0.25;
+      const slope = Math.atan2(H, z0 - z1);
+      const run = Math.hypot(H, z0 - z1);
+      const STEEL = '#bcc3ca';
+      // The truss under it, and the landings top and bottom.
+      kit.beam([0, 0.35, z0], [0, H - 0.2, z1], hw * 2 - 0.3, 0.5, '#8f969e');
+      kit.box(hw * 2 - 0.2, 0.06, 0.6, '#9aa1a8', { p: [0, 0.03, z0 + 0.1], jitter: 0 });
+      kit.box(hw * 2 + 0.1, 0.12, 0.5, '#9aa1a8', { p: [0, H - 0.06, -hd + 0.25] });
+      kit.box(hw * 2 + 0.3, 0.3, 0.3, '#e8e4dc', { p: [0, H + 0.1, -hd + 0.15] });
+      for (const s of [-1, 1]) {
+        const x = s * (hw - 0.12);
+        // Side panels following the slope, with a level run at each end.
+        kit.beam([x, 0.55, z0 - 0.1], [x, H + 0.2, z1 + 0.05], 0.12, 0.85, STEEL);
+        kit.box(0.12, 0.85, 0.5, STEEL, { p: [x, 0.43, z0 + 0.1] });
+        // The handrail: black, along the top of the side and round the ends.
+        kit.beam([x, 1.05, z0 - 0.1], [x, H + 0.68, z1 + 0.05], 0.1, 0.07, '#1d1f22', 0);
+        kit.box(0.1, 0.07, 0.5, '#1d1f22', { p: [x, 0.93, z0 + 0.12], jitter: 0 });
+        kit.cyl(0.19, 0.19, 0.1, '#1d1f22', { p: [x, 0.76, z0 + 0.37], r: [0, 0, Math.PI / 2] }, 12);
+      }
+      // The steps: one long run of them that slides up a step at a time, round and round.
+      const steps = new Group();
+      const sk = new Kit(77);
+      const STEP = 0.32;
+      const n = Math.ceil(run / STEP) - 1;
+      for (let i = 0; i < n; i++) {
+        sk.box(hw * 2 - 0.44, 0.06, STEP - 0.03, '#4a4f56', { p: [0, 0, -i * STEP], jitter: 0.01 });
+        sk.box(hw * 2 - 0.44, 0.02, 0.03, '#f2c14e', { p: [0, 0.04, -i * STEP + STEP / 2 - 0.03], jitter: 0 });
+      }
+      steps.add(sk.build({ castShadow: false, receiveShadow: true }));
+      // Laid along the slope: each step stays level as the run slides.
+      const lane = new Group();
+      lane.position.set(0, 0.62, z0 - 0.15);
+      lane.rotation.x = slope;
+      lane.add(steps);
+      group.add(lane);
+      animated.push((t) => {
+        if (!calm) steps.position.z = -((t * 0.45) % STEP);
+      });
+      break;
+    }
+    case 'shopfront': {
+      // A row of three shops along the back wall: lit windows with something on show, an awning each in a different colour, and a fascia over it.
+      const SHOPS = [
+        { awning: '#e5484d', fascia: '#2f3338', glow: '#fff3dc', show: 'dress' },
+        { awning: '#2e9c8f', fascia: '#f4efe6', glow: '#eaf6ff', show: 'shoes' },
+        { awning: '#ffbe0b', fascia: '#3a4a66', glow: '#fff0f3', show: 'boxes' },
+      ] as const;
+      const sw = (hw * 2) / SHOPS.length;
+      SHOPS.forEach((shop, i) => {
+        const cx = -hw + (i + 0.5) * sw;
+        const z = wallZ + 0.04;
+        for (const s of [-1, 1]) kit.box(0.16, 2.7, 0.2, '#e8e4dc', { p: [cx + s * (sw / 2 - 0.08), 1.35, z] });
+        kit.box(sw - 0.3, 0.32, 0.1, '#d8d2c8', { p: [cx, 0.16, z + 0.04] });
+        // The window, and a door beside it.
+        const ww = sw * 0.62;
+        const wx = cx - sw * 0.14;
+        kit.addGlow(new BoxGeometry(ww, 1.45, 0.02), shop.glow, { p: [wx, 1.05, z + 0.02] });
+        kit.box(ww + 0.08, 0.06, 0.08, '#8b9198', { p: [wx, 1.8, z + 0.05], jitter: 0 });
+        kit.box(ww + 0.08, 0.06, 0.08, '#8b9198', { p: [wx, 0.32, z + 0.05], jitter: 0 });
+        const dx = cx + sw * 0.32;
+        kit.addGlow(new BoxGeometry(sw * 0.24, 1.6, 0.02), shade(shop.glow, -0.08), { p: [dx, 1.12, z + 0.02] });
+        kit.box(0.05, 1.62, 0.07, '#8b9198', { p: [dx - sw * 0.12, 1.12, z + 0.05], jitter: 0 });
+        // What's on show.
+        if (shop.show === 'dress') {
+          for (const [x, c] of [[-0.35, '#ff8fab'], [0.35, '#c49bff']] as const) {
+            kit.cyl(0.03, 0.03, 0.45, '#8b9198', { p: [wx + x, 0.62, z + 0.18] }, 5);
+            kit.cyl(0.12, 0.28, 0.6, c, { p: [wx + x, 1.12, z + 0.18] }, 8);
+            kit.sphere(0.1, '#f1e4d4', { p: [wx + x, 1.52, z + 0.18] }, 8, 6);
+          }
+        } else if (shop.show === 'shoes') {
+          for (let r = 0; r < 2; r++) {
+            kit.box(ww - 0.2, 0.04, 0.22, '#ffffff', { p: [wx, 0.62 + r * 0.45, z + 0.15], jitter: 0 });
+            for (let j = 0; j < 3; j++) kit.rbox(0.24, 0.1, 0.12, 0.04, ['#e5484d', '#3a86ff', '#2b2f33'][(j + r) % 3], { p: [wx - 0.36 + j * 0.36, 0.7 + r * 0.45, z + 0.16] });
+          }
+        } else {
+          for (const [x, y, s, c] of [[-0.3, 0.55, 0.3, '#ff8fab'], [0.1, 0.5, 0.22, '#7fd3b0'], [0.38, 0.52, 0.26, '#3a86ff'], [-0.1, 0.83, 0.24, '#ffbe0b']] as const) kit.box(s, s, s, c, { p: [wx + x, y + s / 2 - 0.1, z + 0.18], r: [0, x, 0] });
+        }
+        // The awning: stripes sloping out over the window, with a scalloped edge; the fascia over it.
+        const stripes = 6;
+        for (let j = 0; j < stripes; j++) {
+          const x = cx - sw / 2 + 0.2 + (j + 0.5) * ((sw - 0.4) / stripes);
+          kit.box((sw - 0.4) / stripes, 0.04, 0.6, j % 2 ? '#ffffff' : shop.awning, { p: [x, 2.05, z + 0.32], r: [0.42, 0, 0], jitter: 0.02 });
+          kit.cyl(0.11, 0.11, 0.03, j % 2 ? '#ffffff' : shop.awning, { p: [x, 1.9, z + 0.6], r: [Math.PI / 2, 0, 0] }, 8);
+        }
+        kit.box(sw - 0.2, 0.36, 0.12, shop.fascia, { p: [cx, 2.45, z + 0.04] });
+        kit.addGlow(new BoxGeometry(sw * 0.4, 0.1, 0.02), shop.fascia === '#f4efe6' ? '#2e9c8f' : '#ffffff', { p: [cx, 2.45, z + 0.11] });
+      });
       break;
     }
   }

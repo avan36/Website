@@ -17,6 +17,7 @@ import {
   type WebGLProgramParametersWithUniforms,
 } from 'three';
 import { Kit } from './kit';
+import { LONDON_SPOTS, LONDON_WALK } from './london';
 import { ACTIVITIES, clearOfBridges, heightAt, isOpenGround, ISLANDS, owner, rockiness, PLAZA, PLACES, WORDS } from './shape';
 import { rng } from '../util/math';
 
@@ -243,6 +244,14 @@ function instanced(geo: BufferGeometry, mats: { mat: MeshStandardMaterial; depth
   return mesh;
 }
 
+/** Distance from (x, z) to a segment. */
+function segDist(s: { ax: number; az: number; bx: number; bz: number }, x: number, z: number) {
+  const dx = s.bx - s.ax;
+  const dz = s.bz - s.az;
+  const t = Math.max(0, Math.min(1, ((x - s.ax) * dx + (z - s.az) * dz) / (dx * dx + dz * dz || 1)));
+  return Math.hypot(x - (s.ax + dx * t), z - (s.az + dz * t));
+}
+
 // ---------- Keeping the lost words in view ----------
 
 export const SPOTS = [...WORDS, ...ACTIVITIES];
@@ -369,16 +378,22 @@ export function buildNature(uniforms: SharedUniforms, lite = false) {
     const games = ACTIVITIES.filter((a) => Math.hypot(a.x - isle.x, a.z - isle.z) < isle.outer);
     // The camera looks from the south: keep a ring round each game clear, and the strip in front of it.
     const nearGame = (x: number, z: number, ring: number, front: number) => games.some((g) => Math.hypot(x - g.x, z - g.z) < ring || (z > g.z && z - g.z < front && Math.abs(x - g.x) < 2.6));
-    const p = settle(scatter(4, r, (x, z, h) => h > 0.42 && h < 0.95 && isOpenGround(x, z, 0.6) && !nearGame(x, z, 3.2, 6), 3.4, all, [0.8, 1.05], around), [], 1.6, palmCrown);
+    // A building on an islet (the mall on Little London) keeps its front in view, like the main island's;
+    // and nothing grows on the walk up to it from the bridge, or where its street furniture stands.
+    const places = PLACES.filter((p) => owner(p.x, p.z) === isle.i);
+    const inFront = (x: number, z: number) =>
+      places.some((p) => z > p.z && z - p.z < 9 && Math.abs(x - p.x) < 4.5) || LONDON_SPOTS.some((s) => z > s.z - 0.5 && z - s.z < 7 && Math.abs(x - s.x) < 2.4);
+    const onWay = (x: number, z: number, m: number) => (LONDON_WALK !== null && owner(LONDON_WALK.bx, LONDON_WALK.bz) === isle.i && segDist(LONDON_WALK, x, z) < 1.2 + m) || LONDON_SPOTS.some((s) => Math.hypot(x - s.x, z - s.z) < s.r + 0.5 + m);
+    const p = settle(scatter(4, r, (x, z, h) => h > 0.42 && h < 0.95 && isOpenGround(x, z, 0.6) && !nearGame(x, z, 3.2, 6) && !inFront(x, z) && !onWay(x, z, 1.4), 3.4, all, [0.8, 1.05], around), [], 1.6, palmCrown);
     all.push(...p);
-    const t = settle(scatter(2, r, (x, z, h) => h > 1.0 && isOpenGround(x, z, 1.4) && !nearGame(x, z, 3.6, 8), 4.2, all, [0.8, 1.0], around), [], 1.6, treeCrown);
+    const t = settle(scatter(2, r, (x, z, h) => h > 1.0 && isOpenGround(x, z, 1.4) && !nearGame(x, z, 3.6, 8) && !inFront(x, z) && !onWay(x, z, 1.6), 4.2, all, [0.8, 1.0], around), [], 1.6, treeCrown);
     all.push(...t);
     palms.push(...p);
     trees.push(...t);
-    bushes.push(...settle(scatter(4, r, (x, z, h) => h > 0.75 && isOpenGround(x, z, 0.4) && !nearGame(x, z, 2.4, 3), 1.8, all, [0.7, 1.1], around), [], 1.2, bushCrown));
-    rocks.push(...settle(scatter(4, r, (x, z, h) => h > 0.0 && h < 0.5 && isOpenGround(x, z, 0), 1.5, all, [0.6, 1.2], around), [], 1.0, rockCrown));
-    tufts.push(...scatter(lite ? 12 : 22, r, (x, z, h) => h > 0.7 && isOpenGround(x, z, -0.7) && !nearGame(x, z, 1.6, 0), 0.6, [], [0.8, 1.3], around));
-    flowers.push(...scatter(lite ? 10 : 16, r, (x, z, h) => h > 0.85 && isOpenGround(x, z, -0.5) && !nearGame(x, z, 1.6, 0), 0.45, [], [0.8, 1.2], around));
+    bushes.push(...settle(scatter(4, r, (x, z, h) => h > 0.75 && isOpenGround(x, z, 0.4) && !nearGame(x, z, 2.4, 3) && !onWay(x, z, 0.6), 1.8, all, [0.7, 1.1], around), [], 1.2, bushCrown));
+    rocks.push(...settle(scatter(4, r, (x, z, h) => h > 0.0 && h < 0.5 && isOpenGround(x, z, 0) && !onWay(x, z, 0.4), 1.5, all, [0.6, 1.2], around), [], 1.0, rockCrown));
+    tufts.push(...scatter(lite ? 12 : 22, r, (x, z, h) => h > 0.7 && isOpenGround(x, z, -0.7) && !nearGame(x, z, 1.6, 0) && !onWay(x, z, -0.6), 0.6, [], [0.8, 1.3], around));
+    flowers.push(...scatter(lite ? 10 : 16, r, (x, z, h) => h > 0.85 && isOpenGround(x, z, -0.5) && !nearGame(x, z, 1.6, 0) && !onWay(x, z, -0.6), 0.45, [], [0.8, 1.2], around));
   }
 
   const palmM = swayMaterials(uniforms, 0.0045, 1.1);
