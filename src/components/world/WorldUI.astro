@@ -528,7 +528,20 @@
   .w-talk__choice--go:hover { background: color-mix(in srgb, var(--c) 78%, #000); }
   .w-talk__choice i { width: 10px; height: 10px; border-radius: 50%; background: var(--who); flex: none; }
   .w-talk__foot { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; padding-top: 12px; border-top: 1px solid #ece4d8; }
-  .w-talk__desc { margin-top: 10px; font-family: var(--font-read); font-size: 17px; line-height: 1.5; color: #3d362f; }
+  .w-talk__desc { margin-top: 8px; font-family: var(--font-read); font-size: 16px; line-height: 1.5; color: #4a443c; }
+  /* The work the building stands for, at the top of the room's overview. */
+  .w-talk__work { display: grid; gap: 8px; margin-top: 12px; }
+  .w-talk__headline { font-family: var(--font-display); font-size: 20px; font-weight: 700; line-height: 1.2; letter-spacing: -0.015em; text-wrap: balance; }
+  .w-talk__body { font-family: var(--font-read); font-size: 16px; line-height: 1.5; color: #3d362f; text-wrap: pretty; }
+  .w-talk__shots { display: flex; gap: 10px; margin: 4px -22px 0; padding: 4px 22px 8px; overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: thin; }
+  .w-talk__shot { flex: none; width: auto; height: 210px; border-radius: 16px; background: #f3ecdf; box-shadow: 0 0 0 1px rgba(29, 26, 22, 0.08), 0 6px 16px rgba(60, 40, 10, 0.12); scroll-snap-align: start; }
+  .w-talk__shot.is-browser { height: 160px; border-radius: 8px; }
+  .w-talk__links { display: flex; flex-wrap: wrap; gap: 0 16px; }
+  .w-talk__links .w-talk__more { margin-top: 2px; min-height: 36px; }
+  @media (max-width: 999px), (max-height: 559px) {
+    .w-talk__shot { height: 150px; }
+    .w-talk__shot.is-browser { height: 110px; }
+  }
 
   /* Over the map: an old handheld's dialogue box. */
   html[data-view='map'] .w-room,
@@ -554,6 +567,9 @@
   html[data-view='map'] .w-talk__kicker,
   html[data-view='map'] .w-talk__label { font-family: var(--font-mono); letter-spacing: 0.14em; }
   html[data-view='map'] .w-talk { padding: 16px 18px; }
+  html[data-view='map'] .w-talk__shots { margin-inline: -18px; padding-inline: 18px; }
+  html[data-view='map'] .w-talk__shot { border-radius: 0; box-shadow: 0 0 0 3px #3a2a24; }
+  html[data-view='map'] .w-talk__headline { font-family: var(--font-display); }
   html[data-view='map'] .w-talk__face { border-radius: 0; box-shadow: inset 0 -12px 0 -2px var(--who, var(--c)), 0 0 0 3px #3a2a24; image-rendering: pixelated; }
   html[data-view='map'] .w-talk__line.is-said { border-radius: 0; border: 2px dashed color-mix(in srgb, var(--who, var(--c)) 50%, #3a2a24); }
   html[data-view='map'] .w-talk__line { font-family: var(--font-display); font-size: 17px; }

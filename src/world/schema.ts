@@ -53,6 +53,10 @@ export const ProjectSchema = z
     tags: z.array(z.string()),
     links: z.array(LinkSchema),
     href: z.string(),
+    /** Screenshots, for views that show the work where it stands (a room's panel). */
+    shots: z
+      .array(z.object({ src: z.string(), alt: z.string(), width: z.number().int().positive(), height: z.number().int().positive(), frame: z.enum(['phone', 'browser']) }).strict())
+      .default([]),
   })
   .strict();
 
