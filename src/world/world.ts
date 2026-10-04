@@ -495,6 +495,112 @@ const interiors: Record<string, InteriorInput> = {
   },
 };
 
+// Not every building is work. The mall over Tower Bridge is somewhere from
+// Ambrose's own life: no page to open, just a place to walk round. Five Guys is
+// as it is in real life (fresh-cut fries, free toppings, the extra scoop in the
+// bag); the islanders are made up, and only say what's true of any visit.
+const westfield: InteriorInput = {
+  size: { w: 13, d: 9 },
+  description:
+    "Inside, it's bright and echoey under the glass roof. Shopfronts glow all along the back, an escalator hums up to the next floor, and over to one side, behind a counter in red and white tiles, is Five Guys.",
+  things: [
+    {
+      id: 'five-guys',
+      names: ['Five Guys', 'five guys', 'counter', 'burgers', 'burger', 'fries', 'grill', 'menu'],
+      prop: 'grill',
+      at: { x: -4, z: 0.4 },
+      description:
+        'Five Guys: a counter in red and white tiles, a menu board, and a grill hissing away behind it. Burgers, fries and milkshakes, and when your fries come, there is always an extra scoop tipped loose into the bag.',
+    },
+    {
+      id: 'potatoes',
+      names: ['sacks of potatoes', 'potatoes', 'sacks', 'potato', 'sack'],
+      prop: 'sacks',
+      at: { x: -5.4, z: 2.6 },
+      description: 'Sacks of potatoes, stacked up by the counter. They come in as potatoes and go out as fries, which is the whole trick.',
+    },
+    {
+      id: 'shops',
+      names: ['shops', 'shopfronts', 'shop windows', 'shop', 'windows'],
+      prop: 'shopfront',
+      at: { x: -3.4, z: -3.9 },
+      description: 'A row of shopfronts with their lights on and their doors wide open, which is how a whole afternoon disappears.',
+    },
+    {
+      id: 'directory',
+      names: ['map', 'directory', 'you are here', 'red dot', 'board'],
+      prop: 'board',
+      at: { x: 0.9, z: -3.9 },
+      description: 'A map of the whole centre, floor by floor, with a red dot that says YOU ARE HERE. Somehow that is always the hardest thing on it to find.',
+    },
+    {
+      id: 'escalator',
+      names: ['escalator', 'escalators', 'moving stairs', 'stairs', 'upstairs'],
+      prop: 'escalator',
+      at: { x: 4.3, z: -3.4 },
+      description: "An escalator, humming up to the next floor. It's very hard not to try running up the down one.",
+    },
+  ],
+  people: [
+    {
+      id: 'clem',
+      name: 'Clem',
+      role: 'the fry cook',
+      aliases: ['cook', 'fry cook', 'chef'],
+      looks: 'A cheerful islander in a red cap and a white apron, with a fry basket in one hand.',
+      color: '#d22630',
+      at: { x: -1.7, z: 0.7 },
+      greeting: 'Hiya! Burgers, fries, shakes. That is the menu, and it is the whole of my expertise. Ask away.',
+      topics: [
+        {
+          id: 'burgers',
+          names: ['the burgers', 'burgers', 'burger', 'toppings'],
+          reply: 'Two patties as standard, and the toppings are free, so most people have all of them. Grilled while you watch, wrapped in foil, handed over hot.',
+        },
+        {
+          id: 'fries',
+          names: ['the fries', 'fries', 'chips', 'potatoes', 'cajun'],
+          reply: "Cut from those sacks of potatoes, fried, and served regular or Cajun. The cup's full, then I tip another scoop into the bag. Everybody knows. Nobody says anything.",
+        },
+        {
+          id: 'shakes',
+          names: ['milkshakes', 'shakes', 'milkshake', 'mix-ins'],
+          reply: "Milkshakes, with as many mix-ins as you can talk me into. I've seen people ask for all of them. I've seen people regret it. Same people.",
+        },
+      ],
+      farewell: 'Mind the escalator on your way out. Come back hungry.',
+    },
+    {
+      id: 'nell',
+      name: 'Nell',
+      role: 'a shopper',
+      aliases: ['shopper'],
+      looks: 'A brisk islander in a green coat, with more shopping bags than hands.',
+      color: '#2f8f6b',
+      at: { x: 2.4, z: 1 },
+      greeting: "Oh, hello! Don't mind the bags. I only popped in for one thing.",
+      topics: [
+        {
+          id: 'shops',
+          names: ['the shops', 'shops', 'shopping', 'bags'],
+          reply: "I came in for one thing, and I still haven't found it. I have found everything else.",
+        },
+        {
+          id: 'bridge',
+          names: ['the bridge', 'tower bridge', 'bridge', 'towers'],
+          reply: 'Tower Bridge! The middle of it lifts to let tall ships through. The real one has been doing that since 1894, and it still stops the traffic every time.',
+        },
+        {
+          id: 'time',
+          names: ['the time', 'time', 'afternoon', 'clock'],
+          reply: "Time does something funny in here. You come in after lunch, and somehow it's dark when you leave.",
+        },
+      ],
+      farewell: 'Bye! If you find the one thing I came in for, it is yours.',
+    },
+  ],
+};
+
 const places: PlaceInput[] = [
   {
     id: 'plaza',
@@ -544,14 +650,14 @@ const places: PlaceInput[] = [
     clearing: 4.6,
     aliases: ['taproom', 'pub', 'bar', 'tavern', 'beer'],
     description:
-      'A timber-framed taproom with an arched door, string lights sagging between two poles, and a sign that swings whenever the breeze picks up. Out front, mugs sit on a barrel table between a pair of stools. Further east, a little railway runs round to a station, and a red bus is parked on the quay below it.',
+      'A timber-framed taproom with an arched door, string lights sagging between two poles, and a sign that swings whenever the breeze picks up. Out front, mugs sit on a barrel table between a pair of stools. Further east, a little railway runs round to a station, and a red bus is parked on the quay below it, facing Tower Bridge.',
     scenery: [
       { id: 'barrels', names: ['barrels', 'barrel', 'casks', 'kegs'], description: 'Oak barrels stacked against the wall, most of them empty.' },
       { id: 'sign', names: ['sign', 'swinging sign'], description: 'It reads: "Know what you\'ll love before you order."' },
       { id: 'mugs', names: ['mugs', 'mug', 'table', 'stools'], description: 'Two mugs, one full, one empty. Somebody already knows what they like.' },
       { id: 'lights', names: ['lights', 'string lights', 'bulbs'], description: 'Warm little bulbs on a sagging wire. They hum faintly.' },
       { id: 'train', names: ['train', 'caltrain', 'railway', 'rails', 'tracks', 'station', 'platform', 'carriages'], description: "Out past the taproom, a little railway loops round the east end of the island. The train is a Caltrain: silver, two decks high, with a red nose at each end and its name painted down the sides. It keeps island time: on weekday mornings and evenings it goes round and round, stopping at the platform every lap; the rest of the time it waits there with its doors open." },
-      { id: 'bus', names: ['bus', 'london bus', 'double-decker', 'double decker', 'quay'], description: "Down on the stone quay by the water, a red London double-decker is parked with its engine off, a long way from home. LONDON is painted in gold down its sides, and the lit blind over the cab says LONDON too, which seems optimistic. It isn't going anywhere today." },
+      { id: 'bus', names: ['bus', 'london bus', 'double-decker', 'double decker', 'quay'], description: "Down on the stone quay by the water, a red London double-decker is parked with its engine off, a long way from home. LONDON is painted in gold down its sides, and the lit blind over the cab says LONDON too. It's parked facing Tower Bridge, which runs east from the end of the quay, as if it's thinking about it." },
     ],
   }),
   projectPlace('map-of-evolution', {
@@ -704,6 +810,35 @@ const places: PlaceInput[] = [
       { id: 'guestbook', names: ['guestbook', 'notes', 'rolled notes'], description: 'A few rolled-up notes from earlier visitors, tucked in the sand beside the bottle. Open the bottle to read them, or to leave one of your own.' },
     ],
   },
+  {
+    id: 'westfield',
+    kind: 'memory',
+    archetype: 'mall',
+    name: 'Westfield',
+    title: 'The mall',
+    blurb: 'I spent a lot of time here growing up, with my dad.',
+    color: '#c8102e',
+    at: { x: 54.6, z: 16.8 },
+    footprint: 3.3,
+    clearing: 4.4,
+    faces: -0.75,
+    aliases: ['westfield', 'mall', 'shopping centre', 'shopping center', 'shopping mall', 'shops', 'five guys', 'little london'],
+    description:
+      "Over Tower Bridge, on an island of its own, there's a shopping centre with a long glass roof and WESTFIELD in big letters over the doors. Every time they slide open, out comes a warm gust of air and the smell of fries. I spent a lot of time here growing up, with my dad.",
+    scenery: [
+      { id: 'sign', names: ['sign', 'westfield', 'letters'], description: 'WESTFIELD, in big letters over the doors. You would know it anywhere.' },
+      { id: 'doors', names: ['doors', 'sliding doors', 'entrance', 'door'], description: 'Glass doors that slide open as you come near. Out comes a warm gust of air, and fries, every time.' },
+      { id: 'roof', names: ['roof', 'glass roof', 'glass'], description: 'A long glass roof, curved like a wave, so the whole place is full of daylight.' },
+      {
+        id: 'bridge',
+        names: ['bridge', 'tower bridge', 'towers', 'walkways', 'chains'],
+        description:
+          'Tower Bridge, back the way you came: two stone towers with pointed roofs, walkways strung high between them, and blue and white chains swooping down to either end. The middle of the road can lift for tall ships. Today it is staying down.',
+      },
+      { id: 'phone-box', names: ['phone box', 'telephone box', 'red phone box', 'telephone', 'phone'], description: 'A red telephone box by the path, with its little windows and its crown on top. You step in. There is nobody to call, but it feels like there should be.' },
+    ],
+    interior: westfield,
+  },
 ];
 
 const routes: WorldInput['routes'] = [
@@ -727,6 +862,8 @@ const routes: WorldInput['routes'] = [
   { from: 'eqoscan', to: 'privacy-research', paved: false },
   { from: 'workshop', to: 'busy-beer', paved: false },
   { from: 'workshop', to: 'eqoscan', paved: false },
+  // Down to the quay and over Tower Bridge.
+  { from: 'busy-beer', to: 'westfield', paved: false },
 ];
 
 // Eight words English lost, from Etymon's museum of lost words, each hidden
@@ -1016,6 +1153,15 @@ const outfits: WorldInput['outfits'] = [
     hint: 'Walk out to the end of the pier, where the anglers stand.',
   },
   {
+    id: 'red-cap',
+    name: 'red cap',
+    slot: 'head',
+    place: 'westfield',
+    color: '#d22630',
+    description: "A red cap like the fry cook's, from the mall over Tower Bridge. It smells faintly of fries, which you get used to.",
+    hint: 'The fry cook at the mall wears one, and keeps a spare behind the counter.',
+  },
+  {
     id: 'sailor-hat',
     name: "sailor's cap",
     slot: 'head',
@@ -1041,17 +1187,21 @@ const geography: WorldInput['geography'] = {
   // New land to the east: room for the railway loop, the quay and the workshop inside it.
   shores: [{ toward: { x: 1, z: 0.1 }, reach: 13, spread: 0.45 }],
   railway: { center: { x: 24, z: 1.5 }, rx: 6.5, rz: 9, square: 3.2, bed: 1.3, station: 0.25 },
-  quay: { x0: 24, z0: 14.2, x1: 30.5, z1: 19.8, deck: 0.7, bus: { x: 27.4, z: 17.2 }, faces: Math.PI / 2 },
+  quay: { x0: 24, z0: 14.2, x1: 30.5, z1: 19.8, deck: 0.7, bus: { x: 26.6, z: 17.2 }, faces: Math.PI / 2 },
   // Two islets off the west coast, a footbridge out to each: Root Isle, for
   // where words and living things come from, and Boardwalk Isle, with a beach
-  // bar and a pushy kiosk. Their games are on the island's activities.
+  // bar and a pushy kiosk. Their games are on the island's activities. And off
+  // the east end, Little London: Tower Bridge from the quay, out to Westfield.
   islets: [
     { id: 'root-isle', name: 'Root Isle', at: { x: -31.7, z: -14.8 }, coast: { radius: 6.6, ripples: [{ freq: 3, amp: 0.5, phase: 1.2 }, { freq: 5, amp: 0.3, phase: 0.4 }] } },
     { id: 'boardwalk-isle', name: 'Boardwalk Isle', at: { x: -33.1, z: 14.1 }, coast: { radius: 6.6, ripples: [{ freq: 3, amp: 0.5, phase: 2.6 }, { freq: 4, amp: 0.35, phase: 0.9 }] } },
+    { id: 'little-london', name: 'Little London', at: { x: 54, z: 17.2 }, coast: { radius: 9, ripples: [{ freq: 3, amp: 0.5, phase: 0.4 }, { freq: 5, amp: 0.3, phase: 1.9 }] } },
   ],
   bridges: [
     { from: { x: -15.6, z: -10.5 }, to: { x: -27, z: -13.5 }, width: 2.4, deck: 1.15 },
     { from: { x: -16.8, z: 11 }, to: { x: -28.3, z: 13.2 }, width: 2.4, deck: 1.15 },
+    // Tower Bridge, level with the quay at the bus's end and straight out to Little London.
+    { from: { x: 30.2, z: 17.2 }, to: { x: 46.4, z: 17.2 }, width: 3.4, deck: 0.76, style: 'tower' },
   ],
   spawn: { x: 0, z: 7.5 },
 };

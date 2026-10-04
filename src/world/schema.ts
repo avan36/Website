@@ -85,10 +85,10 @@ export const ScenerySchema = z
   })
   .strict();
 
-export const ARCHETYPES = ['plaza', 'cabin', 'taproom', 'tree', 'library', 'lighthouse', 'schoolhouse', 'depot', 'workshop', 'pier', 'bottle'] as const;
+export const ARCHETYPES = ['plaza', 'cabin', 'taproom', 'tree', 'library', 'lighthouse', 'schoolhouse', 'depot', 'mall', 'workshop', 'pier', 'bottle'] as const;
 
 /** The archetypes that are buildings you can walk into. */
-export const BUILDINGS = ['cabin', 'taproom', 'library', 'lighthouse', 'schoolhouse', 'depot'] as const;
+export const BUILDINGS = ['cabin', 'taproom', 'library', 'lighthouse', 'schoolhouse', 'depot', 'mall'] as const;
 
 // ---------- Inside ----------
 // A building's room. Coordinates are in room units (about a metre, like the
@@ -100,7 +100,7 @@ export const BUILDINGS = ['cabin', 'taproom', 'library', 'lighthouse', 'schoolho
 /** A page a line or a thing points at: on this site, or the real thing elsewhere. */
 export const PointerSchema = z.object({ label: z.string(), href: z.string() }).strict();
 
-export const PROPS = ['desk', 'hearth', 'frame', 'board', 'counter', 'bookshelf', 'cabinet', 'lens', 'cat', 'globe', 'scanner', 'crates'] as const;
+export const PROPS = ['desk', 'hearth', 'frame', 'board', 'counter', 'bookshelf', 'cabinet', 'lens', 'cat', 'globe', 'scanner', 'crates', 'grill', 'sacks', 'escalator', 'shopfront'] as const;
 
 /** Something inside you can look at. */
 export const ThingSchema = z
@@ -108,7 +108,7 @@ export const ThingSchema = z
     id: Id,
     /** Nouns that refer to it, first one is the display name. */
     names: z.array(z.string().min(1)).min(1),
-    /** What it is, for the renderers' art. Wall things (frame, board, bookshelf, hearth, cabinet) stand against the back wall. */
+    /** What it is, for the renderers' art. Wall things (frame, board, bookshelf, hearth, cabinet, escalator, shopfront) stand against the back wall. */
     prop: z.enum(PROPS),
     at: Vec2,
     description: z.string(),
@@ -159,14 +159,16 @@ export const InteriorSchema = z
   .strict();
 
 /** Wall things stand against the back wall; the rest stand on the floor. */
-export const WALL_PROPS: readonly (typeof PROPS)[number][] = ['frame', 'board', 'bookshelf', 'hearth', 'cabinet'];
+export const WALL_PROPS: readonly (typeof PROPS)[number][] = ['frame', 'board', 'bookshelf', 'hearth', 'cabinet', 'escalator', 'shopfront'];
 
 export const PlaceSchema = z
   .object({
     id: Id,
     /** hub: a crossroads with nothing to open. project/writing/contact: opens a page.
-     *  colophon: opens the page about how the site itself was made. */
-    kind: z.enum(['hub', 'project', 'writing', 'contact', 'colophon']),
+     *  colophon: opens the page about how the site itself was made. memory:
+     *  somewhere from Ambrose's own life, a building with no page to open:
+     *  you go in and look round. */
+    kind: z.enum(['hub', 'project', 'writing', 'contact', 'colophon', 'memory']),
     /** What it physically is. Each renderer maps archetypes to its own art. */
     archetype: z.enum(ARCHETYPES),
     /** The thing it stands for, e.g. "busy beer". */
@@ -175,7 +177,7 @@ export const PlaceSchema = z
     title: z.string(),
     /** One line, shown on labels and cards. */
     blurb: z.string(),
-    /** Page it opens. Omitted for hubs. */
+    /** Page it opens. Omitted for hubs and memories. */
     href: z.string().optional(),
     /** For kind 'project': the project's slug. */
     project: Id.optional(),
@@ -328,9 +330,14 @@ export const GeographySchema = z
     /** Little islands off the main one, each with its own coast round `at`
      *  (grass on top and a sandy beach, like the main island's shore). */
     islets: z.array(z.object({ id: Id, name: z.string(), at: Vec2, coast: CoastSchema }).strict()).default([]),
-    /** Footbridges: a level wooden deck at height `deck`, with railings, from
-     *  one point on land straight to another on a different island. */
-    bridges: z.array(z.object({ from: Vec2, to: Vec2, width: z.number().min(1.6).max(4), deck: z.number() }).strict()).default([]),
+    /** Bridges: a level deck at height `deck`, with railings, from one point on
+     *  land (or the quay, which is the main island's) straight to another on a
+     *  different island. A footbridge is plain planks; a tower bridge stands two
+     *  towers in the water, with walkways high between them and chains
+     *  swooping down to either end, like Tower Bridge. Either way you walk the deck. */
+    bridges: z
+      .array(z.object({ from: Vec2, to: Vec2, width: z.number().min(1.6).max(4), deck: z.number(), style: z.enum(['footbridge', 'tower']).default('footbridge') }).strict())
+      .default([]),
     /** Where a new visitor appears. */
     spawn: Vec2,
   })
@@ -397,10 +404,12 @@ export function checkWorld(w: z.infer<typeof WorldSchema> | World): Issue[] {
     places.set(p.id, p);
   });
 
-  // Every place that opens a page says which one, and hubs don't.
+  // Every place that opens a page says which one, and hubs and memories don't.
   w.places.forEach((p, i) => {
     if (p.kind === 'hub' && p.href) add(`Hub "${p.id}" shouldn't open a page.`, ['places', i, 'href']);
-    if (p.kind !== 'hub' && !p.href) add(`"${p.id}" needs an href.`, ['places', i, 'href']);
+    if (p.kind === 'memory' && p.href) add(`"${p.id}" is a memory: it opens no page, so leave out its href.`, ['places', i, 'href']);
+    if (p.kind === 'memory' && !p.interior) add(`"${p.id}" is a memory, with no page to open: give it a room to walk into instead.`, ['places', i]);
+    if (p.kind !== 'hub' && p.kind !== 'memory' && !p.href) add(`"${p.id}" needs an href.`, ['places', i, 'href']);
     if (p.kind === 'project' && !p.project) add(`Project place "${p.id}" needs a project slug.`, ['places', i, 'project']);
   });
   if (w.places.filter((p) => p.kind === 'hub').length !== 1) add('The world needs exactly one hub (where paths meet).', ['places']);

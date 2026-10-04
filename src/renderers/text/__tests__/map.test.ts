@@ -27,8 +27,8 @@ describe('the map', () => {
     }
   });
 
-  it('puts the @ next to your own place', () => {
-    for (const p of world.places) {
+  it('puts the @ next to your own place (on the main island: the islets are off the map)', () => {
+    for (const p of world.places.filter((x) => !geo.islandOf(x.at.x, x.at.z))) {
       const m = mapOf(p.id);
       const g = glyphs(world).get(p.id)!;
       const find = (ch: string) => {
@@ -47,6 +47,19 @@ describe('the map', () => {
       const { c, r } = m.toCell(s.x, s.z);
       expect([GROUND.sea, ' '], s.id).toContain(m.rows[r][c]);
     }
+  });
+
+  it('runs Tower Bridge out toward the edge, with the mall at the end of it, and you on it when you are there', () => {
+    const m = drawIsland(world, geo);
+    const F = m.glyph.get('westfield')!;
+    const r = m.rows.findIndex((row) => row.includes(F));
+    expect(r).toBeGreaterThan(0);
+    const row = m.rows[r].join('');
+    expect(row).toMatch(new RegExp(`={3,}${F}`));
+    expect(row.indexOf(F)).toBeGreaterThan(MAP_COLS * 0.75);
+    const you = mapOf('westfield');
+    const at = you.rows.findIndex((x) => x.includes(GROUND.you));
+    expect(Math.abs(at - r)).toBeLessThanOrEqual(2);
   });
 
   it('draws sea all round, and land, paths, rocks and the pier inside', () => {

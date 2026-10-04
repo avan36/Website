@@ -98,7 +98,17 @@ export class Labels {
       card.append(kicker, blurb, enter);
       const pill = document.createElement('a');
       pill.className = 'isl-label__pill';
-      pill.href = p.href;
+      // A memory has no page: its pill is a button that walks you there, like any other pill does when clicked.
+      if (p.href) pill.href = p.href;
+      else {
+        pill.setAttribute('role', 'button');
+        pill.tabIndex = 0;
+        pill.addEventListener('keydown', (e) => {
+          if (e.key !== 'Enter' && e.key !== ' ') return;
+          e.preventDefault();
+          handlers.activate(p.id);
+        });
+      }
       pill.innerHTML = `<span class="isl-label__dot" aria-hidden="true"></span><span class="isl-label__name"></span>`;
       pill.querySelector('.isl-label__name')!.textContent = p.name;
       pill.setAttribute('aria-describedby', card.id);

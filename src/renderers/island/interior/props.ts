@@ -21,7 +21,7 @@ export const shade = (hex: string, k: number) => {
 
 /** About how tall each kind of thing is, for its click box. */
 export function propHeight(p: Prop) {
-  return { desk: 1.4, hearth: 2.8, frame: 1.2, board: 1.5, counter: 1.5, bookshelf: 3, cabinet: 2.2, lens: 2.8, cat: 0.7, globe: 1.5, scanner: 1.5, crates: 1.9 }[p];
+  return { desk: 1.4, hearth: 2.8, frame: 1.2, board: 1.5, counter: 1.5, bookshelf: 3, cabinet: 2.2, lens: 2.8, cat: 0.7, globe: 1.5, scanner: 1.5, crates: 1.9, grill: 2.4, sacks: 0.9, escalator: 2.8, shopfront: 2.8 }[p];
 }
 
 /** One thing, built from the kit, standing at the origin facing +z. */

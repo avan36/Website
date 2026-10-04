@@ -1560,6 +1560,7 @@ export const BUILDERS = {
   lighthouse: buildLighthouse,
   schoolhouse: buildSchoolhouse,
   depot: buildDepot,
+  mall: buildDepot,
   workshop: buildWorkshop,
   pier: buildPier,
   bottle: buildBottle,

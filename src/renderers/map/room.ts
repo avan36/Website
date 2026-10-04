@@ -66,6 +66,7 @@ const STYLES: Record<string, Style> = {
   lighthouse: { wall: 'glass', floor: 'iron', wallHex: '#e9e4dc' },
   schoolhouse: { wall: 'wainscot', floor: 'planks', wallHex: '#f4ead2' },
   depot: { wall: 'metal', floor: 'concrete', wallHex: '#a9b2b0' },
+  mall: { wall: 'plaster', floor: 'concrete', wallHex: '#f1ece4' },
 };
 
 export interface RoomSprite {

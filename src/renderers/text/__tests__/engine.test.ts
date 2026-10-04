@@ -619,3 +619,34 @@ describe('the workshop', () => {
     expect(play(night, 'look').text).toMatch(/dark except for the monitor/);
   });
 });
+
+describe('Westfield, over Tower Bridge', () => {
+  it('walks there down past the bus and over Tower Bridge, and back again', () => {
+    const { state, text } = play('plaza', 'go to westfield');
+    expect(state.at).toBe('westfield');
+    expect(text).toMatch(/past the bus and over Tower Bridge to the mall/);
+    expect(text).toMatch(/I spent a lot of time here growing up, with my dad\./);
+    expect(text).toMatch(/ENTER to go in and meet Clem, the fry cook and Nell, a shopper/);
+    expect(play('westfield', 'go to the taproom').text).toMatch(/^You walk back over Tower Bridge, then /);
+    for (const name of ['mall', 'five guys', 'shopping centre', 'little london']) expect(play('plaza', `go to ${name}`).state.at, name).toBe('westfield');
+  });
+
+  it('goes in to Five Guys, where there is no page to open, only the room', () => {
+    const inside = play('westfield', 'enter');
+    expect(inside.state.inside).toBe(true);
+    expect(inside.text).toMatch(/sliding doors/);
+    expect(inside.text).toMatch(/Five Guys/);
+    expect(inside.text).not.toMatch(/\[?OPEN\]? the page/i);
+    const open = play(inside.state, 'open');
+    expect(open.last.effects.some((e) => e.type === 'go')).toBe(false);
+    expect(open.text).toMatch(/no page/);
+    expect(play(inside.state, 'x fries').text).toMatch(/extra scoop/);
+    expect(play(inside.state, 'ask clem about fries').text).toMatch(/regular or Cajun/);
+  });
+
+  it('gives you a red cap for turning up', () => {
+    const { state, all } = play('busy-beer', 'go to westfield');
+    expect(state.wardrobe).toContain('red-cap');
+    expect(all).toMatch(/red cap/);
+  });
+});

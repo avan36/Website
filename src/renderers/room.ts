@@ -177,6 +177,7 @@ export function createRoomUI(world: World, announce: (s: string) => void, toast:
          <a class="w-talk__choice w-talk__choice--go w-talk__cta" href="${esc(p.href ?? '/')}" data-talk-link><span>${work ? `Read more<span class="w-talk__long"> about ${esc(work.name)}</span>` : 'The full page'}</span> <span aria-hidden="true">→</span></a>
          ${lead(work)}
        </div>`;
+    // A memory (somewhere from Ambrose's own life) has no page and no buttons: just what it was.
     const about = work
       ? `<div class="w-talk__work">
            <p class="w-talk__headline">${esc(work.headline)}</p>
@@ -184,11 +185,13 @@ export function createRoomUI(world: World, announce: (s: string) => void, toast:
            ${work.body.map((b) => `<p class="w-talk__body">${esc(b)}</p>`).join('')}
            ${shots ? `<div class="w-talk__shots">${shots}</div>` : ''}
          </div>`
-      : ctas;
+      : p.href
+        ? ctas
+        : `<div class="w-talk__work"><p class="w-talk__headline">${esc(p.blurb)}</p></div>`;
     const things = room.things.map((t) => `<button type="button" class="w-talk__choice" data-talk="thing:${t.id}">Look at ${esc(thingName(t))}</button>`).join('');
     show(
       `${CLOSE}
-       <div class="w-talk__head"><div class="w-talk__who"><span class="w-talk__kicker">Inside ${esc(the(p))}</span><h2 class="w-talk__name" id="w-talk-title">${esc(work ? work.name : cap(the(p)))}</h2></div></div>
+       <div class="w-talk__head"><div class="w-talk__who"><span class="w-talk__kicker">Inside ${esc(the(p))}</span><h2 class="w-talk__name" id="w-talk-title">${esc(work ? work.name : p.href ? cap(the(p)) : p.name)}</h2></div></div>
        ${about}
        ${things ? `<p class="w-talk__label">Have a look at</p><div class="w-talk__choices" role="group" aria-label="Things to look at">${things}</div>` : ''}`,
       p.color,
@@ -196,7 +199,7 @@ export function createRoomUI(world: World, announce: (s: string) => void, toast:
       'look',
       passing,
     );
-    if (!quiet) announce(`Inside ${the(p)}. ${work ? `${work.name}: ${work.headline} ` : ''}${room.description}`);
+    if (!quiet) announce(`Inside ${the(p)}. ${work ? `${work.name}: ${work.headline} ` : p.href ? '' : `${p.name}. ${p.blurb} `}${room.description}`);
   }
 
   /** The work's own way in, beside its page: the App Store, or the thing itself (or failing those, its first link). */

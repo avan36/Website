@@ -11,7 +11,7 @@ describe('the islets', () => {
   const islets = geo.islands.slice(1);
 
   it('stand out at sea off the main island, with water all round them', () => {
-    expect(islets.map((s) => s.id).sort()).toEqual(['boardwalk-isle', 'root-isle']);
+    expect(islets.map((s) => s.id).sort()).toEqual(['boardwalk-isle', 'little-london', 'root-isle']);
     for (const s of islets) {
       expect(geo.islandOf(s.x, s.z), s.id).toBe(s.i);
       expect(geo.heightAt(s.x, s.z), s.id).toBeGreaterThan(0.8);
@@ -61,8 +61,8 @@ describe('the bridges', () => {
   const geo = createGeo(w);
 
   it('each join the main island to an islet, over the sea', () => {
-    expect(geo.bridges).toHaveLength(2);
-    expect(geo.bridges.map((b) => b.joins.join('-')).sort()).toEqual(['0-1', '0-2']);
+    expect(geo.bridges).toHaveLength(3);
+    expect(geo.bridges.map((b) => b.joins.join('-')).sort()).toEqual(['0-1', '0-2', '0-3']);
     for (const b of geo.bridges) {
       const middle = { x: (b.ax + b.bx) / 2, z: (b.az + b.bz) / 2 };
       expect(geo.heightAt(middle.x, middle.z), `bridge ${b.i}`).toBeLessThan(0);

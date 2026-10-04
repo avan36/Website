@@ -133,7 +133,7 @@ export function createEngine(world: World, geo: Geo, { random = Math.random }: E
     if (boat?.place === pl.id) out.push(dim(boat.description, ' ', ...md('Type [RACE] to take it out.')));
     out.push(...games.describe(pl));
     if (portal?.place === pl.id) out.push(dim(...md(`In the middle of it all, a ring of violet light hangs over the cobbles, humming. Through it you can see the island other ways: in 3D, as a pixel map, as a plain list. [Step through](portal) if you're curious.`)));
-    if (pl.href) {
+    if (pl.href || pl.interior) {
       const verb = pl.kind === 'contact' ? 'OPEN' : 'ENTER';
       const what = project(pl)?.name;
       // Buildings have someone in; anywhere else, going in is the page itself.
@@ -147,19 +147,30 @@ export function createEngine(world: World, geo: Geo, { random = Math.random }: E
 
   // ---------- Moving ----------
 
+  /** The bridge out to the islet a place stands on (null on the main island), by the name you'd know it by. */
+  const bridgeTo = (pl: Place) => {
+    const isle = geo.islandOf(pl.at.x, pl.at.z);
+    const b = isle ? geo.bridges.find((x) => x.joins.includes(isle) && x.joins.includes(0)) : undefined;
+    return b ? (b.style === 'tower' ? 'Tower Bridge' : 'the footbridge') : null;
+  };
+
   function narrate(legs: Leg[]): Span[] {
     const parts = legs.map((l, i) => {
       const to = place(l.to);
       const dir = DIR_NAMES[l.dir];
       const last = i === legs.length - 1;
-      const arrive = (last && ARRIVE[to.archetype]) || `to ${ref(to)}`;
-      if (i === 0) return `${l.paved ? 'follow the path' : 'cut across the grass'} ${dir} ${arrive}`;
+      const over = bridgeTo(to);
+      const arrive = (last && ARRIVE[to.archetype]) || (over ? `over ${over} to ${ref(to)}` : `to ${ref(to)}`);
+      // Out to an islet there's no grass to cut across: you head for the bridge.
+      const way = (paved: boolean) => (over ? 'head' : paved ? 'follow the path' : 'cut across the grass');
+      if (i === 0) return `${way(l.paved)} ${dir} ${arrive}`;
       const prev = legs[i - 1];
-      const how = l.paved !== prev.paved ? (l.paved ? 'pick up the path ' : 'cut across the grass ') : l.dir === prev.dir ? 'carry on ' : '';
+      const how = over ? 'head ' : l.paved !== prev.paved ? (l.paved ? 'pick up the path ' : 'cut across the grass ') : l.dir === prev.dir ? 'carry on ' : '';
       return `${how}${dir} ${arrive}`;
     });
     const from = place(legs[0].from);
-    const leave = from.archetype === 'pier' ? 'You walk back along the pier, then ' : 'You ';
+    const back = bridgeTo(from);
+    const leave = from.archetype === 'pier' ? 'You walk back along the pier, then ' : back ? `You walk back over ${back}, then ` : 'You ';
     const body = parts.length === 1 ? parts[0] : `${parts.slice(0, -1).join(', ')}, then ${parts[parts.length - 1]}`;
     return [cap(`${leave}${body}.`)];
   }
@@ -211,7 +222,7 @@ export function createEngine(world: World, geo: Geo, { random = Math.random }: E
 
   function enter(s: EngineState): Result {
     const pl = place(s.at);
-    if (!pl.href) return result(s, [say(`There's nothing to go into here: ${ref(pl)} is all open air. Every path out of it leads somewhere you can, though. Try [MAP].`)]);
+    if (!pl.href && !pl.interior) return result(s, [say(`There's nothing to go into here: ${ref(pl)} is all open air. Every path out of it leads somewhere you can, though. Try [MAP].`)]);
     if (s.inside) return result(s, [say(`You're already inside. ${openLine(pl)}`)]);
     // A building with a room: in you go. Anywhere else, going in means the page itself.
     if (pl.interior) {
@@ -221,9 +232,10 @@ export function createEngine(world: World, geo: Geo, { random = Math.random }: E
     return openPage(s);
   }
 
-  /** Off to the page a place stands for. */
+  /** Off to the page a place stands for (a memory has none: it's all here). */
   function openPage(s: EngineState): Result {
     const pl = place(s.at);
+    if (!pl.href) return result(s, [say(`There's no page for ${ref(pl)}. It isn't something I made, just somewhere I spent a lot of time, so it's all here. [LEAVE] to step back outside.`)]);
     const lead = s.inside ? `You head for the door marked ${project(pl)?.name ?? pl.name}, where the real thing is.` : `You ${WAY_IN[pl.archetype]}.`;
     return result(s, [p(lead)], [{ type: 'sound', name: 'whoosh' }, { type: 'go', place: pl.id }]);
   }
@@ -239,7 +251,7 @@ export function createEngine(world: World, geo: Geo, { random = Math.random }: E
   const thingAt = (pl: Place, noun: string) => matchNames(noun, things(pl), thingKeys);
   const talkCmd = (c: Character) => `talk to ${key(c.name)}`;
   const askCmd = (c: Character, t: Topic) => `ask ${key(c.name)} about ${key(t.names[0])}`;
-  const openLine = (pl: Place) => `[OPEN] the page to see *${project(pl)?.name ?? pl.name}* properly, or [LEAVE] to step back outside.`;
+  const openLine = (pl: Place) => (pl.href ? `[OPEN] the page to see *${project(pl)?.name ?? pl.name}* properly, or [LEAVE] to step back outside.` : '[LEAVE] to step back outside.');
   const orList = (spans: Span[], last = ' or ', end = '.') => spans.flatMap((x, i) => [x, i < spans.length - 2 ? ', ' : i === spans.length - 2 ? last : end]);
 
   /** "Mabel, the librarian, is here, and so is Pip, a reader." */
@@ -902,7 +914,7 @@ export function createEngine(world: World, geo: Geo, { random = Math.random }: E
         if (here.href && ['page', 'website', 'site'].includes(noun)) return openPage(s);
         if (!noun || noun === 'door' || lex.places(noun).some((x) => x.id === s.at)) return enter(s);
         const sc = lex.scenery(here, noun)[0];
-        if (sc) return wordIn(here, sc) ? examine(s, noun, true) : here.href ? enter(s) : examine(s, noun, false);
+        if (sc) return wordIn(here, sc) ? examine(s, noun, true) : here.href || here.interior ? enter(s) : examine(s, noun, false);
         return goNoun(s, noun, true);
       }
       case 'read': {
@@ -1026,7 +1038,7 @@ export function createEngine(world: World, geo: Geo, { random = Math.random }: E
       case 'search':
         return examineInside(s, noun, true);
       case 'read':
-        if (!noun) return result(s, [say(`There's plenty to read in the real thing. ${openLine(here)}`)]);
+        if (!noun) return result(s, [say(here.href ? `There's plenty to read in the real thing. ${openLine(here)}` : `Nothing to read in here but the shop signs. ${openLine(here)}`)]);
         return examineInside(s, noun, false);
       case 'open':
         if (!noun || ['page', 'door', 'website', 'site'].includes(noun) || lex.places(noun).some((x) => x.id === here.id)) return openPage(s);
@@ -1170,12 +1182,12 @@ export function createEngine(world: World, geo: Geo, { random = Math.random }: E
       }
       for (const c of people(here)) if (c !== talking) chips.push({ label: `Talk to ${c.name}`, cmd: talkCmd(c), tone: talking ? undefined : 'go' });
       for (const t of things(here)) chips.push({ label: `Examine ${t.names[0]}`, cmd: `examine ${t.names[0]}` });
-      chips.push({ label: 'Look', cmd: 'look' }, { label: 'Open the page', cmd: 'open' }, { label: 'Leave', cmd: 'leave' }, { label: 'Help', cmd: 'help' });
+      chips.push({ label: 'Look', cmd: 'look' }, ...(here.href ? [{ label: 'Open the page', cmd: 'open' }] : []), { label: 'Leave', cmd: 'leave' }, { label: 'Help', cmd: 'help' });
       return chips;
     }
     if (s.fishing) chips.push({ label: 'Wait', cmd: 'wait' }, { label: 'Reel in', cmd: 'reel' });
     if (s.pending?.kind === 'confirm') chips.push({ label: 'Yes', cmd: 'yes', tone: 'go' });
-    if (here.href) chips.push({ label: here.kind === 'contact' ? 'Open the bottle' : here.interior ? 'Go inside' : 'Enter', cmd: 'enter', tone: 'go' });
+    if (here.href || here.interior) chips.push({ label: here.kind === 'contact' ? 'Open the bottle' : here.interior ? 'Go inside' : 'Enter', cmd: 'enter', tone: 'go' });
     if (here.kind === 'writing') chips.push({ label: 'Read', cmd: 'read' });
     if (fishing?.place === here.id && !s.fishing) chips.push({ label: 'Fish', cmd: 'fish', tone: 'go' });
     if (boat?.place === here.id) chips.push({ label: 'Race the boat', cmd: 'race', tone: 'go' });

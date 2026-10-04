@@ -71,6 +71,7 @@ const STYLES: Record<string, { wall: string; trim: string; floor: string; floor2
   lighthouse: { wall: '#e9e4dc', trim: '#c94a4a', floor: '#aca397', floor2: '#958c80' },
   schoolhouse: { wall: '#f4ead2', trim: '#86b28f', floor: '#d2a06a', floor2: '#c08a56' },
   depot: { wall: '#a9b2b0', trim: '#5f6866', floor: '#b5bcb9', floor2: '#a3aaa7' },
+  mall: { wall: '#f1ece4', trim: '#c8102e', floor: '#e6e0d6', floor2: '#d8d0c4' },
 };
 
 /** The window glass: sky by day, the night outside after dark. */

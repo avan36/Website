@@ -700,6 +700,7 @@ export function paintLandmark(kind: LandmarkKind, accent: string, doorDx: number
     case 'schoolhouse':
       return schoolhouse(accent, doorDx);
     case 'depot':
+    case 'mall':
       return depot(accent, doorDx);
     case 'workshop':
       return workshop(accent, doorDx);

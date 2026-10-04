@@ -14,7 +14,7 @@ import { mulberry32 } from './rng';
 /** How far the explorer's body reaches from its feet, for collisions. */
 export const BODY_R = 0.32;
 
-export type LandmarkKind = 'cabin' | 'taproom' | 'tree' | 'library' | 'lighthouse' | 'schoolhouse' | 'depot' | 'workshop' | 'postbox' | 'bottle';
+export type LandmarkKind = 'cabin' | 'taproom' | 'tree' | 'library' | 'lighthouse' | 'schoolhouse' | 'depot' | 'mall' | 'workshop' | 'postbox' | 'bottle';
 
 /** Half the width of each landmark's front wall, in world units. */
 export const HALF_WIDTH: Record<LandmarkKind, number> = {
@@ -25,6 +25,7 @@ export const HALF_WIDTH: Record<LandmarkKind, number> = {
   lighthouse: 1.1,
   schoolhouse: 2.8,
   depot: 3.1,
+  mall: 3.6,
   workshop: 2.7,
   postbox: 0.5,
   bottle: 0.6,
@@ -50,7 +51,7 @@ export interface MapPlace {
   boxes: Box[];
 }
 
-const BUILDINGS = new Set<LandmarkKind>(['cabin', 'taproom', 'library', 'schoolhouse', 'depot', 'workshop', 'lighthouse']);
+const BUILDINGS = new Set<LandmarkKind>(['cabin', 'taproom', 'library', 'schoolhouse', 'depot', 'mall', 'workshop', 'lighthouse']);
 const clamp = (v: number, a: number, b: number) => (v < a ? a : v > b ? b : v);
 
 export function layoutPlaces(world: World, geo: Geo): MapPlace[] {

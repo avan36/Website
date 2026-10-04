@@ -86,10 +86,12 @@ describe('the authored world', () => {
     expect(geo.depthAt(w.geography.spawn.x, w.geography.spawn.z)).toBe(0);
   });
 
-  it('has the coast enclose every place but the pier', () => {
+  it('has the coast enclose every place but the pier (and its own islet\'s coast, out on one)', () => {
     for (const p of w.places) {
       if (p.archetype === 'pier') continue;
-      expect(Math.hypot(p.at.x, p.at.z), p.id).toBeLessThan(geo.coastRadius(Math.atan2(p.at.z, p.at.x)));
+      const isle = geo.islands[geo.islandOf(p.at.x, p.at.z) ?? 0];
+      const th = Math.atan2(p.at.z - isle.z, p.at.x - isle.x);
+      expect(Math.hypot(p.at.x - isle.x, p.at.z - isle.z), p.id).toBeLessThan(isle.coast(th));
     }
   });
 
@@ -313,7 +315,7 @@ describe('inside the buildings', () => {
   };
 
   it('gives every building a room, and nothing else one', () => {
-    expect(inside.map((p) => p.archetype).sort()).toEqual(['cabin', 'depot', 'library', 'lighthouse', 'schoolhouse', 'taproom']);
+    expect(inside.map((p) => p.archetype).sort()).toEqual(['cabin', 'depot', 'library', 'lighthouse', 'mall', 'schoolhouse', 'taproom']);
     for (const id of ['blog', 'contact', 'map-of-evolution', 'plaza']) expect(w.places.find((p) => p.id === id)!.interior, id).toBeUndefined();
   });
 
@@ -331,8 +333,8 @@ describe('inside the buildings', () => {
     }
   });
 
-  it('points every room back at the page it stands for', () => {
-    for (const p of inside) {
+  it('points every room back at the page it stands for (a memory has none)', () => {
+    for (const p of inside.filter((x) => x.kind !== 'memory')) {
       const links = [...p.interior!.things.map((t) => t.link), ...p.interior!.people.flatMap((c) => c.topics.map((t) => t.link))];
       expect(links.some((l) => l?.href === p.href), p.id).toBe(true);
     }
