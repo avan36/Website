@@ -195,12 +195,21 @@ export class Landmark {
     return { halos: g?.halos.map(toWorld) ?? [], pools: g?.pools.map(toWorld) ?? [] };
   }
 
+  /** Where it's solid beyond its footprint's circle (a long building's ends), in world space. */
+  solids() {
+    const { x, z } = this.root.position;
+    const c = Math.cos(this.root.rotation.y);
+    const s = Math.sin(this.root.rotation.y);
+    return (this.built.solid ?? []).map(([lx, lz, r]) => ({ x: x + lx * c + lz * s, z: z - lx * s + lz * c, r }));
+  }
+
   /** World position of the landmark's visual center (for camera swoops). */
   focus(out = this.tmp) {
     return out.set(this.place.x, this.baseY + Math.min(this.place.labelY * 0.45, 3.2), this.place.z);
   }
 
   dispose() {
+    this.built.dispose?.();
     this.hit.geometry.dispose();
     this.root.traverse((o) => {
       const m = o as Mesh;

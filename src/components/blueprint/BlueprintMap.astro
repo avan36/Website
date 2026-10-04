@@ -55,12 +55,16 @@ const north = { x: box.x0 + 5, z: box.z0 + 6 };
     </g>
   ))}
 
-  {draw.islets.map((s, i) => (
-    <g class="bp-geo" data-key={`geo:islet:${i}`}>
-      <circle cx={s.x} cy={s.z} r={s.r} class="bp-hill" />
-      <text x={s.x} y={s.z + s.r + 2.2} text-anchor="middle" class="bp-label bp-label--isle">{s.name}</text>
-    </g>
-  ))}
+  {draw.islets.map((s, i) => {
+    // The sheet's stamp fills the bottom right corner: an islet down there is labelled above itself instead.
+    const low = s.x > box.x1 - (box.x1 - box.x0) * 0.36 && s.z + s.r + 2.2 > box.z1 - (box.z1 - box.z0) * 0.16;
+    return (
+      <g class="bp-geo" data-key={`geo:islet:${i}`}>
+        <circle cx={s.x} cy={s.z} r={s.r} class="bp-hill" />
+        <text x={s.x} y={low ? s.z - s.r - 1.4 : s.z + s.r + 2.2} text-anchor="middle" class="bp-label bp-label--isle">{s.name}</text>
+      </g>
+    );
+  })}
   {draw.bridges.map((b, i) => (
     <g class="bp-geo" data-key={`geo:bridge:${i}`}>
       <path d={b.d} class="bp-pier" />

@@ -7,7 +7,7 @@
 //
 // Geometry, reach and pathfinding are roomPlan.ts's, shared with the island.
 
-import type { Place, Prop, Thing } from '../../world/schema';
+import type { Outfit, Place, Prop, Thing } from '../../world/schema';
 import { planRoom, type RoomPlan, type Spot } from '../roomPlan';
 import { paintExplorer, type ExplorerSprites } from './explorer';
 import { HEX } from './palette';
@@ -57,8 +57,25 @@ const GREEN = col('#5cb85a');
 
 const ramp = (hex: string) => [shade(hex, 0.18), shade(hex, 0.08), hex, shade(hex, -0.1), shade(hex, -0.2)].map((h) => col(h));
 
+// The mall: bright tiles, steel, and the lit shops along the back.
+const TILE = col('#f5f0e7');
+const TILE_ALT = col('#ece5d9');
+const TILE_GROUT = col('#d9d0c2');
+const TILE_SHINE = col('#fffcf5');
+const STEEL = col('#c3cad0');
+const STEEL_LIGHT = col('#e4e9ec');
+const STEEL_DARK = col('#8f989f');
+const HANDRAIL = col('#26282c');
+const TREAD = col('#6f767d');
+const TREAD_LIGHT = col('#868d94');
+const TREAD_LINE = col('#4d5359');
+const SHOP_LIT = col('#fff4d6');
+const SHOP_DEEP = col('#f3dfb3');
+const CHECK_RED = col('#d42a32');
+const CHECK_WHITE = col('#fbf5ea');
+
 /** How each kind of building does its walls and floor. */
-type Style = { wall: 'logs' | 'plaster' | 'paper' | 'glass' | 'wainscot' | 'metal'; floor: 'planks' | 'dark' | 'parquet' | 'iron' | 'concrete'; wallHex: string };
+type Style = { wall: 'logs' | 'plaster' | 'paper' | 'glass' | 'wainscot' | 'metal' | 'mall'; floor: 'planks' | 'dark' | 'parquet' | 'iron' | 'concrete' | 'tiles'; wallHex: string };
 const STYLES: Record<string, Style> = {
   cabin: { wall: 'logs', floor: 'planks', wallHex: '#c08a56' },
   taproom: { wall: 'plaster', floor: 'dark', wallHex: '#f3e2c4' },
@@ -66,6 +83,7 @@ const STYLES: Record<string, Style> = {
   lighthouse: { wall: 'glass', floor: 'iron', wallHex: '#e9e4dc' },
   schoolhouse: { wall: 'wainscot', floor: 'planks', wallHex: '#f4ead2' },
   depot: { wall: 'metal', floor: 'concrete', wallHex: '#a9b2b0' },
+  mall: { wall: 'mall', floor: 'tiles', wallHex: '#f3efe8' },
 };
 
 export interface RoomSprite {
@@ -277,6 +295,70 @@ function crates(): { pix: Pix; ax: number; ay: number } {
   return { pix: p, ax: 13, ay: 29 };
 }
 
+/** The burger counter's size, and the row its hot plate is on (the steam rises from there). */
+const GRILL = { w: 42, h: 45, plate: 21 };
+/** The burger counter: a menu board hung over it, a grill behind it with burgers on, a steel top, and red and white tiles down the front. */
+function grill(): { pix: Pix; ax: number; ay: number } {
+  const { w, h, plate } = GRILL;
+  const p = new Pix(w, h);
+  const BOARD = col('#2b2d33');
+  // The menu board on its wires: a red header, the menu in white, prices in gold.
+  p.vline(9, 0, 2, IRON);
+  p.vline(32, 0, 2, IRON);
+  p.rect(4, 3, 34, 12, BOARD);
+  p.rect(4, 3, 34, 2, CHECK_RED);
+  for (let y = 7; y < 14; y += 2) {
+    const len = 9 + Math.floor(hash2(y, 3, 4) * 10);
+    p.hline(7, 7 + len, y, CHECK_WHITE);
+    p.hline(31, 34, y, GOLD);
+  }
+  // The grill behind the counter: a steel splashback and the hot plate, burgers sizzling on it.
+  p.rect(2, 16, 38, plate - 16, STEEL_LIGHT);
+  p.hline(2, 39, 16, WHITE);
+  p.rect(3, plate, 36, 3, IRON);
+  for (const x of [6, 11, 16, 23, 28]) {
+    p.rect(x, plate, 3, 2, col('#7a4a2a'));
+    p.px(x + 1, plate, col('#9c6236'));
+  }
+  // The steel top, with an order waiting: a burger in foil and a cup of fries.
+  p.rect(0, 24, w, 3, STEEL);
+  p.hline(0, w - 1, 24, STEEL_LIGHT);
+  p.hline(0, w - 1, 26, STEEL_DARK);
+  p.rect(30, 21, 4, 3, STEEL_LIGHT);
+  p.px(31, 21, WHITE);
+  p.rect(35, 21, 3, 3, CHECK_RED);
+  p.hline(35, 37, 20, GOLD);
+  p.px(36, 19, GOLD);
+  // Red and white tiles down the front, and a dark kick plate.
+  for (let y = 27; y < h - 1; y++) for (let x = 0; x < w; x++) p.px(x, y, (Math.floor(x / 3) + Math.floor((y - 27) / 3)) % 2 ? CHECK_WHITE : CHECK_RED);
+  p.hline(0, w - 1, h - 1, IRON);
+  return { pix: p, ax: 21, ay: h - 1 };
+}
+
+/** Sacks of potatoes, stacked two and one, with a couple of potatoes rolled out. */
+function sacks(): { pix: Pix; ax: number; ay: number } {
+  const p = new Pix(19, 20);
+  const BURLAP = col('#c9a66b');
+  const BURLAP_LIGHT = col('#ddbf88');
+  const BURLAP_DARK = col('#a5844e');
+  const POTATO = col('#b98a4e');
+  const sack = (x: number, y: number) => {
+    p.rect(x + 1, y + 2, 7, 8, BURLAP);
+    p.rect(x, y + 4, 9, 5, BURLAP);
+    p.vline(x + 1, y + 3, y + 8, BURLAP_LIGHT);
+    p.vline(x + 7, y + 3, y + 9, BURLAP_DARK);
+    p.hline(x + 1, x + 7, y + 6, CHECK_RED); // a red band printed round it
+    p.rect(x + 3, y, 3, 2, BURLAP_DARK); // the tied neck
+    p.px(x + 4, y + 2, ROPE_DARK);
+  };
+  sack(0, 9);
+  sack(9, 9);
+  sack(5, 1);
+  p.rect(2, 18, 2, 2, POTATO);
+  p.rect(14, 18, 2, 1, POTATO);
+  return { pix: p, ax: 9, ay: 19 };
+}
+
 function floorThing(prop: Prop, arch: string, accent: string) {
   switch (prop) {
     case 'desk':
@@ -293,6 +375,10 @@ function floorThing(prop: Prop, arch: string, accent: string) {
       return scanner();
     case 'crates':
       return crates();
+    case 'grill':
+      return grill();
+    case 'sacks':
+      return sacks();
     default:
       return null;
   }
@@ -300,11 +386,128 @@ function floorThing(prop: Prop, arch: string, accent: string) {
 
 // ---------- The walls and what hangs on them ----------
 
+/** Things painted into the back wall (rather than standing as sprites): what hangs on it, and what stands right against it. */
+const onWall = (s: Spot) => s.kind === 'thing' && (s.hang || s.prop === 'bookshelf' || s.prop === 'hearth' || s.prop === 'cabinet' || s.prop === 'escalator');
+
 /** The tops of the walls, seen from above, and their inner edge. */
 function wallRim(style: Style) {
   const hex = style.wallHex === '#3a6fd8' ? '#6b4a3a' : style.wallHex;
   return { top: shade(hex, -0.32), edge: shade(hex, -0.15) };
 }
+
+/** The mall's directory: a lit map of the centre, shops in every color round its corridors, and the red dot. */
+const DIRECTORY = { y0: 11, h: 24 };
+function directory(p: Pix, x0: number, width: number, R: Color[]) {
+  const { y0, h } = DIRECTORY;
+  p.rect(x0, y0, width, h, STEEL_DARK);
+  p.hline(x0, x0 + width - 1, y0, STEEL_LIGHT);
+  const ix = x0 + 2;
+  const iy = y0 + 2;
+  const iw = width - 4;
+  const ih = h - 4;
+  p.rect(ix, iy, iw, ih, WHITE);
+  p.rect(ix, iy, iw, 2, R[2]);
+  // Two rows of shops either side of a corridor, a cross corridor, and the escalators' square.
+  const SHOPS = ['#3a86ff', '#2e9c8f', '#ffbe0b', '#ff7a45', '#8e7cc3', '#4caf6a', '#e0559a', '#7fb6d8', '#f0a92e'].map((h) => col(h));
+  const hall = iy + 2 + Math.floor((ih - 2) / 2);
+  p.rect(ix, hall - 1, iw, 3, col('#e3e7ea'));
+  let k = 0;
+  for (const [top, bottom] of [[iy + 3, hall - 2], [hall + 2, iy + ih - 2]]) {
+    for (let x = ix + 1; x < ix + iw - 1; ) {
+      const w = 4 + Math.floor(hash2(k, top, 21) * 4);
+      const right = Math.min(ix + iw - 2, x + w - 1);
+      if (k === 3) p.rect(x, top, right - x + 1, bottom - top + 1, col('#e3e7ea'));
+      else p.rect(x, top, right - x + 1, bottom - top + 1, SHOPS[k % SHOPS.length]);
+      x = right + 2;
+      k++;
+    }
+  }
+  // YOU ARE HERE: a red dot in a white ring, on the corridor.
+  const dot = directoryDot(x0, width);
+  p.rect(dot.x - 2, dot.y - 2, 5, 5, WHITE);
+  p.rect(dot.x - 1, dot.y - 1, 3, 3, RED);
+  p.hline(x0 + 1, x0 + width - 2, y0 + h, SHADOW);
+}
+/** Where the directory's red dot is. */
+const directoryDot = (x0: number, width: number) => ({ x: x0 + Math.round(width * 0.36), y: DIRECTORY.y0 + 2 + 2 + Math.floor((DIRECTORY.h - 6) / 2) });
+
+/** A row of shops along the mall's back wall: blank signs, striped awnings, lit windows and open doors. No names. */
+function shopfronts(p: Pix, x0: number, width: number, floor: number) {
+  const top = 11;
+  const n = Math.max(1, Math.round(width / 19));
+  const sw = Math.floor(width / n);
+  const COLORS = [
+    ['#2e9c8f', '#d9f2ec'],
+    ['#e0559a', '#ffe0ee'],
+    ['#f0a92e', '#fff0cc'],
+  ].map((pair) => pair.map((h) => col(h)));
+  for (let k = 0; k < n; k++) {
+    const sx = x0 + k * sw;
+    const ex = k === n - 1 ? x0 + width - 1 : sx + sw - 1;
+    const [a, b] = COLORS[k % COLORS.length];
+    // The unit's frame, and its sign: a plain board in its own color.
+    p.rect(sx, top, ex - sx + 1, floor - top, col('#e8e3da'));
+    p.rect(sx + 1, top + 1, ex - sx - 1, 3, a);
+    p.hline(sx + 3, ex - 3, top + 2, b);
+    // A striped awning with a scalloped edge.
+    for (let y = top + 5; y < top + 10; y++) for (let x = sx + 1; x < ex; x++) p.px(x, y, ((x - sx) >> 1) % 2 ? b : a);
+    for (let x = sx + 1; x < ex; x += 2) p.px(x, top + 10, a);
+    // The window, lit, and an open door to one side.
+    const wy = top + 12;
+    const door = ex - 6;
+    p.rect(sx + 1, wy, door - sx - 2, floor - wy - 2, SHOP_LIT);
+    p.rect(door, wy + 2, 5, floor - wy - 2, SHOP_DEEP);
+    p.hline(door, door + 4, floor - 1, SHOP_LIT);
+    // What's in the window: clothes on a rail, shoes on shelves, or a stack of gift boxes.
+    const ix = sx + 2;
+    const iw = door - sx - 4;
+    if (k % 3 === 0) {
+      p.hline(ix, ix + iw - 1, wy + 2, IRON_LIGHT);
+      for (let x = ix + 1, c = 0; x + 2 < ix + iw; x += 4, c++) {
+        const cl = [BLUE, RED, GREEN, GOLD][c % 4];
+        p.rect(x, wy + 3, 3, 6, cl);
+        p.px(x - 1, wy + 4, cl);
+        p.px(x + 3, wy + 4, cl);
+      }
+    } else if (k % 3 === 1) {
+      for (const y of [wy + 6, wy + 11]) {
+        p.hline(ix, ix + iw - 1, y, WOOD_DARK);
+        for (let x = ix + 1, c = 0; x + 2 < ix + iw; x += 4, c++) p.rect(x, y - 2, 3, 2, [IRON, RED, WOOD, BLUE][(c + y) % 4]);
+      }
+    } else {
+      const boxes: [number, number, number, number, Color][] = [[0, 9, 5, 4, RED], [5, 10, 4, 3, BLUE], [1, 5, 4, 4, GREEN], [6, 6, 3, 4, GOLD], [3, 2, 3, 3, col('#e0559a')]];
+      for (const [x, y, w, h, c] of boxes) if (x + w <= iw) (p.rect(ix + x, wy + y, w, h, c), p.vline(ix + x + (w >> 1), wy + y, wy + y + h - 1, WHITE));
+    }
+    // A pillar between units.
+    p.vline(sx, top, floor - 1, STEEL);
+  }
+  p.vline(x0 + width - 1, top, floor - 1, STEEL);
+  p.hline(x0, x0 + width - 1, top, STEEL_LIGHT);
+}
+
+/** The escalator, against the back wall: steel sides, black handrails, and steps climbing toward the wall and up out of the room. */
+function escalator(p: Pix, x0: number, width: number, bottom: number) {
+  for (let y = 0; y <= bottom; y++) {
+    for (let x = x0; x < x0 + width; x++) {
+      const i = x - x0;
+      const side = i < 4 || i >= width - 4;
+      const up = bottom - y;
+      p.px(x, y, side ? (i === 0 || i === width - 1 ? STEEL_DARK : i === 1 || i === width - 2 ? STEEL_LIGHT : STEEL) : up % 3 === 0 ? TREAD_LINE : up % 3 === 1 ? TREAD_LIGHT : TREAD);
+    }
+    p.px(x0 + 3, y, HANDRAIL);
+    p.px(x0 + width - 4, y, HANDRAIL);
+  }
+  // Up through the ceiling.
+  p.rect(x0 - 1, 0, width + 2, 4, col('#3b4047'));
+  // The landing plate at the foot, and the handrails curling round at the bottom.
+  p.rect(x0 + 4, bottom - 3, width - 8, 4, STEEL_LIGHT);
+  for (let x = x0 + 5; x < x0 + width - 5; x += 2) p.vline(x, bottom - 2, bottom, STEEL);
+  for (const x of [x0 + 3, x0 + width - 4]) p.vline(x, bottom - 1, bottom + 1, HANDRAIL);
+  // Its shadow on the floor beside it.
+  for (let y = WALL_H; y <= bottom; y++) p.px(x0 - 1, y, SHADOW);
+}
+/** The part of the escalator where the steps run (for moving them). */
+const escalatorSteps = (x0: number, width: number, bottom: number) => ({ x: x0 + 4, w: width - 8, y: 4, h: bottom - 3 - 4 });
 
 function paintBackground(place: Place, plan: RoomPlan, night: boolean): Pix {
   const { w, d } = plan;
@@ -349,6 +552,13 @@ function paintBackground(place: Place, plan: RoomPlan, night: boolean): Pix {
           c = stripe ? WOOD_DARK : along ? WOOD_LIGHT : WOOD;
           break;
         }
+        case 'tiles': {
+          // Big pale tiles, polished: a soft glint runs across them.
+          const grout = lx % 12 === 11 || ly % 12 === 11;
+          c = grout ? TILE_GROUT : (Math.floor(lx / 12) + Math.floor(ly / 12)) % 2 ? TILE_ALT : TILE;
+          if (!grout && (lx - ly + 600) % 46 < 2) c = TILE_SHINE;
+          break;
+        }
         case 'iron': {
           const ring = Math.hypot(lx - (fx1 - fx0) / 2, ly - (fy1 - fy0) / 2.4);
           c = Math.floor(ring) % 10 === 0 ? STONE_DARK : n < 0.5 ? STONE : STONE_LIGHT;
@@ -363,14 +573,16 @@ function paintBackground(place: Place, plan: RoomPlan, night: boolean): Pix {
       p.px(x, y, c);
     }
   }
-  // A rug in the place's own color, in front of whoever's here.
-  const rugW = Math.min(fx1 - fx0 - 20, 54);
-  const rx = Math.round((fx0 + fx1) / 2 - rugW / 2);
-  const ry = fy1 - 26;
-  p.rect(rx, ry, rugW, 14, R[2]);
-  p.rect(rx + 2, ry + 2, rugW - 4, 10, R[1]);
-  p.rect(rx + 4, ry + 4, rugW - 8, 6, R[3]);
-  for (let x = rx; x < rx + rugW; x += 2) (p.px(x, ry - 1, CREAM), p.px(x, ry + 14, CREAM));
+  // A rug in the place's own color, in front of whoever's here (a mall's floor is all tiles).
+  if (style.floor !== 'tiles') {
+    const rugW = Math.min(fx1 - fx0 - 20, 54);
+    const rx = Math.round((fx0 + fx1) / 2 - rugW / 2);
+    const ry = fy1 - 26;
+    p.rect(rx, ry, rugW, 14, R[2]);
+    p.rect(rx + 2, ry + 2, rugW - 4, 10, R[1]);
+    p.rect(rx + 4, ry + 4, rugW - 8, 6, R[3]);
+    for (let x = rx; x < rx + rugW; x += 2) (p.px(x, ry - 1, CREAM), p.px(x, ry + 14, CREAM));
+  }
 
   // The back wall.
   for (let y = 0; y < fy0; y++) {
@@ -398,6 +610,13 @@ function paintBackground(place: Place, plan: RoomPlan, night: boolean): Pix {
           if (y === fy0 - 8) c = WHITE;
           break;
         }
+        case 'mall':
+          // A band of the glass roof along the top, pale panels, and a steel skirting.
+          if (y < 9) c = lx % 16 === 0 || y === 0 ? STEEL_LIGHT : night ? (hash2(x, y, 11) < 0.012 ? STAR : SKY_NIGHT) : y < 4 ? GLASS_SHINE : GLASS;
+          else if (y === 9) c = STEEL_DARK;
+          else if (y >= fy0 - 3) c = y === fy0 - 3 ? STEEL_LIGHT : STEEL;
+          else c = lx % 26 === 0 ? WR[3] : hash2(x, y, 9) < 0.03 ? WR[1] : WR[2];
+          break;
         case 'wainscot':
           c = y >= fy0 - 12 ? (y === fy0 - 12 ? col('#e9f1e2') : lx % 8 === 0 ? col('#6f9a7a') : col('#86b28f')) : hash2(x, y, 9) < 0.04 ? WR[3] : WR[2];
           break;
@@ -411,10 +630,10 @@ function paintBackground(place: Place, plan: RoomPlan, night: boolean): Pix {
   p.hline(fx0, fx1, fy0 - 1, INK);
   p.hline(fx0, fx1, fy0, col('#5a4033'));
 
-  // Windows, wherever the wall is free (not the lamp room: it's all window).
-  const hung = plan.spots.filter((s) => s.kind === 'thing' && (s.hang || s.prop === 'bookshelf' || s.prop === 'hearth' || s.prop === 'cabinet'));
+  // Windows, wherever the wall is free (not the lamp room: it's all window; nor the mall: it has its roof).
+  const hung = plan.spots.filter(onWall);
   const free = (x0: number, x1: number) => hung.every((s) => x1 < SIDE + (s.x - s.hw + w / 2) * RTEX - 2 || x0 > SIDE + (s.x + s.hw + w / 2) * RTEX + 2);
-  if (style.wall !== 'glass') {
+  if (style.wall !== 'glass' && style.wall !== 'mall') {
     let made = 0;
     for (const k of [0.5, 0.3, 0.7, 0.15, 0.85]) {
       const wx = Math.round(fx0 + (fx1 - fx0) * k - 8);
@@ -475,6 +694,10 @@ function paintBackground(place: Place, plan: RoomPlan, night: boolean): Pix {
         break;
       }
       case 'board': {
+        if (arch === 'mall') {
+          directory(p, x0, width, R);
+          break;
+        }
         const y0 = 5;
         const h = 24;
         p.rect(x0, y0, width, h, WOOD_DARK);
@@ -551,6 +774,12 @@ function paintBackground(place: Place, plan: RoomPlan, night: boolean): Pix {
         p.px(cx + 4, bottom - 9, IRON_LIGHT);
         break;
       }
+      case 'shopfront':
+        shopfronts(p, x0, width, fy0);
+        break;
+      case 'escalator':
+        escalator(p, x0, width, fy0 + Math.round(s.hd * 2 * RTEX) - 2);
+        break;
       case 'cabinet': {
         const top = 8;
         const bottom = fy0 + Math.round(s.hd * 2 * RTEX) - 2;
@@ -601,8 +830,12 @@ function paintBackground(place: Place, plan: RoomPlan, night: boolean): Pix {
   return p;
 }
 
-/** Paint a building's room for the map. */
-export function paintRoom(place: Place): MapRoom {
+/**
+ * Paint a building's room for the map. `outfits` (the world's) dresses its
+ * islanders: anyone whose looks mention a piece from this place's wardrobe
+ * wears it (the fry cook's red cap).
+ */
+export function paintRoom(place: Place, outfits: readonly Outfit[] = []): MapRoom {
   const plan = planRoom(place.interior!, place.archetype);
   const day = paintBackground(place, plan, false);
   const nite = paintBackground(place, plan, true);
@@ -618,7 +851,9 @@ export function paintRoom(place: Place): MapRoom {
   const sprites: RoomSprite[] = [];
   for (const spot of plan.spots) {
     if (spot.kind === 'person') {
-      sprites.push({ spot, sprite: null, islander: paintExplorer([], spot.color), facing: 'down' });
+      const looks = place.interior!.people.find((c) => c.id === spot.id)?.looks.toLowerCase() ?? '';
+      const worn = outfits.filter((o) => o.place === place.id && looks.includes(o.name.toLowerCase()));
+      sprites.push({ spot, sprite: null, islander: paintExplorer(worn, spot.color), facing: 'down' });
       continue;
     }
     const t = things.get(spot.id)!;
@@ -647,7 +882,7 @@ export function paintRoom(place: Place): MapRoom {
     }
     if (best) return best;
     for (const s of plan.spots) {
-      if (s.kind !== 'thing' || !(s.hang || s.prop === 'bookshelf' || s.prop === 'hearth' || s.prop === 'cabinet')) continue;
+      if (!onWall(s)) continue;
       if (Math.abs(ux(x) - s.x) <= s.hw && y < WALL_H + s.hd * 2 * RTEX && y > 2) return s;
     }
     return null;
@@ -656,6 +891,12 @@ export function paintRoom(place: Place): MapRoom {
   const hearth = plan.spots.find((s) => s.prop === 'hearth');
   const lensSpot = plan.spots.find((s) => s.prop === 'lens');
   const scan = plan.spots.find((s) => s.prop === 'scanner');
+  const wallX = (s: Spot) => px(s.x) - (Math.round(s.hw * 2 * RTEX) >> 1);
+  const esc = plan.spots.find((s) => s.prop === 'escalator');
+  const steps = esc ? escalatorSteps(wallX(esc), Math.round(esc.hw * 2 * RTEX), WALL_H + Math.round(esc.hd * 2 * RTEX) - 2) : null;
+  const map = place.archetype === 'mall' ? plan.spots.find((s) => s.prop === 'board') : undefined;
+  const dot = map ? directoryDot(wallX(map), Math.round(map.hw * 2 * RTEX)) : null;
+  const grillSpot = plan.spots.find((s) => s.prop === 'grill');
   const FIRE = ['#ffd166', '#ff9f43', '#ff6b3d', '#fff1b8'];
   const animate = (c: CanvasRenderingContext2D, time: number, motion: boolean) => {
     if (hearth) {
@@ -679,6 +920,34 @@ export function paintRoom(place: Place): MapRoom {
       c.globalAlpha = 0.75;
       c.fillStyle = '#fffbe6';
       c.fillRect(cx - 7 + Math.round(k * 14), top + 4, 2, 22);
+      c.globalAlpha = 1;
+    }
+    if (steps) {
+      // The escalator's steps, climbing.
+      const f = motion ? Math.floor(time * 5) % 3 : 0;
+      for (let y = steps.y; y < steps.y + steps.h; y++) {
+        const up = steps.y + steps.h - y + f;
+        c.fillStyle = up % 3 === 0 ? '#4d5359' : up % 3 === 1 ? '#868d94' : '#6f767d';
+        c.fillRect(steps.x, y, steps.w, 1);
+      }
+    }
+    if (dot && (!motion || Math.floor(time * 2) % 2 === 0)) {
+      // YOU ARE HERE, blinking.
+      c.fillStyle = '#ff6b70';
+      c.fillRect(dot.x - 1, dot.y - 1, 3, 3);
+      c.fillStyle = '#fff2f2';
+      c.fillRect(dot.x, dot.y - 1, 1, 1);
+    }
+    if (grillSpot && motion) {
+      // Steam off the grill.
+      const gx = px(grillSpot.x) - 21;
+      const gy = py(grillSpot.z + grillSpot.hd) - GRILL.h + 1 + GRILL.plate;
+      c.fillStyle = 'rgba(255,255,255,0.7)';
+      for (let i = 0; i < 3; i++) {
+        const k = (time * 0.8 + i / 3) % 1;
+        c.globalAlpha = 1 - k;
+        c.fillRect(gx + 8 + i * 9 + Math.round(Math.sin(time * 3 + i) * 1.5), gy - 2 - Math.round(k * 7), 2, 1);
+      }
       c.globalAlpha = 1;
     }
     if (scan && motion && Math.floor(time * 2) % 3 === 0) {

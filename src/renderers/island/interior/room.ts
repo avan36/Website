@@ -64,13 +64,15 @@ const THICK = 0.3;
 const SINK = 0.45;
 
 /** How each kind of building does its walls and floor. */
-const STYLES: Record<string, { wall: string; trim: string; floor: string; floor2: string }> = {
+const STYLES: Record<string, { wall: string; trim: string; floor: string; floor2: string; tiles?: number }> = {
   cabin: { wall: '#c58f5a', trim: '#8a5a36', floor: '#c99561', floor2: '#b98352' },
   taproom: { wall: '#f3e2c4', trim: '#6b4228', floor: '#8a5a36', floor2: '#7a4e2d' },
   library: { wall: '#7f9fe0', trim: '#6b4228', floor: '#c99561', floor2: '#a8784a' },
   lighthouse: { wall: '#e9e4dc', trim: '#c94a4a', floor: '#aca397', floor2: '#958c80' },
   schoolhouse: { wall: '#f4ead2', trim: '#86b28f', floor: '#d2a06a', floor2: '#c08a56' },
   depot: { wall: '#a9b2b0', trim: '#5f6866', floor: '#b5bcb9', floor2: '#a3aaa7' },
+  // Bright and echoey: pale walls and big pale floor tiles, the place's red along the skirting.
+  mall: { wall: '#f5f2ed', trim: '#c8102e', floor: '#eeebe5', floor2: '#dedad2', tiles: 1.5 },
 };
 
 /** The window glass: sky by day, the night outside after dark. */
@@ -155,11 +157,20 @@ export function buildInterior(o: InteriorOptions): Interior {
 
   // ---------- The shell: floor, walls, the doorway ----------
   const kit = new Kit(7);
-  // Floor planks, alternating (deep enough to meet the ground under them).
-  const planks = Math.round(D / 0.6);
-  for (let i = 0; i < planks; i++) {
-    const z = back + (i + 0.5) * (D / planks);
-    kit.box(W, 0.2 + SINK, D / planks - 0.02, i % 2 ? style.floor : style.floor2, { p: [0, -(0.2 + SINK) / 2, z], jitter: 0.02 });
+  // Floor planks, alternating (deep enough to meet the ground under them); or, in a style with tiles, a checkerboard of them.
+  if (style.tiles) {
+    const nx = Math.round(W / style.tiles);
+    const nz = Math.round(D / style.tiles);
+    kit.box(W, SINK, D, style.floor2, { p: [0, -0.2 - SINK / 2, 0] });
+    for (let i = 0; i < nx; i++) for (let j = 0; j < nz; j++) {
+      kit.box(W / nx - 0.03, 0.2, D / nz - 0.03, (i + j) % 2 ? style.floor : style.floor2, { p: [-W / 2 + (i + 0.5) * (W / nx), -0.1, back + (j + 0.5) * (D / nz)], jitter: 0.012 });
+    }
+  } else {
+    const planks = Math.round(D / 0.6);
+    for (let i = 0; i < planks; i++) {
+      const z = back + (i + 0.5) * (D / planks);
+      kit.box(W, 0.2 + SINK, D / planks - 0.02, i % 2 ? style.floor : style.floor2, { p: [0, -(0.2 + SINK) / 2, z], jitter: 0.02 });
+    }
   }
   // A rug in the place's color.
   kit.box(Math.min(W - 3, 6), 0.03, 2.2, place.color, { p: [0, 0.015, D / 2 - 2.6], jitter: 0 });
@@ -186,7 +197,7 @@ export function buildInterior(o: InteriorOptions): Interior {
   kit.box(doorHW * 2, 0.2 + SINK, THICK, style.floor2, { p: [0, -(0.2 + SINK) / 2, D / 2 + THICK / 2], jitter: 0.02 });
 
   // Windows on the back wall wherever nothing hangs (the lamp room is all window).
-  const hung = plan.spots.filter((s) => s.kind === 'thing' && (s.hang || s.prop === 'bookshelf' || s.prop === 'hearth' || s.prop === 'cabinet'));
+  const hung = plan.spots.filter((s) => s.kind === 'thing' && (s.hang || s.prop === 'bookshelf' || s.prop === 'hearth' || s.prop === 'cabinet' || s.prop === 'escalator'));
   const free = (x0: number, x1: number) => hung.every((s) => x1 < (s.x - s.hw) * K - 0.3 || x0 > (s.x + s.hw) * K + 0.3);
   const windows: number[] = [];
   if (place.archetype === 'lighthouse') for (let x = -W / 2 + 1; x < W / 2 - 0.5; x += 1.6) windows.push(x);

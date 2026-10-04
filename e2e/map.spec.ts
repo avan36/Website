@@ -98,6 +98,27 @@ test.describe('map', () => {
     expect(errors).toEqual([]);
   });
 
+  test('crosses Tower Bridge from the quay to the mall, dry all the way', async ({ page }) => {
+    const errors = await openMap(page);
+    await closeDialog(page);
+    const mall = await page.evaluate(() => {
+      const w = (window as DebugWindow).__world!.world as unknown as { places: { id: string; archetype: string }[] };
+      const id = w.places.find((p) => p.archetype === 'mall')!.id;
+      return (window as DebugWindow).__map!.places().find((p) => p.id === id)!;
+    });
+    // On the quay, by the bus's nose, where the bridge starts.
+    await page.evaluate(() => (window as DebugWindow).__map!.teleport(29.4, 17.2));
+    expect(await page.evaluate((d) => (window as DebugWindow).__map!.walkTo(d.x, d.z), mall.door), 'a way over').toBe(true);
+    // Stop if it ever gets its feet wet: the deck is the only way over. The map walks in real time and slows with the
+    // frame rate, so a long walk gets a long wait when the 3D tests share the machine (about 12 s on its own).
+    await page.waitForFunction(() => !(window as DebugWindow).__map!.path() || (window as DebugWindow).__map!.player().wet > 0, null, { timeout: 90_000, polling: 50 });
+    const at = await player(page);
+    expect(at.wet, 'walked the deck, not the sea').toBe(0);
+    expect(Math.hypot(at.x - mall.door.x, at.z - mall.door.z), `stopped at ${JSON.stringify(at)}`).toBeLessThan(0.8);
+    await expect.poll(() => page.evaluate(() => (window as DebugWindow).__map!.near())).toBe(mall.id);
+    expect(errors).toEqual([]);
+  });
+
   test('jumps, and jumps again in the air', async ({ page }) => {
     const errors = await openMap(page);
     await closeDialog(page);

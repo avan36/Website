@@ -42,7 +42,7 @@ export type Geo = ReturnType<typeof createGeo>;
 /** An island: the main one (index 0, round the origin) or an islet, with its coast's radius at a bearing from its middle. */
 export type Island = { i: number; id: string; name: string; x: number; z: number; coast(theta: number): number; outer: number };
 
-/** A footbridge, worked out: its ends, which way it runs (u, a unit vector from `a` to `b`), and the islands it joins. */
+/** A bridge, worked out: its ends, which way it runs (u, a unit vector from `a` to `b`), and the islands it joins. */
 export type Bridge = {
   i: number;
   ax: number;
@@ -54,6 +54,8 @@ export type Bridge = {
   uz: number;
   width: number;
   deck: number;
+  /** A plain footbridge, or a tower bridge (two towers in the water, walkways high between them). */
+  style: 'footbridge' | 'tower';
   /** Which way it runs from `a` to `b`, like a place's `faces` (0 = south, π/2 = east). */
   yaw: number;
   /** The islands at its `a` end and its `b` end. */
@@ -210,10 +212,10 @@ export function createGeo(world: World) {
     const length = Math.hypot(b.to.x - b.from.x, b.to.z - b.from.z) || 1;
     const ux = (b.to.x - b.from.x) / length;
     const uz = (b.to.z - b.from.z) / length;
-    return { i, ax: b.from.x, az: b.from.z, bx: b.to.x, bz: b.to.z, length, ux, uz, width: b.width, deck: b.deck, yaw: Math.atan2(ux, uz), joins: [0, 0] };
+    return { i, ax: b.from.x, az: b.from.z, bx: b.to.x, bz: b.to.z, length, ux, uz, width: b.width, deck: b.deck, style: b.style ?? 'footbridge', yaw: Math.atan2(ux, uz), joins: [0, 0] };
   });
-  // Each end lands on a little level abutment at the height of the deck.
-  for (const b of bridges) for (const [x, z] of [[b.ax, b.az], [b.bx, b.bz]]) pads.push({ x, z, r: 1.1, blend: 2.2, h: b.deck });
+  // Each end lands on a little level abutment at the height of the deck (an end on the quay has the quay's deck already).
+  for (const b of bridges) for (const [x, z] of [[b.ax, b.az], [b.bx, b.bz]]) if (quayDist(x, z) > 0) pads.push({ x, z, r: 1.1, blend: 2.2, h: b.deck });
   /** Which bridge's deck (x, z) is on (-1 for none), `inset` in from its railings. */
   function deckAt(x: number, z: number, inset = 0.15) {
     for (const b of bridges) {
@@ -296,7 +298,8 @@ export function createGeo(world: World) {
     return islets.length ? owner(x, z).i : 0;
   }
   // What a bridge joins is the land its ends stand on before their abutments level it (an end in the sea joins nothing: -1).
-  const landUnder = (x: number, z: number) => (rawHeight(x, z) > DRY ? owner(x, z).i : -1);
+  // The quay is the main island's, though it stands out over the water.
+  const landUnder = (x: number, z: number) => (quayDist(x, z) <= 0 ? 0 : rawHeight(x, z) > DRY ? owner(x, z).i : -1);
   for (const b of bridges) b.joins = [landUnder(b.ax, b.az), landUnder(b.bx, b.bz)];
 
   /** Where you step on at either end of a bridge (0: its `a` end, 1: its `b` end): just past the deck, on land. */

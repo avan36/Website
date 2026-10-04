@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createGeo } from '../../../world/geo';
 import { world } from '../../../world/__tests__/fixtures';
-import { BODY_R, layoutPlaces, polylineDist, scatterProps } from '../layout';
+import { BODY_R, layoutPlaces, layoutStreet, polylineDist, scatterProps } from '../layout';
 
 const w = world();
 const geo = createGeo(w);
@@ -63,6 +63,45 @@ describe('scatterProps', () => {
       for (const lw of w.lostWords) expect(Math.hypot(p.x - lw.at.x, p.z - lw.at.z), lw.id).toBeGreaterThan(1.4);
       for (const m of places) expect(Math.hypot(p.x - m.door.x, p.z - m.door.z), m.place.id).toBeGreaterThan(2);
       for (const a of w.activities) expect(Math.hypot(p.x - a.at.x, p.z - a.at.z)).toBeGreaterThan(2.5);
+    }
+  });
+});
+
+describe('layoutStreet', () => {
+  const street = layoutStreet(geo, places)!;
+  const mall = places.find((m) => m.kind === 'mall')!;
+  const bridge = geo.bridges.find((b) => b.style === 'tower')!;
+  const land = geo.landing(bridge, 1);
+
+  it('gives the islet over Tower Bridge its lamps, telephone box, pillar box and bench', () => {
+    expect(street).not.toBeNull();
+    expect(street.things.map((t) => t.kind).sort()).toEqual(['bench', 'lamp', 'lamp', 'phone-box', 'pillar-box']);
+  });
+
+  it('runs its path from where the bridge comes ashore to the mall door, clear of the building', () => {
+    expect(Math.hypot(street.walk[0].x - land.x, street.walk[0].z - land.z)).toBeLessThan(0.01);
+    const end = street.walk[street.walk.length - 1];
+    expect(Math.hypot(end.x - mall.door.x, end.z - mall.door.z)).toBeLessThan(0.01);
+    for (const p of street.walk) {
+      expect(geo.isWalkable(p.x, p.z), JSON.stringify(p)).toBe(true);
+      for (const b of mall.boxes) expect(p.x < b.x0 - BODY_R || p.x > b.x1 + BODY_R || p.z > b.z1 + BODY_R, JSON.stringify(p)).toBe(true);
+    }
+  });
+
+  it('keeps everything on dry land, clear of the path, the door, the landing and the building', () => {
+    for (const t of street.things) {
+      expect(geo.heightAt(t.x, t.z), t.kind).toBeGreaterThan(0.3);
+      expect(polylineDist(street.walk, t.x, t.z), t.kind).toBeGreaterThan(1.2 + t.r);
+      expect(Math.hypot(t.x - mall.door.x, t.z - mall.door.z), t.kind).toBeGreaterThan(1.4 + t.r);
+      expect(Math.hypot(t.x - land.x, t.z - land.z), t.kind).toBeGreaterThan(1.4 + t.r);
+      for (const c of mall.circles) expect(Math.hypot(t.x - c.x, t.z - c.z), t.kind).toBeGreaterThan(c.r);
+    }
+  });
+
+  it('grows no scenery on the path or the street furniture', () => {
+    for (const p of scatterProps(w, geo, places)) {
+      expect(polylineDist(street.walk, p.x, p.z)).toBeGreaterThan(1.6);
+      for (const t of street.things) expect(Math.hypot(p.x - t.x, p.z - t.z)).toBeGreaterThan(t.r + 1.2);
     }
   });
 });

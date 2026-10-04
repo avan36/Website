@@ -9,10 +9,11 @@ import type { Archetype } from '../../../world/schema';
 export type PlaceKind = Exclude<Archetype, 'plaza'>;
 
 export interface Place {
-  /** Place id: a project slug, or 'blog' / 'contact' / 'workshop'. */
+  /** Place id: a project slug, or 'blog' / 'contact' / 'workshop' / 'westfield'. */
   id: string;
   kind: PlaceKind;
-  href: string;
+  /** The page it opens (null for a memory, which has a room and no page). */
+  href: string | null;
   color: string;
   name: string;
   kicker: string;
@@ -49,6 +50,7 @@ const METRICS: Record<PlaceKind, { labelY: number; hitR: number; hitH: number; r
   schoolhouse: { labelY: 4.3, hitR: 3.0, hitH: 6.2, eaves: 2.66 },
   taproom: { labelY: 3.7, hitR: 3.2, hitH: 4.6, eaves: 2.75 },
   depot: { labelY: 3.1, hitR: 3.2, hitH: 4.0, eaves: 2.5 },
+  mall: { labelY: 4.5, hitR: 3.9, hitH: 4.3, eaves: 2.45 },
   workshop: { labelY: 4.0, hitR: 2.9, hitH: 5.0 },
   library: { labelY: 5.4, hitR: 3.2, hitH: 7.4, eaves: 2.86 },
   lighthouse: { labelY: 8.2, hitR: 2.4, hitH: 10, eaves: 0.6 },
@@ -59,13 +61,13 @@ const METRICS: Record<PlaceKind, { labelY: number; hitR: number; hitH: number; r
 const world = readWorld();
 const geo = readGeo();
 
-export const { coastRadius, rockiness, heightAt, groundAt, isWalkable, pathDist, isOpenGround, depthAt, swimRoom, isSwimmable, islandOf, owner, nextStop, swimEdge, clearOfBridges } = geo;
+export const { coastRadius, rockiness, heightAt, groundAt, isWalkable, pathDist, isOpenGround, depthAt, swimRoom, isSwimmable, islandOf, owner, nextStop, swimEdge, clearOfBridges, landing } = geo;
 /** The main island (0) and the islets off it, and the footbridges out to them. */
 export const ISLANDS = geo.islands;
 export const BRIDGES = geo.bridges;
 
-/** A circle round all the land (every island's coast and the end of the pier): what the sun's shadows have to cover. */
-export const LAND = (() => {
+/** The outline of all the land: every island's coast, a point every few degrees, and the end of the pier. */
+export const LAND_OUTLINE = (() => {
   const pts = ISLANDS.flatMap((s) =>
     Array.from({ length: 96 }, (_, k) => {
       const th = (k / 96) * Math.PI * 2;
@@ -74,6 +76,12 @@ export const LAND = (() => {
     }),
   );
   pts.push({ x: geo.pier.x, z: geo.pier.end });
+  return pts;
+})();
+
+/** A circle round all the land: the middle the sun looks at. */
+export const LAND = (() => {
+  const pts = LAND_OUTLINE;
   const xs = pts.map((p) => p.x);
   const zs = pts.map((p) => p.z);
   const x = (Math.min(...xs) + Math.max(...xs)) / 2;
@@ -112,7 +120,7 @@ export const PLACES: Place[] = world.places
     return {
       id: p.id,
       kind,
-      href: p.href!,
+      href: p.href ?? null,
       color: p.color,
       name: p.name,
       kicker: p.title,

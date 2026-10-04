@@ -25,6 +25,7 @@ const PREFERRED: Record<Archetype, string> = {
   lighthouse: 'H',
   schoolhouse: 'S',
   depot: 'D',
+  mall: 'F',
   workshop: 'M',
   pier: 'W',
   bottle: 'B',
@@ -65,9 +66,11 @@ export type IslandMap = {
 };
 
 export function drawIsland(world: World, geo: Geo, cols = MAP_COLS, rowsN = MAP_ROWS): IslandMap {
-  // The main island only: the islets off its west coast are over bridges words
-  // can't cross yet, so here they're open sea.
+  // The main island only: the islets are open sea here. Most are over bridges
+  // words can't cross yet; one with a place on it (the mall over Tower Bridge)
+  // gets its bridge, run out toward the edge, and its letter at the end.
   const heightAt = (x: number, z: number) => (geo.owner(x, z) === 0 ? geo.heightAt(x, z) : -6);
+  const away = world.places.filter((p) => geo.islandOf(p.at.x, p.at.z));
   // Frame everything that isn't open sea, plus a little water all round.
   let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
   for (let z = -60; z <= 60; z += 1) {
@@ -76,7 +79,7 @@ export function drawIsland(world: World, geo: Geo, cols = MAP_COLS, rowsN = MAP_
       x0 = Math.min(x0, x), x1 = Math.max(x1, x), z0 = Math.min(z0, z), z1 = Math.max(z1, z);
     }
   }
-  const extra = [...world.places.map((p) => p.at), { x: geo.pier.x, z: geo.pier.end }];
+  const extra = [...world.places.filter((p) => !away.includes(p)).map((p) => p.at), { x: geo.pier.x, z: geo.pier.end }];
   for (const p of extra) (x0 = Math.min(x0, p.x)), (x1 = Math.max(x1, p.x)), (z0 = Math.min(z0, p.z)), (z1 = Math.max(z1, p.z));
   const pad = 3;
   const w = x1 - x0 + pad * 2;
@@ -133,8 +136,28 @@ export function drawIsland(world: World, geo: Geo, cols = MAP_COLS, rowsN = MAP_
   // Places last, so they sit on top of their paths.
   const glyph = glyphs(world);
   for (const p of world.places) {
+    if (away.includes(p)) continue;
     const { c, r } = toCell(p.at.x, p.at.z);
     rows[r][c] = glyph.get(p.id)!;
+  }
+  // The way out to a place on an islet: its bridge as far as the map goes (stopping short of the edge, which is
+  // always sea), and the place's letter where it ends.
+  for (const p of away) {
+    const isle = geo.islandOf(p.at.x, p.at.z)!;
+    const b = geo.bridges.find((x) => x.joins.includes(isle) && x.joins.includes(0));
+    if (!b) continue;
+    const [ax, az, dx, dz] = b.joins[0] === 0 ? [b.ax, b.az, b.ux, b.uz] : [b.bx, b.bz, -b.ux, -b.uz];
+    let end: { c: number; r: number } | null = null;
+    for (let t = 0; t <= b.length + 6; t += 0.3) {
+      const x = ax + dx * t;
+      const z = az + dz * t;
+      const c = Math.floor((x - left) / ux);
+      const r = Math.floor((z - top) / uz);
+      if (c < 1 || r < 1 || c > cols - 2 || r > rowsN - 2) break;
+      if (rows[r][c] === GROUND.sea || rows[r][c] === ' ' || rows[r][c] === GROUND.sand) rows[r][c] = GROUND.pier;
+      end = { c, r };
+    }
+    if (end) rows[end.r][end.c] = glyph.get(p.id)!;
   }
   return { rows, glyph, toWorld, toCell };
 }

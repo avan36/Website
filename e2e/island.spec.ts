@@ -119,6 +119,45 @@ test.describe('3D island', () => {
     expect(errors).toEqual([]);
   });
 
+  test('Tower Bridge takes you out to Westfield, dry, and the mall opens up round you with no page to open', async ({ page }) => {
+    const errors = await openIsland(page);
+    // Click-to-walk from the plaza to the mall's door on Little London: past the bus, along the quay and over the bridge.
+    const walk = await page.evaluate(() => {
+      const d = (window as DebugWindow).__island!.debug;
+      const m = d.places().find((x) => x.id === 'westfield')!;
+      d.walkTo(m.stand.x, m.stand.z);
+      let wet = 0;
+      let east = 0;
+      for (let i = 0; i < 160; i++) {
+        d.tick(0.5);
+        const p = d.player();
+        if (p.water !== 'dry') wet++;
+        east = Math.max(east, p.x);
+        if (Math.hypot(p.x - m.stand.x, p.z - m.stand.z) < 0.6) break;
+      }
+      const p = d.player();
+      return { wet, east, left: Math.hypot(p.x - m.stand.x, p.z - m.stand.z), near: d.near() };
+    });
+    expect(walk.wet, 'half-seconds spent in the water').toBe(0);
+    expect(walk.east, 'out past the east end').toBeGreaterThan(45);
+    expect(walk.left, 'how far from the door it stopped').toBeLessThan(0.6);
+    expect(walk.near, 'at its door').toBe('westfield');
+
+    // In: the card says what it was, and has no buttons, since a memory has no page.
+    await page.keyboard.press('Enter');
+    await expect
+      .poll(async () => (await tick(page, 0.2), page.evaluate(() => (window as DebugWindow).__island!.debug.inside()?.at ?? null)), { timeout: 60_000 })
+      .toBe('westfield');
+    await expect(page.locator('#w-room')).toBeVisible();
+    const card = page.locator('#w-talk');
+    await expect(card).toBeVisible();
+    await expect(card.locator('.w-talk__name')).toHaveText('Westfield');
+    await expect(card).toContainText('I spent a lot of time here growing up, with my dad.');
+    await expect(card.locator('.w-talk__cta')).toHaveCount(0);
+    await expect(card.locator('[data-talk="thing:five-guys"]')).toBeVisible();
+    expect(errors).toEqual([]);
+  });
+
   test('stepping through the portal switches the view', async ({ page }) => {
     const errors = await openIsland(page);
     // Just in front of the ring on the plaza.

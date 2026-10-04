@@ -5,6 +5,9 @@
 import {
   AdditiveBlending,
   BoxGeometry,
+  BufferAttribute,
+  BufferGeometry,
+  CanvasTexture,
   Color,
   ConeGeometry,
   CylinderGeometry,
@@ -18,15 +21,17 @@ import {
   MeshStandardMaterial,
   Object3D,
   OctahedronGeometry,
+  PlaneGeometry,
   ShaderMaterial,
   SphereGeometry,
+  SRGBColorSpace,
   Vector2,
   Vector3,
 } from 'three';
 import { Kit, litMaterial, type V3 } from '../world/kit';
 import type { Puffs } from '../world/particles';
 import { PIER } from '../world/shape';
-import { easeOutBack, Spring } from '../util/math';
+import { damp, easeOutBack, Spring } from '../util/math';
 
 export interface LandmarkCtx {
   t: number;
@@ -51,6 +56,10 @@ export interface Built {
   glows?: { halos: Glow[]; pools: Glow[] };
   /** Night falling, from 0 (day) to 1 (night): turn up a beam, warm the windows. */
   night?: (n: number) => void;
+  /** Solid ground it stands on beyond its footprint's circle, as [x, z, radius] in its own space (a long building's ends). */
+  solid?: [number, number, number][];
+  /** Free anything it made that the scene's own clean-up won't (a painted sign's texture). */
+  dispose?: () => void;
 }
 
 const WOOD = '#b98352';
@@ -1552,6 +1561,236 @@ export function buildWorkshop(color: string): Built {
   };
 }
 
+// ---------------------------------------------------------------- mall
+
+/** Lettering painted on a canvas in the display font, as a texture (painted again once the font is in). */
+function painted(w: number, h: number, paint: (g: CanvasRenderingContext2D, font: string) => void) {
+  const c = document.createElement('canvas');
+  c.width = w;
+  c.height = h;
+  const tex = new CanvasTexture(c);
+  tex.colorSpace = SRGBColorSpace;
+  tex.anisotropy = 4;
+  const draw = () => {
+    const g = c.getContext('2d')!;
+    g.clearRect(0, 0, w, h);
+    paint(g, getComputedStyle(document.documentElement).getPropertyValue('--font-display').trim() || 'system-ui, sans-serif');
+    tex.needsUpdate = true;
+  };
+  draw();
+  document.fonts?.ready.then(draw).catch(() => {});
+  return tex;
+}
+
+/** A flat quad from four corners (counter-clockwise seen from its front), for glass that follows a curve. */
+function quad(a: V3, b: V3, c: V3, d: V3) {
+  const g = new BufferGeometry();
+  g.setAttribute('position', new BufferAttribute(new Float32Array([...a, ...b, ...c, ...a, ...c, ...d]), 3));
+  return g;
+}
+
+/**
+ * The shopping centre over Tower Bridge: long and low, pale panels and a
+ * glass front, under a big glass roof that rolls like a wave. WESTFIELD in
+ * big letters over the entrance, whose glass doors slide open as you come
+ * near; at one end, a Five Guys in red and white tiles. After dark the glass
+ * glows warm, roof and all.
+ */
+export function buildMall(color: string): Built {
+  const k = new Kit(1010);
+  const gk = new Kit(1011);
+  const W = 7.0;
+  const D = 4.4;
+  const hw = W / 2;
+  const hd = D / 2;
+  const base = 0.25;
+  const top = 2.4;
+  const PANEL = '#f1eee8';
+  const PANEL_SHADE = '#dbd5ca';
+  const FIN = '#fbfbf9';
+  const STEEL = '#dfe2e5';
+  const RED = '#d22630';
+  /** The roof's height over (x, z): two swells along its length, a dip over the entrance, and a ripple across. */
+  const roofY = (x: number, z: number) => 3.0 - 0.3 * Math.cos(x * 1.37) * (0.8 + 0.2 * Math.cos(z * 0.9)) + 0.1 * Math.sin(z * 1.3 - x * 0.7);
+
+  // ---------- Ground, plinth and walls ----------
+  k.rbox(W + 0.9, 0.14, D + 2.3, 0.05, '#ddd6ca', { p: [0, 0.07, 0.6] });
+  for (let i = 0; i < 8; i++) k.box(0.03, 0.142, D + 2.2, '#cfc7b9', { p: [-hw - 0.2 + i * 1.07, 0.07, 0.6], jitter: 0 });
+  k.box(W + 0.1, base, D + 0.1, PANEL_SHADE, { p: [0, base / 2, 0] });
+  k.box(W, top - base, 0.24, PANEL, { p: [0, (base + top) / 2, -hd + 0.12] });
+  for (const s of [-1, 1]) {
+    k.box(0.24, top - base, D, PANEL, { p: [s * (hw - 0.12), (base + top) / 2, 0] });
+    // Panel joints on the ends, and a fin up each corner.
+    for (const z of [-1.1, 1.1]) k.box(0.02, top - base, 0.04, PANEL_SHADE, { p: [s * hw, (base + top) / 2, z], jitter: 0 });
+    for (const z of [-hd, hd]) k.box(0.16, roofY(s * hw, z) - base, 0.16, FIN, { p: [s * hw, (base + roofY(s * hw, z)) / 2, z] });
+    // A band of glass along each end.
+    gk.addGlow(new BoxGeometry(0.04, 0.8, 2.6), '#eef6fb', { p: [s * hw, 1.45, 0] });
+    for (const z of [-1.3, -0.43, 0.43, 1.3]) k.box(0.06, 0.88, 0.06, FIN, { p: [s * (hw + 0.02), 1.45, z], jitter: 0 });
+    for (const y of [1.03, 1.87]) k.box(0.07, 0.06, 2.66, FIN, { p: [s * (hw + 0.02), y, 0], jitter: 0 });
+  }
+  // A band round the top of the walls.
+  k.box(W + 0.1, 0.12, 0.3, PANEL_SHADE, { p: [0, top - 0.04, -hd + 0.12] });
+  k.box(W + 0.1, 0.12, 0.18, PANEL_SHADE, { p: [0, top - 0.04, hd - 0.02] });
+  for (const s of [-1, 1]) k.box(0.3, 0.12, D, PANEL_SHADE, { p: [s * (hw - 0.12), top - 0.04, 0] });
+
+  // ---------- The glass roof ----------
+  // A rolling sheet of glass panes on a white grid, a little over the walls, with glass between its edge and the walls' top.
+  const RX0 = -hw - 0.3;
+  const RX1 = hw + 0.3;
+  const RZ0 = -hd - 0.25;
+  const RZ1 = hd + 0.05;
+  const N = 14;
+  const M = 5;
+  const gx = (i: number) => RX0 + ((RX1 - RX0) * i) / N;
+  const gz = (j: number) => RZ0 + ((RZ1 - RZ0) * j) / M;
+  for (let i = 0; i < N; i++) {
+    for (let j = 0; j < M; j++) {
+      const [x0, x1, z0, z1] = [gx(i), gx(i + 1), gz(j), gz(j + 1)];
+      // Each pane catches the sky a little differently as the roof rolls.
+      const tilt = roofY(x1, (z0 + z1) / 2) - roofY(x0, (z0 + z1) / 2);
+      const tone = (i * 7 + j * 3) % 9 === 0 ? '#ffffff' : tilt > 0.06 ? '#f2f9fd' : tilt < -0.06 ? '#d3e5f1' : '#e3eff7';
+      gk.addGlow(quad([x0, roofY(x0, z0), z0], [x0, roofY(x0, z1), z1], [x1, roofY(x1, z1), z1], [x1, roofY(x1, z0), z0]), tone);
+    }
+  }
+  const rib = (x0: number, z0: number, x1: number, z1: number, t: number) => k.beam([x0, roofY(x0, z0) + 0.03, z0], [x1, roofY(x1, z1) + 0.03, z1], t, t, FIN, 0);
+  for (let j = 0; j <= M; j++) for (let i = 0; i < N; i++) rib(gx(i), gz(j), gx(i + 1), gz(j), j === 0 || j === M ? 0.12 : 0.055);
+  for (let i = 0; i <= N; i++) for (let j = 0; j < M; j++) rib(gx(i), gz(j), gx(i), gz(j + 1), i === 0 || i === N ? 0.12 : 0.055);
+  // Glass from the top of the walls up to the roof, all the way round.
+  const band = (ax: number, az: number, bx: number, bz: number, n: number) => {
+    for (let s = 0; s < n; s++) {
+      const [x0, z0] = [ax + ((bx - ax) * s) / n, az + ((bz - az) * s) / n];
+      const [x1, z1] = [ax + ((bx - ax) * (s + 1)) / n, az + ((bz - az) * (s + 1)) / n];
+      gk.addGlow(quad([x0, top, z0], [x1, top, z1], [x1, roofY(x1, z1), z1], [x0, roofY(x0, z0), z0]), s % 2 ? '#e6f1f8' : '#dcebf5');
+    }
+  };
+  band(-hw, hd, hw, hd, 10);
+  band(hw, hd, hw, -hd, 6);
+  band(hw, -hd, -hw, -hd, 10);
+  band(-hw, -hd, -hw, hd, 6);
+
+  // ---------- The front: shop windows on the right ----------
+  const fz = hd - 0.04;
+  const panes = [1.45, 1.94, 2.43, 2.92, hw - 0.1];
+  const shops = ['#fff0d2', '#e8f4fc', '#ffe4ea', '#eaf7e6'];
+  for (let i = 0; i < panes.length - 1; i++) {
+    const [x0, x1] = [panes[i], panes[i + 1]];
+    gk.addGlow(new BoxGeometry(x1 - x0 - 0.02, 1.25, 0.04), shops[i % shops.length], { p: [(x0 + x1) / 2, base + 0.625, fz] });
+    gk.addGlow(new BoxGeometry(x1 - x0 - 0.02, top - base - 1.3, 0.04), '#e9f3f9', { p: [(x0 + x1) / 2, (base + 1.3 + top) / 2, fz] });
+  }
+  for (const x of panes) k.box(0.07, roofY(x, hd) - base, 0.08, FIN, { p: [x, (base + roofY(x, hd)) / 2, hd], jitter: 0 });
+  k.box(hw - 1.4, 0.07, 0.09, FIN, { p: [(1.4 + hw) / 2, base + 1.28, hd], jitter: 0 });
+  // Little displays in the windows: a stand of colour in each.
+  for (const [x, c] of [[1.7, '#ff8fab'], [2.2, '#3a86ff'], [2.68, '#ffbe0b'], [3.17, '#2e9c8f']] as const) k.rbox(0.26, 0.42, 0.06, 0.03, c, { p: [x, base + 0.36, fz + 0.04] });
+
+  // ---------- Five Guys, at the other end ----------
+  const fx0 = -hw;
+  const fx1 = -1.45;
+  const fcx = (fx0 + fx1) / 2;
+  k.box(fx1 - fx0, top - base, 0.2, '#fbfaf7', { p: [fcx, (base + top) / 2, hd - 0.1] });
+  // Red and white checked tiles, waist high.
+  const cols = 9;
+  const tile = (fx1 - fx0 - 0.2) / cols;
+  for (let r = 0; r < 4; r++) for (let c = 0; c < cols; c++) k.box(tile - 0.012, tile - 0.012, 0.03, (r + c) % 2 ? RED : '#ffffff', { p: [fx0 + 0.1 + (c + 0.5) * tile, base + 0.06 + (r + 0.5) * tile, hd + 0.015], jitter: 0.01 });
+  // A window into the warm inside, framed in red, and the red sign band over it.
+  gk.addGlow(new BoxGeometry(fx1 - fx0 - 0.4, 0.62, 0.04), '#fff1d8', { p: [fcx, base + 1.36, hd + 0.01] });
+  for (const y of [base + 1.02, base + 1.7]) k.box(fx1 - fx0 - 0.3, 0.07, 0.07, RED, { p: [fcx, y, hd + 0.03], jitter: 0 });
+  for (const x of [fx0 + 0.18, fcx, fx1 - 0.18]) k.box(0.07, 0.72, 0.07, RED, { p: [x, base + 1.36, hd + 0.03], jitter: 0 });
+  k.box(fx1 - fx0, 0.42, 0.12, RED, { p: [fcx, 2.16, hd + 0.03] });
+
+  // ---------- The entrance ----------
+  // Two pillars and a deep white beam, standing proud of the front, with WESTFIELD across it.
+  const ez = hd + 0.35;
+  for (const s of [-1, 1]) k.box(0.34, 3.56, 0.72, STEEL, { p: [s * 1.28, 1.78, ez] });
+  k.box(3.0, 0.62, 0.76, FIN, { p: [0, 3.25, ez] });
+  k.box(3.04, 0.06, 0.8, PANEL_SHADE, { p: [0, 2.92, ez], jitter: 0 });
+  // The vestibule: glass over the doors and either side of them, a mat, and the sensor.
+  gk.addGlow(new BoxGeometry(2.2, 0.82, 0.04), '#e6f1f8', { p: [0, 2.5, ez + 0.25] });
+  for (const s of [-1, 1]) gk.addGlow(new BoxGeometry(0.34, 1.78, 0.04), '#e6f1f8', { p: [s * 0.94, base + 0.89, ez + 0.27] });
+  for (const s of [-1, 1]) k.box(0.06, 1.8, 0.08, '#8b9198', { p: [s * 0.76, base + 0.9, ez + 0.27], jitter: 0 });
+  k.box(2.2, 0.07, 0.08, '#8b9198', { p: [0, base + 1.82, ez + 0.27], jitter: 0 });
+  k.box(1.5, 0.08, 0.06, '#3d3a36', { p: [0, base + 1.92, ez + 0.3], jitter: 0 });
+  k.box(1.7, 0.03, 1.0, '#5b5f66', { p: [0, 0.15, ez + 0.75], jitter: 0 });
+  k.box(2.3, 0.04, 0.72, '#cfd3d6', { p: [0, base + 0.02, ez], jitter: 0 });
+  // Planters either side, with clipped bushes.
+  for (const s of [-1, 1]) {
+    k.rbox(0.72, 0.46, 0.62, 0.05, '#8d939a', { p: [s * 2.0, 0.37, hd + 0.5] });
+    k.ico(0.3, '#5cb85a', { p: [s * 2.0 - 0.12, 0.78, hd + 0.48] }, 1);
+    k.ico(0.24, '#4fae55', { p: [s * 2.0 + 0.16, 0.74, hd + 0.55] }, 1);
+  }
+
+  const glass = new MeshBasicMaterial({ vertexColors: true, color: '#bfe2f2', toneMapped: false });
+  const glassDay = glass.color.clone();
+  const glassNight = new Color('#ffd28c');
+  const group = k.build();
+  // The glass straight into the same group, so that when the mall opens up its roof's panes lift off with the roof (see Landmark.open).
+  group.add(...gk.build({ glowMaterial: glass }).children);
+
+  // The sliding doors: glass in thin dark frames, opening as you come near.
+  const doors = [-1, 1].map((s) => {
+    const dk = new Kit(1020 + s);
+    dk.addGlow(new BoxGeometry(0.7, 1.74, 0.03), '#eaf4fa', { p: [0, 0, 0] });
+    for (const x of [-0.36, 0.36]) dk.addGlow(new BoxGeometry(0.05, 1.8, 0.05), '#2c3036', { p: [x, 0, 0.01] });
+    for (const y of [-0.88, 0.88]) dk.addGlow(new BoxGeometry(0.76, 0.05, 0.05), '#2c3036', { p: [0, y, 0.01] });
+    dk.addGlow(new BoxGeometry(0.04, 0.3, 0.05), '#9aa1a8', { p: [-s * 0.27, 0.05, 0.04] });
+    const g = dk.build({ glowMaterial: glass });
+    g.position.set(s * 0.37, base + 0.89, ez + 0.2);
+    group.add(g);
+    return { g, s };
+  });
+
+  // The signs: WESTFIELD in big red letters on the beam, FIVE GUYS in white on its red band.
+  const signTex = painted(1024, 176, (g, font) => {
+    g.fillStyle = color;
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.font = `800 158px ${font}`;
+    g.fillText('WESTFIELD', 512, 96, 1000);
+  });
+  const fiveTex = painted(512, 128, (g, font) => {
+    g.fillStyle = '#ffffff';
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.font = `800 92px ${font}`;
+    g.fillText('FIVE GUYS', 256, 68, 480);
+  });
+  const signMat = new MeshStandardMaterial({ map: signTex, transparent: true, roughness: 0.6, emissive: '#ffffff', emissiveMap: signTex, emissiveIntensity: 0.25 });
+  const sign = new Mesh(new PlaneGeometry(2.9, 0.5), signMat);
+  sign.position.set(0, 3.25, ez + 0.39);
+  group.add(sign);
+  const fiveMat = new MeshStandardMaterial({ map: fiveTex, transparent: true, roughness: 0.6, emissive: '#ffffff', emissiveMap: fiveTex, emissiveIntensity: 0.3 });
+  const five = new Mesh(new PlaneGeometry(1.7, 0.42), fiveMat);
+  five.position.set(fcx, 2.16, hd + 0.095);
+  group.add(five);
+
+  let open = 0;
+  return {
+    group,
+    bouncy: group,
+    glows: {
+      halos: [
+        [0, 1.2, ez + 0.6, 2.4], [2.4, 1.3, hd + 0.35, 1.9], [fcx, base + 1.36, hd + 0.35, 1.5], [0, 3.25, ez + 0.6, 1.8],
+        [-2.3, 3.3, 0, 2.6], [2.3, 3.4, 0, 2.6], [hw + 0.35, 1.45, 0, 1.6], [-hw - 0.35, 1.45, 0, 1.6],
+      ],
+      pools: [[0, 0.16, ez + 1.4, 3.2], [2.4, 0.16, hd + 1.4, 2.2], [fcx, 0.16, hd + 1.4, 2.0], [hw + 1.0, 0.1, 0, 1.8]],
+    },
+    night: (n) => {
+      glass.color.lerpColors(glassDay, glassNight, n);
+      signMat.emissiveIntensity = 0.25 + n * 0.7;
+      fiveMat.emissiveIntensity = 0.3 + n * 0.6;
+    },
+    // Long, so its ends and corners reach past the footprint's circle.
+    solid: [[-2.35, 0, 2.2], [2.35, 0, 2.2], [-2.95, -1.6, 0.9], [2.95, -1.6, 0.9], [-2.95, 1.6, 0.9], [2.95, 1.6, 0.9], [-2.0, hd + 0.5, 0.45], [2.0, hd + 0.5, 0.45]],
+    update: (c) => {
+      open = damp(open, c.near ? 1 : 0, 4, c.dt);
+      for (const d of doors) d.g.position.x = d.s * (0.37 + open * 0.42);
+    },
+    dispose() {
+      signTex.dispose();
+      fiveTex.dispose();
+    },
+  };
+}
+
 export const BUILDERS = {
   cabin: buildCabin,
   taproom: buildTaproom,
@@ -1560,6 +1799,7 @@ export const BUILDERS = {
   lighthouse: buildLighthouse,
   schoolhouse: buildSchoolhouse,
   depot: buildDepot,
+  mall: buildMall,
   workshop: buildWorkshop,
   pier: buildPier,
   bottle: buildBottle,

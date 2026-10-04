@@ -14,7 +14,7 @@ import { mulberry32 } from './rng';
 /** How far the explorer's body reaches from its feet, for collisions. */
 export const BODY_R = 0.32;
 
-export type LandmarkKind = 'cabin' | 'taproom' | 'tree' | 'library' | 'lighthouse' | 'schoolhouse' | 'depot' | 'workshop' | 'postbox' | 'bottle';
+export type LandmarkKind = 'cabin' | 'taproom' | 'tree' | 'library' | 'lighthouse' | 'schoolhouse' | 'depot' | 'mall' | 'workshop' | 'postbox' | 'bottle';
 
 /** Half the width of each landmark's front wall, in world units. */
 export const HALF_WIDTH: Record<LandmarkKind, number> = {
@@ -25,6 +25,7 @@ export const HALF_WIDTH: Record<LandmarkKind, number> = {
   lighthouse: 1.1,
   schoolhouse: 2.8,
   depot: 3.1,
+  mall: 5.0,
   workshop: 2.7,
   postbox: 0.5,
   bottle: 0.6,
@@ -50,7 +51,7 @@ export interface MapPlace {
   boxes: Box[];
 }
 
-const BUILDINGS = new Set<LandmarkKind>(['cabin', 'taproom', 'library', 'schoolhouse', 'depot', 'workshop', 'lighthouse']);
+const BUILDINGS = new Set<LandmarkKind>(['cabin', 'taproom', 'library', 'schoolhouse', 'depot', 'mall', 'workshop', 'lighthouse']);
 const clamp = (v: number, a: number, b: number) => (v < a ? a : v > b ? b : v);
 
 export function layoutPlaces(world: World, geo: Geo): MapPlace[] {
@@ -101,6 +102,69 @@ export function polylineDist(pts: Vec2[], x: number, z: number) {
   return best;
 }
 
+// ---------- Little London ----------
+
+export type StreetKind = 'lamp' | 'phone-box' | 'pillar-box' | 'bench';
+
+export interface StreetThing {
+  kind: StreetKind;
+  x: number;
+  z: number;
+  /** Collision radius at its foot. */
+  r: number;
+}
+
+export interface Street {
+  /** A path from where Tower Bridge comes ashore round to the door of the place on its islet. */
+  walk: Vec2[];
+  things: StreetThing[];
+}
+
+/**
+ * The islet at the far end of a tower bridge gets a London street: a path
+ * from the bridge's landing round to the door of the building there, old iron
+ * lamps by the path and the door, a red telephone box by the path (if the
+ * place has one among its scenery), and a pillar box and a bench out front.
+ * Laid out from the landing and the door; anything that would land in the
+ * sea, on the path, by the door or the landing, or against the building is
+ * left out. Null if there's no such bridge or building.
+ */
+export function layoutStreet(geo: Geo, places: MapPlace[]): Street | null {
+  const bridge = geo.bridges.find((b) => b.style === 'tower');
+  if (!bridge) return null;
+  const isle = bridge.joins[1];
+  const m = places.find((p) => BUILDINGS.has(p.kind) && geo.islandOf(p.place.at.x, p.place.at.z) === isle);
+  if (!m || isle < 1) return null;
+  const a = geo.landing(bridge, 1);
+  const d = m.door;
+  // A gentle curve: away from the bridge, then round to the door, clear of the building's corner.
+  const c = { x: (a.x + d.x) / 2 - 1.2, z: d.z + 0.2 };
+  const walk: Vec2[] = [];
+  for (let i = 0; i <= 12; i++) {
+    const t = i / 12;
+    const u = 1 - t;
+    walk.push({ x: u * u * a.x + 2 * u * t * c.x + t * t * d.x, z: u * u * a.z + 2 * u * t * c.z + t * t * d.z });
+  }
+  const at = (p: Vec2, dx: number, dz: number) => ({ x: p.x + dx, z: p.z + dz });
+  const wants: [StreetKind, Vec2][] = [
+    ['lamp', at(d, 1.9, 0.5)],
+    ['lamp', at(d, -4.3, 0.9)],
+    ['pillar-box', at(d, 5.4, 0.9)],
+    ['bench', at(d, 3.4, 2.1)],
+  ];
+  if (m.place.scenery.some((s) => s.id === 'phone-box')) wants.push(['phone-box', at(d, -2.4, 1.9)]);
+  const R: Record<StreetKind, number> = { lamp: 0.18, 'phone-box': 0.55, 'pillar-box': 0.3, bench: 0.75 };
+  const things: StreetThing[] = [];
+  for (const [kind, p] of wants) {
+    const r = R[kind];
+    const dry = geo.heightAt(p.x, p.z) > 0.3;
+    const clear = polylineDist(walk, p.x, p.z) > 1.2 + r && Math.hypot(p.x - d.x, p.z - d.z) > 1.4 + r && Math.hypot(p.x - a.x, p.z - a.z) > 1.4 + r;
+    const offBuilding = m.boxes.every((b) => p.x < b.x0 - r - BODY_R || p.x > b.x1 + r + BODY_R || p.z < b.z0 - r - BODY_R || p.z > b.z1 + r + BODY_R);
+    if (dry && clear && offBuilding) things.push({ kind, ...p, r });
+  }
+  return { walk, things };
+}
+
 // ---------- Scenery ----------
 
 export type PropKind = 'palm' | 'tree' | 'pine' | 'bush' | 'rock' | 'boulder';
@@ -148,7 +212,7 @@ export function scatterProps(world: World, geo: Geo, places: MapPlace[], seed = 
   };
 
   /** One prop (or none) per cell of a grid, its own random numbers drawn whatever grows there, so nothing else moves when the land does. */
-  const grow = (x0: number, x1: number, z0: number, z1: number, rnd: () => number) => {
+  const grow = (x0: number, x1: number, z0: number, z1: number, rnd: () => number, keep = (_x: number, _z: number) => true) => {
     for (let gz = z0; gz < z1; gz += CELL) {
       for (let gx = x0; gx < x1; gx += CELL) {
         const x = gx + rnd() * CELL;
@@ -167,7 +231,7 @@ export function scatterProps(world: World, geo: Geo, places: MapPlace[], seed = 
           if (grove > 0.56) kind = roll < 0.62 ? (h > 1.9 && roll < 0.25 ? 'pine' : 'tree') : roll < 0.8 ? 'bush' : null;
           else kind = roll < 0.07 ? 'tree' : roll < 0.15 ? 'bush' : roll < 0.17 ? 'rock' : null;
         }
-        if (!kind || hides(kind, x, z)) continue;
+        if (!kind || hides(kind, x, z) || !keep(x, z)) continue;
         props.push({ kind, variant, x, z, r: RADIUS[kind] });
       }
     }
@@ -175,5 +239,8 @@ export function scatterProps(world: World, geo: Geo, places: MapPlace[], seed = 
   grow(-30, 42, -30, 30, rnd);
   // The islets' far sides, west of that grid, from their own seed.
   grow(-44, -30, -30, 30, mulberry32(seed + 1));
+  // Little London, east of it, from another: clear of its street (the path, the lamps, the telephone box).
+  const street = layoutStreet(geo, places);
+  grow(44, 66, 6, 30, mulberry32(seed + 2), (x, z) => !street || (polylineDist(street.walk, x, z) > 1.6 && street.things.every((t) => Math.hypot(x - t.x, z - t.z) > t.r + 1.2)));
   return props;
 }

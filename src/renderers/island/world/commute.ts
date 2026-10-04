@@ -318,7 +318,9 @@ export function buildCommute() {
     for (let x = q.x0 + 1; x < q.x1; x += 1.3) qk.box(0.04, 0.012, d - 0.2, '#a39b8d', { p: [x, q.deck + 0.03, (q.z0 + q.z1) / 2], jitter: 0 });
     qk.box(w, 0.12, 0.25, '#d6cfc2', { p: [(q.x0 + q.x1) / 2, q.deck + 0.08, q.z1 - 0.13] });
     for (let x = q.x0 + 0.6; x < q.x1; x += 1.6) qk.cyl(0.13, 0.16, 0.42, '#3d3a36', { p: [x, q.deck + 0.23, q.z1 - 0.45] }, 8);
-    for (let z = q.z0 + 1.2; z < q.z1; z += 1.6) qk.cyl(0.13, 0.16, 0.42, '#3d3a36', { p: [q.x1 - 0.45, q.deck + 0.23, z] }, 8);
+    // Along the east edge, none where a bridge lands (Tower Bridge goes out from here).
+    const landing = (x: number, z: number) => geo.bridgeDist(x, z) < 2; // Tower Bridge's deck is 3.4 wide
+    for (let z = q.z0 + 1.2; z < q.z1; z += 1.6) if (!landing(q.x1 - 0.45, z)) qk.cyl(0.13, 0.16, 0.42, '#3d3a36', { p: [q.x1 - 0.45, q.deck + 0.23, z] }, 8);
     // A bus stop sign, and crates waiting to go somewhere.
     qk.cyl(0.04, 0.04, 2.0, '#5c6168', { p: [q.x0 + 1.2, q.deck + 1.0, q.z0 + 1.0] }, 6);
     qk.cyl(0.26, 0.26, 0.05, BUS_RED, { p: [q.x0 + 1.2, q.deck + 1.95, q.z0 + 1.0], r: [Math.PI / 2, 0, 0] }, 14);
