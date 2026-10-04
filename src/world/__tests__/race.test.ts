@@ -48,6 +48,8 @@ describe('the course', () => {
       // The inner post of a gate stepped in toward the island still floats past the buoys.
       expect(course.radius(th) - GATE_HALF - 2, `bearing ${th.toFixed(2)}`).toBeGreaterThan(edge + 1);
     }
+    // And round the islets: every point of it clear of all the swimming water, a gate's width and more.
+    for (const p of course.line) expect(geo.swimRoom(p.x, p.z), `${p.x.toFixed(1)}, ${p.z.toFixed(1)}`).toBeLessThan(-(GATE_HALF + 2));
     expect(course.length).toBeGreaterThan(200);
     expect(course.length).toBeLessThan(400);
   });

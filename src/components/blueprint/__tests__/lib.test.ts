@@ -49,5 +49,12 @@ describe('the blueprint helpers', () => {
     expect(d.routes).toHaveLength(w.routes.length);
     for (const r of d.routes) expect(r.d, `${r.from} to ${r.to}`).toMatch(/^M/);
     expect(d.contours.length).toBeGreaterThan(0);
+    // The islets and their bridges too, with room for the games out there.
+    expect(d.coast.match(/M/g)).toHaveLength(1 + w.geography.islets.length);
+    expect(d.bridges).toHaveLength(w.geography.bridges.length);
+    for (const a of w.activities) {
+      expect(a.at.x, a.id).toBeGreaterThan(d.box.x0);
+      expect(a.at.z, a.id).toBeGreaterThan(d.box.z0);
+    }
   });
 });

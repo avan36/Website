@@ -108,8 +108,8 @@ export const PackSchema = z
               name: z.string(),
               tagline: z.string(),
               pitch: z.string(),
-              /** What the score counts: one and many. */
-              unit: z.tuple([z.string(), z.string()]),
+              /** What the score counts: one and many. Left out for a game with no score. */
+              unit: z.tuple([z.string(), z.string()]).optional(),
               color: Hex,
             })
             .strict(),
@@ -224,7 +224,7 @@ export function buildPack(world: World, css: string = tokens): Pack {
         .filter((a) => a.kind === 'minigame' && a.game)
         .map((a) => {
           const g = GAME_INFO[a.game!];
-          return { id: g.id, name: g.name, tagline: g.tagline, pitch: g.pitch, unit: g.unit, color: g.color };
+          return { id: g.id, name: g.name, tagline: g.tagline, pitch: g.pitch, ...(g.unit ? { unit: g.unit } : {}), color: g.color };
         }),
       outfits: world.outfits.map((o) => {
         const place = placeOf(o.place);

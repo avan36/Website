@@ -4,7 +4,7 @@
 // you walk up. Playing opens the shared games card, the same one the 3D
 // island uses (src/renderers/games/overlay.ts).
 
-import { GAME_INFO, scoreText, type GameId } from '../games/catalog';
+import { GAME_INFO, isGame, playableIn, scoreText, type GameId } from '../games/catalog';
 import { playGame } from '../games/overlay';
 import type { RendererContext } from '../types';
 import { HEX } from './palette';
@@ -123,8 +123,9 @@ export function createMapGames(
   const crabArt = [crab(0), crab(1)];
   const motion = !ctx.reducedMotion;
 
+  // The games the map can play: the ones out on the islets are for the 3D island, so far.
   const spots = ctx.world.activities.flatMap((a) => {
-    if (a.kind !== 'minigame' || !a.game) return [];
+    if (a.kind !== 'minigame' || !a.game || !isGame(a.game) || !playableIn(a.game, 'map')) return [];
     const id = a.game as GameId;
     const art = paint(id);
     return [{ id, x: a.at.x, z: a.at.z, art, stand: { x: a.at.x, z: a.at.z + 0.9 } }];

@@ -4,7 +4,7 @@
 
 import { Group, IcosahedronGeometry, InstancedMesh, Matrix4, MeshBasicMaterial, Object3D, SphereGeometry } from 'three';
 import { Kit, litMaterial } from './kit';
-import { coastRadius, PIER, SWIM_REACH } from './shape';
+import { PIER, swimEdge } from './shape';
 import { waveHeight } from './water';
 
 /** Roughly how far apart they float, along the edge. */
@@ -29,23 +29,19 @@ export function buildBuoys() {
 
   // Walk round the edge and drop one every SPACING, starting off the end of
   // the pier (it reaches nearest the edge, so a buoy there reads as the limit).
+  // With islets the edge comes in runs, round each island where no other's
+  // water reaches: a buoy goes at the start of each, and none too close to another.
   const spots: { x: number; z: number; seed: number }[] = [];
-  const start = Math.atan2(PIER.end, PIER.x);
-  const N = 900;
-  let run = SPACING; // so the first one lands at the start
-  let px = 0;
-  let pz = 0;
-  for (let i = 0; i <= N; i++) {
-    const th = start + (i / N) * Math.PI * 2;
-    const r = coastRadius(th) + SWIM_REACH + OUT;
-    const x = Math.cos(th) * r;
-    const z = Math.sin(th) * r;
-    if (i > 0) run += Math.hypot(x - px, z - pz);
-    px = x;
-    pz = z;
-    if (run >= SPACING && i < N - 20) {
-      run = 0;
-      spots.push({ x, z, seed: spots.length * 1.7 });
+  const clear = (x: number, z: number) => spots.every((s) => Math.hypot(s.x - x, s.z - z) > SPACING * 0.6);
+  for (const line of swimEdge(OUT, 0.25, Math.atan2(PIER.end, PIER.x))) {
+    let run = SPACING; // so the first one lands at the start
+    for (let i = 0; i < line.length; i++) {
+      const { x, z } = line[i];
+      if (i > 0) run += Math.hypot(x - line[i - 1].x, z - line[i - 1].z);
+      if (run >= SPACING && clear(x, z)) {
+        run = 0;
+        spots.push({ x, z, seed: spots.length * 1.7 });
+      }
     }
   }
 

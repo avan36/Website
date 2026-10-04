@@ -85,6 +85,40 @@ test.describe('3D island', () => {
     expect(errors).toEqual([]);
   });
 
+  test('a footbridge takes you out to an islet, dry, and its game plays in the card', async ({ page }) => {
+    const errors = await openIsland(page);
+    // Click-to-walk from the plaza to the etymology race on Root Isle: the way goes over a bridge, never through the sea.
+    const walk = await page.evaluate(() => {
+      const d = (window as DebugWindow).__island!.debug;
+      const g = d.games().find((x) => x.id === 'etymology')!;
+      d.walkTo(g.stand.x, g.stand.z);
+      let wet = 0;
+      let west = 0;
+      for (let i = 0; i < 60; i++) {
+        d.tick(0.5);
+        const p = d.player();
+        if (p.water !== 'dry') wet++;
+        west = Math.min(west, p.x);
+        if (Math.hypot(p.x - g.stand.x, p.z - g.stand.z) < 0.6) break;
+      }
+      const p = d.player();
+      return { wet, west, left: Math.hypot(p.x - g.stand.x, p.z - g.stand.z), open: d.games().find((x) => x.id === 'etymology')!.open };
+    });
+    expect(walk.wet, 'half-seconds spent in the water').toBe(0);
+    expect(walk.west, 'out past the west coast').toBeLessThan(-25);
+    expect(walk.left, 'how far from the spot it stopped').toBeLessThan(0.6);
+    expect(walk.open, 'the prompt is up').toBe(true);
+
+    // Enter plays it: the card names the islet, and a round deals four answers.
+    await page.keyboard.press('Enter');
+    const card = page.locator('#w-dialog[open] .w-game');
+    await expect(card).toBeVisible();
+    await expect(card.locator('.w-kicker')).toContainText('Root Isle');
+    await card.locator('.w-game__go').click();
+    await expect(card.locator('.er__opt')).toHaveCount(4);
+    expect(errors).toEqual([]);
+  });
+
   test('stepping through the portal switches the view', async ({ page }) => {
     const errors = await openIsland(page);
     // Just in front of the ring on the plaza.

@@ -1,6 +1,6 @@
-// Pure game logic for Etymology Race (EtymologyRace.astro): building a round,
-// picking fair wrong answers, timing and scoring. No DOM here; see the tests in
-// __tests__/etymologyRace.test.ts.
+// Rules for Etymology race (Etymon's island game, played in ../etymology.ts):
+// building a round, picking fair wrong answers, timing and scoring. No DOM
+// here; see the tests in __tests__/etymologyRace.test.ts.
 
 import { shuffle, type Rng } from './rng';
 import type { RaceWord } from './etymologyRaceData';

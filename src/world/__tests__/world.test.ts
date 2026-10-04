@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { checkWorld, parseWorld, WorldSchema } from '../schema';
-import { createGeo } from '../geo';
+import { createGeo, SWIM_REACH } from '../geo';
 import { world } from './fixtures';
 
 const clone = <T>(v: T): T => structuredClone(v);
@@ -50,7 +50,7 @@ describe('the authored world', () => {
 
   it('puts each mini-game on dry land, off the paths, clear of every door and the pier', () => {
     const games = w.activities.filter((a) => a.kind === 'minigame');
-    expect(games.map((a) => a.game).sort()).toEqual(['crabs', 'crates', 'stones']);
+    expect(games.map((a) => a.game).sort()).toEqual(['bartender', 'crabs', 'crates', 'etymology', 'evolution', 'patterns', 'stones']);
     for (const a of games) {
       expect(geo.heightAt(a.at.x, a.at.z), a.id).toBeGreaterThan(0.3);
       expect(geo.isOpenGround(a.at.x, a.at.z), a.id).toBe(true);
@@ -65,11 +65,21 @@ describe('the authored world', () => {
       const r = geo.coastRadius(th);
       const at = (d: number) => ({ x: Math.cos(th) * d, z: Math.sin(th) * d });
       const shore = at(r + 3);
-      const open = at(r + 12);
+      // Out past the water round the main island, and round any islet that way.
+      let far = r + 12;
+      for (const s of geo.islands.slice(1)) {
+        const along = s.x * Math.cos(th) + s.z * Math.sin(th);
+        const off = Math.abs(-s.x * Math.sin(th) + s.z * Math.cos(th));
+        const R = s.outer + SWIM_REACH + 1;
+        if (along > 0 && off < R) far = Math.max(far, along + Math.sqrt(R * R - off * off));
+      }
+      const open = at(far);
       // The stone quay stands out into the water: its deck is walked on, not swum in.
       const q = w.geography.quay;
       const onQuay = !!q && shore.x > Math.min(q.x0, q.x1) - 1 && shore.x < Math.max(q.x0, q.x1) + 1 && shore.z > Math.min(q.z0, q.z1) - 1 && shore.z < Math.max(q.z0, q.z1) + 1;
-      if (!onQuay) expect(geo.isSwimmable(shore.x, shore.z), `just offshore at ${a}`).toBe(true);
+      // So do the bridges, over the water to the islets.
+      const onBridge = geo.bridgeDist(shore.x, shore.z) < 1.3;
+      if (!onQuay && !onBridge) expect(geo.isSwimmable(shore.x, shore.z), `just offshore at ${a}`).toBe(true);
       expect(geo.isSwimmable(open.x, open.z), `open sea at ${a}`).toBe(false);
     }
     expect(geo.isSwimmable(w.geography.spawn.x, w.geography.spawn.z)).toBe(false);

@@ -1,6 +1,11 @@
 // The island's geometry, worked out from a World: coastline, height, paths,
 // doors, and what's walkable. Pure math with no rendering in it, so the 3D
 // island, the 2D map and the tests all agree about where the ground is.
+//
+// There is the main island, round the origin, and a few islets off its coast,
+// each with a coast of its own; footbridges join them. Height is whichever
+// island's ground is highest at a point, so their beaches and shelves run
+// into one sea, and the swimming water is everywhere near enough to any shore.
 
 import type { Place, World } from './schema';
 import { fbm, noise2 } from './noise';
@@ -27,8 +32,45 @@ const DOOR_GAP = 1.4;
 const PAD_BLEND = 3;
 /** How far past the shore anyone can swim, in world units. */
 export const SWIM_REACH = 8;
+/** Ground higher than this is land you can stand on; lower, it's the sea. */
+const DRY = 0.14;
+/** Where you step on and off a bridge: this far past either end of its deck, on land. */
+const LANDING = 0.8;
 
 export type Geo = ReturnType<typeof createGeo>;
+
+/** An island: the main one (index 0, round the origin) or an islet, with its coast's radius at a bearing from its middle. */
+export type Island = { i: number; id: string; name: string; x: number; z: number; coast(theta: number): number; outer: number };
+
+/** A footbridge, worked out: its ends, which way it runs (u, a unit vector from `a` to `b`), and the islands it joins. */
+export type Bridge = {
+  i: number;
+  ax: number;
+  az: number;
+  bx: number;
+  bz: number;
+  length: number;
+  ux: number;
+  uz: number;
+  width: number;
+  deck: number;
+  /** Which way it runs from `a` to `b`, like a place's `faces` (0 = south, π/2 = east). */
+  yaw: number;
+  /** The islands at its `a` end and its `b` end. */
+  joins: [number, number];
+};
+
+/**
+ * Height by how far out from an island's middle you are, as a share of its
+ * coast's radius there: a grassy plateau, a sandy bank, a gentle beach, then
+ * the shelf dropping away to the open sea.
+ */
+function shelf(t: number) {
+  if (t < 0.72) return 1.3;
+  if (t < 0.86) return lerp(1.3, 0.5, smoothstep(0.72, 0.86, t));
+  if (t < 1.0) return lerp(0.5, -0.02, (t - 0.86) / 0.14);
+  return -0.02 - 2.6 * smoothstep(1.0, 1.32, t) - 3.4 * smoothstep(1.32, 2.1, t);
+}
 
 export function createGeo(world: World) {
   const g = world.geography;
@@ -42,6 +84,7 @@ export function createGeo(world: World) {
   const hills = g.hills.map((h) => ({ ...byId.get(h.at)!.at, height: h.height, spread: h.spread }));
   const shores = (g.shores ?? []).map((s) => ({ theta: Math.atan2(s.toward.z, s.toward.x), reach: s.reach, spread: s.spread }));
 
+  /** The main island's coast: its radius at a bearing from the origin. */
   function coastRadius(theta: number) {
     let r = g.coast.radius;
     for (const w of g.coast.ripples) r += w.amp * Math.sin(w.freq * theta + w.phase);
@@ -50,6 +93,33 @@ export function createGeo(world: World) {
       r += h.reach * Math.exp(-(d * d) / (2 * h.spread * h.spread));
     }
     return r;
+  }
+
+  // ---------- Islands ----------
+  const islets: Island[] = (g.islets ?? []).map((s, k) => ({
+    i: k + 1,
+    id: s.id,
+    name: s.name,
+    x: s.at.x,
+    z: s.at.z,
+    coast: (theta: number) => s.coast.ripples.reduce((r, w) => r + w.amp * Math.sin(w.freq * theta + w.phase), s.coast.radius),
+    outer: s.coast.ripples.reduce((r, w) => r + Math.abs(w.amp), s.coast.radius),
+  }));
+  let mainOuter = 0;
+  for (let k = 0; k < 360; k++) mainOuter = Math.max(mainOuter, coastRadius((k / 360) * TAU));
+  const islands: Island[] = [{ i: 0, id: 'main', name: hub.name, x: 0, z: 0, coast: coastRadius, outer: mainOuter }, ...islets];
+
+  /** An islet's own ground, or -Infinity well past its shelf (where the sea floor is everyone's). */
+  function isletHeight(s: Island, x: number, z: number) {
+    const dx = x - s.x;
+    const dz = z - s.z;
+    const d2 = dx * dx + dz * dz;
+    const far = s.outer * 2.15;
+    if (d2 > far * far) return -Infinity;
+    const t = Math.sqrt(d2) / s.coast(Math.atan2(dz, dx));
+    const land = 1 - smoothstep(0.62, 0.86, t);
+    // Gentler bumps than the main island's: a small islet with big ones looks lumpy.
+    return shelf(t) + (fbm(x * 0.075 + 3, z * 0.075 - 2, 3, 4) - 0.5) * 1.1 * land + 0.12 * (noise2(x * 0.5, z * 0.5, 9) - 0.5) * (1 - land);
   }
 
   /** 0..1, how much of a rocky headland we're on. */
@@ -63,16 +133,13 @@ export function createGeo(world: World) {
     return best;
   }
 
-  function rawHeight(x: number, z: number) {
+  /** The main island's own ground. */
+  function mainHeight(x: number, z: number) {
     const t = Math.hypot(x, z) / coastRadius(Math.atan2(z, x));
     const rock = rockiness(x, z);
 
     // Soft profile: grassy plateau, a sandy bank, a gentle beach, then the shelf.
-    let h: number;
-    if (t < 0.72) h = 1.3;
-    else if (t < 0.86) h = lerp(1.3, 0.5, smoothstep(0.72, 0.86, t));
-    else if (t < 1.0) h = lerp(0.5, -0.02, (t - 0.86) / 0.14);
-    else h = -0.02 - 2.6 * smoothstep(1.0, 1.32, t) - 3.4 * smoothstep(1.32, 2.1, t);
+    let h = shelf(t);
 
     // A headland is a higher shelf that ends in a cliff instead of a beach.
     let hr: number;
@@ -89,6 +156,20 @@ export function createGeo(world: World) {
     }
     return h;
   }
+
+  /** Whose ground this is: the island whose own height is highest here (land or sea floor), and that height. */
+  function owner(x: number, z: number) {
+    let i = 0;
+    let h = mainHeight(x, z);
+    for (const s of islets) {
+      const v = isletHeight(s, x, z);
+      if (v > h) (h = v), (i = s.i);
+    }
+    return { i, h };
+  }
+
+  /** The ground before anything is levelled: every island's, the highest winning. */
+  const rawHeight = (x: number, z: number) => (islets.length ? owner(x, z).h : mainHeight(x, z));
 
   // Level ground: every place with a clearing, then the hub, which blends wider.
   const pads = world.places
@@ -124,7 +205,33 @@ export function createGeo(world: World) {
     return Math.hypot(dx, dz);
   }
 
-  /** Ground height of the island (without the pier deck). */
+  // ---------- The bridges ----------
+  const bridges: Bridge[] = (g.bridges ?? []).map((b, i) => {
+    const length = Math.hypot(b.to.x - b.from.x, b.to.z - b.from.z) || 1;
+    const ux = (b.to.x - b.from.x) / length;
+    const uz = (b.to.z - b.from.z) / length;
+    return { i, ax: b.from.x, az: b.from.z, bx: b.to.x, bz: b.to.z, length, ux, uz, width: b.width, deck: b.deck, yaw: Math.atan2(ux, uz), joins: [0, 0] };
+  });
+  // Each end lands on a little level abutment at the height of the deck.
+  for (const b of bridges) for (const [x, z] of [[b.ax, b.az], [b.bx, b.bz]]) pads.push({ x, z, r: 1.1, blend: 2.2, h: b.deck });
+  /** Which bridge's deck (x, z) is on (-1 for none), `inset` in from its railings. */
+  function deckAt(x: number, z: number, inset = 0.15) {
+    for (const b of bridges) {
+      const rx = x - b.ax;
+      const rz = z - b.az;
+      const along = rx * b.ux + rz * b.uz;
+      if (along < 0 || along > b.length) continue;
+      if (Math.abs(rx * b.uz - rz * b.ux) < b.width / 2 - inset) return b.i;
+    }
+    return -1;
+  }
+  /** Distance to the nearest bridge's middle line (Infinity with none). */
+  const bridgeSegs: Segment[] = bridges.map((b) => ({ ax: b.ax, az: b.az, bx: b.bx, bz: b.bz }));
+  const bridgeDist = (x: number, z: number) => (bridges.length ? segDist(bridgeSegs, x, z) : Infinity);
+  /** Clear of every bridge, its railings and a step round its ends. */
+  const clearOfBridges = (x: number, z: number, margin = 0) => bridges.every((b) => segDist([bridgeSegs[b.i]], x, z) >= b.width / 2 + 1.2 + margin);
+
+  /** Ground height of the island (without the pier deck or the bridges). */
   function heightAt(x: number, z: number) {
     let h = rawHeight(x, z);
     for (const p of pads) {
@@ -147,28 +254,176 @@ export function createGeo(world: World) {
   const pier = g.pier;
   const onPier = (x: number, z: number) => Math.abs(x - pier.x) < pier.width / 2 - 0.15 && z > pier.start + 0.4 && z < pier.end - 0.2;
 
-  /** Where feet go: the land, or the pier deck. */
+  /** Where feet go: the land, the pier deck, or a bridge's. */
   function groundAt(x: number, z: number) {
     const h = heightAt(x, z);
-    return onPier(x, z) ? Math.max(h, pier.deck) : h;
+    if (onPier(x, z)) return Math.max(h, pier.deck);
+    const k = bridges.length ? deckAt(x, z) : -1;
+    return k < 0 ? h : Math.max(h, bridges[k].deck);
+  }
+
+  /**
+   * How far you could still swim out from here before the current turns you
+   * back: positive in the swimming water, negative in the open sea beyond.
+   * Near more than one island, the one with the most room wins.
+   */
+  function swimRoom(x: number, z: number) {
+    let room = coastRadius(Math.atan2(z, x)) + SWIM_REACH - Math.hypot(x, z);
+    for (const s of islets) {
+      const d = Math.hypot(x - s.x, z - s.z);
+      if (s.outer + SWIM_REACH - d <= room) continue; // can't beat it from here
+      room = Math.max(room, s.coast(Math.atan2(z - s.z, x - s.x)) + SWIM_REACH - d);
+    }
+    return room;
   }
 
   function isWalkable(x: number, z: number) {
-    if (onPier(x, z)) return true;
-    return heightAt(x, z) > 0.14 && Math.hypot(x, z) < 45;
+    if (onPier(x, z) || (bridges.length && deckAt(x, z) >= 0)) return true;
+    return heightAt(x, z) > DRY && swimRoom(x, z) > 0;
   }
 
   /** How deep the sea is here (0 on land). */
   const depthAt = (x: number, z: number) => Math.max(0, -heightAt(x, z));
 
-  /**
-   * How far you could still swim out from here before the current turns you
-   * back: positive in the swimming water, negative in the open sea beyond.
-   */
-  const swimRoom = (x: number, z: number) => coastRadius(Math.atan2(z, x)) + SWIM_REACH - Math.hypot(x, z);
-
-  /** True in the sea near enough to the shore to swim in (the land and the pier deck are not). */
+  /** True in the sea near enough to the shore to swim in (the land, the pier deck and the bridges are not). */
   const isSwimmable = (x: number, z: number) => !isWalkable(x, z) && swimRoom(x, z) > 0;
+
+  // ---------- Which island, and getting between them ----------
+
+  /** The island whose land (x, z) is (its index in `islands`), or null in the sea. A bridge's deck counts as neither. */
+  function islandOf(x: number, z: number): number | null {
+    if (heightAt(x, z) <= DRY) return null;
+    return islets.length ? owner(x, z).i : 0;
+  }
+  // What a bridge joins is the land its ends stand on before their abutments level it (an end in the sea joins nothing: -1).
+  const landUnder = (x: number, z: number) => (rawHeight(x, z) > DRY ? owner(x, z).i : -1);
+  for (const b of bridges) b.joins = [landUnder(b.ax, b.az), landUnder(b.bx, b.bz)];
+
+  /** Where you step on at either end of a bridge (0: its `a` end, 1: its `b` end): just past the deck, on land. */
+  const landing = (b: Bridge, end: 0 | 1): Vec2 =>
+    end === 0 ? { x: b.ax - b.ux * LANDING, z: b.az - b.uz * LANDING } : { x: b.bx + b.ux * LANDING, z: b.bz + b.uz * LANDING };
+
+  /** How many bridges it takes to walk from one island to another (Infinity if you can't). */
+  function hops(from: number, to: number) {
+    const seen = new Map([[from, 0]]);
+    const queue = [from];
+    while (queue.length) {
+      const at = queue.shift()!;
+      if (at === to) return seen.get(at)!;
+      for (const b of bridges) {
+        const next = b.joins[0] === at ? b.joins[1] : b.joins[1] === at ? b.joins[0] : null;
+        if (next !== null && next >= 0 && !seen.has(next)) (seen.set(next, seen.get(at)! + 1), queue.push(next));
+      }
+    }
+    return Infinity;
+  }
+
+  /** The buildings (and the old tree) a walk has to go round: every place but the hub, the pier and the bottle. */
+  const solids = world.places.filter((p) => p !== hub && p.archetype !== 'pier' && p.archetype !== 'bottle').map((p) => ({ x: p.at.x, z: p.at.z, r: p.footprint + 0.6 }));
+
+  /** Heading straight from `a` to `b`: if a building's in the way, a point beside it to step round it by. */
+  function around(a: Vec2, b: Vec2): Vec2 {
+    const dx = b.x - a.x;
+    const dz = b.z - a.z;
+    const L2 = dx * dx + dz * dz;
+    if (L2 < 1e-6) return b;
+    let hit: { x: number; z: number; r: number; t: number; cx: number; cz: number } | null = null;
+    for (const s of solids) {
+      if (Math.hypot(b.x - s.x, b.z - s.z) < s.r) continue; // going right up to it (its door)
+      const t = ((s.x - a.x) * dx + (s.z - a.z) * dz) / L2;
+      if (t <= 0 || t >= 1) continue;
+      const cx = a.x + dx * t;
+      const cz = a.z + dz * t;
+      if (Math.hypot(cx - s.x, cz - s.z) < s.r && (!hit || t < hit.t)) hit = { ...s, t, cx, cz };
+    }
+    if (!hit) return b;
+    // Out to whichever side the line passes, a little past the building's edge.
+    let nx = hit.cx - hit.x;
+    let nz = hit.cz - hit.z;
+    if (Math.hypot(nx, nz) < 1e-3) (nx = -dz), (nz = dx);
+    const n = Math.hypot(nx, nz);
+    return { x: hit.x + (nx / n) * (hit.r + 0.9), z: hit.z + (nz / n) * (hit.r + 0.9) };
+  }
+
+  /**
+   * Walking from `from` toward `to`, where to head next: straight there on the
+   * same island (or to or from the water), or else over the bridges, one
+   * landing at a time; and round any building in the way.
+   */
+  function nextStop(from: Vec2, to: Vec2): Vec2 {
+    return around(from, bridgeStop(from, to));
+  }
+
+  /** The next stop on the way over the bridges (or `to` itself, on the same island). */
+  function bridgeStop(from: Vec2, to: Vec2): Vec2 {
+    if (!bridges.length) return to;
+    const goal = islandOf(to.x, to.z);
+    if (goal === null) return to;
+    const on = deckAt(from.x, from.z, 0);
+    if (on >= 0) {
+      // On a bridge: off at whichever end is fewer bridges from where you're going.
+      const b = bridges[on];
+      return hops(b.joins[0], goal) <= hops(b.joins[1], goal) ? landing(b, 0) : landing(b, 1);
+    }
+    const at = islandOf(from.x, from.z);
+    if (at === null || at === goal) return to;
+    let best: { b: Bridge; end: 0 | 1; n: number } | null = null;
+    for (const b of bridges) {
+      for (const end of [0, 1] as const) {
+        if (b.joins[end] !== at) continue;
+        const n = hops(b.joins[1 - end], goal);
+        const d = Math.hypot(from.x - landing(b, end).x, from.z - landing(b, end).z);
+        if (n < Infinity && (!best || n < best.n || (n === best.n && d < Math.hypot(from.x - landing(best.b, best.end).x, from.z - landing(best.b, best.end).z)))) best = { b, end, n };
+      }
+    }
+    if (!best) return to;
+    const near = landing(best.b, best.end);
+    // At its landing already: over you go.
+    return Math.hypot(from.x - near.x, from.z - near.z) < 0.9 ? landing(best.b, best.end === 0 ? 1 : 0) : near;
+  }
+
+  /**
+   * The furthest land from the origin along a bearing, islets and all: the
+   * main island's coast, or past it the far shore of an islet in the way.
+   */
+  function reach(theta: number) {
+    let r = coastRadius(theta);
+    const cx = Math.cos(theta);
+    const cz = Math.sin(theta);
+    for (const s of islets) {
+      const along = s.x * cx + s.z * cz;
+      const off2 = s.x * s.x + s.z * s.z - along * along;
+      if (along > 0 && off2 < s.outer * s.outer) r = Math.max(r, along + Math.sqrt(s.outer * s.outer - off2));
+    }
+    return r;
+  }
+
+  /**
+   * The edge of the swimming water, pushed `out` further, as runs of points
+   * about `step` apart: round each island, leaving out the stretches that fall
+   * in another island's water. Each island's runs go round it clockwise on
+   * the map (as bearings rise); the main island's start at the bearing
+   * `from`, and its first run is the whole ring when nothing breaks it.
+   */
+  function swimEdge(out = 0, step = 0.5, from = 0): Vec2[][] {
+    const runs: Vec2[][] = [];
+    for (const s of islands) {
+      const n = Math.max(48, Math.ceil((TAU * (s.outer + SWIM_REACH + out)) / step));
+      const start = s.i === 0 ? from : 0;
+      let run: Vec2[] = [];
+      for (let k = 0; k < n; k++) {
+        const th = start + (k / n) * TAU;
+        const r = s.coast(th) + SWIM_REACH + out;
+        const p = { x: s.x + Math.cos(th) * r, z: s.z + Math.sin(th) * r };
+        if (islands.every((o) => o === s || roomOf(o, p.x, p.z) < -out)) run.push(p);
+        else if (run.length) (runs.push(run), (run = []));
+      }
+      if (run.length) runs.push(run);
+    }
+    return runs;
+  }
+  /** One island's swimming room on its own. */
+  const roomOf = (s: Island, x: number, z: number) => s.coast(Math.atan2(z - s.z, x - s.x)) + SWIM_REACH - Math.hypot(x - s.x, z - s.z);
 
   // ---------- Places ----------
 
@@ -245,8 +500,12 @@ export function createGeo(world: World) {
     return { place: best, distance: bestD };
   }
 
-  /** True if a spot is clear of places, paths, the pier and the hub (for scattering props). */
-  function isOpenGround(x: number, z: number, margin = 0) {
+  /**
+   * True if a spot is clear of places, paths, the pier, the railway and the
+   * bridges (for scattering props). `clearBridges: false` leaves the bridges out,
+   * for a scatter that keeps its old layout and clears them afterwards.
+   */
+  function isOpenGround(x: number, z: number, margin = 0, clearBridges = true) {
     if (pathDist(x, z) < 1.4 + margin) return false;
     for (const p of world.places) {
       if (p === hub) continue;
@@ -258,6 +517,8 @@ export function createGeo(world: World) {
     if (Math.abs(x - pier.x) < 2.2 && z > pier.start - 2) return false;
     if (railDist(x, z) < 1.6 + margin) return false;
     if (quayDist(x, z) < 0.8 + margin) return false;
+    // Nothing grows on a bridge or its landings.
+    if (clearBridges && !clearOfBridges(x, z, margin)) return false;
     // A plot keeps a little more than its clearing free, so no canopy hangs over it.
     for (const p of plots) if (Math.hypot(x - p.x, z - p.z) < p.r + 1.2 + margin) return false;
     if (station && Math.hypot(x - station.x, z - station.z) < 3.2 + margin) return false;
@@ -289,6 +550,21 @@ export function createGeo(world: World) {
   return {
     hub,
     pier,
+    /** The main island (0) and the islets off it. */
+    islands,
+    /** The footbridges between them, worked out. */
+    bridges,
+    deckAt,
+    bridgeDist,
+    clearOfBridges,
+    islandOf,
+    /** Whose ground (x, z) is, land or sea floor: the island whose own height is highest there. */
+    owner: (x: number, z: number) => (islets.length ? owner(x, z).i : 0),
+    landing,
+    hops,
+    nextStop,
+    reach,
+    swimEdge,
     /** The railway loop (null if the island has none): sample it with at(s). */
     rail,
     railDist,

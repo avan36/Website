@@ -32,7 +32,7 @@ Check it against the schema when you load it, so a change on this site can't qui
 | `posts` | The blog, newest first |
 | `life` | The journal word count and the film and TV shelf |
 | `style` | Every color token (light and dark) and the font stacks |
-| `play` | Lost words, the three mini-games, the wardrobe, and the islanders with everything they say |
+| `play` | Lost words, the seven mini-games, the wardrobe, and the islanders with everything they say |
 | `site.world` | A link to `/world.json`, if you do want the island too |
 
 ## What matters
@@ -84,12 +84,12 @@ Things that worked here and could be borrowed, remixed or taken further:
 - **Fishing for posts.** Cast off the pier and what bites is a blog post.
 - **A portal between views.** Step through on the 3D island and you come out on the pixel map, then in the text adventure, standing in the same place.
 - **A boat race** round the island against the clock and a ghost of your best lap.
-- **Three mini-games:** skipping stones (timing), crab boop (whack-a-mole) and crate stack (precision). All three are in the pack.
+- **Seven mini-games:** skipping stones (timing), crab boop (whack-a-mole) and crate stack (precision) on the island, and four over footbridges on two islets that each teach something true about a project: Ask the bartender (busy beer), Spot the dark pattern (privacy), Etymology race (Etymon) and Sort the tree of life (Map of Evolution). All seven are in the pack.
 - **A wardrobe** you earn by visiting places: a scarf from the cabin, a hard hat from the taproom, reading glasses from the library.
 - **Islanders** in every building: a caretaker, a barkeep, a librarian, a lighthouse keeper, a teacher and a sorter, each with a few things to talk about.
 - **Rooms you walk into**, built as a dollhouse in 3D and a pixel room on the map.
 - **Real time.** The island keeps the clock of the place it was made in: morning light, dusk, lit windows after dark, and a commuter train that runs at rush hour.
-- **Games on four project pages** that teach something true about the project: Ask the bartender (busy beer), Spot the dark pattern (privacy), Etymology race (Etymon) and Sort the tree of life (Map of Evolution).
+- **Islets and bridges.** The island grew two islets off its west coast, joined to it by footbridges with railings: Root Isle for where words and living things come from, Boardwalk Isle with a beach bar and a pushy cookie-banner billboard.
 - **A toy on every project page:** a journal chat that types itself out, a five-axis taste match, a tree of life that grows, a word that morphs through its history, a lighthouse beam over 11,000 dots, a barcode scan, a pop quiz.
 - **A name card** told the way Etymon tells a word's story.
 - **A word jar** that counts up from the number a returning visitor last saw.
