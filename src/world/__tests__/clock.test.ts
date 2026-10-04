@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { atIslandTime, commuteHours, daylight, formatIslandTime, islandTime, pageClock, parseIslandTime, sunElevation } from '../clock';
+import { atIslandTime, commuteHours, dayPart, daylight, formatIslandTime, islandTime, pageClock, parseIslandTime, sunElevation, timeLine } from '../clock';
 
 // Instants are written in UTC; the island runs 8 hours behind in winter and 7 in summer.
 const utc = (s: string) => new Date(`${s}Z`);
@@ -132,5 +132,39 @@ describe('the page clock', () => {
     expect(forced.commute(forced.date())).toBe(true);
     const off = pageClock('?time=08:00&commute=off', now);
     expect(off.commute(off.date())).toBe(false);
+  });
+});
+
+describe('the time line on the home page', () => {
+  it('names the part of the day from the sky, not just the clock', () => {
+    // A January day: sunrise about 7:20, sunset about 5:10 (winter, UTC-8).
+    expect(dayPart(utc('2026-01-15T11:00:00'))).toBe('small-hours'); // 3 am
+    expect(dayPart(utc('2026-01-15T15:20:00'))).toBe('dawn'); // 7:20 am
+    expect(dayPart(utc('2026-01-15T17:30:00'))).toBe('morning'); // 9:30 am
+    expect(dayPart(utc('2026-01-15T22:00:00'))).toBe('afternoon'); // 2 pm
+    expect(dayPart(utc('2026-01-16T01:15:00'))).toBe('dusk'); // 5:15 pm
+    expect(dayPart(utc('2026-01-16T06:00:00'))).toBe('night'); // 10 pm
+    // In July it's still light at 6 pm (summer, UTC-7).
+    expect(dayPart(utc('2026-07-15T01:00:00'))).toBe('evening');
+  });
+
+  it('says the time, the sky, and whether the train is running', () => {
+    const night = timeLine(utc('2026-01-16T06:26:00'), { commute: false, night: false });
+    expect(night.part).toBe('night');
+    expect(night.text).toBe("It's 10:26 pm on the island, Pacific time. Night has fallen: the lanterns are lit and the windows glow.");
+    const rush = timeLine(utc('2026-01-15T16:30:00'), { commute: true, night: false });
+    expect(rush.text).toMatch(/^It's 8:30 am on the island, Pacific time\. .* The Caltrain is running\.$/);
+  });
+
+  it('owns up when a full word hoard made it night in the daytime', () => {
+    const t = timeLine(utc('2026-01-15T22:00:00'), { commute: false, night: true });
+    expect(t.part).toBe('night');
+    expect(t.text).toMatch(/2:00 pm .* every lost word/);
+    // At night anyway, it just says night.
+    expect(timeLine(utc('2026-01-16T06:00:00'), { commute: false, night: true }).text).toMatch(/Night has fallen/);
+  });
+
+  it('never uses an em dash', () => {
+    for (const h of [1, 7, 9, 14, 17, 19, 22]) expect(timeLine(atIslandTime(h, 0, utc('2026-04-01T12:00:00')), { commute: true, night: false }).text).not.toContain('—');
   });
 });

@@ -5,6 +5,7 @@
 // reads the list never downloads three.js.
 
 import { readGeo, readWorld } from '../world/client';
+import { pageClock, timeLine } from '../world/clock';
 import { createStore } from '../world/store';
 import { Sound } from './audio';
 import { PORTAL_COLOR, portalExit, portalOf } from './portal';
@@ -322,6 +323,23 @@ function collapseCard(collapsed: boolean) {
 }
 card?.querySelector('[data-isl-card-toggle]')?.addEventListener('click', () => collapseCard(!card.classList.contains('is-collapsed')));
 if (local.get('island:card') === 'collapsed') collapseCard(true);
+
+// The island keeps Pacific time, so the card says what time it is there and
+// what the sky is doing: that's why it's light, or dark, or golden right now.
+const timeEl = card?.querySelector<HTMLElement>('[data-isl-time]');
+if (timeEl) {
+  const clock = pageClock(location.search);
+  const paintTime = () => {
+    const now = clock.date();
+    const t = timeLine(now, { commute: clock.commute(now), night: store.state.progress.night });
+    if (timeEl.textContent !== t.text) timeEl.textContent = t.text;
+    timeEl.dataset.part = t.part;
+    timeEl.hidden = false;
+  };
+  paintTime();
+  window.setInterval(paintTime, 20_000);
+  store.subscribe((_, events) => events.some((e) => e.type === 'night') && paintTime());
+}
 
 const soundButtons = document.querySelectorAll<HTMLButtonElement>('[data-isl-sound]');
 soundButtons.forEach((b) =>
