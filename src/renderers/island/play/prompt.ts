@@ -26,7 +26,7 @@ export class Prompt {
   private action = document.createElement('span');
   private v = new Vector3();
   private open = false;
-  private text = '';
+  private text: PromptText | null = null;
   private pulse: Animation | null = null;
   private x = -1;
   private y = -1;
@@ -68,10 +68,10 @@ export class Prompt {
     this.root.addEventListener('pointerdown', (e) => e.stopPropagation());
   }
 
+  /** Show this text. Pass the same object again and nothing is touched (callers keep a table of them). */
   set(t: PromptText) {
-    const key = `${t.kicker}|${t.blurb}|${t.action}|${t.muted}|${t.urgent}`;
-    if (key === this.text) return;
-    this.text = key;
+    if (t === this.text) return;
+    this.text = t;
     this.kicker.textContent = t.kicker;
     this.blurb.textContent = t.blurb;
     this.action.textContent = t.action;

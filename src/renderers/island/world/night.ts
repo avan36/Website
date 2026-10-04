@@ -214,11 +214,11 @@ export function buildNight(o: NightTargets) {
   const night = {
     background: new Color(NIGHT_HORIZON),
     fog: new Color('#1c2a55'),
-    sky: new Color('#7d93d6'),
-    ground: new Color('#3b3a66'),
-    hemi: 0.95,
+    sky: new Color('#6a80c4'),
+    ground: new Color('#2f3358'),
+    hemi: 0.82,
     sunColor: new Color('#b4c4ff'),
-    sun: 1.35,
+    sun: 1.25,
     sunPos: MOON_DIR.clone().multiplyScalar(day.sunPos.length()),
     shadow: 0.6,
   };

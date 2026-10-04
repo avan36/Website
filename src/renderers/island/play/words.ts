@@ -351,7 +351,8 @@ export class LostWords {
   update(t: number, dt: number, camera: Camera, puffs: Puffs, grow: number) {
     const o = this.o;
     const appear = easeOutBack(clamp((grow - 0.75) / 0.25), 2);
-    this.spots.forEach((s, i) => {
+    for (let i = 0; i < this.spots.length; i++) {
+      const s = this.spots[i];
       if (s.pop < 1) s.pop = Math.min(1, s.pop + dt * 2.2);
       const k = s.shown ? appear * easeOutBack(s.pop, 2.4) : 0;
       // Rest in the grass, half tucked in, rocking gently.
@@ -373,7 +374,7 @@ export class LostWords {
       if (s.shown && tw > 0 && u < 0.5 && u + dt / 0.5 >= 0.5 && !this.opts.reducedMotion) {
         puffs.spawn(s.x, s.y + 0.3, s.z, { vy: 0.5, size: 0.05, life: 0.9, drag: 1, grow: -0.4, color: '#ffe9a8' });
       }
-    });
+    }
     this.paper.instanceMatrix.needsUpdate = true;
     this.ribbons.instanceMatrix.needsUpdate = true;
     this.glints.instanceMatrix.needsUpdate = true;

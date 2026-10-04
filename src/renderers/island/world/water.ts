@@ -77,7 +77,7 @@ export function buildWater(height: { tex: DataTexture; extent: number }, sunDir:
         uRise: { value: 0 },
         uNight: { value: 0 },
         uMoon: { value: MOON_DIR.clone() },
-        uNightShallow: { value: new Color('#2b7088') },
+        uNightShallow: { value: new Color('#1d566e') },
         uNightMid: { value: new Color('#1e537a') },
         uNightSea: { value: new Color('#173f68') },
         uNightDeep: { value: new Color('#0c2142') },
@@ -140,16 +140,17 @@ export function buildWater(height: { tex: DataTexture; extent: number }, sunDir:
         float diff = 0.82 + 0.18 * max(dot(n, L), 0.0);
         col *= diff;
         float rl = max(dot(reflect(-L, n), v), 0.0);
-        float spec = mix(pow(rl, 90.0) * 0.55, pow(rl, 26.0) * 0.8, uNight);
+        // By night: a glittering path of moonlight (tight highlights on the facets) and a faint sheen.
+        float spec = mix(pow(rl, 90.0) * 0.55, pow(rl, 400.0) * 0.95 + pow(rl, 40.0) * 0.08, uNight);
         col += mix(vec3(1.0, 0.95, 0.85), vec3(0.8, 0.88, 1.0), uNight) * spec;
         float fres = pow(1.0 - max(dot(n, v), 0.0), 4.0);
         col = mix(col, mix(vec3(0.85, 0.93, 1.0), vec3(0.22, 0.3, 0.55), uNight), fres * 0.25);
         if (uNight > 0.0) {
           // Stars in the calm water further out, twinkling as the facets tilt.
-          vec2 cell = floor(vWorld.xz * 0.9);
-          float tw = 0.5 + 0.5 * sin(uTime * 2.3 + hash(cell + 3.1) * 40.0);
-          float star = step(0.975, hash(cell)) * smoothstep(0.32, 0.0, length(fract(vWorld.xz * 0.9) - 0.5)) * tw;
-          col += vec3(0.8, 0.86, 1.0) * star * smoothstep(2.0, 6.0, depth) * uNight * 0.7;
+          vec2 cell = floor(vWorld.xz * 0.8);
+          float tw = 0.45 + 0.55 * sin(uTime * 2.3 + hash(cell + 3.1) * 40.0);
+          float star = step(0.955, hash(cell)) * smoothstep(0.11, 0.0, length(fract(vWorld.xz * 0.8) - 0.5)) * tw;
+          col += vec3(0.82, 0.88, 1.0) * star * smoothstep(1.2, 3.5, depth) * uNight * 0.85;
         }
 
         // Foam: a bright line at the waterline plus rings that roll in and fade.
@@ -159,7 +160,7 @@ export function buildWater(height: { tex: DataTexture; extent: number }, sunDir:
         float lap = smoothstep(0.82, 0.97, rings) * (1.0 - smoothstep(0.15, 0.95, depth));
         float speck = step(0.86, vnoise(vWorld.xz * 2.2 + uTime * 0.3)) * (1.0 - smoothstep(0.1, 0.6, depth)) * 0.5;
         float foam = clamp(max(edge, lap * 0.8) + speck, 0.0, 1.0);
-        col = mix(col, mix(vec3(1.0, 0.99, 0.96), vec3(0.58, 0.68, 0.86), uNight), foam);
+        col = mix(col, mix(vec3(1.0, 0.99, 0.96), vec3(0.36, 0.45, 0.64), uNight), foam);
 
         float alpha = mix(0.62, 0.97, smoothstep(0.1, 2.6, depth));
         alpha = max(alpha, foam);
