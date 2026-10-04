@@ -113,7 +113,8 @@ export class Ripples {
           p.y += w * amp * l.z;
           vAlpha = l.x;
           vSide = aSide;
-          vec4 mvPosition = viewMatrix * vec4(p, 1.0);
+          // (Through the mesh's own transform too, so a room set anywhere on the island can have them.)
+          vec4 mvPosition = modelViewMatrix * vec4(p, 1.0);
           gl_Position = projectionMatrix * mvPosition;
           #include <fog_vertex>
         }

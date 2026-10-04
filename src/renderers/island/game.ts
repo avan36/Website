@@ -14,6 +14,7 @@ import {
   MeshBasicMaterial,
   PCFShadowMap,
   PerspectiveCamera,
+  PointLight,
   Raycaster,
   RingGeometry,
   Scene,
@@ -47,11 +48,12 @@ import { Ripples } from './world/ripples';
 import { buildBuoys } from './world/buoys';
 import { ROWBOAT } from './landmarks/builders';
 import { ACTIVITIES, groundAt, heightAt, HUB, isSwimmable, isWalkable, PIER, PLACES, placeOf, PLAZA, SPAWN, swimRoom, WORDS } from './world/shape';
-import { buildRoom, type IslandRoom } from './room';
-import { buildHeightTexture, buildTerrain } from './world/terrain';
+import { fitScale, frameRoom } from './interior/frame';
+import { buildInterior, type Interior } from './interior/room';
+import { buildHeightTexture, buildTerrain, pressGround } from './world/terrain';
 import { buildSky, HORIZON } from './world/sky';
 import { buildWater, waveHeight } from './world/water';
-import { clamp, damp, easeInOutCubic, easeOutBack, easeOutCubic, lerp } from './util/math';
+import { clamp, damp, easeInCubic, easeInOutCubic, easeOutBack, easeOutCubic, lerp, wrapAngle } from './util/math';
 
 export interface GameOptions {
   stage: HTMLElement;
@@ -143,7 +145,8 @@ export interface GameHandle {
 }
 
 /**
- * 'inside': in a building's room; 'door': the wipe on the way in or out of one.
+ * 'inside': in a building's room; 'door': the house opening up round you on the
+ * way in, or closing behind you on the way out.
  * 'boat': out in the speedboat, which has the keys and the camera (play/boating.ts).
  */
 type State = 'intro' | 'play' | 'entering' | 'portal' | 'inside' | 'door' | 'boat';
@@ -162,7 +165,7 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
   const mobile = touch || Math.min(window.innerWidth, window.innerHeight) < 600;
 
   /** The room you're in, when you're inside a building (see "Inside a building" below). */
-  let room: IslandRoom | null = null;
+  let room: Interior | null = null;
   let roomId: string | null = null;
 
   // ---------- Renderer ----------
@@ -211,7 +214,8 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
   const island = new Group();
   island.name = 'island';
   scene.add(island);
-  island.add(buildTerrain());
+  const terrain = buildTerrain();
+  island.add(terrain);
   const nature = buildNature(uniforms, mobile);
   island.add(nature.group);
   const height = buildHeightTexture();
@@ -263,7 +267,8 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     { ax: boatX, az: boatZ - ROWBOAT.halfLength + ROWBOAT.halfWidth, bx: boatX, bz: boatZ + ROWBOAT.halfLength - ROWBOAT.halfWidth, r: ROWBOAT.halfWidth, top: 0.3 },
   ];
   // Dressed in whatever the visitor picked from the wardrobe (in any view).
-  const dressUp = () => player.wear(o.store.world.outfits.filter((x) => o.store.state.progress.worn[x.slot] === x.id));
+  const worn = () => o.store.world.outfits.filter((x) => o.store.state.progress.worn[x.slot] === x.id);
+  const dressUp = () => (player.wear(worn()), room?.player.wear(worn()));
   dressUp();
   const hill = PLACES.find((p) => p.kind === 'tree');
 
@@ -442,7 +447,7 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     basePitch = aspect < 0.8 ? 0.86 : aspect < 1.2 ? 0.74 : 0.68;
     night.resize(viewH * renderer.getPixelRatio(), camera.fov);
     portal?.resize(viewH * renderer.getPixelRatio(), camera.fov);
-    room?.resize(viewW, viewH);
+    room?.view(camera, viewW, viewH);
   };
   resize();
   const ro = new ResizeObserver(resize);
@@ -1069,22 +1074,25 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     o.sound.play('pop');
   }
 
-  function enter(id: string) {
+  /** Go into a place: `walking`, you walked into its door (no hop, you just carry on in). */
+  function enter(id: string, walking = false) {
     if (state !== 'play' || words.picking) return;
     const l = byId.get(id);
     if (!l) return;
     stopFishing();
-    state = 'entering';
-    enteringId = id;
-    enterT = 0;
-    wipeStarted = false;
     walkTarget = null;
     pendingEnter = null;
     keys.clear();
     player.faceToward(l.place.x, l.place.z);
-    player.hop(7);
+    if (!walking) player.hop(7);
     l.bounce(1.4);
     o.sound.play('whoosh');
+    // A building with a room opens up right here (see "Inside a building"). Anywhere else, on to its page.
+    if (placeOf(id)?.interior) return openDoor(l);
+    state = 'entering';
+    enteringId = id;
+    enterT = 0;
+    wipeStarted = false;
   }
 
   /** Click the portal: walk up in front of it and step through. */
@@ -1173,51 +1181,197 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
 
   const startWipe = (l: Landmark) => {
     const v = l.focus(new Vector3()).project(camera);
-    const x = (v.x * 0.5 + 0.5) * viewW;
-    const y = (-v.y * 0.5 + 0.5) * viewH;
-    // A building with a room: in through the door. Anywhere else, on to its page.
-    if (placeOf(l.place.id)?.interior) doorWipe(l.place.color, { x, y }, () => goInside(l.place.id));
-    else o.go(l.place.id, { x, y });
+    o.go(l.place.id, { x: (v.x * 0.5 + 0.5) * viewW, y: (-v.y * 0.5 + 0.5) * viewH });
   };
 
   // ---------- Inside a building ----------
-  // A room is its own little scene with its own camera (see room.ts). A wipe
-  // in the building's color takes you in, and the same takes you back out,
-  // to stand in front of the door you went in by.
-  const doorEl = document.createElement('div');
-  doorEl.className = 'isl-door-wipe';
-  doorEl.style.cssText = 'position:absolute;inset:0;z-index:6;pointer-events:none';
-  doorEl.hidden = true;
-  stage.append(doorEl);
-  /** Cover the screen in `color` from `from`, swap scenes, and uncover it from wherever `mid` says. */
-  function doorWipe(color: string, from: { x: number; y: number }, mid: () => { x: number; y: number }) {
-    if (o.reducedMotion) return void mid();
-    state = 'door';
-    const R = (p: { x: number; y: number }) => Math.hypot(Math.max(p.x, viewW - p.x), Math.max(p.y, viewH - p.y)) + 20;
-    doorEl.style.background = color;
-    doorEl.hidden = false;
-    const a = doorEl.animate([{ clipPath: `circle(0px at ${from.x}px ${from.y}px)` }, { clipPath: `circle(${R(from)}px at ${from.x}px ${from.y}px)` }], { duration: 380, easing: 'cubic-bezier(.7,0,.25,1)', fill: 'forwards' });
-    a.onfinish = () => {
-      if (destroyed) return;
-      const at = mid();
-      present(performance.now());
-      const b = doorEl.animate([{ clipPath: `circle(${R(at)}px at ${at.x}px ${at.y}px)` }, { clipPath: `circle(0px at ${at.x}px ${at.y}px)` }], { duration: 460, easing: 'cubic-bezier(.6,0,.2,1)', fill: 'forwards' });
-      a.cancel();
-      b.onfinish = () => {
-        doorEl.hidden = true;
-        b.cancel();
-      };
-    };
-  }
+  // A building with a room opens up right where it stands: the camera glides
+  // in, the roof lifts off, the walls sink into the ground, and the room
+  // (interior/room.ts), set down in the house's own spot and scaled to fit
+  // its plot, grows up out of the floor with you in its doorway. Coming out
+  // runs it all backwards and leaves you in front of the door you went in by.
+  /** How long the house takes to open up round you, and to close behind you. */
+  const OPEN = 1.6;
+  const CLOSE = 1.3;
+  /** How far into opening up the room starts to show (it waits there for its shaders, see warm()). */
+  const SHOW = 0.5;
+  type Pose = { target: Vector3; dist: number; pitch: number; yaw: number };
+  /** Going in (1) or coming out (-1): how far along, where the camera set off from, and where you're walking to. */
+  let door: { dir: 1 | -1; t: number; l: Landmark; from: Pose; ready: boolean; popped: boolean; at: Vector2 } | null = null;
+  /** The camera leans a little toward wherever you are in the room (world units). */
+  const lean = new Vector3();
+  const leanTo = new Vector3();
+  const UP = new Vector3(0, 1, 0);
+  const poseNow = (): Pose => ({ target: rig.target.clone(), dist: rig.dist, pitch: rig.pitch, yaw: rig.yaw });
+  /** The rig, part way (k) from one pose to another, turning the short way round. */
+  const rigBetween = (a: Pose, b: Pose, k: number) => {
+    rig.target.lerpVectors(a.target, b.target, k);
+    rig.dist = lerp(a.dist, b.dist, k);
+    rig.pitch = lerp(a.pitch, b.pitch, k);
+    rig.yaw = a.yaw + wrapAngle(b.yaw - a.yaw) * k;
+  };
+  const rigAt = (p: Pose) => rigBetween(p, p, 1);
+  /** Where the camera goes to show the room: in front of its door, the whole room in the space the words leave (frame.ts). */
+  const roomPose = (r: Interior, l: Landmark): Pose => {
+    const s = r.group.scale.x;
+    const at = r.group.getWorldPosition(tmpV);
+    const f = frameRoom({ at, yaw: l.place.yaw, size: { w: r.size.w * s, d: r.size.d * s, h: r.size.h * s }, viewW, viewH, fov: camera.fov });
+    return { target: new Vector3(f.target.x, f.target.y, f.target.z).add(lean), dist: f.dist, pitch: f.pitch, yaw: f.yaw };
+  };
+  /** Back out on the island: following you, the way you'd turned it. */
+  const followPose = (): Pose => ({ target: new Vector3(player.pos.x, player.pos.y + 0.8, player.pos.z), dist: baseDist * rig.zoom, pitch: basePitch, yaw: rig.turn });
 
-  function goInside(id: string, quiet = false) {
-    const place = placeOf(id);
-    if (!place?.interior) return { x: viewW / 2, y: viewH / 2 };
+  /** Set the room down in the house's spot: its door to the house's door, on its level ground, as big as the plot allows. */
+  function mountRoom(id: string) {
+    const l = byId.get(id)!;
     room?.dispose();
-    const r = buildRoom({ place, ui: o.ui.room, night: nightWant, reducedMotion: o.reducedMotion, sound: o.sound, leave: () => leaveRoom() });
-    r.resize(viewW, viewH);
+    const r = buildInterior({ place: placeOf(id)!, ui: o.ui.room, sound: o.sound, reducedMotion: o.reducedMotion, night: night.dark, wear: worn(), leave: () => leaveRoom() });
+    r.group.position.set(l.place.x, l.baseY + 0.03, l.place.z);
+    r.group.rotation.y = l.place.yaw;
+    r.group.scale.setScalar(fitScale(r.size, Math.min(l.place.clearing - 0.3, l.place.radius + 1.3)));
+    island.add(r.group);
+    r.view(camera, viewW, viewH);
     room = r;
     roomId = id;
+    lean.set(0, 0, 0);
+    return r;
+  }
+  /** The ground under the room pressed flat (so a neighbour's slope doesn't come up through the floor), or let back up. */
+  function flatten(on: boolean) {
+    const r = room;
+    if (!on || !r) return pressGround(terrain, null);
+    const s = r.group.scale.x;
+    pressGround(terrain, { x: r.group.position.x, z: r.group.position.z, yaw: r.group.rotation.y, hw: (r.size.w / 2) * s + 0.05, hd: (r.size.d / 2) * s + 0.05, y: r.group.position.y - 0.05 });
+  }
+
+  // While a room's up, the sun's shadows close in round it and what's on
+  // screen near it: the island's whole shadow map spent on a room set down at
+  // dollhouse size keeps its shadows crisp, where island-wide they'd blur.
+  const SPREAD = sc.top;
+  const shadowAt = new Vector3();
+  let shadowK = 0;
+  function focusShadows(dt: number) {
+    const r = room?.group.visible ? room : null;
+    const want = r ? 1 : 0;
+    shadowK = o.reducedMotion || Math.abs(want - shadowK) < 0.002 ? want : damp(shadowK, want, 3, dt);
+    // Where the room is as the sun sees it (kept from the last frame it was up, to ease back out from).
+    if (r) {
+      sun.updateMatrixWorld();
+      sun.target.updateMatrixWorld();
+      sun.shadow.updateMatrices(sun);
+      r.group.getWorldPosition(shadowAt).applyMatrix4(sc.matrixWorldInverse);
+    }
+    const R = lerp(SPREAD, clamp(rig.dist * 0.9, 7, SPREAD), shadowK);
+    const x = shadowAt.x * shadowK;
+    const y = shadowAt.y * shadowK;
+    if (sc.left === x - R && sc.right === x + R && sc.bottom === y - R && sc.top === y + R) return;
+    sc.left = x - R;
+    sc.right = x + R;
+    sc.bottom = y - R;
+    sc.top = y + R;
+    sc.updateProjectionMatrix();
+  }
+
+  // The room's lamp is the only point light the island ever has, and the
+  // first time it shines every lit material needs its shaders built for it:
+  // do that out of sight while the house opens, so the glide doesn't stutter.
+  const warmScene = new Scene();
+  warmScene.add(new PointLight('#ffffff', 0));
+  let warmed = false;
+  function warm(done: () => void) {
+    if (warmed) return done();
+    warmScene.fog = scene.fog;
+    const ok = () => {
+      warmed = true;
+      if (!destroyed) done();
+    };
+    renderer.compileAsync(scene, camera, warmScene).then(ok, ok);
+  }
+
+  /** In through the door: the house starts opening up round you. */
+  function openDoor(l: Landmark) {
+    const r = mountRoom(l.place.id);
+    // Hidden (lamp and all) until its shaders are ready.
+    r.group.visible = false;
+    r.reveal(0);
+    state = 'door';
+    canvas.style.cursor = '';
+    prompt?.show(false);
+    rig.parallaxT.set(0, 0);
+    // You'll walk on into its doorway.
+    const reach = (r.size.d / 2) * r.group.scale.x;
+    const at = new Vector2(l.place.x + Math.sin(l.place.yaw) * reach, l.place.z + Math.cos(l.place.yaw) * reach);
+    door = { dir: 1, t: 0, l, from: poseNow(), ready: false, popped: false, at };
+    const d = door;
+    warm(() => (d.ready = true));
+  }
+
+  /** The house round the room, part way (k) open: the roof lifts off first, then the walls go down. */
+  function opening(l: Landmark, k: number) {
+    const lid = clamp((k - 0.1) / 0.4);
+    const walls = clamp((k - 0.22) / 0.38);
+    l.open(lid, walls);
+    night.dim(landmarks.indexOf(l), Math.max(lid, walls));
+  }
+
+  function updateDoor(dt: number) {
+    const d = door;
+    const r = room;
+    if (!d || !r) return;
+    const l = d.l;
+    const T = o.reducedMotion ? 0 : d.dir > 0 ? OPEN : CLOSE;
+    // Going in, it waits where the room starts to show until the room can be drawn without a hitch.
+    d.t = Math.min(d.t + dt, d.dir > 0 && !d.ready ? SHOW * T : Infinity);
+    const k = T > 0 ? clamp(d.t / T) : d.dir > 0 && !d.ready ? 0 : 1;
+    if (d.dir > 0) {
+      rigBetween(d.from, roomPose(r, l), easeInOutCubic(k));
+      opening(l, k);
+      // A puff as the roof comes off.
+      if (!d.popped && k > 0.12) {
+        d.popped = true;
+        if (!o.reducedMotion) puffs.ring(l.place.x, l.baseY + l.place.eaves, l.place.z, 14, 3.2, '#fbf1dc', 0.32);
+        o.sound.play('pop');
+      }
+      // You walk on into the doorway (the house is going: nothing's in the way), getting smaller as you go:
+      // the one inside is you in a moment.
+      wish.set(d.at.x - player.pos.x, d.at.y - player.pos.z);
+      const far = wish.length();
+      player.move(dt, far > 0.12 ? wish.multiplyScalar(clamp(far / 1.2 + 0.3) / far) : wish.set(0, 0), []);
+      const step = clamp((k - 0.12) / 0.3);
+      player.warp = Math.max(0.001, 1 - easeInCubic(step));
+      if (step >= 1) player.root.visible = player.shadowMesh.visible = false;
+      // The room grows up out of its floor.
+      const show = d.ready && k >= SHOW;
+      if (show && !r.group.visible) flatten(true);
+      r.group.visible = show;
+      r.reveal(show ? (o.reducedMotion ? 1 : easeOutBack(clamp((k - SHOW) / 0.4), 1.4)) : 0);
+      if (k >= 1) arriveInside(false);
+    } else {
+      player.move(dt, wish.set(0, 0), colliders);
+      rigBetween(d.from, followPose(), easeInOutCubic(k));
+      // The room folds down into its floor, the walls come back up and the roof drops back on.
+      r.reveal(1 - easeInCubic(clamp(k / 0.35)));
+      if (k >= 0.35 && r.group.visible) (r.group.visible = false), flatten(false);
+      opening(l, 1 - clamp((k - 0.05) / 0.7));
+      // And there you are, outside the door.
+      if (!player.root.visible && k > 0.55) {
+        player.root.visible = player.shadowMesh.visible = true;
+        player.warp = 0.001;
+        if (!o.reducedMotion) player.hop(5);
+        o.sound.play('pop');
+      }
+      if (player.root.visible && player.warp < 1) player.warp = o.reducedMotion ? 1 : Math.min(1, player.warp + dt * 3.2);
+      if (k >= 1) stepOut();
+    }
+  }
+
+  /** All the way in: the room is yours, and its bar and description go up. */
+  function arriveInside(quiet: boolean) {
+    const r = room;
+    const id = roomId;
+    const l = id ? byId.get(id) : null;
+    if (!r || !id || !l) return;
+    door = null;
     state = 'inside';
     enteringId = null;
     walkTarget = null;
@@ -1226,6 +1380,13 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     stopFishing();
     canvas.style.cursor = '';
     prompt?.show(false);
+    l.open(1, 1);
+    night.dim(landmarks.indexOf(l), 1);
+    r.group.visible = true;
+    r.reveal(1);
+    flatten(true);
+    player.warp = 1;
+    player.root.visible = player.shadowMesh.visible = false;
     store.dispatch({ type: 'inside', at: id });
     o.ui.room.enter(
       id,
@@ -1236,38 +1397,60 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
       },
       { quiet },
     );
-    return r.screen(r.at.x, r.at.z);
   }
 
+  /** Straight in, no glide: for reduced motion, a page that starts inside, and the debug handle. */
+  function cutInside(id: string, quiet: boolean) {
+    const l = byId.get(id);
+    if (!l || !placeOf(id)?.interior) return;
+    const r = mountRoom(id);
+    arriveInside(quiet);
+    rigAt(roomPose(r, l));
+    rig.parallax.set(0, 0);
+    rig.parallaxT.set(0, 0);
+    placeCamera(rig.target, rig.dist, rig.pitch, rig.yaw);
+    shadowK = 1;
+    focusShadows(0);
+  }
+
+  /** Out of the door (walking out, Escape, the Leave button): the house closes up behind you. */
   function leaveRoom() {
     const r = room;
     const id = roomId;
     const l = id ? byId.get(id) : null;
     if (!r || !l || state !== 'inside') return;
     o.sound.play('step');
-    const from = r.screen(r.at.x, r.at.z);
-    const out = () => {
-      o.ui.room.exit();
-      r.dispose();
-      room = null;
-      roomId = null;
-      state = 'play';
-      keys.clear();
-      // Back out in front of the door you went in by, facing away from it.
-      const p = l.place;
-      player.place(p.stand.x, p.stand.z, Math.atan2(p.x - p.stand.x, p.z - p.stand.z) + Math.PI);
-      dismissedId = p.id;
-      nearId = p.id;
-      rig.target.set(player.pos.x, player.pos.y + 0.8, player.pos.z);
-      rig.dist = baseDist * rig.zoom;
-      rig.pitch = basePitch;
-      store.dispatch({ type: 'inside', at: null });
-      reportPresence(0, true);
-      if (!o.reducedMotion) player.hop(5);
-      l.bounce(1);
-      return toScreen(player.head(new Vector3()));
-    };
-    doorWipe(l.place.color, from, out);
+    o.ui.room.exit();
+    store.dispatch({ type: 'inside', at: null });
+    r.halt();
+    state = 'door';
+    keys.clear();
+    canvas.style.cursor = '';
+    // Back out in front of the door you went in by, facing away from it (you pop out in a moment).
+    const p = l.place;
+    player.place(p.stand.x, p.stand.z, Math.atan2(p.x - p.stand.x, p.z - p.stand.z) + Math.PI);
+    door = { dir: -1, t: 0, l, from: poseNow(), ready: true, popped: false, at: new Vector2(p.stand.x, p.stand.z) };
+  }
+
+  /** All the way out: the room's gone, and you're on the island again. */
+  function stepOut() {
+    const l = door?.l;
+    door = null;
+    room?.dispose();
+    room = null;
+    roomId = null;
+    flatten(false);
+    if (!l) return;
+    l.open(0, 0);
+    night.dim(landmarks.indexOf(l), 0);
+    state = 'play';
+    keys.clear();
+    player.root.visible = player.shadowMesh.visible = true;
+    player.warp = 1;
+    dismissedId = l.place.id;
+    nearId = l.place.id;
+    reportPresence(0, true);
+    l.bounce(1);
   }
 
   // ---------- Return reveal ----------
@@ -1393,7 +1576,7 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
       doorPushT = along > 0 && side < 1.1 && along < p.radius + 1.1 && into > 0.6 ? doorPushT + dt : 0;
       if (doorPushT > 0.12) {
         doorPushT = 0;
-        return enter(p.id);
+        return enter(p.id, true);
       }
     } else doorPushT = 0;
     player.sprint = shiftHeld || (!!walkTarget && runTo);
@@ -1514,21 +1697,22 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     time += dt;
     uniforms.uTime.value = time;
     water.material.uniforms.uTime.value = time;
+
+    if (state === 'intro') updateIntro(raw);
+    else if (state === 'play') updatePlay(dt);
+    else if (state === 'entering') player.move(dt, wish.set(0, 0), colliders);
+    else if (state === 'portal') updatePortal(dt);
+    // In a room (or on the way in or out of one): it runs where the house stood, and the island carries on round it.
     if (room) {
-      // Inside: the room runs, and the island waits outside.
       roomWish.set(0, 0);
       if (state === 'inside') for (const k of keys) {
         const m = MOVE_KEYS[k];
         if (m) (roomWish.x += m[0]), (roomWish.y += m[1]);
       }
+      room.night(night.dark);
       room.update(time, dt, roomWish, shiftHeld);
-      return;
+      if (state === 'door') updateDoor(dt);
     }
-
-    if (state === 'intro') updateIntro(raw);
-    else if (state === 'play') updatePlay(dt);
-    else if (state === 'entering' || state === 'door') player.move(dt, wish.set(0, 0), colliders);
-    else if (state === 'portal') updatePortal(dt);
 
     // Stepping out of the portal on arrival: a pop, a spin and a hop onto the plaza.
     if (arriveT >= 0 && portal) {
@@ -1609,6 +1793,13 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
       // Lean in on the swirl as you go through.
       rig.target.lerp(portal.middle, 1 - Math.exp(-dt * 4));
       rig.dist = damp(rig.dist, baseDist * 0.7, 3, dt);
+    } else if (state === 'inside' && room && roomId) {
+      // The whole room in the space the words leave, leaning a little toward wherever you are in it.
+      const r = room;
+      leanTo.set(r.player.pos.x * 0.18, 0, r.player.pos.z * 0.12).applyAxisAngle(UP, r.group.rotation.y).multiplyScalar(r.group.scale.x);
+      if (o.reducedMotion) lean.copy(leanTo);
+      else lean.set(damp(lean.x, leanTo.x, 3, dt), 0, damp(lean.z, leanTo.z, 3, dt));
+      rigAt(roomPose(r, byId.get(roomId)!));
     } else if (state === 'entering' && enteringId) {
       const l = byId.get(enteringId)!;
       enterT += dt;
@@ -1627,6 +1818,7 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
       rig.parallax.y = damp(rig.parallax.y, rig.parallaxT.y, 2, dt);
     }
     placeCamera(rig.target, rig.dist, rig.pitch, rig.yaw);
+    focusShadows(dt);
   };
 
   const frame = (now: number) => {
@@ -1661,11 +1853,6 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
 
   /** Draw: the labels over the scene, then the scene. */
   const present = (now: number) => {
-    if (room) {
-      prompt?.show(false);
-      renderer.render(room.scene, room.camera);
-      return;
-    }
     const hoverId = state === 'play' ? labelHover ?? labelFocus ?? pointerHover : null;
 
     // Labels (kept out of the HUD's way, re-measured a few times a second
@@ -1711,8 +1898,12 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     renderer.render(scene, camera);
   };
 
+  // Inside a building in another view: already in here, with the house open round you.
+  if (startInside) cutInside(startInside, true);
+
   // Compile shaders before the first visible frame to avoid a hitch, including
-  // the things that only show up later (night, the unrolling scroll, the catch).
+  // the things that only show up later (night, the unrolling scroll, the catch,
+  // and the room's lamp, if it's already lit).
   const later = [night.group, ...words.group.children, ...(fishing?.group.children ?? [])].filter((x) => !x.visible);
   later.forEach((x) => (x.visible = true));
   try {
@@ -1721,9 +1912,8 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     /* fall back to compiling on first render */
   }
   later.forEach((x) => (x.visible = false));
+  warmed = !!room;
   renderer.render(scene, camera);
-  if (startInside) goInside(startInside, true);
-  if (room) present(performance.now());
   o.onReady(arriving ? toScreen(portal!.middle) : undefined);
 
   const start = () => {
@@ -1748,7 +1938,6 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     stop();
     room?.dispose();
     room = null;
-    doorEl.remove();
     ro.disconnect();
     document.removeEventListener('visibilitychange', onVis);
     canvas.removeEventListener('pointerdown', onPointerDown);
@@ -1855,12 +2044,12 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
       fishing: () => fishing?.phase ?? null,
       fish: () => void fishAction(),
       night: () => night.amount,
-      inside: () => (room && roomId ? { at: roomId, x: room.at.x, z: room.at.z, within: room.within?.id ?? null, busy: o.ui.room.busy } : null),
+      inside: () => (room && roomId && state === 'inside' ? { at: roomId, x: room.at.x, z: room.at.z, within: room.within?.id ?? null, busy: o.ui.room.busy } : null),
       approach: (id: string) => room?.go(id) ?? false,
       roomScreen: (x: number, z: number) => room?.screen(x, z) ?? null,
       enter: (id: string) => {
         if (state !== 'play' || !placeOf(id)?.interior) return false;
-        goInside(id);
+        cutInside(id, false);
         return true;
       },
       boat: boating?.debug ?? null,

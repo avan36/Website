@@ -237,8 +237,11 @@ export function buildNight(o: NightTargets) {
   const flyUniforms = { uTime: uniforms.uTime, uNight: { value: 0 }, uScale: uniforms.uScale };
   const halos: Glow[] = [];
   const pools: Glow[] = [];
+  // Which halos and pools are whose, to turn one landmark's down (see dim()).
+  const owns: { halos: [number, number]; pools: [number, number] }[] = [];
   for (const l of o.landmarks) {
     const g = l.glows();
+    owns.push({ halos: [halos.length, g.halos.length], pools: [pools.length, g.pools.length] });
     halos.push(...g.halos);
     pools.push(...g.pools);
   }
@@ -252,7 +255,9 @@ export function buildNight(o: NightTargets) {
   const boatHalo = new Points(haloPoints([[0, 0, 0, 2.2]]), new ShaderMaterial({ ...haloShader, ...additive, uniforms }));
   boatHalo.frustumCulled = false;
   boatHalo.renderOrder = 4;
-  group.add(haloMesh, flies, poolMesh(pools, uniforms), boatHalo);
+  const pool = poolMesh(pools, uniforms);
+  group.add(haloMesh, flies, pool, boatHalo);
+  const dimmed = new Map<number, number>();
 
   let target = 0;
   let p = 0; // progress 0..1, linear in time
@@ -307,6 +312,30 @@ export function buildNight(o: NightTargets) {
     setClock(d: number, instant = false) {
       clockWant = Math.min(1, Math.max(0, d));
       if (instant) clock = clockWant;
+    },
+    /**
+     * Turn one landmark's halos and pools of light down, 0 (as they are) to 1
+     * (gone): its windows and lamps aren't there while it's opened up to show
+     * the room inside. `i` is its place in `landmarks`.
+     */
+    dim(i: number, k: number) {
+      const own = owns[i];
+      k = Math.min(1, Math.max(0, k));
+      if (!own || (dimmed.get(i) ?? 0) === k) return;
+      dimmed.set(i, k);
+      const size = haloMesh.geometry.getAttribute('size') as BufferAttribute;
+      const [h0, hn] = own.halos;
+      for (let j = h0; j < h0 + hn; j++) size.setX(j, halos[j][3] * (1 - k));
+      size.needsUpdate = true;
+      // A pool shrinks to its middle.
+      const pos = pool.geometry.getAttribute('position') as BufferAttribute;
+      const corner = pool.geometry.getAttribute('corner') as BufferAttribute;
+      const [p0, pn] = own.pools;
+      for (let j = p0; j < p0 + pn; j++) {
+        const [x, , z, r] = pools[j];
+        for (let c = j * 4; c < j * 4 + 4; c++) pos.setX(c, x + corner.getX(c) * r * (1 - k)).setZ(c, z + corner.getY(c) * r * (1 - k));
+      }
+      pos.needsUpdate = true;
     },
     /** Pixel scale for the sprites: drawing-buffer height over the view's height at unit distance. */
     resize(bufferHeight: number, fovDeg: number) {

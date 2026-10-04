@@ -167,19 +167,26 @@ export class Kit {
     return this.lit.length === 0 && this.glow.length === 0;
   }
 
-  /** Merge everything into a Group of at most two meshes. */
+  /**
+   * Merge everything into a Group of at most two meshes. Each mesh remembers
+   * how many vertices each part had (`userData.parts`), so it can be split
+   * apart again by whole parts later (a building's roof from its walls).
+   */
   build(opts: { castShadow?: boolean; receiveShadow?: boolean; glowMaterial?: Material } = {}) {
     const group = new Group();
+    const parts = (list: BufferGeometry[]) => list.map((g) => g.getAttribute('position').count);
     if (this.lit.length) {
       const g = mergeGeometries(this.lit, false)!;
       const m = new Mesh(g, litMaterial());
       m.castShadow = opts.castShadow ?? true;
       m.receiveShadow = opts.receiveShadow ?? true;
+      m.userData.parts = parts(this.lit);
       group.add(m);
     }
     if (this.glow.length) {
       const g = mergeGeometries(this.glow, false)!;
       const m = new Mesh(g, opts.glowMaterial ?? new MeshBasicMaterial({ vertexColors: true }));
+      m.userData.parts = parts(this.glow);
       group.add(m);
     }
     this.lit.forEach((g) => g.dispose());

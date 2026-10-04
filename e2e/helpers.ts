@@ -116,6 +116,9 @@ export type IslandDebug = {
   portal(): { near: boolean } | null;
   clickPortal(): void;
   portalled(): { x: number; y: number } | null;
+  near(): string | null;
+  places(): { id: string; x: number; z: number; stand: { x: number; z: number } }[];
+  inside(): { at: string; x: number; z: number } | null;
 };
 export type WorldHandle = {
   world: { activities: { kind: string; at: { x: number; z: number } }[]; places: { id: string; interior?: unknown }[] };
