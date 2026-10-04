@@ -663,8 +663,9 @@ const VIEWS = [
   }
   @media (max-width: 350px) {
     .isl-nav { gap: 4px; }
-    .isl-brand { min-width: 0; padding-right: 10px; gap: 8px; }
-    .isl-brand__name { font-size: 14px; }
+    /* Too narrow for the name beside the buttons: the monogram alone. */
+    .isl-brand { padding: 4px; }
+    .isl-brand__text { display: none; }
     .isl-card__title { font-size: 17px; gap: 8px; }
   }
 </style>
