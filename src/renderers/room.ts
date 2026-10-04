@@ -1,13 +1,14 @@
 // Inside a building: the parts every spatial view shares. The bar along the
 // top (where you are, the way out), the nudge when someone or something is
-// within reach ("Talk to Juniper  E"), and one conversation box for talking
-// to the islanders and looking at things. The map and the island draw the
+// within reach ("Talk to Juniper  E"), and one box for the work the building
+// stands for, talking to the islanders and looking at things. You talk to
+// someone by walking up to them. The map and the island draw the
 // room their own way and call in here; the box looks the same in both (inked
 // and square over the map, soft over the island), so do the words, and so
 // does what the keyboard does:
 //
 //   E or Enter     talk to, or look at, whatever is within reach
-//   Escape         close the box; with it closed, leave the room
+//   Escape         close the box (saying goodbye, mid-conversation); with it closed, leave the room
 //   arrows         move between the choices in the box
 //
 // The box isn't modal: the room stays on screen behind it. Focus moves into
@@ -26,7 +27,7 @@ export const BOX_SIDE = 440 + 48;
 export const boxDocksRight = (cssW: number, cssH: number) => cssW >= 1000 && cssH >= 560;
 
 export interface RoomHandlers {
-  /** Go back outside (the Leave button, Escape, walking out of the door). */
+  /** Go back outside (the bar's Leave button, Escape, walking out of the door). */
   leave(): void;
   /** Open a page on this site from the room, with the renderer's wipe. */
   page(href: string): void;
@@ -35,14 +36,12 @@ export interface RoomHandlers {
 }
 
 export interface RoomUI {
-  /** In through the door of a place with a room: the bar goes up, and the room is described. */
+  /** In through the door of a place with a room: the bar goes up, and the work it stands for comes up beside it. */
   enter(placeId: string, on: RoomHandlers, opts?: { quiet?: boolean }): void;
   /** Back outside: everything comes down. */
   exit(): void;
   talk(personId: string): void;
   inspect(thingId: string): void;
-  /** The room's overview: what it's like, who's here, what there is to look at. */
-  look(): void;
   /** Close the box, back to walking about. */
   hush(): void;
   /** What's within reach, for the nudge (and E). */
@@ -81,7 +80,7 @@ export function createRoomUI(world: World, announce: (s: string) => void, toast:
   let returnFocus: HTMLElement | null = null;
   /**
    * The box is showing the room's overview at rest: the work this building
-   * stands for, who's here, what to look at. It doesn't hold the keys or take
+   * stands for, and what to look at. It doesn't hold the keys or take
    * focus, so you walk about with it up. On a wide screen it stays docked
    * beside the room (a conversation takes its place, and it comes back after);
    * on a narrow one it's there as you come in, and your first step or a tap on
@@ -90,7 +89,7 @@ export function createRoomUI(world: World, announce: (s: string) => void, toast:
   let passive = false;
   /** What the box is showing. */
   let showing: 'look' | 'talk' | 'thing' | null = null;
-  /** The overview was put away (its close button, or Look around again): it stays away this visit. */
+  /** The overview was put away (its close button): it stays away this visit. */
   let tucked = false;
   const docked = () => boxDocksRight(window.innerWidth, window.innerHeight);
 
@@ -123,8 +122,11 @@ export function createRoomUI(world: World, announce: (s: string) => void, toast:
   /** Done with whatever's in the box: back to the overview at rest beside the room (on a wide screen), or to just walking. */
   function hush() {
     if (box.hidden || passive) return;
+    // Closing a conversation is saying goodbye.
+    const c = talking;
     close();
     rest();
+    if (c) toast({ title: c.name, body: c.farewell, color: c.color });
   }
 
   function rest() {
@@ -155,7 +157,12 @@ export function createRoomUI(world: World, announce: (s: string) => void, toast:
     paintNudge();
   }
 
-  /** The room's overview: the work, who's here, what to look at. At rest it's `passive`; asked for, it's a box like any other. */
+  /**
+   * The room's overview: the work this building stands for, its page (the big
+   * button) and where to get it or try it (the smaller one), and what to look
+   * at. The room's own description is read out, not shown. At rest it's
+   * `passive`; asked for, it's a box like any other.
+   */
   function look(passing = false, quiet = false) {
     if (!place?.interior) return;
     const room = place.interior;
@@ -169,34 +176,35 @@ export function createRoomUI(world: World, announce: (s: string) => void, toast:
            <p class="w-talk__headline">${esc(work.headline)}</p>
            ${work.body.map((b) => `<p class="w-talk__body">${esc(b)}</p>`).join('')}
            ${shots ? `<div class="w-talk__shots">${shots}</div>` : ''}
-           <div class="w-talk__links">${work.links.map((l) => link(l)).join('')}</div>
          </div>`
       : '';
-    const people = room.people
-      .map((c) => `<button type="button" class="w-talk__choice" data-talk="person:${c.id}" style="--who:${c.color}"><i aria-hidden="true"></i>Talk to ${esc(c.name)}, ${esc(c.role)}</button>`)
-      .join('');
     const things = room.things.map((t) => `<button type="button" class="w-talk__choice" data-talk="thing:${t.id}">Look at ${esc(thingName(t))}</button>`).join('');
     const p = place;
     show(
       `${CLOSE}
        <div class="w-talk__head"><div class="w-talk__who"><span class="w-talk__kicker">Inside ${esc(the(p))}</span><h2 class="w-talk__name" id="w-talk-title">${esc(work ? work.name : cap(the(p)))}</h2></div></div>
        ${about}
-       <p class="w-talk__label">The room</p>
-       <p class="w-talk__desc">${esc(room.description)}</p>
-       <p class="w-talk__label">Who's here</p>
-       <div class="w-talk__choices" role="group" aria-label="Who's here">${people}</div>
-       <p class="w-talk__label">Have a look at</p>
-       <div class="w-talk__choices" role="group" aria-label="Things to look at">${things}</div>
-       <div class="w-talk__foot">
-         <a class="w-talk__choice w-talk__choice--go" href="${esc(p.href ?? '/')}" data-talk-link>The full page <span aria-hidden="true">→</span></a>
-         <button type="button" class="w-talk__choice" data-talk="leave">Leave ${esc(the(p))}</button>
-       </div>`,
+       <div class="w-talk__ctas">
+         <a class="w-talk__choice w-talk__choice--go w-talk__cta" href="${esc(p.href ?? '/')}" data-talk-link><span>${work ? `Read more<span class="w-talk__long"> about ${esc(work.name)}</span>` : 'The full page'}</span> <span aria-hidden="true">→</span></a>
+         ${lead(work)}
+       </div>
+       ${things ? `<p class="w-talk__label">Have a look at</p><div class="w-talk__choices" role="group" aria-label="Things to look at">${things}</div>` : ''}`,
       p.color,
       `Inside ${the(p)}`,
       'look',
       passing,
     );
     if (!quiet) announce(`Inside ${the(p)}. ${work ? `${work.name}: ${work.headline} ` : ''}${room.description}`);
+  }
+
+  /** The work's own way in, beside its page: the App Store, or the thing itself (or failing those, its first link). */
+  function lead(work: World['projects'][number] | undefined) {
+    const l = work?.links.find((x) => x.kind === 'appstore' || x.kind === 'primary') ?? work?.links[0];
+    if (!l) return '';
+    const external = !internal(l.href);
+    // "Download on the App Store" is just "App Store" on a phone, so it fits beside the page's button.
+    const label = l.kind === 'appstore' ? `<span class="w-talk__long">Download on the </span>App Store` : esc(l.label);
+    return `<a class="w-talk__choice w-talk__choice--alt w-talk__cta" href="${esc(l.href)}"${external ? ' target="_blank" rel="noopener"' : ''} data-talk-link><span>${label}</span> <span aria-hidden="true">${external ? '↗' : '→'}</span></a>`;
   }
 
   function talk(id: string, topicId?: string) {
@@ -221,8 +229,7 @@ export function createRoomUI(world: World, announce: (s: string) => void, toast:
        <p class="w-talk__line is-said" style="--who:${c.color}" id="w-talk-line" aria-live="polite">${esc(line)}</p>
        ${topic ? link(topic.link) : ''}
        <p class="w-talk__label" id="w-talk-ask">Ask about</p>
-       <div class="w-talk__choices" role="group" aria-labelledby="w-talk-ask">${choices}</div>
-       <div class="w-talk__foot"><button type="button" class="w-talk__choice" data-talk="bye">Goodbye</button>${place.interior!.people.length > 1 ? `<button type="button" class="w-talk__choice" data-talk="look">Someone else</button>` : ''}</div>`,
+       <div class="w-talk__choices" role="group" aria-labelledby="w-talk-ask">${choices}</div>`,
       place.color,
       `Talking to ${c.name}`,
       'talk',
@@ -242,19 +249,12 @@ export function createRoomUI(world: World, announce: (s: string) => void, toast:
       `${CLOSE}
        <div class="w-talk__head"><span class="w-talk__face w-talk__face--thing" aria-hidden="true">${EYE}</span><div class="w-talk__who"><span class="w-talk__kicker">Have a look</span><h2 class="w-talk__name" id="w-talk-title">${esc(cap(t.names[0]))}</h2></div></div>
        <p class="w-talk__line" id="w-talk-line">${esc(t.description)}</p>
-       ${link(t.link)}
-       <div class="w-talk__foot"><button type="button" class="w-talk__choice" data-talk="close" data-first>Done</button></div>`,
+       ${link(t.link)}`,
       place.color,
       cap(t.names[0]),
       'thing',
     );
     announce(`${cap(t.names[0])}. ${t.description}`);
-  }
-
-  function bye() {
-    const c = talking;
-    hush();
-    if (c) toast({ title: c.name, body: c.farewell, color: c.color });
   }
 
   // ---------- Clicks and keys ----------
@@ -274,10 +274,6 @@ export function createRoomUI(world: World, announce: (s: string) => void, toast:
     if (!b) return;
     const [cmd, arg] = b.dataset.talk!.split(':');
     if (cmd === 'close') showing === 'look' ? tuck() : hush();
-    else if (cmd === 'bye') bye();
-    else if (cmd === 'leave') (close(), on?.leave());
-    else if (cmd === 'look') look();
-    else if (cmd === 'person') talk(arg);
     else if (cmd === 'thing') inspect(arg);
     else if (cmd === 'topic' && talking) talk(talking.id, arg);
   });
@@ -301,7 +297,6 @@ export function createRoomUI(world: World, announce: (s: string) => void, toast:
     const b = (e.target as HTMLElement).closest<HTMLElement>('[data-room]');
     if (!b) return;
     if (b.dataset.room === 'leave') (close(), on?.leave());
-    else if (b.dataset.room === 'look') showing === 'look' ? tuck() : ((tucked = false), look());
   });
 
   nudge.addEventListener('click', () => act());
@@ -412,7 +407,6 @@ export function createRoomUI(world: World, announce: (s: string) => void, toast:
     },
     talk: (id) => talk(id),
     inspect,
-    look: () => look(),
     hush,
     near(t) {
       if (t?.id === within?.id && t?.kind === within?.kind) return;
