@@ -4,7 +4,7 @@
 // pose for holding something up (a found word). Hops and the fishing rod are
 // added when it's drawn. Whatever the visitor wears from the wardrobe is
 // painted on top: hats (which push the sprite up a few pixels), glasses, the
-// scarf in another color, a vest.
+// scarf in another color, a vest or a tool belt.
 
 import { HEX } from './palette';
 import { col, nightData, Pix, shade, type Color } from './pixels';
@@ -146,7 +146,27 @@ function frame(body: string[], facing: Facing, step: number, hold: 'none' | 'up'
 /** Paint the face, body and head pieces over a body drawn at row offset `oy`. */
 function dressUp(p: Pix, worn: readonly Wearable[], facing: Facing, oy: number) {
   const body = worn.find((o) => o.slot === 'body');
-  if (body) {
+  if (body?.id === 'tool-belt') {
+    // A belt round the middle with a brass buckle, and pouches hanging off it.
+    const c = col(body.color);
+    const d = col(shade(body.color, -0.12));
+    const onBody = (x: number, y: number) => {
+      const v = p.get(x, oy + y);
+      return v === PAL.w || v === PAL.s;
+    };
+    for (let x = 0; x < W; x++) if (onBody(x, 11)) p.px(x, oy + 11, c);
+    if (facing === 'down') {
+      p.px(6, oy + 11, col('#f2c14e'));
+      p.px(7, oy + 11, col('#f2c14e'));
+    }
+    const pouches = facing === 'down' ? [3, 9] : facing === 'up' ? [] : [5];
+    for (const x of pouches) {
+      if (onBody(x, 12)) p.px(x, oy + 12, d);
+      if (onBody(x + 1, 12)) p.px(x + 1, oy + 12, d);
+    }
+    // The carpenter's pencil, poking out of the first pouch.
+    if (pouches.length && onBody(pouches[0], 10)) p.px(pouches[0], oy + 10, col('#ffbe0b'));
+  } else if (body) {
     // Recolor the body below the scarf, open at the front.
     const c = col(body.color);
     const d = col(shade(body.color, -0.12));

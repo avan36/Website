@@ -61,7 +61,7 @@ describe('the authored world', () => {
   });
 });
 
-describe('the commute: railway, quay and the spare plot', () => {
+describe('the commute: railway, quay and plots', () => {
   const w = world();
   const geo = createGeo(w);
   const rail = geo.rail!;
@@ -109,36 +109,91 @@ describe('the commute: railway, quay and the spare plot', () => {
     expect(geo.isWalkable((q.x0 + q.x1) / 2, q.z0 - 1)).toBe(true);
   });
 
-  it('keeps every plot level, on the plateau and clear of the railway', () => {
-    expect(w.geography.plots.length).toBeGreaterThan(0);
-    for (const p of geo.plots) {
-      const h = geo.heightAt(p.x, p.z);
-      for (let a = 0; a < 6.3; a += 0.5) expect(geo.heightAt(p.x + Math.cos(a) * p.r * 0.9, p.z + Math.sin(a) * p.r * 0.9), p.id).toBeCloseTo(h, 1);
-      expect(geo.railDist(p.x, p.z), p.id).toBeGreaterThan(p.r + 1.4);
-      expect(geo.isOpenGround(p.x, p.z), p.id).toBe(false);
+  // The island as it was before the workshop: the plot inside the loop still reserved.
+  const unbuilt = () => {
+    const w2 = clone(w);
+    const shop = w2.places.find((p) => p.id === 'workshop')!;
+    w2.places = w2.places.filter((p) => p !== shop);
+    w2.routes = w2.routes.filter((r) => r.from !== shop.id && r.to !== shop.id);
+    w2.outfits = w2.outfits.filter((o) => o.place !== shop.id);
+    w2.geography.plots = [{ id: 'workshop', at: { ...shop.at }, clearing: shop.clearing }];
+    return w2;
+  };
+
+  it('keeps a reserved plot level, on the plateau and clear of the railway', () => {
+    const w2 = unbuilt();
+    expect(checkWorld(w2)).toEqual([]);
+    const g2 = createGeo(w2);
+    expect(g2.plots.length).toBeGreaterThan(0);
+    for (const p of g2.plots) {
+      const h = g2.heightAt(p.x, p.z);
+      for (let a = 0; a < 6.3; a += 0.5) expect(g2.heightAt(p.x + Math.cos(a) * p.r * 0.9, p.z + Math.sin(a) * p.r * 0.9), p.id).toBeCloseTo(h, 1);
+      expect(g2.railDist(p.x, p.z), p.id).toBeGreaterThan(p.r + 1.4);
+      expect(g2.isOpenGround(p.x, p.z), p.id).toBe(false);
       expect(h).toBeGreaterThan(0.8);
     }
   });
 
-  it('gives a path across the track a level crossing', () => {
-    // Build on the spare plot, as a future place would, and pave the way there.
-    const w2 = clone(w);
-    const plot = w2.geography.plots[0];
-    const cabin = clone(w2.places.find((p) => p.id === 'middle-place')!);
-    w2.places.push({ ...cabin, id: 'future', project: undefined, kind: 'contact', href: '/x', at: plot.at, clearing: plot.clearing, scenery: [] });
-    w2.geography.plots = [];
-    w2.routes.push({ from: 'plaza', to: 'future', paved: true, bend: 0 });
-    expect(checkWorld(w2)).toEqual([]);
-    const g2 = createGeo(w2);
-    expect(g2.crossings.length).toBeGreaterThan(0);
-    for (const c of g2.crossings) expect(g2.railDist(c.x, c.z)).toBeLessThan(0.1);
-  });
-
   it('says so when a place is built on a plot that is still reserved', () => {
-    const w2 = clone(w);
+    const w2 = unbuilt();
     const cabin = w2.places.find((p) => p.id === 'middle-place')!;
     cabin.at = { ...w2.geography.plots[0].at };
     expect(checkWorld(w2).map((i) => i.message).join('\n')).toMatch(/stands on plot "workshop"/);
+    // And when the plot is left in geography after the workshop is built on it.
+    const w3 = clone(w);
+    w3.geography.plots = unbuilt().geography.plots;
+    expect(checkWorld(w3).map((i) => i.message).join('\n')).toMatch(/"workshop" stands on plot "workshop".*remove the plot/);
+  });
+});
+
+describe('the workshop', () => {
+  const w = world();
+  const geo = createGeo(w);
+  const shop = w.places.find((p) => p.id === 'workshop')!;
+
+  it('stands where the plot was, in the middle of the railway loop', () => {
+    expect(w.geography.plots).toEqual([]);
+    expect(shop.at).toEqual(w.geography.railway!.center);
+    expect(shop.archetype).toBe('workshop');
+    expect(shop.kind).toBe('colophon');
+    expect(shop.href).toBe('/colophon');
+  });
+
+  it('sits on level ground, with its door walkable and clear of the track', () => {
+    const h = geo.heightAt(shop.at.x, shop.at.z);
+    for (let a = 0; a < 6.3; a += 0.5) expect(geo.heightAt(shop.at.x + Math.cos(a) * shop.footprint, shop.at.z + Math.sin(a) * shop.footprint)).toBeCloseTo(h, 1);
+    const door = geo.door(shop);
+    expect(geo.isWalkable(door.x, door.z)).toBe(true);
+    expect(geo.railDist(door.x, door.z)).toBeGreaterThan(2);
+  });
+
+  it('is paved to from the plaza, across the track on a level crossing', () => {
+    const path = geo.paths.find((p) => p.from === 'plaza' && p.to === 'workshop')!;
+    expect(path).toBeTruthy();
+    const crossing = geo.crossings.find((c) => path.points.some((q) => Math.hypot(q.x - c.x, q.z - c.z) < 1.5));
+    expect(crossing).toBeTruthy();
+    for (const c of geo.crossings) expect(geo.railDist(c.x, c.z)).toBeLessThan(0.1);
+  });
+
+  it('has a workbench, blueprints, a terminal and a pinboard to examine', () => {
+    const ids = shop.scenery.map((s) => s.id);
+    for (const id of ['workbench', 'blueprints', 'terminal', 'pinboard', 'sawdust']) expect(ids).toContain(id);
+  });
+});
+
+describe('the wardrobe', () => {
+  const w = world();
+
+  it('keeps one piece at every place but the plaza, so every house has something to give', () => {
+    for (const p of w.places) {
+      const n = w.outfits.filter((o) => o.place === p.id).length;
+      expect(n, p.id).toBe(p.kind === 'hub' ? 0 : 1);
+    }
+  });
+
+  it("gives the workshop's tool belt for the body", () => {
+    const belt = w.outfits.find((o) => o.place === 'workshop')!;
+    expect(belt).toMatchObject({ id: 'tool-belt', slot: 'body' });
   });
 });
 

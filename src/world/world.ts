@@ -164,12 +164,12 @@ const places: PlaceInput[] = [
     at: { x: 24, z: 1.5 },
     footprint: 2.2,
     clearing: 3.5,
-    aliases: ['workshop', 'shed', 'work shed', 'colophon', 'how it was built', 'how it works', 'making of', 'behind the scenes', 'source'],
+    aliases: ['workshop', 'work shed', 'colophon', 'how it was built', 'making of', 'behind the scenes'],
     description:
       "A timber workshop inside the railway loop, with a big window on the front and the door propped open. Out front, a workbench stands between two sawhorses, covered in blueprints and offcuts. Through the window a monitor glows, a cursor blinking on its screen. This is where the island was made, and the notes on how are pinned up inside.",
     scenery: [
       { id: 'workbench', names: ['workbench', 'bench', 'tools', 'vice'], description: 'A heavy bench, scarred and pencil-marked, with a vice at one end. Half a lighthouse is clamped in it, waiting for its stripes.' },
-      { id: 'blueprints', names: ['blueprints', 'blueprint', 'plans', 'drawings', 'map'], description: 'Plans for the whole island, drawn from above in blue. Every place is a circle with a note beside it, and every path is a curve with a number on it. Nothing here says how anything looks, only where it is and what it is.' },
+      { id: 'blueprints', names: ['blueprints', 'blueprint', 'plans', 'drawings'], description: 'Plans for the whole island, drawn from above in blue. Every place is a circle with a note beside it, and every path is a curve with a number on it. Nothing here says how anything looks, only where it is and what it is.' },
       { id: 'terminal', names: ['terminal', 'monitor', 'screen', 'computer', 'cursor', 'window'], description: 'Through the window, a monitor full of green text. The last line says the build passed. Below it, the cursor blinks, waiting for the next thing to make.' },
       { id: 'pinboard', names: ['pinboard', 'prompts', 'notes', 'pins', 'cork board', 'corkboard'], description: 'A cork board crowded with index cards, each one a request in handwriting. "Put a little train on the island." "Give the explorer a wardrobe." "Hide eight lost words." Some are crossed out, which seems to mean done.' },
       { id: 'sawdust', names: ['sawdust', 'shavings', 'floor', 'offcuts'], description: 'Curls of sawdust and offcuts of low-poly timber, all at slightly different angles. Somebody sweeps up now and then, but not often.' },

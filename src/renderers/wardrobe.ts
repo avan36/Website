@@ -41,6 +41,8 @@ function art(o: Pick<Outfit, 'id' | 'slot' | 'color'>): string {
       return `<path d="M5 20.5h38v3.2h-1.6l-1.8 7c-.6 2.2-2.2 3.3-4.4 3.3h-5.4c-2.2 0-3.8-1.3-4.3-3.5L24.3 25h-.6l-1.2 5.5C22 32.7 20.4 34 18.2 34h-5.4c-2.2 0-3.8-1.1-4.4-3.3l-1.8-7H5Z" fill="${c}"/><path d="M11 27.5l3.5-2.6M29 27.5l3.5-2.6" stroke="#fff" stroke-opacity=".55" stroke-width="1.8" stroke-linecap="round"/>`;
     case 'cardinal-scarf':
       return `<path d="M7 16c2.5 7 31.5 7 34 0l1 8c-2.5 8-33.5 8-36 0Z" fill="${c}"/><path d="M27 27.5 29.5 44l7.5-1.6-3.6-15.4Z" fill="${d}"/><path d="M29.4 41h7.4" stroke="${tint(c, -0.35)}" stroke-width="1.6"/><path d="M13 22.5v5M19 24v5.5M25 24.5v5.5" stroke="${d}" stroke-width="1.4" stroke-linecap="round"/>`;
+    case 'tool-belt':
+      return `<path d="M15 31.5h7v8.5c0 1.4-1 2.5-2.5 2.5h-2c-1.4 0-2.5-1.1-2.5-2.5Z" fill="${d}"/><path d="M28 31.5h8v7.5c0 1.4-1 2.5-2.5 2.5h-3c-1.4 0-2.5-1.1-2.5-2.5Z" fill="${d}"/><path d="M16.5 32 13 13.5l2.6-.6L19.4 31Z" fill="#ffbe0b"/><path d="M13 13.5l.6-3.4 2 2.8Z" fill="#f2d3a2"/><rect x="31.2" y="17" width="2.6" height="15" rx="1" fill="#8a5a2b"/><rect x="27.5" y="13.5" width="10" height="4.5" rx="1.2" fill="#6b7280"/><rect x="4" y="24" width="40" height="8" rx="2" fill="${c}"/><rect x="20" y="22.5" width="8" height="11" rx="1.5" fill="none" stroke="#f2c14e" stroke-width="2.2"/><path d="M4 26.5h40" stroke="${tint(c, -0.25)}" stroke-width=".9" stroke-dasharray="2 2"/>`;
     case 'recycling-vest':
       return `<path d="M14 7h6c.5 6.5 7.5 6.5 8 0h6l6 8v25c0 2-1 3-3 3H11c-2 0-3-1-3-3V15Z" fill="${c}"/><path d="M24 14v29" stroke="${d}" stroke-width="1.6"/><rect x="8" y="27" width="32" height="4" fill="#e9f1dc"/><rect x="8" y="34.5" width="32" height="2.5" fill="#e9f1dc" fill-opacity=".8"/>`;
   }
@@ -57,6 +59,17 @@ function art(o: Pick<Outfit, 'id' | 'slot' | 'color'>): string {
 /** One piece on its own, for a tile. Locked pieces are drawn as a silhouette. */
 export function outfitIcon(o: Pick<Outfit, 'id' | 'slot' | 'color'>, locked = false, size = 48): string {
   return `<svg class="w-ward__icon${locked ? ' is-locked' : ''}" width="${size}" height="${size}" viewBox="0 0 48 48" aria-hidden="true">${art(o)}</svg>`;
+}
+
+/** The tool belt on the avatar: a band low on the body, a buckle, two pouches and a pencil. */
+function belt(c: string): string {
+  const d = tint(c, 0.25);
+  return `<g clip-path="url(#w-av-body)"><rect x="10" y="103" width="100" height="6.5" fill="${c}"/><path d="M10 106.2h100" stroke="${tint(c, -0.25)}" stroke-width=".8" stroke-dasharray="2 2"/></g>
+    <rect x="55" y="101.5" width="10" height="9.5" rx="1.5" fill="none" stroke="#f2c14e" stroke-width="2.2"/>
+    <path d="M36.5 108 33 95.5l2.4-.7 3.8 12.6Z" fill="#ffbe0b"/><path d="M33 95.5l.5-2.6 1.9 1.9Z" fill="#f2d3a2"/>
+    <rect x="77.2" y="96" width="2.2" height="12" rx=".8" fill="#8a5a2b"/><rect x="74" y="93.5" width="8.6" height="3.6" rx="1" fill="#6b7280"/>
+    <path d="M31 108.5h10v6.5c0 1.5-1.1 2.6-2.6 2.6h-4.8c-1.5 0-2.6-1.1-2.6-2.6Z" fill="${d}"/>
+    <path d="M73 108.5h10v6.5c0 1.5-1.1 2.6-2.6 2.6h-4.8c-1.5 0-2.6-1.1-2.6-2.6Z" fill="${d}"/>`;
 }
 
 /** The explorer (front on, as in the 3D island), wearing `worn`. */
@@ -76,7 +89,7 @@ export function avatar(worn: Outfit[], size = 120): string {
     <ellipse cx="60" cy="122" rx="34" ry="5" fill="rgba(40,30,20,.16)"/>
     <ellipse cx="45" cy="116" rx="11" ry="7" fill="#6b4a3a"/><ellipse cx="75" cy="116" rx="11" ry="7" fill="#6b4a3a"/>
     <circle cx="60" cy="74" r="40" fill="#fffaf1" stroke="rgba(29,26,22,.12)" stroke-width="1.5"/>
-    ${body ? `<g clip-path="url(#w-av-body)"><path d="M10 64h40l10 22 10-22h40v60H10Z" fill="${body.color}"/><path d="M60 86v40" stroke="${tint(body.color, 0.28)}" stroke-width="1.6"/><rect x="10" y="98" width="100" height="5" fill="#e9f1dc"/></g>` : ''}
+    ${body && body.id !== 'tool-belt' ? `<g clip-path="url(#w-av-body)"><path d="M10 64h40l10 22 10-22h40v60H10Z" fill="${body.color}"/><path d="M60 86v40" stroke="${tint(body.color, 0.28)}" stroke-width="1.6"/><rect x="10" y="98" width="100" height="5" fill="#e9f1dc"/></g>` : ''}
     <ellipse cx="18" cy="80" rx="7" ry="9.5" fill="#fffaf1" stroke="rgba(29,26,22,.12)" stroke-width="1.5"/><ellipse cx="102" cy="80" rx="7" ry="9.5" fill="#fffaf1" stroke="rgba(29,26,22,.12)" stroke-width="1.5"/>
     <ellipse cx="38" cy="80" rx="6" ry="3.6" fill="#ff9e9e"/><ellipse cx="82" cy="80" rx="6" ry="3.6" fill="#ff9e9e"/>
     <ellipse cx="47" cy="68" rx="5" ry="7.2" fill="${ink}"/><ellipse cx="73" cy="68" rx="5" ry="7.2" fill="${ink}"/>
@@ -85,6 +98,7 @@ export function avatar(worn: Outfit[], size = 120): string {
     ${face ? nest(face, 27, 32, 66) : ''}
     <path d="M22 88c12 9 64 9 76 0l1 8c-12 10-66 10-78 0Z" fill="${scarf}"/>
     <path d="M78 96l4 20 8-2-5-19Z" fill="${scarfD}"/>
+    ${body?.id === 'tool-belt' ? belt(body.color) : ''}
     ${sprout ? `<g fill="#57c15a"><rect x="58.8" y="22" width="2.6" height="13" rx="1.3"/><ellipse cx="52" cy="22" rx="7.5" ry="3.4" transform="rotate(-20 52 22)"/><ellipse cx="68" cy="22" rx="7.5" ry="3.4" transform="rotate(20 68 22)"/></g>` : ''}
     ${head ? nest(head, 26, head.id === 'leaf-crown' ? 6 : 3, 68) : ''}
   </svg>`;

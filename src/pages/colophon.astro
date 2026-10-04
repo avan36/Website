@@ -1,7 +1,8 @@
 ---
 // How this site works: a short, static tour of the world model for the
-// curious. Every example on it is generated from the real world at build
-// time, so it can't drift from what the home page actually does.
+// curious, then how it was built. Every example on it is generated from the
+// real world at build time, so it can't drift from what the home page
+// actually does. The workshop on the island opens this page.
 import { Code } from 'astro:components';
 import Reading from '../layouts/Reading.astro';
 import Prose from '../components/blog/Prose.astro';
@@ -36,6 +37,28 @@ const failure = checkWorld(broken)
   .map((i) => `  • ${i.path.join('.')}: ${i.message}`)
   .join('\n');
 
+const workshop = world.places.find((p) => p.id === 'workshop');
+
+// Illustrative prompts, in the spirit of what I asked for. Not quoted from a log.
+const prompts = [
+  {
+    text: 'Put a tiny Caltrain on the island that loops past the houses. Give it a real timetable: round and round on weekday mornings and evenings, waiting at the platform the rest of the time.',
+    became: 'the railway loop and the station',
+  },
+  {
+    text: 'Give the avatar a wardrobe. Every house gives you one thing to wear when you arrive, and whatever you put on should show up in the 3D island, the map and the text adventure.',
+    became: 'the wardrobe',
+  },
+  {
+    text: 'Each project page should have a small game that teaches something true about the project. It has to work on a phone, with a finger.',
+    became: 'the mini-games on the project pages',
+  },
+  {
+    text: 'Build a workshop on the empty plot inside the railway loop, where visitors can find out how the island was made.',
+    became: 'the workshop, and this part of the page',
+  },
+];
+
 const themes = { light: 'github-light', dark: 'github-dark' } as const;
 const views = [
   { id: 'island', name: 'Island', note: 'three.js, walk it in 3D' },
@@ -46,13 +69,14 @@ const views = [
 ---
 <Reading
   title="How this site works · Ambrose Vannier"
-  description="The home page is one world described as data, drawn four ways: a 3D island, a pixel map, a text adventure and a list."
+  description="The home page is one world described as data, drawn four ways: a 3D island, a pixel map, a text adventure and a list. And how I built it, with Claude Code."
   current="none"
 >
   <header class="col-head">
     <p class="col-kicker">Colophon</p>
     <h1 class="col-title">How this site works</h1>
     <p class="col-lede">The home page is one world described as data, and four different renderers draw it.</p>
+    <p class="col-jump"><a href="#workshop">Skip to how it was built</a></p>
   </header>
 
   <ul class="col-views" role="list">
@@ -114,12 +138,69 @@ const views = [
       can find them in any view. Find them all and night falls. And if you fish off the pier, whatever bites is something I wrote.
     </p>
 
+    <h2 id="workshop">How it was built</h2>
+    <p>
+      There's a workshop on the island{workshop ? ', inside the railway loop' : ''}, with a monitor glowing in the window and a
+      pinboard of notes on the wall. This is what's pinned up on it.
+    </p>
+    <p>
+      I built this site with <a href="https://claude.com/claude-code">Claude Code</a>, Anthropic's coding agent, working
+      directly in this repository. I describe what I want in plain sentences, the way I'd brief a friend. Claude reads the code,
+      makes the change, runs the checks and shows me what it looks like. I play with the result, read the diff, and ask for
+      what's still wrong. The ideas and the final say are mine. Most of the typing isn't.
+    </p>
+
+    <h3>Several pairs of hands</h3>
+    <p>
+      The bigger pushes were split up. Claude Code can hand parts of a job to subagents that work in parallel, each with one
+      brief and its own corner of the code. When the island grew, one agent expanded the land and laid the railway, another
+      built the wardrobe, one took each pair of mini-games for the project pages, and another made the writing desk and the
+      guestbook. They all work on the same world, which is where the world model earns its keep: if one change breaks a rule
+      the rest depend on, like two places overlapping or a path to nowhere, the build stops and says so in a sentence.
+    </p>
+
+    <h3>Checkpoints</h3>
+    <p>
+      The git history shows the rhythm. Long pieces of work are saved as they go in commits marked <em>checkpoint</em>, so
+      nothing is lost if an idea goes sideways, and when a piece is finished it lands with a commit that says what it does.
+    </p>
+
+    <h3>A gate on every build</h3>
+    <p>
+      <code>npm run build</code> runs <code>astro check</code> for the types, then the tests, then the build itself, and a
+      change isn't done until all three pass. The tests cover the parts that are pure logic: the world and its cross-checks,
+      the store that remembers what you've done, the text adventure's parser and engine, the map's layout, and the scoring in
+      the games. Whenever something new goes on the island, a test goes with it.
+    </p>
+
+    <h3>Looking, not just testing</h3>
+    <p>
+      Tests can't tell you a roof is the wrong color. So each piece is checked by eye, too: Claude builds the site, serves it,
+      and takes screenshots in a headless browser with <a href="https://playwright.dev">Playwright</a>, at desktop and phone
+      sizes. Headless browsers often have no WebGL, so most of those checks go through the pixel map, which draws the same world
+      from the same data. Then I look at the screenshots, and at the real thing.
+    </p>
+
+    <h3>What I asked for</h3>
+    <p>A few of the requests behind what you see on the island, rewritten here as examples:</p>
+    <ul class="col-prompts" role="list">
+      {prompts.map((p) => (
+        <li>
+          <p class="col-prompts__text">“{p.text}”</p>
+          <p class="col-prompts__became">Became {p.became}.</p>
+        </li>
+      ))}
+    </ul>
+    <p class="col-note">These are illustrative, written in the spirit of what I asked for. They aren't copied from a log.</p>
+
     <h2>Built with</h2>
     <p>
-      <a href="https://astro.build">Astro</a>, <a href="https://threejs.org">three.js</a>, <a href="https://zod.dev">zod</a> and
-      {' '}<a href="https://vitest.dev">Vitest</a>, set in Bricolage Grotesque and Newsreader, and hosted on Vercel. The blog is
-      plain Markdown. The rest of the site has no framework on the client: the island, the map and the text adventure are
-      TypeScript talking to the DOM.
+      <a href="https://astro.build">Astro</a> for the pages, <a href="https://threejs.org">three.js</a> for the island, the
+      Canvas 2D API for the pixel map, <a href="https://zod.dev">zod</a> for the world's schema and
+      {' '}<a href="https://vitest.dev">Vitest</a> for the tests. The contact form posts to a small Cloudflare Worker. It's set in
+      Bricolage Grotesque and Newsreader, and hosted on Vercel. The blog is plain Markdown. The rest of the site has no
+      framework on the client: the island, the map and the text adventure are TypeScript talking to the DOM. And all of it was
+      made with <a href="https://claude.com/claude-code">Claude Code</a>.
     </p>
   </Prose>
 </Reading>
@@ -156,6 +237,44 @@ const views = [
     white-space: pre-wrap;
     color: color-mix(in srgb, #c2361c 80%, var(--ink)) !important;
   }
+  .col-jump { margin-block-start: var(--space-4); font-family: var(--font-ui); font-weight: 650; }
+  .col-jump a { display: inline-flex; align-items: center; min-height: 44px; }
+
+  .col-prompts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+    gap: var(--space-4);
+    margin: var(--space-5) 0 0;
+    padding: 0 !important;
+    list-style: none;
+  }
+  .col-prompts li {
+    display: block;
+    margin: 0 !important;
+    padding: var(--space-4) var(--space-4) var(--space-3);
+    border-radius: var(--r-md);
+    background: color-mix(in srgb, #d97757 10%, var(--bg-sunken));
+    box-shadow: inset 0 0 0 1px var(--line);
+    transform: rotate(-0.6deg);
+  }
+  .col-prompts li:nth-child(even) { transform: rotate(0.7deg); }
+  .col-prompts li::before {
+    content: '';
+    display: block;
+    width: 10px;
+    height: 10px;
+    margin: -6px auto var(--space-2);
+    border-radius: 50%;
+    background: #d97757;
+  }
+  .col-prompts p { margin: 0 !important; }
+  .col-prompts__text { font-family: var(--font-read); font-size: var(--step-0); line-height: 1.45; }
+  .col-prompts__became { margin-block-start: var(--space-2) !important; font-family: var(--font-ui); font-size: var(--step--1); color: var(--muted); }
+  .col-note { font-size: var(--step--1); color: var(--muted); }
+  @media (prefers-reduced-motion: reduce) {
+    .col-prompts li, .col-prompts li:nth-child(even) { transform: none; }
+  }
+
   .col-details { margin-block: var(--space-5); }
   .col-details summary { cursor: pointer; font-family: var(--font-ui); font-weight: 650; font-size: var(--step-0); color: var(--link); padding-block: 10px; }
 </style>

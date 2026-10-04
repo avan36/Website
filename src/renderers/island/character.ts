@@ -6,6 +6,7 @@
 // scarf in another color, a vest) is built here from a few primitives.
 
 import {
+  BoxGeometry,
   CanvasTexture,
   CircleGeometry,
   DoubleSide,
@@ -643,6 +644,29 @@ function dress(o: Wearable, mat: MatFn): Group {
     case 'cardinal-scarf':
       // The scarf itself just changes color (see wear()).
       return g;
+    case 'tool-belt': {
+      // A leather band low on the body, under the scarf, with a brass buckle,
+      // two pouches, a carpenter's pencil and a hammer.
+      const band = at(new Mesh(new CylinderGeometry(0.39, 0.305, 0.075, 28, 1, true), mat(c, { side: true })), 0, 0.125, 0);
+      band.scale.z = 0.97;
+      const buckle = at(new Mesh(new TorusGeometry(0.035, 0.012, 4, 4), mat('#f2c14e', { rough: 0.35 })), 0, 0.125, 0.345);
+      buckle.rotation.z = Math.PI / 4;
+      g.add(band, buckle);
+      for (const s of [-1, 1]) {
+        const a = s * 0.85;
+        const pouch = at(new Mesh(new RoundedBoxGeometry(0.13, 0.15, 0.07, 1, 0.02), mat(d)), Math.sin(a) * 0.36, 0.075, Math.cos(a) * 0.35);
+        pouch.rotation.y = a;
+        g.add(pouch);
+      }
+      const pencil = at(new Mesh(new CylinderGeometry(0.014, 0.014, 0.13, 6), mat('#ffbe0b')), Math.sin(-0.85) * 0.39, 0.15, Math.cos(-0.85) * 0.38);
+      pencil.rotation.z = 0.3;
+      const handle = at(new Mesh(new CylinderGeometry(0.014, 0.014, 0.14, 5), mat('#8a5a2b')), Math.sin(0.85) * 0.39, 0.15, Math.cos(0.85) * 0.38);
+      handle.rotation.z = -0.25;
+      const head = at(new Mesh(new BoxGeometry(0.09, 0.035, 0.035), mat('#6b7280', { rough: 0.4 })), Math.sin(0.85) * 0.39 + 0.018, 0.22, Math.cos(0.85) * 0.38);
+      head.rotation.z = -0.25;
+      g.add(pencil, handle, head);
+      return g;
+    }
     case 'recycling-vest': {
       // Wraps the sides and back, open at the front.
       // Below the face, around the sides and back (under the backpack), open at the front.

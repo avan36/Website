@@ -14,7 +14,7 @@ import { createOverlay, type FishPrompt } from './overlay';
 import { HEX } from './palette';
 import { bayer } from './pixels';
 import { findPath, nearestOpen, smooth, type Grid, type Pt } from './path';
-import { crab, lampPost, paintLandmark, paintScenery, rowboat, scroll, shells, type Landmark, type Sprite } from './sprites';
+import { crab, lampPost, paintLandmark, paintScenery, rowboat, scroll, shells, workshopCursor, type Landmark, type Sprite } from './sprites';
 import { buildTerrain, RECT, TEX } from './terrain';
 import { bus, drawTrain, shelter } from './commute';
 import { daylight, pageClock } from '../../world/clock';
@@ -1036,6 +1036,18 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
         c.fillStyle = ITEMS[i];
         c.fillRect(px, sy + 1 - (i % 2), 3, 2 + (i % 2));
       }
+    };
+  }
+
+  const workshop = places.find((m) => m.kind === 'workshop');
+  if (workshop) {
+    const t = landmarkThing.get(workshop.place.id)!;
+    const cur = workshopCursor(Math.round(workshop.doorDx * TEX));
+    t.after = (c, sx, sy) => {
+      // The cursor on the monitor, blinking (steady when motion is reduced).
+      if (motion && Math.floor(time * 1.8) % 2) return;
+      c.fillStyle = '#eafff3';
+      c.fillRect(sx + cur.dx, sy + cur.dy, 2, 1);
     };
   }
 

@@ -48,6 +48,11 @@ const GLASS_SHINE = col('#d4eef7');
 const LAMP = col('#ffe7a6');
 const LAMP_CORE = col('#fff6d8');
 const BULBS = ['#fff1b8', '#ffd166', '#ff9f6b', '#ffc2d1'].map((h) => col(h));
+// The workshop's dim interior warms up after dark; its monitor glows all the time.
+const INTERIOR = col('#46525e');
+const SCREEN_BG = col('#1c3b33');
+const SCREEN = col('#8ff0be');
+const SCREEN_HI = col('#ffd27a');
 
 const LIGHTS = new Map<Color, Color>([
   [GLASS, col('#ffcf6e')],
@@ -55,6 +60,8 @@ const LIGHTS = new Map<Color, Color>([
   [LAMP, col('#ffe27a')],
   [LAMP_CORE, col('#fffbe6')],
   ...BULBS.map((b): [Color, Color] => [b, b]),
+  [INTERIOR, col('#e8b860')],
+  ...[SCREEN_BG, SCREEN, SCREEN_HI].map((c): [Color, Color] => [c, c]),
 ]);
 
 /** A five-step ramp from an accent color: lightest to darkest. */
@@ -540,6 +547,97 @@ function depot(accent: string, doorDx: number): Landmark {
   return { sprite: finish(p, ax, base, { rx: 27, ry: 4, dy: 4 }), door: { dx: doorDx, dy: -8 }, top: 3 };
 }
 
+/** Where the workshop's big window goes, given its door: on the other side of the front. */
+function workshopWindow(doorDx: number) {
+  const ax = 30;
+  const dX = ax + doorDx - 4;
+  const wx = dX < ax ? Math.min(dX + 11, 50 - 22) : Math.max(10, dX - 24);
+  return { ax, dX, wx, wy: 22 };
+}
+
+/** Where the workshop's cursor blinks, in pixels from the sprite's anchor. */
+export function workshopCursor(doorDx: number) {
+  const { ax, wx, wy } = workshopWindow(doorDx);
+  return { dx: wx + 7 - ax, dy: wy + 8 - 48 };
+}
+
+/** The workshop: a plank shed under a mono-pitch roof, a big window with a monitor glowing
+ *  inside, a workbench under it, a door propped open and a sawhorse to one side. */
+function workshop(accent: string, doorDx: number): Landmark {
+  const p = new Pix(60, 54);
+  const R = ramp(accent);
+  const { ax, dX, wx, wy } = workshopWindow(doorDx);
+  const base = 48;
+  const BATTEN = col('#a8743f');
+  // Stovepipe behind the roof, on the window side.
+  const sx = wx + 15;
+  p.rect(sx, 1, 3, 8, col('#6f6a64'));
+  p.hline(sx - 1, sx + 3, 1, col('#5a5550'));
+  // Standing-seam roof in the accent, overhanging the walls.
+  p.rect(5, 6, 50, 12, R[2]);
+  p.hline(5, 54, 6, R[0]);
+  p.hline(5, 54, 7, R[1]);
+  for (let x = 7; x < 54; x += 4) p.vline(x, 8, 16, R[3]);
+  p.hline(5, 54, 17, R[4]);
+  // Plank walls with battens, trimmed at the corners.
+  for (let y = 18; y < base; y++) {
+    for (let x = 8; x <= 51; x++) p.px(x, y, (x - 8) % 4 === 3 ? BATTEN : ((x - 8) >> 2) % 2 ? WOOD : WOOD_LIGHT);
+  }
+  p.vline(8, 18, base - 1, TRIM);
+  p.vline(51, 18, base - 1, TRIM);
+  p.hline(8, 51, 18, WOOD_DARK);
+  // The door, propped open on the dark inside, its leaf swung out.
+  p.rect(dX, base - 14, 8, 14, col('#2e2119'));
+  p.vline(dX - 1, base - 15, base - 1, TRIM);
+  p.vline(dX + 8, base - 15, base - 1, TRIM);
+  p.hline(dX - 1, dX + 8, base - 15, TRIM);
+  const leaf = dX < ax ? dX - 4 : dX + 9;
+  p.rect(leaf, base - 14, 3, 14, R[3]);
+  p.vline(dX < ax ? leaf : leaf + 2, base - 14, base - 1, R[4]);
+  p.px(dX < ax ? leaf + 1 : leaf + 1, base - 7, GOLD);
+  lantern(p, dX + 2, 20);
+  p.hline(dX - 1, dX + 8, base, STONE_LIGHT);
+  p.hline(dX - 1, dX + 8, base + 1, STONE_DARK);
+  // The big window: a dim interior, a transom, and a monitor on a desk.
+  p.rect(wx, wy, 22, 13, TRIM);
+  p.rect(wx + 1, wy + 1, 20, 11, INTERIOR);
+  p.hline(wx + 1, wx + 20, wy + 3, TRIM);
+  p.hline(wx + 1, wx + 20, wy + 11, WOOD_DEEP); // the desk inside
+  p.rect(wx + 6, wy + 4, 9, 6, col('#2b2a2e'));
+  p.rect(wx + 7, wy + 5, 7, 4, SCREEN_BG);
+  p.hline(wx + 7, wx + 11, wy + 5, SCREEN);
+  p.hline(wx + 7, wx + 9, wy + 6, SCREEN);
+  p.hline(wx + 7, wx + 12, wy + 7, SCREEN_HI);
+  p.px(wx + 10, wy + 10, col('#2b2a2e'));
+  p.px(wx + 3, wy + 10, CREAM); // a mug
+  p.hline(wx - 1, wx + 22, wy + 13, TRIM); // sill
+  // The workbench under the window, blueprints and a vice on top.
+  const by = base - 6;
+  p.hline(wx - 1, wx + 22, by, WOOD_LIGHT);
+  p.hline(wx - 1, wx + 22, by + 1, WOOD_DARK);
+  for (const x of [wx, wx + 21]) p.vline(x, by + 2, base, WOOD_DEEP);
+  p.hline(wx + 1, wx + 20, base - 2, WOOD_DARK); // shelf
+  p.rect(wx + 4, base - 4, 3, 2, col('#3a86ff'));
+  p.rect(wx + 9, base - 4, 3, 2, RED);
+  p.rect(wx + 6, by - 1, 7, 1, col('#2f6db5'));
+  p.px(wx + 8, by - 1, col('#dfeaff'));
+  p.px(wx + 10, by - 1, col('#dfeaff'));
+  p.rect(wx + 17, by - 2, 3, 2, col('#5c636b'));
+  p.rect(wx + 18, by - 4, 1, 2, WHITE); // half a lighthouse in the vice
+  p.px(wx + 18, by - 3, RED);
+  // A sawhorse with a plank, past the window side, and sawdust under it.
+  const hx = dX < ax ? 52 : 1;
+  p.hline(hx, hx + 6, base - 4, col('#e2bb85'));
+  p.hline(hx, hx + 6, base - 3, WOOD_DARK);
+  for (const [x, d] of [[hx + 1, -1], [hx + 5, 1]] as const) {
+    p.px(x, base - 2, WOOD);
+    p.px(x + d, base - 1, WOOD);
+    p.px(x + d, base, WOOD);
+  }
+  for (const [x, y] of [[0, 1], [2, 2], [4, 1], [5, 2], [3, 1]] as const) p.px(hx + x, base + y, col('#efd5a6'));
+  return { sprite: finish(p, ax, base, { rx: 26, ry: 4, dy: 2 }), door: { dx: doorDx, dy: -6 }, top: 1 };
+}
+
 const shadeU = (c: Color, dl: number) => col(shade('#' + [c & 255, (c >>> 8) & 255, (c >>> 16) & 255].map((v) => v.toString(16).padStart(2, '0')).join(''), dl));
 
 /** The post box at the end of the pier, with a letter in the slot. */
@@ -601,6 +699,8 @@ export function paintLandmark(kind: LandmarkKind, accent: string, doorDx: number
       return schoolhouse(accent, doorDx);
     case 'depot':
       return depot(accent, doorDx);
+    case 'workshop':
+      return workshop(accent, doorDx);
     case 'postbox':
       return postbox(accent);
     case 'bottle':

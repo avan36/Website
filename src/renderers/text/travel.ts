@@ -2,7 +2,7 @@
 // between any two. Directions come from the coordinates, so moving a place in
 // world.ts moves its exits too.
 //
-// Eight compass points aren't always enough (the plaza has nine paths), so
+// Eight compass points aren't always enough (the plaza has ten paths), so
 // each exit may lean to a neighbouring point when that's within LEAN of the
 // truth and frees up a direction. Exits that still share a point are listed
 // together, and "north-east" then asks which one you mean.
@@ -29,7 +29,7 @@ export const dirFor = (rad: number): Dir => DIRS[dirIndex(rad)];
 /**
  * Pick a direction for each exit: as true as possible, sharing as little as
  * possible. Every exit may take its nearest point, or the next nearest if
- * that's within LEAN; with at most nine exits, trying every mix is instant.
+ * that's within LEAN; with ten or so exits, trying every mix is instant.
  */
 export function assignDirections(bearings: number[]): number[] {
   const options = bearings.map((b) => {
