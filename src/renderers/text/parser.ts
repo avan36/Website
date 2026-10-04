@@ -30,7 +30,7 @@ export type Verb =
   | 'look' | 'examine' | 'search' | 'go' | 'enter' | 'back' | 'read' | 'open'
   | 'inventory' | 'hint' | 'help' | 'map' | 'fish' | 'reel' | 'wait' | 'take'
   | 'about' | 'work' | 'writing' | 'contact' | 'where' | 'exits' | 'clear' | 'undo'
-  | 'again' | 'view' | 'portal' | 'yes' | 'no' | 'night' | 'day' | 'score'
+  | 'again' | 'view' | 'portal' | 'yes' | 'no' | 'night' | 'day' | 'score' | 'play' | 'throw'
   // A few for fun.
   | 'xyzzy' | 'plugh' | 'sudo' | 'hello' | 'ls' | 'cd' | 'pwd' | 'quit' | 'swim'
   | 'ring' | 'knock' | 'climb' | 'sit' | 'eat' | 'drink' | 'jump' | 'sleep' | 'zork';
@@ -69,6 +69,8 @@ const PHRASES: Record<Verb, string[]> = {
   night: ['night', 'nighttime', 'night time', 'dusk', 'lights off'],
   day: ['day', 'daytime', 'day time', 'dawn', 'lights on'],
   score: ['score', 'progress', 'points'],
+  play: ['play', 'play a game', 'play game', 'play the game', 'games', 'game', 'minigame', 'minigames', 'mini game', 'mini games', 'have a go', 'high scores', 'best scores', 'scores'],
+  throw: ['throw', 't', 'throw stone', 'throw it', 'skip', 'skim', 'skip stone', 'skim stone', 'toss', 'fling', 'let go', 'let fly', 'release'],
   xyzzy: ['xyzzy'],
   plugh: ['plugh', 'plover'],
   sudo: ['sudo'],

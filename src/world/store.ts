@@ -1,5 +1,6 @@
 // What a visitor has done, shared by every renderer: where they are, which
-// lost words they've found, what they've caught off the pier. Switch from the
+// lost words they've found, what they've caught off the pier, and their best
+// score at each of the island's little games. Switch from the
 // island to the map to the text adventure and you're still standing in the
 // same spot with the same pockets.
 //
@@ -18,7 +19,11 @@ export type Progress = {
   caught: string[];
   /** Night falls once the word hoard is full; the visitor can toggle it after. */
   night: boolean;
+  /** Each mini-game's best score and how many rounds were played, by game id. */
+  games: Record<string, GameRecord>;
 };
+
+export type GameRecord = { best: number; plays: number };
 
 export type Presence = {
   /** The place the visitor is at (or last went into), if any. */
@@ -34,6 +39,8 @@ export type Action =
   | { type: 'find'; id: string }
   | { type: 'catch'; slug: string }
   | { type: 'night'; on: boolean }
+  /** A round of a mini-game ended with this score. */
+  | { type: 'score'; game: string; score: number }
   | { type: 'reset' };
 
 export type WorldEvent =
@@ -41,10 +48,18 @@ export type WorldEvent =
   | { type: 'found'; id: string; count: number; total: number }
   | { type: 'hoard-complete' }
   | { type: 'caught'; slug: string; fresh: boolean }
-  | { type: 'night'; on: boolean };
+  | { type: 'night'; on: boolean }
+  /** `record`: a new best (a score above zero that beats the last best). */
+  | { type: 'scored'; game: string; score: number; best: number; previous: number; record: boolean };
+
+/** The highest score kept, so a tampered save can't fill the screen with digits. */
+const MAX_SCORE = 999_999;
+
+/** The mini-games this world has, by game id. */
+export const gameIds = (world: World): string[] => world.activities.flatMap((a) => (a.kind === 'minigame' && a.game ? [a.game] : []));
 
 export const emptyState = (): WorldState => ({
-  progress: { found: [], caught: [], night: false },
+  progress: { found: [], caught: [], night: false, games: {} },
   presence: { at: null, pos: null },
 });
 
@@ -79,8 +94,18 @@ export function reduce(world: World, state: WorldState, action: Action): { state
       events.push({ type: 'night', on });
       return { state: { presence, progress: { ...progress, night: on } }, events };
     }
+    case 'score': {
+      if (!gameIds(world).includes(action.game) || !Number.isFinite(action.score)) return { state, events };
+      const score = Math.min(MAX_SCORE, Math.max(0, Math.floor(action.score)));
+      const was = progress.games[action.game] ?? { best: 0, plays: 0 };
+      const record = score > was.best;
+      const now: GameRecord = { best: Math.max(was.best, score), plays: was.plays + 1 };
+      events.push({ type: 'scored', game: action.game, score, best: now.best, previous: was.best, record });
+      return { state: { presence, progress: { ...progress, games: { ...progress.games, [action.game]: now } } }, events };
+    }
     case 'reset':
-      return { state: { presence, progress: emptyState().progress }, events: progress.night ? [{ type: 'night', on: false }] : [] };
+      // Forgetting the words and the catches keeps your best scores: those were hard won.
+      return { state: { presence, progress: { ...emptyState().progress, games: progress.games } }, events: progress.night ? [{ type: 'night', on: false }] : [] };
   }
 }
 
@@ -103,6 +128,16 @@ export function sanitize(world: World, raw: unknown): WorldState {
   s.progress.found = [...new Set(strings(r.progress?.found))].filter((id) => words.has(id));
   s.progress.caught = [...new Set(strings(r.progress?.caught))].filter((slug) => posts.has(slug));
   s.progress.night = r.progress?.night === true && s.progress.found.length === words.size;
+  const games = r.progress?.games;
+  if (games && typeof games === 'object') {
+    const count = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? Math.min(MAX_SCORE, Math.max(0, Math.floor(v))) : 0);
+    for (const id of gameIds(world)) {
+      const g = (games as Record<string, unknown>)[id];
+      if (!g || typeof g !== 'object') continue;
+      const { best, plays } = g as Partial<GameRecord>;
+      s.progress.games[id] = { best: count(best), plays: Math.max(count(plays), count(best) > 0 ? 1 : 0) };
+    }
+  }
   const at = r.presence?.at;
   if (typeof at === 'string' && world.places.some((p) => p.id === at)) s.presence.at = at;
   const pos = r.presence?.pos;
@@ -193,5 +228,7 @@ export function createStore(
       return { post, fresh };
     },
     has: (id: string) => state.progress.found.includes(id),
+    /** Your best score at a mini-game (0 if you haven't played it). */
+    best: (game: string) => state.progress.games[game]?.best ?? 0,
   };
 }

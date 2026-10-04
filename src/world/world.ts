@@ -346,6 +346,34 @@ const activities: WorldInput['activities'] = [
     name: 'The portal',
     description: 'A ring of light in the middle of the plaza. Step through it to see the island another way: in 3D, as a pixel-art map, or as a text adventure.',
   },
+  // Three little games, each with a best score kept in your pockets.
+  {
+    id: 'skipping-stones',
+    kind: 'minigame',
+    game: 'stones',
+    place: 'busy-beer',
+    at: { x: 21, z: 3.7 },
+    name: 'Skipping stones',
+    description: 'A pile of flat stones on the beach east of the taproom, and a calm sea. Five stones a round: let go at just the right moment and they skip for miles.',
+  },
+  {
+    id: 'crab-boop',
+    kind: 'minigame',
+    game: 'crabs',
+    place: 'contact',
+    at: { x: -17.6, z: 14.8 },
+    name: 'Crab boop',
+    description: 'A patch of beach riddled with holes, and a crab in every one. Boop them back into the sand before they scuttle off. Watch out for the starfish.',
+  },
+  {
+    id: 'crate-stack',
+    kind: 'minigame',
+    game: 'crates',
+    place: 'eqoscan',
+    at: { x: 17.2, z: -1.5 },
+    name: 'Crate stack',
+    description: 'Crates waiting by the depot, and a crane to swing them. Drop each one square on the last and see how high the tower goes.',
+  },
 ];
 
 const geography: WorldInput['geography'] = {

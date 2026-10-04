@@ -1,14 +1,20 @@
 // Tiny synthesized sounds (no files): soft footsteps, pops, a school bell, a
-// whoosh for going inside, and a gentle sea hush. Off by default; this module
+// whoosh for going inside, a gentle sea hush, and the mini-games' plips,
+// boops and knocks. Off by default; this module
 // is plain TS with no three.js so the HUD can own it.
 
-type Name = 'step' | 'pop' | 'bell' | 'whoosh' | 'chime' | 'land' | 'tap' | 'jump' | 'jump2' | 'splash' | 'swim';
+import type { SoundName } from './types';
+
+type Name = SoundName;
 
 export class Sound {
   private ctx: AudioContext | null = null;
   private master: GainNode | null = null;
   private noise: AudioBuffer | null = null;
   private sea: AudioBufferSourceNode | null = null;
+  /** Skips in a row (each plip a semitone up), and when the last one was. */
+  private skips = 0;
+  private lastSkip = -9;
   on = false;
 
   private ensure() {
@@ -160,6 +166,45 @@ export class Sound {
         f.frequency.exponentialRampToValueAtTime(2400, t + 0.6);
         break;
       }
+      // ---------- The mini-games ----------
+      case 'skip': {
+        // A stone kissing the water: a bright plip, each one a little higher than the last.
+        this.skips = t - this.lastSkip < 0.8 ? Math.min(this.skips + 1, 14) : 0;
+        this.lastSkip = t;
+        const f0 = 900 * Math.pow(2, this.skips / 12);
+        osc('sine', f0, f0 * 1.9, 0.07, 0.1);
+        noise(3200, 1.2, 0.05, 0.05);
+        break;
+      }
+      case 'plonk':
+        // In it goes.
+        osc('sine', 260, 70, 0.3, 0.22);
+        noise(700, 0.8, 0.2, 0.08, 'lowpass');
+        break;
+      case 'boop':
+        osc('triangle', 520 + Math.random() * 90, 1040, 0.09, 0.12);
+        osc('sine', 1560, 1560, 0.05, 0.03, 0.04);
+        break;
+      case 'thud':
+        // Wood on wood.
+        osc('triangle', 150, 70, 0.16, 0.24);
+        noise(1100, 1.6, 0.06, 0.14);
+        break;
+      case 'perfect':
+        osc('sine', 1046, 1046, 0.16, 0.09);
+        osc('sine', 1568, 1568, 0.22, 0.07, 0.07);
+        break;
+      case 'fanfare':
+        [523, 659, 784, 1046].forEach((f, i) => osc('triangle', f, f, 0.22 + i * 0.05, 0.09, i * 0.09));
+        osc('sine', 2093, 2093, 0.5, 0.03, 0.36);
+        break;
+      case 'miss':
+        osc('sawtooth', 190, 120, 0.22, 0.05);
+        osc('sine', 140, 90, 0.24, 0.1);
+        break;
+      case 'tick':
+        osc('square', 1320, 1320, 0.03, 0.025);
+        break;
     }
   }
 

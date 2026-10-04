@@ -5,6 +5,7 @@
 import type { World } from '../world/schema';
 import type { WorldStore } from '../world/store';
 import type { RendererContext, ViewId } from './types';
+import { gamesRow } from './games/catalog';
 
 type UI = RendererContext['ui'];
 
@@ -119,6 +120,7 @@ export function createUI(world: World, store: WorldStore, announce: (s: string) 
        <p class="w-hoard__intro">${cap(spell(total))} words English lost are hidden around the island. Each one is a story about where words go. Find them all and the island changes.</p>
        ${full ? `<div class="w-hoard__full"><p><strong>Night has fallen on the island.</strong>The lanterns are lit. Switch between night and day whenever you like.</p><button type="button" class="w-switch" role="switch" aria-checked="${night}" aria-label="Night" data-ui="night"></button></div>` : ''}
        <div class="w-hoard__grid">${slots}</div>
+       ${gamesRow(world, (g) => store.state.progress.games[g])}
        ${found.length ? '<button type="button" class="w-hoard__reset" data-ui="reset">Forget what I found</button>' : ''}`,
       '#1f2a44',
       true,

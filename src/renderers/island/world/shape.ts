@@ -71,8 +71,8 @@ const colorOf = (id: string) => world.places.find((p) => p.id === id)?.color ?? 
 export const WORDS = world.lostWords.map((w) => ({ id: w.id, word: w.word, place: w.place, color: colorOf(w.place), x: w.at.x, z: w.at.z }));
 export type WordSpot = (typeof WORDS)[number];
 
-/** Things to do on the island (fishing off the pier). */
-export const ACTIVITIES = world.activities.map((a) => ({ id: a.id, kind: a.kind, place: a.place, name: a.name, description: a.description, x: a.at.x, z: a.at.z }));
+/** Things to do on the island: fishing off the pier, the portal, the mini-games. */
+export const ACTIVITIES = world.activities.map((a) => ({ id: a.id, kind: a.kind, game: a.game, place: a.place, name: a.name, description: a.description, x: a.at.x, z: a.at.z }));
 export type ActivitySpot = (typeof ACTIVITIES)[number];
 
 export const PLACES: Place[] = world.places

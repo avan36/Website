@@ -32,6 +32,7 @@ import { Fishing, FISH_RANGE, type FishPhase } from './play/fishing';
 import { Prompt, type PromptText } from './play/prompt';
 import { LostWords } from './play/words';
 import { Portal } from './play/portal';
+import type { GameId } from '../games/catalog';
 import { PORTAL_NEXT } from '../portal';
 import { buildAmbient } from './world/ambient';
 import { resetSharedMaterials } from './world/kit';
@@ -118,6 +119,9 @@ export interface GameHandle {
     fish: () => void;
     /** How far night has fallen, 0..1. */
     night: () => number;
+    /** The mini-games: each spot, whether its prompt is up, and playing one (walking over first if need be). */
+    games: () => { id: GameId; x: number; z: number; stand: { x: number; z: number }; open: boolean }[];
+    play: (id: GameId) => void;
   };
 }
 
@@ -280,6 +284,15 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     };
     fishing.onMiss = () => o.ui.toast({ title: 'It got away', body: 'Cast again?', color: fishColor });
   }
+
+  // The mini-games: a prop and a prompt at each spot; the games run in the shared games card.
+  // (Loaded on the side, games card and all, to keep the island's own bundle lean.)
+  const { MiniGames, playGame } = await import('./play/minigames');
+  const games = new MiniGames(o.labelsHost, { reducedMotion: o.reducedMotion, best: (id) => store.best(id), onPress: (id) => playAt(id) });
+  island.add(games.group);
+  colliders.push(...games.colliders);
+  /** Walking over to a game to play it (cancelled if you head somewhere else). */
+  let pendingGame: { id: GameId; target: Vector2 } | null = null;
 
   const night = buildNight({ scene, hemi, sun, sky, water: water.material, ambient, landmarks, mobile });
   scene.add(night.group);
@@ -621,6 +634,10 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
       press = { id: null, x: e.clientX, y: e.clientY, ground: false, pointerId: e.pointerId, jump: true };
       return;
     }
+    // Tap a game's spot: walk over and play.
+    raycaster.setFromCamera(ndc, camera);
+    const game = games.pick(raycaster);
+    if (game) return playAt(game);
     const target = pickTarget();
     const id = target && 'place' in target ? target.place : null;
     press = { id, x: e.clientX, y: e.clientY, ground: !target, pointerId: e.pointerId };
@@ -718,6 +735,11 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     }
     const active = document.activeElement as HTMLElement | null;
     const onControl = !!active && active !== document.body && active !== canvas && (active.tagName === 'A' || active.tagName === 'BUTTON');
+    // A game's prompt is up: E or Enter plays it.
+    if ((e.code === 'KeyE' || e.key === 'Enter') && !onControl && !e.repeat && state === 'play' && games.open) {
+      e.preventDefault();
+      return playAt(games.open);
+    }
     // Fishing: E or F casts and reels in (E only while there's fishing to do: otherwise it turns the view).
     if ((e.code === 'KeyF' || (e.code === 'KeyE' && (fishOpen || fishing?.active))) && !e.repeat && state === 'play') {
       if (fishAction()) e.preventDefault();
@@ -841,6 +863,44 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
   function stopFishing() {
     pendingCast = false;
     if (fishing && (fishing.active || player.rodOut)) fishing.cancel();
+  }
+
+  /** Play a mini-game: walk up to its spot first if it's a way off. */
+  function playAt(id: GameId) {
+    if (state === 'intro') skipIntro();
+    if (state !== 'play' || words.picking || dialog?.open) return;
+    stopFishing();
+    firstMove();
+    const s = games.stand(id);
+    if (games.open !== id && Math.hypot(player.pos.x - s.x, player.pos.z - s.z) > 0.6) {
+      walkTarget = new Vector2(s.x, s.z);
+      pendingEnter = null;
+      pendingPortal = false;
+      pendingGame = { id, target: walkTarget };
+      blockedT = 0;
+      showMarker(walkTarget);
+      o.sound.play('pop');
+      return;
+    }
+    pendingGame = null;
+    walkTarget = null;
+    keys.clear();
+    const spot = games.spots.find((x) => x.id === id)!;
+    player.faceToward(spot.x, spot.z);
+    // The island holds still (and stops drawing) while the game has the screen.
+    stop();
+    playGame(id, {
+      store,
+      sound: o.sound,
+      reducedMotion: o.reducedMotion,
+      touch,
+      announce: o.ui.announce,
+      onClose: () => {
+        if (destroyed) return;
+        games.refresh();
+        if (!document.hidden) start();
+      },
+    });
   }
 
   function activate(id: string) {
@@ -1037,6 +1097,11 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
   };
 
   const updatePlay = (dt: number) => {
+    // On the way to a game: play once you're there; heading anywhere else calls it off.
+    if (pendingGame) {
+      if (walkTarget !== pendingGame.target) pendingGame = null;
+      else if (Math.hypot(player.pos.x - walkTarget.x, player.pos.z - walkTarget.y) < 0.6) return playAt(pendingGame.id);
+    }
     // Desired movement
     wish.set(0, 0);
     for (const k of keys) {
@@ -1130,6 +1195,9 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
       if (nearPortal && !was) o.sound.play('chime');
     }
 
+    // A game's prompt opens as you walk up to it (unless a place or the portal has your attention).
+    if (games.near(player.pos.x, player.pos.z, !nearId && !nearPortal && !player.inWater && !words.picking)) o.sound.play('chime');
+
     // Fishing: the prompt is up near the spot (unless the pier's own card is), and
     // stays up while the line is out. Walking off puts the rod away.
     if (fishing && fishSpot) {
@@ -1222,6 +1290,7 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     ripples.update(time, dt, night.amount);
     buoys.update(time, uniforms.uGrow.value, night.amount);
     portal?.update(time, night.amount);
+    games.update(time);
     ambient.update(time);
 
     // Night falls (or lifts). After the last word it waits for the card to close.
@@ -1337,6 +1406,7 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     avoidAll.push(...avoid);
     // Idle labels also keep clear of the explorer standing under the prompt.
     if (promptRect) avoidAll.push(promptRect, { l: promptRect.l, t: promptRect.b, r: promptRect.r, b: promptRect.b + 90 });
+    avoidAll.push(...games.place(camera, viewW, viewH, avoid, state === 'play'));
     labels.update(camera, anchors, viewW, viewH, {
       avoid: avoidAll,
       visible: state === 'play',
@@ -1407,6 +1477,7 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     unsubscribe();
     labels.dispose();
     prompt?.dispose();
+    games.dispose();
     portal?.dispose();
     words.dispose();
     fishing?.dispose();
@@ -1489,6 +1560,8 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
       fishing: () => fishing?.phase ?? null,
       fish: () => void fishAction(),
       night: () => night.amount,
+      games: () => games.list(),
+      play: (id: GameId) => playAt(id),
       screen: (id: string) => {
         const l = byId.get(id);
         if (!l) return null;

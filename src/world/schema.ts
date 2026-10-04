@@ -152,10 +152,15 @@ export const LostWordSchema = z
   })
   .strict();
 
+/** The island's mini-games. Each renderer that can play one knows it by this id. */
+export const GAMES = ['stones', 'crabs', 'crates'] as const;
+
 export const ActivitySchema = z
   .object({
     id: Id,
-    kind: z.enum(['fishing', 'portal']),
+    kind: z.enum(['fishing', 'portal', 'minigame']),
+    /** For kind 'minigame': which game is played here. */
+    game: z.enum(GAMES).optional(),
     place: Id,
     at: Vec2,
     name: z.string(),
@@ -219,6 +224,7 @@ export type Place = z.infer<typeof PlaceSchema>;
 export type Route = z.infer<typeof RouteSchema>;
 export type LostWord = z.infer<typeof LostWordSchema>;
 export type Activity = z.infer<typeof ActivitySchema>;
+export type GameId = (typeof GAMES)[number];
 export type Geography = z.infer<typeof GeographySchema>;
 export type World = z.infer<typeof WorldSchema>;
 /** What authors write: defaults may be left out. */
@@ -312,8 +318,14 @@ export function checkWorld(w: z.infer<typeof WorldSchema> | World): Issue[] {
     if (lw.first > lw.died) add(`Lost word "${lw.id}" died before it was born.`, ['lostWords', i, 'died']);
   });
 
+  const games = new Set<string>();
   w.activities.forEach((a, i) => {
     if (!places.has(a.place)) add(`Activity "${a.id}" is at unknown place "${a.place}".`, ['activities', i, 'place']);
+    // A mini-game says which game it is, once; nothing else does.
+    if (a.kind === 'minigame' && !a.game) add(`Mini-game "${a.id}" needs a game.`, ['activities', i, 'game']);
+    if (a.kind !== 'minigame' && a.game) add(`Only a mini-game has a game; "${a.id}" is ${a.kind}.`, ['activities', i, 'game']);
+    if (a.game && games.has(a.game)) add(`The game "${a.game}" is on the island twice.`, ['activities', i, 'game']);
+    if (a.game) games.add(a.game);
   });
   w.geography.headlands.forEach((h, i) => {
     if (!places.has(h.toward)) add(`Headland ${i} points toward unknown place "${h.toward}".`, ['geography', 'headlands', i]);

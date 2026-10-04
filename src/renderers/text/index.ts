@@ -132,6 +132,19 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
         case 'view':
           later(() => document.querySelector<HTMLButtonElement>(`[data-view-set="${e.id}"]`)?.click(), 450);
           break;
+        case 'score':
+          store.dispatch({ type: 'score', game: e.game, score: e.score });
+          break;
+        case 'game':
+          // The games words can't draw open in the shared games card (loaded only when wanted).
+          later(() => {
+            typewriter.finish();
+            void import('../games/overlay').then(({ playGame }) => {
+              if (destroyed) return;
+              playGame(e.id, { store, sound: ctx.sound, reducedMotion: ctx.reducedMotion, touch: ctx.touch, announce: ctx.ui.announce, onClose: () => !destroyed && !ctx.touch && input.focus({ preventScroll: true }) });
+            });
+          }, ctx.reducedMotion ? 60 : 400);
+          break;
         case 'portal':
           later(() => {
             typewriter.finish();
@@ -151,7 +164,7 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
   /** The engine's state, with progress fresh from the store (another view, or the hoard card, may have changed it). */
   function sync(): EngineState {
     const p = progress();
-    state = { ...state, found: p.found, caught: p.caught, night: p.night };
+    state = { ...state, found: p.found, caught: p.caught, night: p.night, bests: Object.fromEntries(Object.entries(p.games).map(([id, g]) => [id, g.best])) };
     return state;
   }
 
@@ -257,6 +270,7 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
   });
 
   // ---------- Go ----------
+  let destroyed = false;
   const opening = engine.start(state, { returning: !!ctx.returnTo, portal: ctx.viaPortal });
   state = opening.state;
   show(null, opening.out);
@@ -271,6 +285,7 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
     pause: () => typewriter.finish(),
     resume() {},
     destroy() {
+      destroyed = true;
       for (const t of timers) clearTimeout(t);
       timers.clear();
       typewriter.destroy();

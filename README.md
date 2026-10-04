@@ -28,7 +28,7 @@ Those are four views of **one world**, and the world is data.
 - **Places**: where each thing stands (`at`, in world units, +z is south), what it is (`archetype`: cabin, lighthouse, pier…), what it opens (`href`), and what you see when you get there (`description`, `scenery` you can examine). Project places pull their name, color and blurb from `src/data/projects.ts`.
 - **Routes**: which places connect. Paved ones become paths in the spatial views; the rest are shortcuts the text adventure narrates.
 - **Lost words**: eight words English lost (from [Etymon](https://avan36.github.io/Etymology/)'s museum), each hidden in a specific piece of scenery and at a specific spot.
-- **Activities**: fishing off the pier, which catches a post from the blog.
+- **Activities**: fishing off the pier, which catches a post from the blog; the portal; and three mini-games (`kind: 'minigame'` with a `game` id: skipping stones, crab boop, crate stack). The games live in `src/renderers/games/` (pure rules, tested, and one shared card every view opens); their best scores are part of the store's progress.
 - **Geography**: the island's shape as a recipe (coast ripples, a headland, a hill, the pier), which `geo.ts` turns into height, coastline, paths and doors that every spatial renderer shares.
 
 Nothing in it knows about pixels, meshes or fonts. Renderers map archetypes to their own art.
@@ -59,7 +59,7 @@ Renderers are loaded with `import()` only when chosen, so someone reading the li
 
 ## Shared state
 
-`src/world/store.ts` remembers what a visitor has done: the lost words they've found, the posts they've caught, whether night has fallen, and where they're standing. The rules are a pure `reduce(world, state, action) → { state, events }`, tested without a browser. Progress lives in `localStorage`; position lives in `sessionStorage`. Switch views mid-walk and you're still standing in the same spot with the same pockets.
+`src/world/store.ts` remembers what a visitor has done: the lost words they've found, the posts they've caught, their best score at each mini-game, whether night has fallen, and where they're standing. The rules are a pure `reduce(world, state, action) → { state, events }`, tested without a browser. Progress lives in `localStorage`; position lives in `sessionStorage`. Switch views mid-walk and you're still standing in the same spot with the same pockets.
 
 ## The rest of the site
 
