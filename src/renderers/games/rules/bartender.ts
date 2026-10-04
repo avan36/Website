@@ -1,7 +1,8 @@
-// Logic for the busy beer "Bartender" mini-game. Pick three vibes; each vibe
-// nudges the same five flavor axes the Taste match toy uses, and a small menu
-// is scored against the sum. Pure functions only, so it can be unit tested.
-import { AXES, type Palate } from '../toys/taste';
+// Rules for "Ask the bartender" (busy beer's island game, played in
+// ../bartender.ts). Pick three vibes; each vibe nudges the same five flavor
+// axes the Taste match toy on the busy beer page uses, and a small menu is
+// scored against the sum. Pure functions only, so it can be unit tested.
+import { AXES, type Palate } from '../../../components/work/toys/taste';
 
 export { AXES };
 export const MAX_VIBES = 3;

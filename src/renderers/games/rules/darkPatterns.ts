@@ -1,6 +1,6 @@
-// Logic for the "Spot the dark pattern" mini-game on the Global Privacy
-// Control page. The mock site and every trick in it are made up; the GPC notes
-// describe what the signal does and doesn't do. Pure functions only.
+// Rules for "Spot the dark pattern" (Global Privacy Control's island game,
+// played in ../patterns.ts). The mock site and every trick in it are made up;
+// the GPC notes describe what the signal does and doesn't do. Pure functions only.
 
 export type Place = 'banner' | 'signup';
 

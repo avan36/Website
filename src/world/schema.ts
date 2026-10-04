@@ -15,6 +15,7 @@
 // `import type`, so none of this ships to the browser.
 
 import { z } from 'astro/zod';
+import { createGeo } from './geo';
 
 const Id = z.string().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, 'ids are lowercase-kebab-case');
 const Hex = z.string().regex(/^#[0-9a-f]{6}$/i, 'colors are #rrggbb');
@@ -230,7 +231,7 @@ export const LostWordSchema = z
   .strict();
 
 /** The island's mini-games. Each renderer that can play one knows it by this id. */
-export const GAMES = ['stones', 'crabs', 'crates'] as const;
+export const GAMES = ['stones', 'crabs', 'crates', 'bartender', 'patterns', 'etymology', 'evolution'] as const;
 
 export const ActivitySchema = z
   .object({
@@ -269,16 +270,19 @@ export const OutfitSchema = z
 
 // ---------- Geography ----------
 
+/** A coast as a recipe: a mean radius, plus sine ripples around the shore. */
+const CoastSchema = z
+  .object({
+    radius: z.number().positive(),
+    ripples: z.array(z.object({ freq: z.number().int().positive(), amp: z.number(), phase: z.number() }).strict()),
+  })
+  .strict();
+
 /** The island's shape, as a recipe. geo.ts turns it into height and coastline. */
 export const GeographySchema = z
   .object({
-    /** Mean coast radius, plus sine ripples around the shore. */
-    coast: z
-      .object({
-        radius: z.number().positive(),
-        ripples: z.array(z.object({ freq: z.number().int().positive(), amp: z.number(), phase: z.number() }).strict()),
-      })
-      .strict(),
+    /** The main island's coast, round the origin. */
+    coast: CoastSchema,
     /** Rocky shelves that push the coast out toward a place and end in a cliff.
      *  spread is the coast bulge's angular width; rocks is the rocky ground's. */
     headlands: z.array(
@@ -317,6 +321,12 @@ export const GeographySchema = z
      *  or is laid there. Build on one by adding a place at `at` with this
      *  clearing, and remove the plot. */
     plots: z.array(z.object({ id: Id, at: Vec2, clearing: z.number().positive() }).strict()).default([]),
+    /** Little islands off the main one, each with its own coast round `at`
+     *  (grass on top and a sandy beach, like the main island's shore). */
+    islets: z.array(z.object({ id: Id, name: z.string(), at: Vec2, coast: CoastSchema }).strict()).default([]),
+    /** Footbridges: a level wooden deck at height `deck`, with railings, from
+     *  one point on land straight to another on a different island. */
+    bridges: z.array(z.object({ from: Vec2, to: Vec2, width: z.number().min(1.6).max(4), deck: z.number() }).strict()).default([]),
     /** Where a new visitor appears. */
     spawn: Vec2,
   })
@@ -502,6 +512,78 @@ export function checkWorld(w: z.infer<typeof WorldSchema> | World): Issue[] {
     if (!places.has(h.at)) add(`Hill ${i} is at unknown place "${h.at}".`, ['geography', 'hills', i]);
   });
 
+  // The ground itself can only be worked out once the places it hangs off are sound.
+  const sound =
+    hub &&
+    w.routes.every((r) => places.has(r.from) && places.has(r.to)) &&
+    w.geography.headlands.every((h) => places.has(h.toward)) &&
+    w.geography.hills.every((h) => places.has(h.at));
+  if (sound) issues.push(...checkGround(w as World));
+
+  return issues;
+}
+
+/**
+ * The islets and the bridges, and everything that stands on the ground: no
+ * islet runs into another island, every bridge goes from land to other land
+ * over the sea, every islet can be walked to, and every place and activity
+ * (bar the boat, which floats) is on dry land you can walk to from the plaza.
+ */
+function checkGround(w: World): Issue[] {
+  const issues: Issue[] = [];
+  const add = (message: string, path: (string | number)[]) => issues.push({ message, path });
+  const geo = createGeo(w);
+  const at = (p: { x: number; z: number }) => `(${+p.x.toFixed(1)}, ${+p.z.toFixed(1)})`;
+  const ids = new Set<string>();
+  geo.islands.forEach((s, i) => {
+    if (!i) return;
+    if (ids.has(s.id)) add(`Two islets share the id "${s.id}".`, ['geography', 'islets', i - 1, 'id']);
+    ids.add(s.id);
+    for (const o of geo.islands.slice(0, i)) {
+      // The main island's coast reaches further in some directions than others: measure it toward the islet.
+      const toward = o.coast(Math.atan2(s.z - o.z, s.x - o.x));
+      const gap = Math.hypot(s.x - o.x, s.z - o.z) - s.outer - (o.i ? o.outer : toward);
+      if (gap < 2) add(`Islet "${s.id}" runs into ${o.i ? `islet "${o.id}"` : 'the main island'}: move it out to sea, with at least 2 of water between them.`, ['geography', 'islets', i - 1, 'at']);
+    }
+  });
+  const name = (i: number) => (i ? `islet "${geo.islands[i].id}"` : 'the main island');
+  geo.bridges.forEach((b, i) => {
+    const path = ['geography', 'bridges', i];
+    const [from, to] = b.joins;
+    if (from < 0) add(`Bridge ${i} starts in the sea at ${at({ x: b.ax, z: b.az })}: start it on land.`, [...path, 'from']);
+    if (to < 0) add(`Bridge ${i} ends in the sea at ${at({ x: b.bx, z: b.bz })}: end it on land.`, [...path, 'to']);
+    if (from >= 0 && from === to) add(`Bridge ${i} starts and ends on ${name(from)}: a bridge goes from one island to another.`, path);
+    let wet = false;
+    for (let s = 0; s <= b.length; s += 0.25) if (geo.heightAt(b.ax + b.ux * s, b.az + b.uz * s) < 0) wet = true;
+    if (!wet && from !== to) add(`Bridge ${i} never crosses the sea: the islands it joins already touch.`, path);
+    if (b.deck < 0.6) add(`Bridge ${i}'s deck is ${b.deck} high: keep it above the swell (0.6 or more).`, [...path, 'deck']);
+    for (const end of [0, 1] as const) {
+      const l = geo.landing(b, end);
+      if (!geo.isWalkable(l.x, l.z)) add(`You can't step off bridge ${i} at ${at(l)}: give its ${end ? 'end' : 'start'} some dry land beyond it.`, [...path, end ? 'to' : 'from']);
+    }
+  });
+  geo.islands.forEach((s, i) => {
+    if (i && geo.hops(0, i) === Infinity) add(`Islet "${s.id}" can't be reached on foot: add a bridge out to it.`, ['geography', 'islets', i - 1]);
+  });
+  // Where you can walk to from the plaza: the main island, every islet a bridge
+  // reaches, and the decks in between (the pier's and the bridges', walkable but not land).
+  const home = geo.islandOf(geo.hub.at.x, geo.hub.at.z) ?? 0;
+  const reachable = (p: { x: number; z: number }) => {
+    const isle = geo.islandOf(p.x, p.z);
+    return isle === null || geo.hops(home, isle) < Infinity;
+  };
+  w.places.forEach((p, i) => {
+    if (p.archetype === 'pier' || p === geo.hub) return; // out over the water by design; the hub is where you start
+    const door = geo.door(p);
+    if (!geo.isWalkable(door.x, door.z)) add(`"${p.id}"'s door is in the sea at ${at(door)}: move it onto land.`, ['places', i, 'at']);
+    else if (!reachable(door)) add(`"${p.id}" is on an islet you can't walk to: add a bridge out to it.`, ['places', i, 'at']);
+  });
+  w.activities.forEach((a, i) => {
+    if (a.kind === 'boat') return;
+    if (!geo.isWalkable(a.at.x, a.at.z)) add(`Activity "${a.id}" is in the sea at ${at(a.at)}: move it onto land.`, ['activities', i, 'at']);
+    else if (!reachable(a.at)) add(`Activity "${a.id}" is on an islet you can't walk to: add a bridge out to it.`, ['activities', i, 'at']);
+    else if (a.kind === 'minigame' && geo.bridgeDist(a.at.x, a.at.z) < 2.5) add(`Mini-game "${a.id}" is in the way of a bridge: keep it 2.5 clear.`, ['activities', i, 'at']);
+  });
   return issues;
 }
 

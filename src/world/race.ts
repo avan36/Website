@@ -5,8 +5,8 @@
 //
 // The course is a ring out in the open sea, past the furthest anyone can swim
 // (geo's SWIM_REACH, where the buoys float), following the coast's general
-// shape but smoothed, so it swings wide round the lighthouse's headland
-// instead of copying every ripple of the shore. It runs clockwise on the map
+// shape but smoothed, so it swings wide round the lighthouse's headland and
+// the islets off the west coast instead of copying every ripple of the shore. It runs clockwise on the map
 // (south, then west, north and east), starting and finishing off the pier.
 
 import { SWIM_REACH, type Geo, type Vec2 } from './geo';
@@ -61,10 +61,10 @@ const wrap = (a: number) => {
 };
 
 /** Build the course round the island, starting off the boat's mooring. */
-export function raceCourse(geo: Pick<Geo, 'coastRadius'>, boat: Pick<Activity, 'at'>): Course {
-  // The ring: the coast's furthest reach nearby (so headlands are given room),
-  // pushed out past the swimming water, then smoothed into an easy curve.
-  const coast = Array.from({ length: N }, (_, k) => geo.coastRadius((k / N) * TAU));
+export function raceCourse(geo: Pick<Geo, 'reach'>, boat: Pick<Activity, 'at'>): Course {
+  // The ring: the land's furthest reach nearby (so headlands and islets are
+  // given room), pushed out past the swimming water, then smoothed into an easy curve.
+  const coast = Array.from({ length: N }, (_, k) => geo.reach((k / N) * TAU));
   const span = Math.round(N * 0.07);
   let r = coast.map((_, k) => {
     let m = 0;

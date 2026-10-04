@@ -891,6 +891,44 @@ const activities: WorldInput['activities'] = [
     name: 'Crate stack',
     description: 'Crates waiting by the depot, and a crane to swing them. Drop each one square on the last and see how high the tower goes.',
   },
+  // Four more on the islets off the west coast, one for each of four projects,
+  // over the bridges. Each teaches something true about the project it's for.
+  {
+    id: 'ask-the-bartender',
+    kind: 'minigame',
+    game: 'bartender',
+    place: 'busy-beer',
+    at: { x: -34.2, z: 11.6 },
+    name: 'Ask the bartender',
+    description: "A little beach bar on Boardwalk Isle. Tell the bartender the mood in three words and watch the menu score itself before your drink slides over.",
+  },
+  {
+    id: 'spot-the-dark-pattern',
+    kind: 'minigame',
+    game: 'patterns',
+    place: 'privacy-research',
+    at: { x: -30, z: 10.6 },
+    name: 'Spot the dark pattern',
+    description: "A kiosk on the boardwalk, with a signup page that isn't playing fair. Find the tricks built to steer you, then see which ones Global Privacy Control would have settled for you.",
+  },
+  {
+    id: 'etymology-race',
+    kind: 'minigame',
+    game: 'etymology',
+    place: 'etymon',
+    at: { x: -33.3, z: -16.6 },
+    name: 'Etymology race',
+    description: 'A giant dictionary open on a lectern on Root Isle. Ten words and a ticking clock: guess where English got each one, or pick its oldest ancestor out of a line-up.',
+  },
+  {
+    id: 'sort-the-tree-of-life',
+    kind: 'minigame',
+    game: 'evolution',
+    place: 'map-of-evolution',
+    at: { x: -29.3, z: -17.4 },
+    name: 'Sort the tree of life',
+    description: 'A young tree on Root Isle with nine branches, and a basket of living things to hang on them. Is a whale a fish? Is a horseshoe crab a crab?',
+  },
 ];
 
 // The explorer's wardrobe: one piece at every house, yours the moment you
@@ -1004,6 +1042,17 @@ const geography: WorldInput['geography'] = {
   shores: [{ toward: { x: 1, z: 0.1 }, reach: 13, spread: 0.45 }],
   railway: { center: { x: 24, z: 1.5 }, rx: 6.5, rz: 9, square: 3.2, bed: 1.3, station: 0.25 },
   quay: { x0: 24, z0: 14.2, x1: 30.5, z1: 19.8, deck: 0.7, bus: { x: 27.4, z: 17.2 }, faces: Math.PI / 2 },
+  // Two islets off the west coast, a footbridge out to each: Root Isle, for
+  // where words and living things come from, and Boardwalk Isle, with a beach
+  // bar and a pushy kiosk. Their games are on the island's activities.
+  islets: [
+    { id: 'root-isle', name: 'Root Isle', at: { x: -31.7, z: -14.8 }, coast: { radius: 6.6, ripples: [{ freq: 3, amp: 0.5, phase: 1.2 }, { freq: 5, amp: 0.3, phase: 0.4 }] } },
+    { id: 'boardwalk-isle', name: 'Boardwalk Isle', at: { x: -33.1, z: 14.1 }, coast: { radius: 6.6, ripples: [{ freq: 3, amp: 0.5, phase: 2.6 }, { freq: 4, amp: 0.35, phase: 0.9 }] } },
+  ],
+  bridges: [
+    { from: { x: -15.6, z: -10.5 }, to: { x: -27, z: -13.5 }, width: 2.2, deck: 1.15 },
+    { from: { x: -16.8, z: 11 }, to: { x: -28.3, z: 13.2 }, width: 2.2, deck: 1.15 },
+  ],
   spawn: { x: 0, z: 7.5 },
 };
 

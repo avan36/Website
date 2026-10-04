@@ -1,12 +1,13 @@
-// Vendored data for the Evolution Sorter mini-game (EvolutionSorter.astro).
+// Vendored data for Sort the tree of life (../evolution.ts).
 //
 // Source: the Map of Evolution project (github.com/avan36/MapOfEvolution, live
 // at avan36.github.io/MapOfEvolution). Names, scientific names, emoji and facts
 // come from its data/tree/*.json files: `fact` is one of the node's facts
-// (lightly trimmed), `what` is its summary cut to one line, and a few emoji are
-// swapped where the original was a pun that would mislead (the platypus was a
-// duck). Branch blurbs follow data/groups.json. Each
-// organism's `branch` was worked out from its line of ancestors in that tree:
+// (lightly trimmed, em dashes swapped for commas and colons), `what` is its
+// summary cut to one line, and a few emoji are swapped where the original was
+// a pun that would mislead (the platypus was a duck). Branch blurbs follow
+// data/groups.json. Each organism's `branch` was worked out from its line of
+// ancestors in that tree:
 // birds = Neornithes, mammals = Mammalia, amphibians = Lissamphibia, reptiles =
 // the rest of Sauropsida, fish = vertebrates outside Tetrapoda, insects =
 // Insecta, other invertebrates = the rest of Animalia, plants = land plants,
@@ -62,13 +63,13 @@ export const SPECIES: Species[] = [
   // ---- Mammals ----
   { id: 'platypus', name: 'Platypus', scientific: 'Ornithorhynchus anatinus', emoji: '🦫', branch: 'mammals', what: 'A duck-billed, otter-footed, egg-laying mammal from eastern Australia.', fact: 'When the first specimen reached Britain in 1799, some scientists suspected it was a hoax stitched together from different animals.' },
   { id: 'blue-whale', name: 'Blue whale', scientific: 'Balaenoptera musculus', emoji: '🐳', branch: 'mammals', what: 'The largest animal known to have ever lived, bigger than any dinosaur.', fact: 'In feeding season a blue whale can eat around 16 tonnes of krill a day.' },
-  { id: 'bats', name: 'Bats', scientific: 'Chiroptera', emoji: '🦇', branch: 'mammals', what: 'The only mammals that can truly fly: about a fifth of all mammal species.', fact: 'Vampire bats share blood meals with hungry roost-mates — and remember who has helped them before.' },
-  { id: 'orca', name: 'Orca', scientific: 'Orcinus orca', emoji: '🐬', branch: 'mammals', what: 'The killer whale is really the largest dolphin.', fact: "Different orca populations have their own diets, hunting tricks and 'dialects' — a form of culture." },
+  { id: 'bats', name: 'Bats', scientific: 'Chiroptera', emoji: '🦇', branch: 'mammals', what: 'The only mammals that can truly fly: about a fifth of all mammal species.', fact: 'Vampire bats share blood meals with hungry roost-mates, and remember who has helped them before.' },
+  { id: 'orca', name: 'Orca', scientific: 'Orcinus orca', emoji: '🐬', branch: 'mammals', what: 'The killer whale is really the largest dolphin.', fact: "Different orca populations have their own diets, hunting tricks and 'dialects': a form of culture." },
   { id: 'pangolins', name: 'Pangolins', scientific: 'Pholidota', emoji: '🌰', branch: 'mammals', what: 'The only mammals covered in scales, made of keratin like your fingernails.', fact: "A pangolin's tongue can be longer than its body when fully extended, and is anchored deep in its chest." },
   { id: 'koala', name: 'Koala', scientific: 'Phascolarctos cinereus', emoji: '🐨', branch: 'mammals', what: 'A tree-dwelling marsupial that eats almost nothing but eucalyptus leaves.', fact: 'Koala fingerprints are so similar to human ones that they are hard to tell apart.' },
-  { id: 'sirenia', name: 'Manatees & dugongs', scientific: 'Sirenia', emoji: '🌊', branch: 'mammals', what: "Slow, gentle 'sea cows' whose closest living relatives are elephants.", fact: "Sailors' mermaid tales may have been inspired by these animals — the order is named after the Sirens of Greek myth." },
+  { id: 'sirenia', name: 'Manatees & dugongs', scientific: 'Sirenia', emoji: '🌊', branch: 'mammals', what: "Slow, gentle 'sea cows' whose closest living relatives are elephants.", fact: "Sailors' mermaid tales may have been inspired by these animals: the order is named after the Sirens of Greek myth." },
   { id: 'armadillos', name: 'Armadillos', scientific: 'Cingulata', emoji: '🛡️', branch: 'mammals', what: 'Armoured mammals whose shells are bony plates that grow in their skin.', fact: 'The nine-banded armadillo almost always gives birth to four identical quadruplets, all from a single egg.' },
-  { id: 'hedgehogs', name: 'Hedgehogs', scientific: 'Erinaceidae', emoji: '🦔', branch: 'mammals', what: 'Spiny insect-eaters covered in around 5,000–7,000 hollow spines.', fact: "They sometimes 'self-anoint', chewing strange substances into a froth and spreading it on their spines — nobody is quite sure why." },
+  { id: 'hedgehogs', name: 'Hedgehogs', scientific: 'Erinaceidae', emoji: '🦔', branch: 'mammals', what: 'Spiny insect-eaters covered in around 5,000–7,000 hollow spines.', fact: "They sometimes 'self-anoint', chewing strange substances into a froth and spreading it on their spines. Nobody is quite sure why." },
   // ---- Birds ----
   { id: 'penguins', name: 'Penguins', scientific: 'Sphenisciformes', emoji: '🐧', branch: 'birds', what: "Flightless seabirds that 'fly' underwater with stiff flipper-wings.", fact: 'Emperor penguins can dive over 500 metres deep and hold their breath for more than 25 minutes.' },
   { id: 'ostrich', name: 'Ostrich', scientific: 'Struthio camelus', emoji: '🪶', branch: 'birds', what: 'The largest living bird, up to 2.7 metres tall.', fact: 'Its eye is bigger than its brain.' },
@@ -106,7 +107,7 @@ export const SPECIES: Species[] = [
   // ---- Other invertebrates ----
   { id: 'spiders', name: 'Spiders', scientific: 'Araneae', emoji: '🕷️', branch: 'inverts', what: 'Silk-spinning, eight-legged predators found on every continent except Antarctica.', fact: "The silk of Darwin's bark spider is tougher than Kevlar." },
   { id: 'octopuses', name: 'Octopuses', scientific: 'Octopoda', emoji: '🐙', branch: 'inverts', what: 'Eight-armed escape artists and puzzle solvers.', fact: "About two-thirds of an octopus's neurons are in its arms, which can taste what they touch." },
-  { id: 'crabs', name: 'Crabs', scientific: 'Brachyura', emoji: '🦀', branch: 'inverts', what: 'Crustaceans famous for walking sideways.', fact: "The crab body shape evolved independently at least five times — biologists call it 'carcinisation'." },
+  { id: 'crabs', name: 'Crabs', scientific: 'Brachyura', emoji: '🦀', branch: 'inverts', what: 'Crustaceans famous for walking sideways.', fact: "The crab body shape evolved independently at least five times: biologists call it 'carcinisation'." },
   { id: 'horseshoe-crabs', name: 'Horseshoe crabs', scientific: 'Xiphosura', emoji: '🛡️', branch: 'inverts', what: 'Not crabs at all but armoured cousins of spiders.', fact: 'Their blue blood is used to test vaccines and medicines for dangerous bacterial toxins.' },
   { id: 'immortal-jellyfish', name: 'Immortal jellyfish', scientific: 'Turritopsis dohrnii', emoji: '♾️', branch: 'inverts', what: 'A tiny jellyfish that can turn back into a baby polyp and start life again.', fact: 'It is a hydrozoan, a cousin of Hydra, not a true jellyfish.' },
   { id: 'krill', name: 'Krill', scientific: 'Euphausiacea', emoji: '🦐', branch: 'inverts', what: 'Finger-length, shrimp-like swarmers that feed whales, penguins and seals.', fact: 'Krill glow with their own blue-green light.' },

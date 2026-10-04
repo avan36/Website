@@ -16,12 +16,10 @@ import TreeOfLife from '../../components/work/toys/TreeOfLife.astro';
 import PopQuiz from '../../components/work/toys/PopQuiz.astro';
 import PackScan from '../../components/work/toys/PackScan.astro';
 import WordJourney from '../../components/work/toys/WordJourney.astro';
-import Bartender from '../../components/work/games/Bartender.astro';
-import DarkPatterns from '../../components/work/games/DarkPatterns.astro';
-import EtymologyRace from '../../components/work/games/EtymologyRace.astro';
-import EvolutionSorter from '../../components/work/games/EvolutionSorter.astro';
 import WritingDesk from '../../components/life/WritingDesk.astro';
 import { projects, type Project } from '../../data/projects';
+import { loadWorld } from '../../world/load';
+import { GAME_INFO, isletAt, playableIn } from '../../renderers/games/catalog';
 
 export function getStaticPaths() {
   return projects.map((project, i) => ({
@@ -44,13 +42,10 @@ const toys: Record<string, (props: Record<string, never>) => unknown> = {
 };
 const Toy = toys[project.slug];
 
-const games: Record<string, (props: Record<string, never>) => unknown> = {
-  'busy-beer': Bartender,
-  'privacy-research': DarkPatterns,
-  etymon: EtymologyRace,
-  'map-of-evolution': EvolutionSorter,
-};
-const Game = games[project.slug];
+// This project's game, if it has one out on an islet: the page sends you to play it there.
+const world = await loadWorld();
+const spot = world.activities.find((a) => a.kind === 'minigame' && a.game && a.place === project.slug && !playableIn(a.game, 'map'));
+const game = spot?.game ? { name: GAME_INFO[spot.game].name, isle: isletAt(world, spot.at)?.name ?? null, at: spot.at } : null;
 
 const title = `${project.name}: ${project.headline.replace(/[.!]$/, '')} · Ambrose Vannier`;
 const clip = (s: string, n = 158) => (s.length <= n ? s : `${s.slice(0, s.lastIndexOf(' ', n - 1))}…`);
@@ -72,10 +67,11 @@ const isExternal = (href: string) => /^https?:/.test(href);
       </div>
     )}
 
-    {Game && (
-      <div class="wrap project__toy project__game">
-        <Game />
-      </div>
+    {game && (
+      <p class="wrap project__play">
+        <a class="text-link" href="/?view=island" data-play-at={`${game.at.x},${game.at.z}`}>Play {game.name} on the island<span class="arrow" aria-hidden="true">→</span></a>
+        {game.isle && <span class="project__where">It's out on {game.isle}, over the bridge.</span>}
+      </p>
     )}
 
     <section class="about wrap" aria-labelledby="about-title">
@@ -151,7 +147,13 @@ const isExternal = (href: string) => /^https?:/.test(href);
      that make the page scroll sideways. clip, not hidden, so .facts stays sticky. */
   .project { overflow-x: clip; }
   .project__toy { margin-top: var(--space-2); }
-  .project__game { margin-top: clamp(var(--space-6), 5vw, var(--space-8)); }
+  .project__play {
+    display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-1) var(--space-3);
+    margin-top: clamp(var(--space-5), 4vw, var(--space-7));
+    font-weight: 650;
+  }
+  .project__play .text-link { display: inline-block; padding-block: 12px; margin-block: -12px; }
+  .project__where { font-weight: 500; font-size: var(--step--1); color: var(--ink-3); }
 
   /* ---------- About ---------- */
   .about {
@@ -237,3 +239,19 @@ const isExternal = (href: string) => /^https?:/.test(href);
   .credits__logos img { width: 100%; height: 100%; object-fit: contain; }
   .credits__line { font-size: var(--step--1); color: var(--ink-3); }
 </style>
+
+<script>
+  // Land in front of the game: the island starts you wherever the visit says you were standing.
+  for (const a of document.querySelectorAll<HTMLAnchorElement>('[data-play-at]')) {
+    a.addEventListener('click', () => {
+      const [x, z] = a.dataset.playAt!.split(',').map(Number);
+      try {
+        sessionStorage.setItem('world:presence:v1', JSON.stringify({ at: null, pos: { x, z: z + 1.5 }, inside: null }));
+        sessionStorage.removeItem('island:return');
+        sessionStorage.removeItem('island:wipe');
+      } catch {
+        /* storage blocked: you start at the plaza instead */
+      }
+    });
+  }
+</script>

@@ -35,6 +35,49 @@ export interface Round {
 
 export type StartRound = (env: GameEnv) => Round;
 
+/**
+ * A game played with buttons and words instead of paint (the four that came
+ * from the project pages): it builds its own elements in the card and keeps
+ * them up to date, and tells the card the same things a Round does.
+ */
+export interface Panel {
+  /** Points so far (the final score once over). */
+  readonly score: number;
+  /** The round is finished: the card shows the score. */
+  readonly over: boolean;
+  /** The HUD's chips, or null for none (a game with no score). */
+  hud(): { score: string; info: string; streak?: string } | null;
+  /** Clocks and the like, every frame while it's being played. */
+  update?(dt: number): void;
+  /** A key the card has no use for (a number, say): true if the game used it. */
+  key?(e: KeyboardEvent): boolean;
+  /** One line for under the score: how the round went. */
+  summary?(): string;
+  /** A button on the score card that shows what you missed, with its label. */
+  review?: { label: string; show(): void };
+  destroy(): void;
+}
+
+/** Start a Panel in `host` (empty, inside the card's stage). */
+export type StartPanel = (host: HTMLElement, env: GameEnv) => Panel;
+
+/** Add a game's own styles to the page once. */
+export function styleOnce(id: string, css: string) {
+  if (document.querySelector(`style[data-game="${id}"]`)) return;
+  const el = document.createElement('style');
+  el.dataset.game = id;
+  el.textContent = css;
+  document.head.append(el);
+}
+
+/** A new element, with a class and text if you like. */
+export function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: string): HTMLElementTagNameMap[K] {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text != null) e.textContent = text;
+  return e;
+}
+
 // ---------- Small helpers shared by the games ----------
 
 export const clamp = (v: number, a = 0, b = 1) => (v < a ? a : v > b ? b : v);

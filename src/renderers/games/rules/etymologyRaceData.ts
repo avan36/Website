@@ -1,4 +1,4 @@
-// Vendored word data for the Etymology Race mini-game (EtymologyRace.astro).
+// Vendored word data for Etymology race (../etymology.ts).
 //
 // Source: the Etymon project (github.com/avan36/Etymology, live at
 // avan36.github.io/Etymology). Every word, gloss, stage and story below is
@@ -9,7 +9,8 @@
 // `origin` is the game's answer: the language English took the word from
 // (Etymon's `origin` field), with Old/Middle English, the French varieties
 // (Old, Middle, Anglo-Norman) and the Latin varieties folded together so the
-// choices stay fair. Generated once; edit by hand against the source.
+// choices stay fair. Generated once; edit by hand against the source. The
+// stories' em dashes are swapped for the site's commas, colons and brackets.
 
 export type RaceStage = { lang: string; form: string; year: number; meaning?: string };
 export type RaceWord = { word: string; gloss: string; origin: string; path: RaceStage[]; story: string };
@@ -114,7 +115,7 @@ export const RACE_WORDS: RaceWord[] = [
     gloss: "the space above the earth where clouds and stars are seen",
     origin: "Old Norse",
     path: [{ lang: "ine-pro", form: "*(s)kewH-", year: -4000, meaning: "to cover" }, { lang: "gem-pro", form: "*skiwją", year: -500, meaning: "cloud" }, { lang: "non", form: "ský", year: 900, meaning: "cloud" }, { lang: "enm", form: "skie", year: 1220, meaning: "cloud" }, { lang: "en", form: "sky", year: 1500 }],
-    story: "A Viking gift. In Old Norse ský meant \"cloud\", and so it did in early English. By 1300 it had pushed aside the native word heofon — which survives as heaven — for the vault above us.",
+    story: "A Viking gift. In Old Norse ský meant \"cloud\", and so it did in early English. By 1300 it had pushed aside the native word heofon (which survives as heaven) for the vault above us.",
   },
   {
     word: "egg",
@@ -156,7 +157,7 @@ export const RACE_WORDS: RaceWord[] = [
     gloss: "the meat of a cow",
     origin: "French",
     path: [{ lang: "ine-pro", form: "*gʷṓws", year: -4000, meaning: "cow" }, { lang: "la", form: "bos, bovis", year: -200, meaning: "ox, cow" }, { lang: "fro", form: "buef", year: 1100, meaning: "ox" }, { lang: "xno", form: "boef", year: 1250 }, { lang: "enm", form: "beef", year: 1300 }, { lang: "en", form: "beef", year: 1500 }],
-    story: "After 1066, the Saxons who tended the animals kept their English words — cow, swine, sheep — while the Norman lords who ate them used French: beef, pork, mutton. The class divide is still on your menu.",
+    story: "After 1066, the Saxons who tended the animals kept their English words (cow, swine, sheep), while the Norman lords who ate them used French: beef, pork, mutton. The class divide is still on your menu.",
   },
   {
     word: "mortgage",
@@ -212,7 +213,7 @@ export const RACE_WORDS: RaceWord[] = [
     gloss: "a public road in a town or village, usually with buildings along it",
     origin: "Latin",
     path: [{ lang: "ine-pro", form: "*sterh₃-", year: -4000, meaning: "to spread" }, { lang: "la", form: "strāta (via)", year: -100, meaning: "a paved road" }, { lang: "gmw-pro", form: "*strātu", year: 300 }, { lang: "ang", form: "strǣt", year: 700 }, { lang: "enm", form: "strete", year: 1200 }, { lang: "en", form: "street", year: 1500 }],
-    story: "Roman roads were viae strātae, “paved ways”. Germanic tribes borrowed strāta before they ever reached Britain — hence German Straße and Dutch straat — and the Anglo-Saxons gave the name to the old Roman roads they found, like Watling Street.",
+    story: "Roman roads were viae strātae, “paved ways”. Germanic tribes borrowed strāta before they ever reached Britain (hence German Straße and Dutch straat), and the Anglo-Saxons gave the name to the old Roman roads they found, like Watling Street.",
   },
   {
     word: "cheese",
@@ -527,7 +528,7 @@ export const RACE_WORDS: RaceWord[] = [
     gloss: "a machine that carries out complex actions automatically",
     origin: "Czech",
     path: [{ lang: "ine-pro", form: "*h₃erbʰ-", year: -4000, meaning: "to change status" }, { lang: "cs", form: "robota", year: 1500, meaning: "forced labour" }, { lang: "cs", form: "robot", year: 1920, meaning: "artificial worker (Čapek, R.U.R.)" }, { lang: "en", form: "robot", year: 1923 }],
-    story: "Coined for Karel Čapek's 1920 play R.U.R. — his brother Josef suggested it — from Czech robota, the forced labour serfs owed their lords. Distant cousin of English orphan and German Arbeit.",
+    story: "Coined for Karel Čapek's 1920 play R.U.R. (his brother Josef suggested it), from Czech robota, the forced labour serfs owed their lords. Distant cousin of English orphan and German Arbeit.",
   },
   {
     word: "kangaroo",
@@ -583,27 +584,27 @@ export const RACE_WORDS: RaceWord[] = [
     gloss: "a person devoted to an intellectual or technical pursuit; once, a dull, socially awkward person",
     origin: "Made in English",
     path: [{ lang: "en", form: "nerd", year: 1950, meaning: "a creature in Dr. Seuss's If I Ran the Zoo" }, { lang: "en", form: "nerd", year: 1951, meaning: "a square, a drip" }, { lang: "en", form: "nerd", year: 1980, meaning: "a tech enthusiast" }],
-    story: "The first known nerd is a small, cross-looking creature in Dr. Seuss's If I Ran the Zoo (1950). A year later Newsweek reported that in Detroit someone who once would be called a drip or a square was now ‘a nerd’. Whether the slang grew from Seuss nobody knows — but by the 1980s the nerds were running Silicon Valley.",
+    story: "The first known nerd is a small, cross-looking creature in Dr. Seuss's If I Ran the Zoo (1950). A year later Newsweek reported that in Detroit someone who once would be called a drip or a square was now ‘a nerd’. Whether the slang grew from Seuss nobody knows, but by the 1980s the nerds were running Silicon Valley.",
   },
   {
     word: "quiz",
     gloss: "a test of knowledge, often as a game",
     origin: "Made in English",
     path: [{ lang: "en", form: "quiz", year: 1782, meaning: "an odd or eccentric person" }, { lang: "en", form: "quiz", year: 1796, meaning: "to mock, make fun of" }, { lang: "en", form: "quiz", year: 1867, meaning: "a test" }],
-    story: "Legend says a Dublin theatre manager, Richard Daly, bet in 1791 that he could make a nonsense word famous in two days, and had urchins chalk QUIZ on walls all over the city. A lovely tale — but quiz is recorded years before 1791, and the story surfaces only decades later. It first meant an odd person, then a mockery, and in 1860s America a test.",
+    story: "Legend says a Dublin theatre manager, Richard Daly, bet in 1791 that he could make a nonsense word famous in two days, and had urchins chalk QUIZ on walls all over the city. A lovely tale, but quiz is recorded years before 1791, and the story surfaces only decades later. It first meant an odd person, then a mockery, and in 1860s America a test.",
   },
   {
     word: "OK",
     gloss: "all right; acceptable",
     origin: "Made in English",
     path: [{ lang: "en", form: "oll korrect", year: 1839, meaning: "a joke spelling of ‘all correct’" }, { lang: "en", form: "o.k.", year: 1839 }, { lang: "en", form: "OK", year: 1840 }],
-    story: "Boston newspapers of the 1830s had a craze for jokey abbreviations of misspellings — O.W. for ‘oll wright’, K.Y. for ‘know yuse’. On 23 March 1839 the Boston Morning Post printed ‘o.k. — all correct’, and in 1840 supporters of President Martin Van Buren, ‘Old Kinderhook’, formed O.K. Clubs. The other jokes died; OK conquered the planet.",
+    story: "Boston newspapers of the 1830s had a craze for jokey abbreviations of misspellings: O.W. for ‘oll wright’, K.Y. for ‘know yuse’. On 23 March 1839 the Boston Morning Post printed ‘o.k.’ for ‘all correct’, and in 1840 supporters of President Martin Van Buren, ‘Old Kinderhook’, formed O.K. Clubs. The other jokes died; OK conquered the planet.",
   },
   {
     word: "gerrymander",
     gloss: "to redraw electoral boundaries to favour one party",
     origin: "Made in English",
     path: [{ lang: "en", form: "Gerry + salamander", year: 1812 }, { lang: "en", form: "gerrymander", year: 1812 }],
-    story: "In 1812 Massachusetts Governor Elbridge Gerry signed a bill redrawing state senate districts to help his party. One district north of Boston was so contorted that a cartoon in the Boston Gazette gave it claws and wings — the ‘Gerry-mander’, half Gerry, half salamander. (Gerry said his name with a hard G.)",
+    story: "In 1812 Massachusetts Governor Elbridge Gerry signed a bill redrawing state senate districts to help his party. One district north of Boston was so contorted that a cartoon in the Boston Gazette gave it claws and wings: the ‘Gerry-mander’, half Gerry, half salamander. (Gerry said his name with a hard G.)",
   },
 ];
