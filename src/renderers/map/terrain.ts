@@ -14,15 +14,17 @@ import { polylineDist } from './layout';
 import { C } from './palette';
 import { bayer, nightData, Pix, type Color } from './pixels';
 import { hash2 } from './rng';
+import { paintTowerDeck, planTowerBridge } from './towerBridge';
 
 /** Map pixels per world unit. */
 export const TEX = 8;
 /**
  * The world rectangle the map paints: the island (east end and all), the
- * islets off its west coast and their bridges, the water you can swim in,
+ * islets off its west coast and their bridges, Little London off its east end
+ * and Tower Bridge out to it, the water you can swim in round all of them,
  * and the drop-off past it.
  */
-export const RECT = { x0: -51, z0: -37, x1: 50, z1: 34 };
+export const RECT = { x0: -51, z0: -37, x1: 75, z1: 37 };
 /** Deeper than this (world units) you swim; shallower, you wade. */
 export const SWIM_DEPTH = 0.45;
 
@@ -83,23 +85,44 @@ export async function buildTerrain(geo: Geo, spurs: Vec2[][]): Promise<Terrain> 
   const q = new Float32Array(QW * QH);
   for (let b = 0; b < QH; b++) for (let a = 0; a < QW; a++) q[b * QW + a] = geo.pathDist(RECT.x0 + a, RECT.z0 + b);
 
+  // Each spur's box, two units round: further out than that, it can't make a pixel path.
+  const spurBox = spurs.map((sp) => ({
+    x0: Math.min(...sp.map((p) => p.x)) - 2,
+    x1: Math.max(...sp.map((p) => p.x)) + 2,
+    z0: Math.min(...sp.map((p) => p.z)) - 2,
+    z1: Math.max(...sp.map((p) => p.z)) + 2,
+  }));
+
   let t0 = performance.now();
   for (let b = 0; b < NH; b++) {
     for (let a = 0; a < NW; a++) {
       const x = nx(a);
       const z = nz(b);
       const k = b * NW + a;
+      const room = geo.swimRoom(x, z);
+      sN[k] = room;
+      if (room < -3) {
+        // Far out in the open sea: the depth bands below make it the deepest blue
+        // whatever the seabed does, so skip the slow sums (most of the map's corners).
+        hN[k] = -4;
+        rN[k] = tN[k] = fN[k] = 0;
+        pN[k] = 99;
+        continue;
+      }
       const h = geo.heightAt(x, z);
       hN[k] = h;
       rN[k] = h > -1 ? geo.rockiness(x, z) : 0;
-      sN[k] = geo.swimRoom(x, z);
-      tN[k] = fbm(x * 0.085 + 11, z * 0.085 - 7, 3, 21);
-      fN[k] = fbm(x * 0.21 - 40, z * 0.21 + 3, 2, 33);
+      // Grass tone and flower patches are only read on grass, well up the shore.
+      tN[k] = h > -0.3 ? fbm(x * 0.085 + 11, z * 0.085 - 7, 3, 21) : 0;
+      fN[k] = h > -0.3 ? fbm(x * 0.21 - 40, z * 0.21 + 3, 2, 33) : 0;
       const qa = Math.min(QW - 1, Math.max(0, Math.round(x - RECT.x0)));
       const qb = Math.min(QH - 1, Math.max(0, Math.round(z - RECT.z0)));
       const lower = q[qb * QW + qa] - 0.72; // pathDist can't fall faster than distance
       let pd = h > -0.8 && lower < 1.6 ? geo.pathDist(x, z) : lower + 0.72;
-      for (const sp of spurs) pd = Math.min(pd, polylineDist(sp, x, z));
+      for (let s = 0; s < spurs.length; s++) {
+        const bb = spurBox[s];
+        if (x > bb.x0 && x < bb.x1 && z > bb.z0 && z < bb.z1) pd = Math.min(pd, polylineDist(spurs[s], x, z));
+      }
       pN[k] = pd;
     }
     if (performance.now() - t0 > 24) {
@@ -314,6 +337,7 @@ export async function buildTerrain(geo: Geo, spurs: Vec2[][]): Promise<Terrain> 
   // side (you can't step off) and its posts showing every so often.
   const deck = new Uint8Array(n); // 1: deck you can walk on, 2: its railing
   for (const b of geo.bridges) {
+    if (b.style === 'tower') continue; // painted after the quay, below
     const hw = b.width / 2;
     const xs = [b.ax, b.bx].map((x) => (x - RECT.x0) * TEX);
     const zs = [b.az, b.bz].map((z) => (z - RECT.z0) * TEX);
@@ -350,6 +374,8 @@ export async function buildTerrain(geo: Geo, spurs: Vec2[][]): Promise<Terrain> 
 
   // ---------- The railway, the station platform and the quay ----------
   paintCommute(geo, pix, ground, { x0: RECT.x0, z0: RECT.z0, tex: TEX }, { rail: G.rail, quay: G.quay });
+  // Tower Bridge: a road with pavements and railings, carried a step onto the quay at its end.
+  for (const b of geo.bridges) if (b.style === 'tower') paintTowerDeck(planTowerBridge(b), pix, ground, deck, RECT, { water: G.water, pier: G.pier });
   await breathe();
 
   // ---------- Where you can be ----------
