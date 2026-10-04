@@ -68,7 +68,7 @@ export class Labels {
   private v = new Vector3();
   private disposers: (() => void)[] = [];
 
-  constructor(host: HTMLElement, places: Place[], handlers: LabelHandlers, touch: boolean) {
+  constructor(host: HTMLElement, places: Pick<Place, 'id' | 'color' | 'name' | 'kicker' | 'blurb' | 'href'>[], handlers: LabelHandlers, touch: boolean) {
     for (const p of places) {
       const root = document.createElement('div');
       root.className = 'isl-label';
