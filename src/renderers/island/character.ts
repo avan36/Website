@@ -181,12 +181,14 @@ export class Explorer {
   constructor(
     private puffs: Puffs,
     private ripples: Ripples,
+    /** An islander instead of the explorer: their own scarf, and no sprout or backpack. */
+    look: { scarf?: string; islander?: boolean } = {},
   ) {
     const white = this.mat(new MeshStandardMaterial({ color: '#fffaf1', roughness: 0.55 }));
     const ink = this.mat(new MeshStandardMaterial({ color: '#1f1a17', roughness: 0.3 }));
     const shine = this.mat(new MeshBasicMaterial({ color: '#ffffff' }));
     const blush = this.mat(new MeshStandardMaterial({ color: '#ff9e9e', roughness: 0.8 }));
-    const orange = this.mat(new MeshStandardMaterial({ color: '#ff5a36', roughness: 0.7 }));
+    const orange = this.mat(new MeshStandardMaterial({ color: look.scarf ?? '#ff5a36', roughness: 0.7 }));
     const pack = this.mat(new MeshStandardMaterial({ color: '#e7ac68', roughness: 0.8 }));
     const leaf = this.mat(new MeshStandardMaterial({ color: '#57c15a', roughness: 0.7, flatShading: true }));
     const boot = this.mat(new MeshStandardMaterial({ color: '#6b4a3a', roughness: 0.8 }));
@@ -252,6 +254,7 @@ export class Explorer {
     roll.rotation.z = Math.PI / 2;
     roll.position.set(0, 0.79, -0.38);
     this.bodyG.add(bag, flap, roll);
+    if (look.islander) bag.visible = flap.visible = roll.visible = false;
 
     // Sprout
     this.sprout.position.set(0.02, 0.92, 0);
@@ -266,6 +269,7 @@ export class Explorer {
     l2.rotation.z = -0.5;
     this.sprout.add(stem, l1, l2);
     this.bodyG.add(this.sprout);
+    this.sprout.visible = !look.islander;
 
     // Little arms
     const mkArm = (s: number) => {
@@ -332,6 +336,30 @@ export class Explorer {
     this.shadow.renderOrder = 2;
   }
 
+  /**
+   * Indoors, in a building's room: a flat floor at 0, no sea, and the room
+   * says where you can stand (see roomPlan.ts). Null out on the island.
+   */
+  indoors: { canStand(x: number, z: number): boolean } | null = null;
+  private tWalk(x: number, z: number) {
+    return this.indoors ? true : isWalkable(x, z);
+  }
+  private tGround(x: number, z: number) {
+    return this.indoors ? 0 : groundAt(x, z);
+  }
+  private tHeight(x: number, z: number) {
+    return this.indoors ? 0 : heightAt(x, z);
+  }
+  private tWave(x: number, z: number, t: number) {
+    return this.indoors ? -10 : waveHeight(x, z, t);
+  }
+  private tRoom(x: number, z: number) {
+    return this.indoors ? 10 : swimRoom(x, z);
+  }
+  private tRocks(x: number, z: number) {
+    return this.indoors ? 0 : rockiness(x, z);
+  }
+
   private mat<T extends MeshStandardMaterial | MeshBasicMaterial>(m: T) {
     this.mats.push(m);
     return m;
@@ -354,8 +382,8 @@ export class Explorer {
     this.fromSea = false;
     this.pos.set(x, 0, z);
     // In the sea you start out afloat (or wading), not dropped in from above.
-    const wet = !isWalkable(x, z);
-    const depth = wet ? Math.max(0, -heightAt(x, z)) : 0;
+    const wet = !this.tWalk(x, z);
+    const depth = wet ? Math.max(0, -this.tHeight(x, z)) : 0;
     this.water = !wet ? 'dry' : depth > SWIM_IN ? 'swim' : 'wade';
     this.swimAmt = this.water === 'swim' ? 1 : 0;
     this.air = wet ? 0 : air;
@@ -458,7 +486,7 @@ export class Explorer {
     this.land.kick(4);
     const x = this.pos.x - fx * 0.75;
     const z = this.pos.z - fz * 0.75;
-    const y = waveHeight(x, z, this.now);
+    const y = this.tWave(x, z, this.now);
     for (let i = 0; i < 6; i++) {
       const a = Math.random() * TAU;
       this.puffs.spawn(x + Math.cos(a) * 0.2, y + 0.05, z + Math.sin(a) * 0.2, {
@@ -474,7 +502,7 @@ export class Explorer {
   private splash(strength: number, quiet = false) {
     const x = this.pos.x;
     const z = this.pos.z;
-    const y = waveHeight(x, z, this.now);
+    const y = this.tWave(x, z, this.now);
     const n = Math.round(4 + strength * 9);
     for (let i = 0; i < n; i++) {
       const a = (i / n) * TAU + Math.random() * 0.4;
@@ -515,8 +543,8 @@ export class Explorer {
 
   /** Where the feet rest at (x, z): the ground, or in the sea the seabed or afloat at the surface. */
   private floorAt(x: number, z: number, wet: boolean) {
-    const ground = groundAt(x, z);
-    return wet ? Math.max(ground, waveHeight(x, z, this.now) - SINK) : ground;
+    const ground = this.tGround(x, z);
+    return wet ? Math.max(ground, this.tWave(x, z, this.now) - SINK) : ground;
   }
 
   /** How fast you can go here, as a share of walking (running included). */
@@ -524,7 +552,7 @@ export class Explorer {
     const run = 1 + ((this.water === 'dry' ? RUN : RUN_WET) - 1) * this.runAmt;
     if (this.water === 'swim') return SWIM_PACE * run;
     if (this.water === 'dry' || !this.grounded) return run;
-    return lerp(1, WADE_PACE, smoothstep(0, 0.3, -heightAt(x, z))) * run;
+    return lerp(1, WADE_PACE, smoothstep(0, 0.3, -this.tHeight(x, z))) * run;
   }
 
   /** Running right now (for tests): Shift's down and the legs are going. */
@@ -538,13 +566,14 @@ export class Explorer {
    * nor up a cliff, unless well clear above it in a jump.
    */
   private canGo(x: number, z: number) {
-    if (!isWalkable(x, z) && swimRoom(x, z) < 0.05) return false;
+    if (this.indoors) return this.indoors.canStand(x, z);
+    if (!this.tWalk(x, z) && this.tRoom(x, z) < 0.05) return false;
     const feet = this.pos.y + this.air;
-    const g = groundAt(x, z);
+    const g = this.tGround(x, z);
     if (g > feet + (this.grounded ? MAX_STEP : 0.2)) return false;
-    const h = heightAt(x, z);
+    const h = this.tHeight(x, z);
     // The pier's deck is flat, but out of reach from the water, even jumping.
-    if (g > h + 0.01) return !this.fromSea || groundAt(this.pos.x, this.pos.z) > this.hHere + 0.01;
+    if (g > h + 0.01) return !this.fromSea || this.tGround(this.pos.x, this.pos.z) > this.hHere + 0.01;
     if (h <= this.hHere + 0.002 || h < feet - 1) return true; // not climbing, or well above it
     return gradient(x, z, this.grad).length() < CLIFF;
   }
@@ -556,12 +585,12 @@ export class Explorer {
   private current() {
     const x = this.pos.x;
     const z = this.pos.z;
-    const room = swimRoom(x, z);
+    const room = this.tRoom(x, z);
     if (room > CURRENT) return;
     // Back toward the island is up the slope of the room left.
     const e = 0.3;
-    const gx = swimRoom(x + e, z) - swimRoom(x - e, z);
-    const gz = swimRoom(x, z + e) - swimRoom(x, z - e);
+    const gx = this.tRoom(x + e, z) - this.tRoom(x - e, z);
+    const gz = this.tRoom(x, z + e) - this.tRoom(x, z - e);
     const gl = Math.hypot(gx, gz) || 1;
     const ix = gx / gl;
     const iz = gz / gl;
@@ -623,9 +652,9 @@ export class Explorer {
     this.vel.x = damp(this.vel.x, tx, accel, dt);
     this.vel.y = damp(this.vel.y, tz, accel, dt);
     if (this.vel.lengthSq() < 1e-4 && max < 0.01) this.vel.set(0, 0);
-    if (!isWalkable(this.pos.x, this.pos.z)) this.current();
+    if (!this.tWalk(this.pos.x, this.pos.z)) this.current();
     // A cliff face is too steep to stand on (say you landed on one): slide off it.
-    else if (this.grounded && rockiness(this.pos.x, this.pos.z) > 0.3) {
+    else if (this.grounded && this.tRocks(this.pos.x, this.pos.z) > 0.3) {
       const g = gradient(this.pos.x, this.pos.z, this.grad);
       const k = g.length();
       if (k > CLIFF) this.vel.addScaledVector(g, -7 / k);
@@ -646,13 +675,13 @@ export class Explorer {
         }
       }
     }
-    if (this.obstacles.length && !isWalkable(nx, nz)) {
+    if (this.obstacles.length && !this.tWalk(nx, nz)) {
       const p = this.avoid(nx, nz, dt, this.dir);
       nx = p.x;
       nz = p.y;
     }
     let blocked = false;
-    this.hHere = heightAt(this.pos.x, this.pos.z);
+    this.hHere = this.tHeight(this.pos.x, this.pos.z);
     if (!this.canGo(nx, nz)) {
       if (this.canGo(nx, this.pos.z)) nz = this.pos.z;
       else if (this.canGo(this.pos.x, nz)) nx = this.pos.x;
@@ -683,9 +712,9 @@ export class Explorer {
     const speed = this.speed;
     const x = this.pos.x;
     const z = this.pos.z;
-    const wet = !isWalkable(x, z);
-    const surface = waveHeight(x, z, t);
-    const depth = wet ? Math.max(0, -heightAt(x, z)) : 0;
+    const wet = !this.tWalk(x, z);
+    const surface = this.tWave(x, z, t);
+    const depth = wet ? Math.max(0, -this.tHeight(x, z)) : 0;
     const floor = this.floorAt(x, z, wet);
     this.splashT -= dt;
     this.kickT -= dt;
@@ -920,7 +949,7 @@ export class Explorer {
     if (this.pull > 0) this.root.position.lerp(this.pullTo, this.pull);
     this.root.rotation.y = this.yaw + this.spin;
     this.root.scale.setScalar(SCALE * Math.max(this.warp, 0.001));
-    const ground = groundAt(this.pos.x, this.pos.z);
+    const ground = this.tGround(this.pos.x, this.pos.z);
     this.shadow.position.set(this.pos.x, ground + 0.03, this.pos.z);
     // The blob shadow shrinks as you rise, and goes under water with you.
     const k = clamp(1 - this.air * 0.12, 0.35, 1) * (1 - smoothstep(0.05, 0.45, this.wet)) * this.warp;

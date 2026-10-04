@@ -36,6 +36,7 @@ export type Signal = { name: 'bite' | 'escape'; cast: number };
 export type Effect =
   | { type: 'move'; place: string }
   | { type: 'go'; place: string }
+  | { type: 'inside'; at: string | null }
   | { type: 'open'; href: string }
   | { type: 'find'; id: string }
   | { type: 'fish' }

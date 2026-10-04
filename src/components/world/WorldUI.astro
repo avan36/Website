@@ -1,9 +1,21 @@
 ---
 // The overlays every renderer shares: toasts, the lost-word card, the catch
-// card and the word hoard. Empty shells here; src/renderers/ui.ts fills them.
+// card and the word hoard, and inside a building, the room's bar, the "talk
+// to" nudge and the conversation box. Empty shells here; src/renderers/ui.ts
+// and src/renderers/room.ts fill them.
 ---
 <div class="w-toasts" id="w-toasts" aria-live="polite"></div>
 <dialog class="w-dialog" id="w-dialog" aria-labelledby="w-dialog-title"></dialog>
+<section class="w-room" id="w-room" hidden aria-labelledby="w-room-title">
+  <button type="button" class="w-room__btn" data-room="leave">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6 9 12l6 6" /></svg>
+    <span>Leave</span><kbd aria-hidden="true">Esc</kbd>
+  </button>
+  <p class="w-room__where"><span class="w-room__kicker">Inside</span><span class="w-room__title" id="w-room-title"></span></p>
+  <button type="button" class="w-room__btn" data-room="look" aria-haspopup="dialog"><span class="w-room__long">Look around</span><span class="w-room__short">Look</span></button>
+</section>
+<button type="button" class="w-near" id="w-near" hidden><span class="w-near__text"></span><kbd aria-hidden="true">E</kbd></button>
+<section class="w-talk" id="w-talk" role="dialog" aria-modal="false" aria-labelledby="w-talk-title" hidden></section>
 
 <style is:global>
   /* ---------- Toasts ---------- */
@@ -272,5 +284,253 @@
   @media (max-width: 480px) {
     .w-card { padding: 24px 20px 20px; }
     .w-dialog { border-radius: 24px; }
+  }
+
+  /* ---------- Inside a building ----------
+     One bar, one nudge and one conversation box for the island and the map.
+     Soft and round over the island; square, inked and chunky over the map. */
+  html.isl-inside .isl-card,
+  html.isl-inside .isl-hint,
+  html.isl-inside .isl-labels { display: none; }
+
+  .w-room {
+    --c: var(--accent);
+    position: fixed;
+    z-index: 50;
+    top: calc(max(16px, env(safe-area-inset-top)) + 64px);
+    left: 50%;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    max-width: calc(100vw - 32px);
+    padding: 5px;
+    border-radius: var(--r-pill);
+    background: rgba(255, 255, 255, 0.9);
+    -webkit-backdrop-filter: blur(12px) saturate(1.4);
+    backdrop-filter: blur(12px) saturate(1.4);
+    box-shadow: var(--shadow-2);
+    color: #1d1a16;
+    transform: translateX(-50%);
+    animation: w-room-in 420ms var(--ease-spring);
+  }
+  .w-room[hidden], .w-near[hidden], .w-talk[hidden] { display: none; }
+  @keyframes w-room-in { from { opacity: 0; transform: translate(-50%, -12px); } }
+  .w-room__where { display: grid; min-width: 0; padding: 0 10px; line-height: 1.15; text-align: center; }
+  .w-room__kicker { font-size: 11px; font-weight: 750; letter-spacing: 0.1em; text-transform: uppercase; color: color-mix(in oklab, var(--c) 70%, #1d1a16); }
+  .w-room__title { font-family: var(--font-display); font-weight: 720; font-size: 16px; letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .w-room__btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex: none;
+    min-height: 40px;
+    padding: 0 14px;
+    border: 0;
+    border-radius: var(--r-pill);
+    background: #f2ece2;
+    color: #1d1a16;
+    font: 650 14px/1 var(--font-ui);
+    cursor: pointer;
+    transition: transform var(--dur-2) var(--ease-spring), background var(--dur-2);
+  }
+  .w-room__btn:first-child { background: color-mix(in srgb, var(--c) 88%, #000); color: #fff; padding-left: 10px; }
+  .w-room__btn:hover { transform: translateY(-1px); }
+  .w-room__btn kbd { font: 700 11px/1 var(--font-mono); padding: 3px 5px; border-radius: 6px; background: rgba(255, 255, 255, 0.22); }
+  html.isl-touch .w-room__btn kbd, html.isl-touch .w-near kbd { display: none; }
+
+  /* "Talk to Juniper  E": what's within reach. */
+  .w-near {
+    --c: var(--accent);
+    position: fixed;
+    z-index: 49;
+    left: 50%;
+    bottom: calc(max(24px, env(safe-area-inset-bottom)) + 8px);
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 48px;
+    padding: 0 10px 0 18px;
+    border: 0;
+    border-radius: var(--r-pill);
+    background: rgba(29, 26, 22, 0.92);
+    color: #fff;
+    font: 700 15px/1 var(--font-ui);
+    box-shadow: var(--shadow-3);
+    transform: translateX(-50%);
+    cursor: pointer;
+    animation: w-near-in 360ms var(--ease-spring);
+  }
+  .w-near::before { content: ''; width: 10px; height: 10px; border-radius: 50%; background: var(--c); box-shadow: 0 0 0 4px color-mix(in srgb, var(--c) 35%, transparent); }
+  .w-near kbd { display: inline-grid; place-items: center; min-width: 26px; height: 26px; padding: 0 6px; border-radius: 8px; background: rgba(255, 255, 255, 0.16); font: 750 13px/1 var(--font-mono); }
+  html.isl-touch .w-near { padding-right: 18px; }
+  @keyframes w-near-in { from { opacity: 0; transform: translate(-50%, 10px) scale(0.92); } }
+
+  /* The conversation box: who's talking, what they say, what you can ask. */
+  .w-talk {
+    --c: var(--accent);
+    position: fixed;
+    z-index: 55;
+    left: 50%;
+    bottom: max(16px, env(safe-area-inset-bottom));
+    width: min(580px, calc(100vw - 24px));
+    max-height: min(62dvh, 560px);
+    overflow: auto;
+    overscroll-behavior: contain;
+    padding: 20px 22px 18px;
+    border-radius: 26px;
+    background: #fffdf8;
+    color: #1d1a16;
+    box-shadow: var(--shadow-3), inset 0 0 0 1.5px color-mix(in srgb, var(--c) 30%, transparent);
+    transform: translateX(-50%);
+    animation: w-talk-in 460ms var(--ease-spring);
+  }
+  @keyframes w-talk-in { from { opacity: 0; transform: translate(-50%, 24px) scale(0.96); } }
+  .w-talk__head { display: flex; align-items: center; gap: 12px; padding-right: 40px; }
+  .w-talk__face {
+    position: relative;
+    flex: none;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 34% 46%, #1f1a17 0 3.2px, transparent 3.6px), radial-gradient(circle at 66% 46%, #1f1a17 0 3.2px, transparent 3.6px), #fffaf1;
+    box-shadow: inset 0 -12px 0 -2px var(--who, var(--c)), 0 0 0 2px color-mix(in srgb, var(--who, var(--c)) 45%, #fff);
+  }
+  .w-talk__face--thing { background: color-mix(in srgb, var(--c) 18%, #fff); box-shadow: 0 0 0 2px color-mix(in srgb, var(--c) 45%, #fff); display: grid; place-items: center; }
+  .w-talk__face--thing svg { color: color-mix(in srgb, var(--c) 80%, #000); }
+  .w-talk__who { display: grid; line-height: 1.15; min-width: 0; }
+  .w-talk__kicker { font-size: 12px; font-weight: 750; letter-spacing: 0.08em; text-transform: uppercase; color: color-mix(in oklab, var(--c) 72%, #1d1a16); }
+  .w-talk__name { font-family: var(--font-display); font-size: 22px; font-weight: 740; letter-spacing: -0.02em; }
+  .w-talk__close {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: #5b5148;
+    cursor: pointer;
+  }
+  .w-talk__close::before { content: ''; position: absolute; inset: 6px; border-radius: 50%; background: #f2ece2; }
+  .w-talk__close svg { position: relative; }
+  .w-talk__line { margin-top: 12px; font-family: var(--font-read); font-size: 18px; line-height: 1.5; text-wrap: pretty; }
+  .w-talk__line.is-said { padding: 12px 16px; border-radius: 4px 18px 18px 18px; background: color-mix(in srgb, var(--who, var(--c)) 12%, #fff); }
+  .w-talk__more { display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; font-weight: 700; font-size: 15px; color: color-mix(in oklab, var(--c) 78%, #000); text-underline-offset: 3px; }
+  .w-talk__more:hover { text-decoration-thickness: 2px; }
+  .w-talk__label { margin-top: 16px; font-size: 12.5px; font-weight: 750; letter-spacing: 0.08em; text-transform: uppercase; color: #8a7d70; }
+  .w-talk__choices { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+  .w-talk__choice {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+    padding: 0 16px;
+    border: 0;
+    border-radius: var(--r-pill);
+    background: #f2ece2;
+    color: #1d1a16;
+    font: 650 15px/1.1 var(--font-ui);
+    text-align: left;
+    cursor: pointer;
+    transition: transform var(--dur-2) var(--ease-spring), background var(--dur-2);
+  }
+  .w-talk__choice:hover { transform: translateY(-1px); background: #ebe2d4; }
+  .w-talk__choice:focus-visible { outline: 3px solid color-mix(in srgb, var(--c) 70%, #000); outline-offset: 2px; }
+  .w-talk__choice.is-asked { color: #6f655b; }
+  .w-talk__choice.is-asked::after { content: '✓'; font-size: 13px; }
+  .w-talk__choice--go { background: color-mix(in srgb, var(--c) 88%, #000); color: #fff; }
+  .w-talk__choice--go:hover { background: color-mix(in srgb, var(--c) 78%, #000); }
+  .w-talk__choice i { width: 10px; height: 10px; border-radius: 50%; background: var(--who); flex: none; }
+  .w-talk__foot { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; padding-top: 12px; border-top: 1px solid #ece4d8; }
+  .w-talk__desc { margin-top: 10px; font-family: var(--font-read); font-size: 17px; line-height: 1.5; color: #3d362f; }
+
+  /* Over the map: an old handheld's dialogue box. */
+  html[data-view='map'] .w-room,
+  html[data-view='map'] .w-talk,
+  html[data-view='map'] .w-near {
+    border-radius: 0;
+    border: 3px solid #3a2a24;
+    background: #fff8e8;
+    color: #3a2a24;
+    box-shadow: inset 0 0 0 2px #f0d6a2, 0 4px 0 rgba(58, 42, 36, 0.3);
+  }
+  html[data-view='map'] .w-room { padding: 4px; -webkit-backdrop-filter: none; backdrop-filter: none; }
+  html[data-view='map'] .w-room__btn,
+  html[data-view='map'] .w-talk__choice,
+  html[data-view='map'] .w-talk__close::before { border-radius: 0; }
+  html[data-view='map'] .w-room__btn,
+  html[data-view='map'] .w-talk__choice { border: 3px solid #3a2a24; background: #fff3d6; color: #3a2a24; font: 750 13px/1.1 var(--font-mono); letter-spacing: 0.06em; text-transform: uppercase; box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.1); }
+  html[data-view='map'] .w-room__btn:first-child,
+  html[data-view='map'] .w-talk__choice--go { background: var(--c); color: #fff; box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.22), inset 0 3px 0 rgba(255, 255, 255, 0.28); }
+  html[data-view='map'] .w-room__btn:active,
+  html[data-view='map'] .w-talk__choice:active { transform: translateY(1px); }
+  html[data-view='map'] .w-room__kicker,
+  html[data-view='map'] .w-talk__kicker,
+  html[data-view='map'] .w-talk__label { font-family: var(--font-mono); letter-spacing: 0.14em; }
+  html[data-view='map'] .w-talk { padding: 16px 18px; }
+  html[data-view='map'] .w-talk__face { border-radius: 0; box-shadow: inset 0 -12px 0 -2px var(--who, var(--c)), 0 0 0 3px #3a2a24; image-rendering: pixelated; }
+  html[data-view='map'] .w-talk__line.is-said { border-radius: 0; border: 2px dashed color-mix(in srgb, var(--who, var(--c)) 50%, #3a2a24); }
+  html[data-view='map'] .w-talk__line { font-family: var(--font-display); font-size: 17px; }
+  html[data-view='map'] .w-talk__foot { border-top: 2px dashed #e0c896; }
+  html[data-view='map'] .w-near { color: #3a2a24; font: 750 13px/1 var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; }
+  html[data-view='map'] .w-near::before { border-radius: 0; box-shadow: none; }
+  html[data-view='map'] .w-near kbd { border-radius: 0; background: #3a2a24; color: #fff8e8; }
+  html[data-view='map'] .w-talk__choice.is-asked { color: #8a7462; }
+
+  /* On a wide screen the box sits to the right of the room instead of over it
+     (room.ts's boxDocksRight() says when; the renderers keep the room clear of it). */
+  @media (min-width: 1000px) and (min-height: 560px) {
+    .w-talk {
+      left: auto;
+      right: max(24px, env(safe-area-inset-right));
+      bottom: auto;
+      top: 50%;
+      width: 440px;
+      max-height: calc(100dvh - 180px);
+      transform: translateY(-38%);
+      animation-name: w-talk-side;
+    }
+    .w-room, .w-near { left: calc(50% - 244px); }
+  }
+  @keyframes w-talk-side { from { opacity: 0; transform: translate(24px, -38%); } }
+
+  .w-room__short { display: none; }
+  @media (max-width: 720px) {
+    .w-room {
+      top: calc(max(16px, env(safe-area-inset-top)) + 70px);
+      left: max(16px, env(safe-area-inset-left));
+      right: max(16px, env(safe-area-inset-right));
+      max-width: none;
+      justify-content: space-between;
+      transform: none;
+      animation-name: w-room-in-narrow;
+    }
+    @keyframes w-room-in-narrow { from { opacity: 0; transform: translateY(-12px); } }
+    .w-room__where { flex: 1; padding: 0 4px; }
+    .w-room__title { font-size: 15px; }
+    .w-room__long { display: none; }
+    .w-room__short { display: inline; }
+    html[data-view='map'] .w-room__btn { font-size: 12px; padding: 0 10px; }
+    /* A bottom sheet, no taller than the room above it leaves room for. */
+    .w-talk { bottom: max(10px, env(safe-area-inset-bottom)); max-height: 46dvh; padding: 14px 14px 12px; border-radius: 22px; }
+    .w-talk__face { width: 40px; height: 40px; }
+    .w-talk__line { margin-top: 10px; font-size: 15.5px; line-height: 1.45; }
+    .w-talk__line.is-said { padding: 10px 12px; }
+    html[data-view='map'] .w-talk__line { font-size: 15px; }
+    .w-talk__desc { font-size: 15.5px; }
+    .w-talk__name { font-size: 19px; }
+    .w-talk__label { margin-top: 12px; }
+    .w-talk__choices { gap: 6px; }
+    .w-talk__choice { min-height: 40px; padding: 0 12px; font-size: 14px; }
+    html[data-view='map'] .w-talk__choice { font-size: 11.5px; letter-spacing: 0.04em; }
+    .w-talk__foot { margin-top: 10px; padding-top: 10px; }
+    /* Out of the way of the word hoard and sound buttons in the corner. */
+    .w-near { bottom: calc(max(24px, env(safe-area-inset-bottom)) + 4px); left: calc(50% - 30px); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .w-room, .w-near, .w-talk { animation: none; }
   }
 </style>

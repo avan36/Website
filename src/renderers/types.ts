@@ -7,6 +7,7 @@
 import type { Geo } from '../world/geo';
 import type { World } from '../world/schema';
 import type { WorldStore } from '../world/store';
+import type { RoomUI } from './room';
 
 export type ViewId = 'island' | 'map' | 'text' | 'list';
 
@@ -51,6 +52,12 @@ export interface RendererContext {
     openHoard(): void;
     /** Open the portal's menu of views: resolves with the one picked, or null. */
     choosePortal(current: ViewId): Promise<ViewId | null>;
+    /**
+     * Inside a building: the room's bar, the "talk to" nudge and the
+     * conversation box, the same in every spatial view (see room.ts). The
+     * renderer draws the room and says what's within reach; this does the talking.
+     */
+    room: RoomUI;
   };
   /**
    * Call once the first frame is on screen: the loader goes away. If the

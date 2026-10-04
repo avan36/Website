@@ -29,6 +29,7 @@ Those are four views of **one world**, and the world is data.
 - **Routes**: which places connect. Paved ones become paths in the spatial views; the rest are shortcuts the text adventure narrates.
 - **Lost words**: eight words English lost (from [Etymon](https://avan36.github.io/Etymology/)'s museum), each hidden in a specific piece of scenery and at a specific spot.
 - **Activities**: fishing off the pier, which catches a post from the blog.
+- **Interiors**: every building (and nothing else) has a room: a description, a few `things` to look at (each with a `prop` the renderers draw, and an optional link), and one or two islanders with a greeting, 2 to 4 `topics` and a farewell. Rooms have their own units, door in the middle of the front wall; `checkWorld` keeps everything on the floor, clear of the door and each other, and every link pointing at a real page. The islanders are fictional; what they say about a project only restates its page.
 - **Geography**: the island's shape as a recipe (coast ripples, a headland, a hill, the pier), which `geo.ts` turns into height, coastline, paths and doors that every spatial renderer shares.
 
 Nothing in it knows about pixels, meshes or fonts. Renderers map archetypes to their own art.
@@ -56,6 +57,8 @@ Renderers are loaded with `import()` only when chosen, so someone reading the li
 | List | `src/components/island/ListView.astro` | Server-rendered HTML: the no-JS, reduced-motion and search-engine view |
 
 `/?view=map` (or `island`, `text`, `list`) opens a view directly.
+
+Inside a building, the spatial views share more: `renderers/roomPlan.ts` is the room as geometry (where you can stand, what's within reach, a path round the furniture), and `renderers/room.ts` is the room's bar, the "Talk to" nudge and the one conversation box (E or Enter to talk, arrows between choices, Escape to close it or leave). The map paints a pixel room (`map/room.ts`, `map/inside.ts`); the island builds a dollhouse scene (`island/room.ts`). The text adventure has `ENTER`, `TALK TO`, `ASK … ABOUT`, `LEAVE`. The store remembers which building you're in, so switching views keeps you inside.
 
 ## Shared state
 

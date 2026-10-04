@@ -119,3 +119,69 @@ describe('validation explains what is wrong', () => {
     expect(() => parseWorld(w)).toThrow(/The world doesn't hold together:\n {2}• /);
   });
 });
+
+describe('inside the buildings', () => {
+  const w = world();
+  const inside = w.places.filter((p) => p.interior);
+  const words = (p: (typeof w.places)[number]) => {
+    const room = p.interior!;
+    return [
+      room.description,
+      ...room.things.flatMap((t) => [t.description, ...t.names, t.link?.label ?? '']),
+      ...room.people.flatMap((c) => [c.name, c.role, c.looks, c.greeting, c.farewell, ...c.topics.flatMap((t) => [t.reply, ...t.names, t.link?.label ?? ''])]),
+    ];
+  };
+
+  it('gives every building a room, and nothing else one', () => {
+    expect(inside.map((p) => p.archetype).sort()).toEqual(['cabin', 'depot', 'library', 'lighthouse', 'schoolhouse', 'taproom']);
+    for (const id of ['blog', 'contact', 'map-of-evolution', 'plaza']) expect(w.places.find((p) => p.id === id)!.interior, id).toBeUndefined();
+  });
+
+  it('has someone to talk to and something to look at in every room, briefly', () => {
+    for (const p of inside) {
+      const room = p.interior!;
+      expect(room.people.length, p.id).toBeGreaterThanOrEqual(1);
+      expect(room.things.length, p.id).toBeGreaterThanOrEqual(2);
+      for (const c of room.people) {
+        expect(c.topics.length, c.name).toBeGreaterThanOrEqual(2);
+        expect(c.topics.length, c.name).toBeLessThanOrEqual(4);
+        for (const t of c.topics) expect(t.reply.length, `${c.name} on ${t.id}`).toBeLessThan(260);
+        expect(c.greeting.length, c.name).toBeLessThan(200);
+      }
+    }
+  });
+
+  it('points every room back at the page it stands for', () => {
+    for (const p of inside) {
+      const links = [...p.interior!.things.map((t) => t.link), ...p.interior!.people.flatMap((c) => c.topics.map((t) => t.link))];
+      expect(links.some((l) => l?.href === p.href), p.id).toBe(true);
+    }
+  });
+
+  it('never uses an em dash in anything the islanders say', () => {
+    for (const p of inside) for (const s of words(p)) expect(s, p.id).not.toMatch(/—/);
+  });
+
+  it('catches a room that is laid out wrong', () => {
+    const bad = clone(w);
+    const room = bad.places.find((p) => p.id === 'middle-place')!.interior!;
+    room.things[0].at = { x: 0, z: room.size.d / 2 - 0.2 };
+    room.things[1].at = { x: 40, z: 0 };
+    room.people[0].at = { ...room.things[2].at };
+    room.people[0].topics[0].link = { label: 'Nowhere', href: '/nowhere' };
+    const text = checkWorld(bad).map((i) => i.message).join('\n');
+    expect(text).toMatch(/in the way of the door/);
+    expect(text).toMatch(/stands outside the room/);
+    expect(text).toMatch(/on top of each other/);
+    expect(text).toMatch(/isn't a page on this site/);
+  });
+
+  it('catches a room where there is no building', () => {
+    const bad = clone(w);
+    bad.places.find((p) => p.id === 'blog')!.interior = clone(w.places.find((p) => p.id === 'middle-place')!.interior);
+    delete bad.places.find((p) => p.id === 'etymon')!.interior;
+    const text = checkWorld(bad).map((i) => i.message).join('\n');
+    expect(text).toMatch(/"blog" is a pier, not a building/);
+    expect(text).toMatch(/"etymon" is a library: give it an interior/);
+  });
+});

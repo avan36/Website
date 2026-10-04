@@ -11,14 +11,14 @@
 // something: go into a place, record a found word, cast a line, set a timer.
 
 import type { Geo } from '../../world/geo';
-import type { LostWord, Place, Post, Scenery, World } from '../../world/schema';
+import type { Character, LostWord, Place, Post, Scenery, Thing, Topic, World } from '../../world/schema';
 import type { ViewId } from '../types';
 import { portalOf } from '../portal';
 import { closest } from './fuzzy';
-import { createLexicon, pronoun, ref, thing } from './lexicon';
+import { createLexicon, matchNames, pronoun, ref, thing } from './lexicon';
 import { drawIsland, GROUND, mapWithYou, type IslandMap } from './map';
 import { cmd, dim, md, p, say, type Block, type Effect, type ExitLine, type ListItem, type Signal, type Span } from './output';
-import { DIR_ARROWS, DIR_NAMES, DIRS, key, parse, VERB_WORDS, words, type Command, type Dir } from './parser';
+import { DIR_ARROWS, DIR_NAMES, DIRS, key, nounOf, parse, VERB_WORDS, words, type Command, type Dir } from './parser';
 import { createTravel, type Leg } from './travel';
 import { egg } from './eggs';
 import { andList, ARRIVE, cap, INVITE, longDate, NIGHT, NOTHING, pick, RANKS, RELEASE, spell, UNKNOWN, WAIT, WAIT_FISHING, WAY_IN } from './voice';
@@ -36,6 +36,10 @@ type Pending =
 export type EngineState = {
   /** The place you're at. */
   at: string;
+  /** Inside its building (only places with an interior have one). */
+  inside: boolean;
+  /** Who you're talking to in there, by id. */
+  talking: string | null;
   /** Where you were before, for BACK. */
   from: string | null;
   /** Mirrors of the store's progress, refreshed by the page before every turn. */
@@ -117,7 +121,10 @@ export function createEngine(world: World, geo: Geo, { random = Math.random }: E
     if (pl.href) {
       const verb = pl.kind === 'contact' ? 'OPEN' : 'ENTER';
       const what = project(pl)?.name;
-      out.push({ kind: 'p', spans: md(`[${verb}] to ${INVITE[pl.archetype]}${what ? ` and see *${what}*` : ''}.`), tone: 'dim' });
+      // Buildings have someone in; anywhere else, going in is the page itself.
+      const inside = pl.interior?.people.map((c) => `${c.name}, ${c.role}`);
+      const meet = inside ? ` and meet ${andList(inside)}` : what ? ` and see *${what}*` : '';
+      out.push({ kind: 'p', spans: md(`[${verb}] to ${INVITE[pl.archetype]}${meet}.`), tone: 'dim' });
     }
     out.push({ kind: 'exits', exits: exitLines(pl) });
     return out;
@@ -153,8 +160,9 @@ export function createEngine(world: World, geo: Geo, { random = Math.random }: E
     if (!legs) return result(s, [say(`There's no way to ${ref(to)} from here.`)]);
     const out: Block[] = [];
     if (s.fishing) out.push(dim('You reel in your line and leave the pier.'));
+    if (s.inside) out.push(dim(`You say goodbye and head back out of ${ref(place(s.at))}.`));
     out.push({ kind: 'p', spans: narrate(legs) });
-    const next: EngineState = { ...s, from: s.at, at: toId, fishing: null, pending: null, it: null };
+    const next: EngineState = { ...s, from: s.at, at: toId, fishing: null, pending: null, it: null, inside: false, talking: null };
     const effects: Effect[] = [{ type: 'move', place: toId }, { type: 'sound', name: 'step' }];
     if (opts.enter) {
       const r = enter(next);
@@ -184,7 +192,162 @@ export function createEngine(world: World, geo: Geo, { random = Math.random }: E
   function enter(s: EngineState): Result {
     const pl = place(s.at);
     if (!pl.href) return result(s, [say(`There's nothing to go into here: ${ref(pl)} is all open air. Every path out of it leads somewhere you can, though. Try [MAP].`)]);
-    return result(s, [p(`You ${WAY_IN[pl.archetype]}.`)], [{ type: 'sound', name: 'whoosh' }, { type: 'go', place: pl.id }]);
+    if (s.inside) return result(s, [say(`You're already inside. ${openLine(pl)}`)]);
+    // A building with a room: in you go. Anywhere else, going in means the page itself.
+    if (pl.interior) {
+      const next: EngineState = { ...s, inside: true, talking: null, fishing: null, pending: null, it: null };
+      return result(next, [p(`You ${WAY_IN[pl.archetype]}.`), ...describeRoom(next, pl)], [{ type: 'sound', name: 'whoosh' }, { type: 'inside', at: pl.id }]);
+    }
+    return openPage(s);
+  }
+
+  /** Off to the page a place stands for. */
+  function openPage(s: EngineState): Result {
+    const pl = place(s.at);
+    const lead = s.inside ? `You head for the door marked ${project(pl)?.name ?? pl.name}, where the real thing is.` : `You ${WAY_IN[pl.archetype]}.`;
+    return result(s, [p(lead)], [{ type: 'sound', name: 'whoosh' }, { type: 'go', place: pl.id }]);
+  }
+
+  // ---------- Inside ----------
+
+  const people = (pl: Place) => pl.interior?.people ?? [];
+  const things = (pl: Place) => pl.interior?.things ?? [];
+  const personKeys = (c: Character) => [c.name, c.id, c.role.replace(/^(the|a|an) /, ''), ...c.aliases].map(key).filter(Boolean);
+  const thingKeys = (t: Thing) => t.names.map(key);
+  const topicKeys = (t: Topic) => [...t.names, t.id].map(key);
+  const personAt = (pl: Place, noun: string) => matchNames(noun, people(pl), personKeys);
+  const thingAt = (pl: Place, noun: string) => matchNames(noun, things(pl), thingKeys);
+  const talkCmd = (c: Character) => `talk to ${key(c.name)}`;
+  const askCmd = (c: Character, t: Topic) => `ask ${key(c.name)} about ${key(t.names[0])}`;
+  const openLine = (pl: Place) => `[OPEN] the page to see *${project(pl)?.name ?? pl.name}* properly, or [LEAVE] to step back outside.`;
+  const orList = (spans: Span[], last = ' or ', end = '.') => spans.flatMap((x, i) => [x, i < spans.length - 2 ? ', ' : i === spans.length - 2 ? last : end]);
+
+  /** "Mabel, the librarian, is here, and so is Pip, a reader." */
+  function peopleLine(pl: Place): Block {
+    const ps = people(pl);
+    const spans: Span[] = [];
+    ps.forEach((c, i) => {
+      if (i) spans.push(', and so is ');
+      spans.push({ text: c.name, cmd: talkCmd(c), color: c.color }, `, ${c.role}`);
+      if (!i) spans.push(', is here');
+    });
+    spans.push('. ', ...md(ps.length > 1 ? 'You could [talk](talk) to either.' : `You could [talk to ${ps[0].name}](${talkCmd(ps[0])}).`));
+    return p(...spans);
+  }
+
+  function describeRoom(_s: EngineState, pl: Place): Block[] {
+    const room = pl.interior!;
+    return [
+      { kind: 'title', text: `Inside ${ref(pl)}`, color: pl.color },
+      p(room.description),
+      peopleLine(pl),
+      { kind: 'p', spans: ['You could examine ', ...orList(room.things.map((t) => cmd(`the ${t.names[0]}`, `examine ${t.names[0]}`)))], tone: 'dim' },
+      { kind: 'p', spans: md(openLine(pl)), tone: 'dim' },
+    ];
+  }
+
+  const linkSpan = (l: { label: string; href: string } | undefined): Span[] => (l ? [' ', { text: `${l.label} →`, href: l.href }] : []);
+
+  function examineThing(s: EngineState, t: Thing): Result {
+    return result({ ...s, it: { place: s.at, noun: t.names[0] } }, [p(t.description, ...linkSpan(t.link))]);
+  }
+
+  function examinePerson(s: EngineState, c: Character): Result {
+    return result(s, [p(c.looks, ' ', ...md(`[Talk to ${c.name}](${talkCmd(c)}).`))]);
+  }
+
+  /** What you can ask someone about, as things to click. */
+  function topicsLine(c: Character, lead = 'Ask about '): Block {
+    return { kind: 'p', spans: [lead, ...orList(c.topics.map((t) => cmd(t.names[0], askCmd(c, t)))), ' ', ...md('Or say [goodbye](bye).')], tone: 'dim' };
+  }
+
+  const whom = (ps: Character[], lead: string) => p(lead, ...orList(ps.map((c) => cmd(c.name, talkCmd(c))), ' or ', '?'));
+
+  function talk(s: EngineState, noun: string): Result {
+    const here = place(s.at);
+    const ps = people(here);
+    if (!s.inside) {
+      // Outside, the islanders are all indoors: talking to one takes you in.
+      if (here.interior && (!noun || personAt(here, noun).length)) {
+        const r = enter(s);
+        const c = noun ? personAt(here, noun)[0] : ps.length === 1 ? ps[0] : null;
+        if (!c) return r;
+        const t = greet(r.state, c);
+        return result(t.state, [...r.out.slice(0, 1), ...t.out], [...r.effects, ...t.effects]);
+      }
+      const elsewhere = noun ? world.places.find((x) => personAt(x, noun).length) : undefined;
+      if (elsewhere) return result(s, [p(`${personAt(elsewhere, noun)[0].name} is inside `, placeSpan(elsewhere), `, ${DIR_NAMES[travel.towards(here, elsewhere)]} of here.`)]);
+      return result(s, [say("There's nobody out here to talk to but the gulls, and they only want your sandwich. The islanders are all indoors.")]);
+    }
+    if (!noun) return ps.length === 1 ? greet(s, ps[0]) : result(s, [whom(ps, 'Talk to whom? ')]);
+    const c = personAt(here, noun)[0];
+    if (c) return greet(s, c);
+    const t = thingAt(here, noun)[0];
+    if (t) return result(s, [say(`You say hello to the ${t.names[0]}. It doesn't say anything back, which is fair.`)]);
+    return result(s, [p(`There's nobody called '${noun}' in here. `, ...orList(ps.map((x) => cmd(x.name, talkCmd(x))), ' and ', ps.length > 1 ? ' are here.' : ' is here.'))]);
+  }
+
+  function greet(s: EngineState, c: Character): Result {
+    return result({ ...s, talking: c.id, pending: null }, [{ kind: 'title', text: c.name, color: c.color, sub: c.role }, p(`“${c.greeting}”`), topicsLine(c)], [{ type: 'sound', name: 'pop' }]);
+  }
+
+  /** "ask mabel about the river", "ask about the river", or just "river" mid-conversation. */
+  function ask(s: EngineState, rest: string[], noun: string): Result {
+    const here = place(s.at);
+    const ps = people(here);
+    if (!s.inside) return talk(s, '');
+    const i = rest.lastIndexOf('about');
+    let personNoun = i > 0 ? nounOf(rest.slice(0, i)) : '';
+    let topicNoun = i >= 0 ? nounOf(rest.slice(i + 1)) : noun;
+    // "ask mabel" on its own is just talking to her.
+    if (i < 0 && personAt(here, noun).length) (personNoun = noun), (topicNoun = '');
+    const c = (personNoun && personAt(here, personNoun)[0]) || ps.find((x) => x.id === s.talking) || (ps.length === 1 ? ps[0] : null);
+    if (!c) return result(s, [whom(ps, 'Ask whom? ')]);
+    if (!topicNoun) return greet(s, c);
+    const topic = matchNames(topicNoun, c.topics, topicKeys)[0];
+    const talking: EngineState = { ...s, talking: c.id };
+    if (!topic) {
+      const other = ps.find((x) => x !== c && matchNames(topicNoun, x.topics, topicKeys).length);
+      const out: Block[] = [p(`${c.name} thinks about it. “${cap(topicNoun)}? Can't help you there, I'm afraid.”`)];
+      if (other) out.push(dim(`${other.name} looks like they might know. `, cmd(`Ask ${other.name}`, `ask ${key(other.name)} about ${topicNoun}`), '.'));
+      out.push(topicsLine(c, 'You could ask about '));
+      return result(talking, out);
+    }
+    return result(talking, [p({ text: `${c.name}: `, color: c.color, tone: 'em' }, `“${topic.reply}”`, ...linkSpan(topic.link)), topicsLine(c, 'Ask about ')]);
+  }
+
+  function bye(s: EngineState): Result {
+    const here = place(s.at);
+    const c = people(here).find((x) => x.id === s.talking);
+    if (!c) return result(s, [say(`Bye! ${openLine(here)}`)]);
+    return result({ ...s, talking: null }, [p({ text: `${c.name}: `, color: c.color, tone: 'em' }, `“${c.farewell}”`), { kind: 'p', spans: md(`[LOOK] around, or [LEAVE] when you're ready.`), tone: 'dim' }]);
+  }
+
+  function leave(s: EngineState): Result {
+    const here = place(s.at);
+    if (!s.inside) return result(s, [say(here.interior ? `You're already outside. [ENTER] to go in.` : "You're already outside. Very outside. There's sky in every direction.")]);
+    const next: EngineState = { ...s, inside: false, talking: null, pending: null, it: null };
+    return result(next, [p(`You step back out of ${ref(here)}, blinking in the light.`), ...describe(next, here)], [{ type: 'sound', name: 'step' }, { type: 'inside', at: null }]);
+  }
+
+  /** Inside, looking at something: the room's own things and people, then a nudge for anything outside. */
+  function examineInside(s: EngineState, noun: string, searching: boolean): Result | null {
+    const here = place(s.at);
+    if (!noun) {
+      const all = [...things(here).map((t) => cmd(`the ${t.names[0]}`, `examine ${t.names[0]}`)), ...people(here).map((c) => cmd(c.name, `examine ${key(c.name)}`))];
+      return result(s, [p(searching ? 'Search what? ' : 'Examine what? ', 'You could try ', ...orList(all))]);
+    }
+    const t = thingAt(here, noun)[0];
+    if (t) {
+      const r = examineThing(s, t);
+      return searching ? result(r.state, [...r.out, dim('Nothing hidden in it, though. The lost words are all outdoors, tucked into things around the island.')]) : r;
+    }
+    const c = personAt(here, noun)[0];
+    if (c) return examinePerson(s, c);
+    const sc = lex.scenery(here, noun)[0];
+    if (sc) return result(s, [say(`The ${sc.names[0]} is outside. [LEAVE] to have a look.`)]);
+    if (lex.places(noun).some((x) => x.id === here.id) || ['room', 'around', 'inside'].includes(noun)) return result(s, describeRoom(s, here));
+    return null;
   }
 
   // ---------- Looking ----------
@@ -378,7 +541,11 @@ export function createEngine(world: World, geo: Geo, { random = Math.random }: E
           row('GO TO THE LIBRARY', 'go to library', 'walk anywhere by name'),
           row('EXAMINE JOURNAL', 'examine', 'look closer (X for short)'),
           row('SEARCH', 'search', 'find what’s hidden'),
-          row('ENTER', 'enter', 'open the page a place stands for'),
+          row('ENTER', 'enter', 'go inside (or open the page, where there’s no door)'),
+          row('TALK TO MABEL', 'talk', 'say hello to someone inside'),
+          row('ASK ABOUT THE RIVER', 'talk', 'ask what they know'),
+          row('LEAVE', 'leave', 'step back outside (OUT works too)'),
+          row('OPEN', 'open', 'the page a place stands for'),
           row('MAP', 'map', 'see the whole island'),
           row('HINT', 'hint', 'a nudge toward a lost word'),
           row('INVENTORY', 'inventory', 'the words you’ve found (I)'),
@@ -537,6 +704,14 @@ export function createEngine(world: World, geo: Geo, { random = Math.random }: E
     // "search it", "examine them": whatever you looked at last.
     const usesIt = !c.noun && c.rest.some((w) => w === 'it' || w === 'them') && s.it?.place === s.at;
     const noun = usesIt ? key(s.it!.noun) : c.noun;
+    // Inside a building, and mid-conversation: the room's own words come first.
+    if (s.inside) {
+      const r = inside(s, c, noun, raw);
+      if (r) return r;
+    } else if (c.verb === 'talk') return talk(s, noun);
+    else if (c.verb === 'ask') return ask(s, c.rest, noun);
+    else if (c.verb === 'leave') return leave(s);
+    else if (c.verb === 'bye') return result(s, [say('Bye for now. The island will be here.')]);
     const next = [...new Set(travel.exits(here.id).map((e) => e.to))].map(place);
     const fun = egg({ world, here, hub, found: s.found, next, goCmd }, c);
     if (fun) return 'instead' in fun ? dispatch(s, parse(fun.instead), fun.instead) : result(s, fun.out, fun.effects);
@@ -567,6 +742,7 @@ export function createEngine(world: World, geo: Geo, { random = Math.random }: E
         if (lex.scenery(here, noun).length) return result(s, [say(`You can't get into ${thing(lex.scenery(here, noun)[0])}. [ENTER] on its own goes inside.`)]);
         return goNoun(s, noun, true);
       case 'open': {
+        if (here.href && ['page', 'website', 'site'].includes(noun)) return openPage(s);
         if (!noun || noun === 'door' || lex.places(noun).some((x) => x.id === s.at)) return enter(s);
         const sc = lex.scenery(here, noun)[0];
         if (sc) return wordIn(here, sc) ? examine(s, noun, true) : here.href ? enter(s) : examine(s, noun, false);
@@ -651,6 +827,67 @@ export function createEngine(world: World, geo: Geo, { random = Math.random }: E
     }
   }
 
+  /** A turn inside a building, or null to carry on as outdoors. */
+  function inside(s: EngineState, c: Command, noun: string, raw: string): Result | null {
+    const here = place(s.at);
+    const talking = people(here).find((x) => x.id === s.talking);
+    switch (c.verb) {
+      case 'talk':
+      case 'hello':
+        return talk(s, noun);
+      case 'ask':
+        return ask(s, c.rest, noun);
+      case 'bye':
+        return bye(s);
+      case 'leave':
+      case 'back':
+      case 'undo':
+        return leave(s);
+      case 'quit':
+        return c.words[0] === 'exit' && !noun ? leave(s) : null;
+      case 'look':
+        if (c.dir) return result(s, [say(`Walls, mostly. [LEAVE] and you can see for miles.`)]);
+        if (!noun || noun === 'around' || noun === 'room') return result(s, describeRoom(s, here));
+        return examineInside(s, noun, c.closely);
+      case 'examine':
+        return examineInside(s, noun, false);
+      case 'search':
+        return examineInside(s, noun, true);
+      case 'read':
+        if (!noun) return result(s, [say(`There's plenty to read in the real thing. ${openLine(here)}`)]);
+        return examineInside(s, noun, false);
+      case 'open':
+        if (!noun || ['page', 'door', 'website', 'site'].includes(noun) || lex.places(noun).some((x) => x.id === here.id)) return openPage(s);
+        return examineInside(s, noun, false);
+      case 'enter':
+        if (!noun || lex.places(noun).some((x) => x.id === here.id) || ['room', 'building', 'door'].includes(noun)) return enter(s);
+        return null;
+      case 'take':
+        if (thingAt(here, noun).length) return result(s, [say(`Better not. ${people(here)[0].name} is watching, and the ${thingAt(here, noun)[0].names[0]} lives here.`)]);
+        return null;
+      case 'fish':
+        return result(s, [say('Not indoors. The pier is the place for that.')]);
+      case 'where':
+        return result(s, [p(`You're inside `, { text: ref(here), color: here.color }, '. ', ...md(openLine(here)))]);
+      case 'exits':
+        return result(s, [say(`One door, the one you came in by. [LEAVE] to go back out.`)]);
+      case 'go':
+        if (!c.dir && ['in', 'inside', 'indoors'].includes(noun)) return enter(s);
+        if (!c.dir && (personAt(here, noun).length || thingAt(here, noun).length)) return result(s, [say(`You cross the room. ${personAt(here, noun).length ? `[Talk to ${personAt(here, noun)[0].name}](${talkCmd(personAt(here, noun)[0])})?` : `[Examine it](examine ${thingAt(here, noun)[0].names[0]})?`}`)]);
+        return null;
+      case null: {
+        // A bare word: a topic mid-conversation, someone here, or something here.
+        if (talking && noun && matchNames(noun, talking.topics, topicKeys).length) return ask(s, ['about', ...noun.split(' ')], noun);
+        if (noun && personAt(here, noun).length) return talk(s, noun);
+        if (noun && thingAt(here, noun).length) return examineThing(s, thingAt(here, noun)[0]);
+        if (['door', 'exit'].includes(key(raw))) return leave(s);
+        return null;
+      }
+      default:
+        return null;
+    }
+  }
+
   /** Answer a question the last turn asked, if this is an answer. */
   function answer(s: EngineState, c: Command, raw: string): Result | null {
     const pending = s.pending!;
@@ -688,9 +925,12 @@ export function createEngine(world: World, geo: Geo, { random = Math.random }: E
 
   // ---------- Starting, and helping the page ----------
 
-  function initial(at: string, progress: { found?: string[]; caught?: string[]; night?: boolean } = {}): EngineState {
+  function initial(at: string, progress: { found?: string[]; caught?: string[]; night?: boolean } = {}, opts: { inside?: boolean } = {}): EngineState {
+    const where = byId.has(at) ? at : hub.id;
     return {
-      at: byId.has(at) ? at : hub.id,
+      at: where,
+      inside: !!opts.inside && !!place(where).interior,
+      talking: null,
       from: null,
       found: progress.found ?? [],
       caught: progress.caught ?? [],
@@ -710,6 +950,7 @@ export function createEngine(world: World, geo: Geo, { random = Math.random }: E
   function start(s: EngineState, { returning = false, portal: through = false } = {}): Result {
     const here = place(s.at);
     if (returning) return result(s, [p(`You step back out of ${ref(here)}, blinking in the light.`), ...describe(s, here)]);
+    if (s.inside && !through) return result(s, [{ kind: 'banner', title: 'The Island', lines: [`An interactive portfolio by ${world.person.name}`, RELEASE] }, ...describeRoom(s, here)]);
     if (through)
       return result(s, [
         { kind: 'banner', title: 'The Island', lines: ['The same island, in words', RELEASE] },
@@ -731,9 +972,20 @@ export function createEngine(world: World, geo: Geo, { random = Math.random }: E
     if (s.fishing?.phase === 'biting') return [{ label: 'REEL!', cmd: 'reel', tone: 'urgent' }];
     const here = place(s.at);
     const chips: Chip[] = [];
+    if (s.inside) {
+      const talking = people(here).find((x) => x.id === s.talking);
+      if (talking) {
+        for (const t of talking.topics) chips.push({ label: `Ask about ${t.names[0]}`, cmd: askCmd(talking, t), tone: 'go' });
+        chips.push({ label: 'Goodbye', cmd: 'bye' });
+      }
+      for (const c of people(here)) if (c !== talking) chips.push({ label: `Talk to ${c.name}`, cmd: talkCmd(c), tone: talking ? undefined : 'go' });
+      for (const t of things(here)) chips.push({ label: `Examine ${t.names[0]}`, cmd: `examine ${t.names[0]}` });
+      chips.push({ label: 'Look', cmd: 'look' }, { label: 'Open the page', cmd: 'open' }, { label: 'Leave', cmd: 'leave' }, { label: 'Help', cmd: 'help' });
+      return chips;
+    }
     if (s.fishing) chips.push({ label: 'Wait', cmd: 'wait' }, { label: 'Reel in', cmd: 'reel' });
     if (s.pending?.kind === 'confirm') chips.push({ label: 'Yes', cmd: 'yes', tone: 'go' });
-    if (here.href) chips.push({ label: here.kind === 'contact' ? 'Open the bottle' : 'Enter', cmd: 'enter', tone: 'go' });
+    if (here.href) chips.push({ label: here.kind === 'contact' ? 'Open the bottle' : here.interior ? 'Go inside' : 'Enter', cmd: 'enter', tone: 'go' });
     if (here.kind === 'writing') chips.push({ label: 'Read', cmd: 'read' });
     if (fishing?.place === here.id && !s.fishing) chips.push({ label: 'Fish', cmd: 'fish', tone: 'go' });
     if (portal?.place === here.id) chips.push({ label: 'Step through the portal', cmd: 'portal', tone: 'go' });
@@ -753,19 +1005,24 @@ export function createEngine(world: World, geo: Geo, { random = Math.random }: E
     const part = m[2].toLowerCase();
     const here = place(s.at);
     const before = parse(head).verb;
-    const sceneryNames = here.scenery.map((sc) => sc.names[0]);
+    const sceneryNames = s.inside ? [...things(here).map((t) => t.names[0]), ...people(here).map((c) => key(c.name))] : here.scenery.map((sc) => sc.names[0]);
     const placeNames = world.places.map((pl) => lex.handle(pl));
     const dirs = DIRS.map((d) => DIR_NAMES[d]);
     let pool: string[];
     if (!head.trim()) pool = [...VERB_WORDS.filter((w) => w.length > 2), ...dirs, ...sceneryNames, ...placeNames];
     else if (before === 'go' || before === 'enter' || before === 'cd') pool = [...placeNames, ...dirs];
     else if (before === 'view') pool = ['island', 'map', 'list'];
+    else if (before === 'talk') pool = people(here).map((c) => key(c.name));
+    else if (before === 'ask') {
+      const c = people(here).find((x) => x.id === s.talking) ?? people(here)[0];
+      pool = c ? [...people(here).map((x) => key(x.name)), ...c.topics.map((t) => key(t.names[0]))] : [];
+    }
     else pool = [...sceneryNames, ...placeNames];
     const out = [...new Set(pool.filter((w) => w.startsWith(part) && w !== part))];
     return out.map((w) => head + w);
   }
 
-  return { initial, start, run, signal, landed, suggest, complete, describe: (s: EngineState) => describe(s, place(s.at)), map: mapBlock };
+  return { initial, start, run, signal, landed, suggest, complete, describe: (s: EngineState) => (s.inside ? describeRoom(s, place(s.at)) : describe(s, place(s.at))), map: mapBlock };
 }
 
 export type Engine = ReturnType<typeof createEngine>;

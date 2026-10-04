@@ -82,6 +82,80 @@ export const ScenerySchema = z
 
 export const ARCHETYPES = ['plaza', 'cabin', 'taproom', 'tree', 'library', 'lighthouse', 'schoolhouse', 'depot', 'pier', 'bottle'] as const;
 
+/** The archetypes that are buildings you can walk into. */
+export const BUILDINGS = ['cabin', 'taproom', 'library', 'lighthouse', 'schoolhouse', 'depot'] as const;
+
+// ---------- Inside ----------
+// A building's room. Coordinates are in room units (about a metre, like the
+// island's), with the origin in the middle of the floor, +x east and +z
+// toward the door, which is always in the middle of the front (south) wall.
+// Renderers draw the room their own way; `prop` says what each thing is, the
+// way `archetype` does for places.
+
+/** A page a line or a thing points at: on this site, or the real thing elsewhere. */
+export const PointerSchema = z.object({ label: z.string(), href: z.string() }).strict();
+
+export const PROPS = ['desk', 'hearth', 'frame', 'board', 'counter', 'bookshelf', 'cabinet', 'lens', 'cat', 'globe', 'scanner', 'crates'] as const;
+
+/** Something inside you can look at. */
+export const ThingSchema = z
+  .object({
+    id: Id,
+    /** Nouns that refer to it, first one is the display name. */
+    names: z.array(z.string().min(1)).min(1),
+    /** What it is, for the renderers' art. Wall things (frame, board, bookshelf, hearth, cabinet) stand against the back wall. */
+    prop: z.enum(PROPS),
+    at: Vec2,
+    description: z.string(),
+    link: PointerSchema.optional(),
+  })
+  .strict();
+
+/** Something you can ask a person about, and what they say. */
+export const TopicSchema = z
+  .object({
+    id: Id,
+    /** Words for it, first one is what the choice says ("the journal"). */
+    names: z.array(z.string().min(1)).min(1),
+    reply: z.string(),
+    link: PointerSchema.optional(),
+  })
+  .strict();
+
+/** Someone who lives on the island. Fictional: when they talk about Ambrose's work they only say what the site already says. */
+export const CharacterSchema = z
+  .object({
+    id: Id,
+    name: z.string(),
+    /** Who they are here: "the caretaker". */
+    role: z.string(),
+    /** Extra words that mean them ("caretaker", "keeper"). */
+    aliases: z.array(z.string()).default([]),
+    /** What you see when you look at them. */
+    looks: z.string(),
+    /** Their scarf, apron or coat: the one color renderers give them. */
+    color: Hex,
+    at: Vec2,
+    greeting: z.string(),
+    topics: z.array(TopicSchema).min(2).max(4),
+    farewell: z.string(),
+  })
+  .strict();
+
+export const InteriorSchema = z
+  .object({
+    /** Width (east to west) and depth (back wall to door) of the floor. */
+    size: z.object({ w: z.number().min(6).max(14), d: z.number().min(5).max(10) }).strict(),
+    /** Second-person prose for when you step in or look around. */
+    description: z.string(),
+    things: z.array(ThingSchema).min(2).max(5),
+    people: z.array(CharacterSchema).min(1).max(2),
+  })
+  .strict();
+
+/** Wall things stand against the back wall; the rest stand on the floor. */
+export const WALL_PROPS: readonly (typeof PROPS)[number][] = ['frame', 'board', 'bookshelf', 'hearth', 'cabinet'];
+
 export const PlaceSchema = z
   .object({
     id: Id,
@@ -115,6 +189,8 @@ export const PlaceSchema = z
     /** Second-person prose for when you arrive or look around. */
     description: z.string(),
     scenery: z.array(ScenerySchema).default([]),
+    /** The room inside, for buildings you can walk into. */
+    interior: InteriorSchema.optional(),
   })
   .strict();
 
@@ -215,6 +291,12 @@ export type Project = z.infer<typeof ProjectSchema>;
 export type Post = z.infer<typeof PostSchema>;
 export type Scenery = z.infer<typeof ScenerySchema>;
 export type Archetype = (typeof ARCHETYPES)[number];
+export type Prop = (typeof PROPS)[number];
+export type Pointer = z.infer<typeof PointerSchema>;
+export type Thing = z.infer<typeof ThingSchema>;
+export type Topic = z.infer<typeof TopicSchema>;
+export type Character = z.infer<typeof CharacterSchema>;
+export type Interior = z.infer<typeof InteriorSchema>;
 export type Place = z.infer<typeof PlaceSchema>;
 export type Route = z.infer<typeof RouteSchema>;
 export type LostWord = z.infer<typeof LostWordSchema>;
@@ -312,6 +394,15 @@ export function checkWorld(w: z.infer<typeof WorldSchema> | World): Issue[] {
     if (lw.first > lw.died) add(`Lost word "${lw.id}" died before it was born.`, ['lostWords', i, 'died']);
   });
 
+  // Every building has a room inside, and nothing else does (the pier and the bottle are all open air).
+  const pages = new Set(['/about', '/blog', '/contact', '/colophon', ...w.projects.map((p) => p.href), ...w.posts.map((p) => p.href)]);
+  w.places.forEach((p, i) => {
+    const building = (BUILDINGS as readonly string[]).includes(p.archetype);
+    if (building && !p.interior) add(`"${p.id}" is a ${p.archetype}: give it an interior to walk into.`, ['places', i]);
+    if (!building && p.interior) add(`"${p.id}" is a ${p.archetype}, not a building: it can't have an interior.`, ['places', i, 'interior']);
+    if (p.interior) issues.push(...checkInterior(p, pages).map((x) => ({ message: x.message, path: ['places', i, 'interior', ...x.path] })));
+  });
+
   w.activities.forEach((a, i) => {
     if (!places.has(a.place)) add(`Activity "${a.id}" is at unknown place "${a.place}".`, ['activities', i, 'place']);
   });
@@ -322,6 +413,49 @@ export function checkWorld(w: z.infer<typeof WorldSchema> | World): Issue[] {
     if (!places.has(h.at)) add(`Hill ${i} is at unknown place "${h.at}".`, ['geography', 'hills', i]);
   });
 
+  return issues;
+}
+
+/** How close anything may stand to the door, and to anything else, in a room. */
+export const DOOR_CLEAR = 1.6;
+export const ROOM_GAP = 1.3;
+
+/** A room holds together: everything on the floor, clear of the door and of each other, every link real. */
+function checkInterior(p: Place | z.infer<typeof PlaceSchema>, pages: Set<string>): Issue[] {
+  const issues: Issue[] = [];
+  const add = (message: string, path: (string | number)[]) => issues.push({ message, path });
+  const room = p.interior!;
+  const { w, d } = room.size;
+  const ids = new Set<string>();
+  const spots: { id: string; at: { x: number; z: number }; path: (string | number)[] }[] = [];
+  const link = (l: Pointer | undefined, path: (string | number)[]) => {
+    if (!l) return;
+    if (l.href.startsWith('/')) {
+      if (!pages.has(l.href.replace(/#.*$/, '')) && !l.href.startsWith('/busybeer/')) add(`"${p.id}" links to ${l.href}, which isn't a page on this site.`, path);
+    } else if (!/^https:\/\//.test(l.href)) add(`"${p.id}" links to ${l.href}: use a site path or an https:// address.`, path);
+  };
+  const place = (id: string, at: { x: number; z: number }, path: (string | number)[], wall = false) => {
+    if (ids.has(id)) add(`"${p.id}" has two things or people called "${id}" inside.`, path);
+    ids.add(id);
+    if (Math.abs(at.x) > w / 2 - 0.6 || Math.abs(at.z) > d / 2 - 0.6) add(`"${id}" in "${p.id}" stands outside the room (${w} by ${d}).`, [...path, 'at']);
+    if (wall && at.z > -d / 2 + 1.5) add(`"${id}" in "${p.id}" hangs on the back wall: put it within 1.5 of z = ${-d / 2}.`, [...path, 'at']);
+    if (Math.hypot(at.x, at.z - d / 2) < DOOR_CLEAR) add(`"${id}" in "${p.id}" is in the way of the door.`, [...path, 'at']);
+    for (const s of spots) if (Math.hypot(at.x - s.at.x, at.z - s.at.z) < ROOM_GAP) add(`"${id}" and "${s.id}" in "${p.id}" stand on top of each other.`, [...path, 'at']);
+    spots.push({ id, at, path });
+  };
+  room.things.forEach((t, j) => {
+    place(t.id, t.at, ['things', j], WALL_PROPS.includes(t.prop));
+    link(t.link, ['things', j, 'link']);
+  });
+  room.people.forEach((c, j) => {
+    place(c.id, c.at, ['people', j]);
+    const topics = new Set<string>();
+    c.topics.forEach((t, k) => {
+      if (topics.has(t.id)) add(`${c.name} in "${p.id}" has two topics called "${t.id}".`, ['people', j, 'topics', k]);
+      topics.add(t.id);
+      link(t.link, ['people', j, 'topics', k, 'link']);
+    });
+  });
   return issues;
 }
 
