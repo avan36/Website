@@ -58,7 +58,8 @@ describe('looking', () => {
     const text = say('middle-place', 'look');
     expect(text).toMatch(/snug log cabin/);
     expect(text).toMatch(/examine the journal, the firewood, the chair or the lantern/);
-    expect(text).toMatch(/ENTER to step inside and see middle place/);
+    expect(text).toMatch(/ENTER to step inside and meet Juniper, the caretaker/);
+    expect(say('map-of-evolution', 'look')).toMatch(/ENTER to squeeze through the little door and see Map of Evolution/);
     expect(text).toMatch(/north: the old library/);
   });
 
@@ -143,18 +144,28 @@ describe('moving', () => {
 });
 
 describe('going in', () => {
-  it('opens the page a place stands for', () => {
-    for (const said of ['enter', 'go in', 'go inside', 'open door']) {
-      const r = play('etymon', said).last;
-      expect(effects(r, 'go'), said).toEqual([{ type: 'go', place: 'etymon' }]);
+  it('steps inside a building, and opens its page from in there', () => {
+    for (const said of ['enter', 'go in', 'go inside', 'open door', 'inside']) {
+      const r = play('etymon', said);
+      expect(r.state.inside, said).toBe(true);
+      expect(effects(r.last, 'inside'), said).toEqual([{ type: 'inside', at: 'etymon' }]);
+      expect(effects(r.last, 'go'), said).toEqual([]);
+      expect(r.text, said).toMatch(/Inside the old library/);
     }
+    for (const said of ['open', 'open the page', 'open etymon']) expect(effects(play('etymon', 'enter', said).last, 'go'), said).toEqual([{ type: 'go', place: 'etymon' }]);
+  });
+
+  it('opens the page straight away where there is no building to go into', () => {
     expect(effects(play('contact', 'open the bottle').last, 'go')).toEqual([{ type: 'go', place: 'contact' }]);
+    expect(effects(play('map-of-evolution', 'enter').last, 'go')).toEqual([{ type: 'go', place: 'map-of-evolution' }]);
+    expect(effects(play('blog', 'enter').last, 'go')).toEqual([{ type: 'go', place: 'blog' }]);
   });
 
   it('walks there first when you name somewhere else', () => {
-    const r = play('plaza', 'enter the taproom').last;
-    expect(effects(r, 'move')).toEqual([{ type: 'move', place: 'busy-beer' }]);
-    expect(effects(r, 'go')).toEqual([{ type: 'go', place: 'busy-beer' }]);
+    const r = play('plaza', 'enter the taproom');
+    expect(effects(r.last, 'move')).toEqual([{ type: 'move', place: 'busy-beer' }]);
+    expect(effects(r.last, 'inside')).toEqual([{ type: 'inside', at: 'busy-beer' }]);
+    expect(r.state).toMatchObject({ at: 'busy-beer', inside: true });
   });
 
   it('has nothing to open at the hub', () => {
@@ -165,6 +176,125 @@ describe('going in', () => {
 
   it('opens a post by title', () => {
     expect(effects(play('plaza', 'read the first post').last, 'open')).toEqual([{ type: 'open', href: '/blog/first' }]);
+  });
+});
+
+describe('inside the buildings', () => {
+  const inside = (at: string, ...commands: string[]) => play(at, 'enter', ...commands);
+
+  it('describes the room, who is in it and what there is to look at', () => {
+    const text = inside('middle-place').text;
+    expect(text).toMatch(/Inside the cabin/);
+    expect(text).toMatch(/Juniper, the caretaker, is here/);
+    expect(text).toMatch(/You could examine the writing desk, the hearth or the picture/);
+    expect(text).toMatch(/OPEN the page to see middle place properly, or LEAVE/);
+    expect(inside('middle-place', 'look').text).toMatch(/Inside the cabin/);
+  });
+
+  it('examines the things inside, with a link to the real page', () => {
+    const r = inside('middle-place', 'examine the desk');
+    expect(r.text).toMatch(/teal journal lying open/);
+    const link = r.last.out.flatMap((b) => (b.kind === 'p' ? b.spans : [])).find((x) => typeof x !== 'string' && x.href);
+    expect(link).toMatchObject({ href: '/work/middle-place' });
+    expect(inside('etymon', 'x catalogue').text).toMatch(/one for every root/);
+    expect(inside('etymon', 'shelves').text).toMatch(/Floor-to-ceiling/);
+    expect(inside('etymon', 'x mabel').text).toMatch(/red cardigan/);
+  });
+
+  it('talks to the people inside, and answers what you ask', () => {
+    for (const said of ['talk to mabel', 'talk to the librarian', 'speak with mabel', 'ask mabel', 'mabel']) {
+      const r = inside('etymon', said);
+      expect(r.state.talking, said).toBe('mabel');
+      expect(r.text, said).toMatch(/Voices low, please/);
+      expect(r.text, said).toMatch(/Ask about etymon, the river, lost words or missing words/);
+    }
+    expect(inside('etymon', 'ask mabel about the river').text).toMatch(/Fifteen hundred years of vocabulary/);
+    expect(inside('etymon', 'ask the librarian about lost words').text).toMatch(/wanhope and overmorrow/);
+    // Mid-conversation, the person can go unsaid, and so can the verb.
+    expect(inside('etymon', 'talk to mabel', 'ask about wiktionary').text).toMatch(/about 50 languages/);
+    expect(inside('etymon', 'talk to mabel', 'river').text).toMatch(/Fifteen hundred years/);
+    expect(inside('etymon', 'ask pip about disaster').text).toMatch(/4,500 km/);
+    // One person in the room: "talk" is enough.
+    expect(inside('privacy-research', 'talk').state.talking).toBe('morwenna');
+    expect(inside('privacy-research', 'talk', 'ask about the results').text).toMatch(/interactive public dashboard/);
+  });
+
+  it('asks whom, when there is more than one person to talk to', () => {
+    const r = inside('etymon', 'talk');
+    expect(r.text).toMatch(/Talk to whom\? Mabel or Pip\?/);
+    expect(r.state.talking).toBeNull();
+  });
+
+  it("says when someone doesn't know, and who might", () => {
+    const r = inside('etymon', 'ask mabel about disaster');
+    expect(r.text).toMatch(/Can't help you there/);
+    expect(r.text).toMatch(/Pip looks like they might know/);
+  });
+
+  it('links each answer to the page it comes from', () => {
+    const r = inside('busy-beer', 'ask otto about busy beer');
+    expect(r.text).toMatch(/AI taste companion/);
+    const link = r.last.out.flatMap((b) => (b.kind === 'p' ? b.spans : [])).find((x) => typeof x !== 'string' && x.href);
+    expect(link).toMatchObject({ href: '/work/busy-beer' });
+  });
+
+  it('says goodbye, and leaves', () => {
+    const bye = inside('busy-beer', 'talk to otto', 'goodbye');
+    expect(bye.state.talking).toBeNull();
+    expect(bye.text).toMatch(/Mind how you go/);
+    for (const said of ['leave', 'out', 'go out', 'exit', 'go outside', 'back']) {
+      const r = inside('busy-beer', 'talk to otto', said);
+      expect(r.state, said).toMatchObject({ inside: false, talking: null, at: 'busy-beer' });
+      expect(effects(r.last, 'inside'), said).toEqual([{ type: 'inside', at: null }]);
+      expect(r.text, said).toMatch(/step back out of the taproom/);
+    }
+  });
+
+  it('heads out first when you walk somewhere else from inside', () => {
+    const r = inside('busy-beer', 'go to the library');
+    expect(r.state).toMatchObject({ at: 'etymon', inside: false });
+    expect(r.text).toMatch(/head back out of the taproom/);
+  });
+
+  it('keeps the lost words outdoors, and says so', () => {
+    expect(inside('etymon', 'search shelves').text).toMatch(/lost words are all outdoors/);
+    expect(inside('etymon', 'x noticeboard').text).toMatch(/noticeboard is outside/);
+  });
+
+  it('goes in to talk to someone from right outside', () => {
+    const r = play('quizmate', 'talk to tobias');
+    expect(r.state).toMatchObject({ inside: true, talking: 'tobias' });
+    expect(effects(r.last, 'inside')).toEqual([{ type: 'inside', at: 'quizmate' }]);
+    expect(say('plaza', 'talk to tobias')).toMatch(/Tobias is inside the schoolhouse/);
+  });
+
+  it('starts inside when you were inside in another view', () => {
+    const s = engine.initial('quizmate', {}, { inside: true });
+    expect(s.inside).toBe(true);
+    expect(plain(engine.start(s).out)).toMatch(/Inside the schoolhouse/);
+    expect(engine.initial('blog', {}, { inside: true }).inside).toBe(false);
+  });
+
+  it('suggests what to say next', () => {
+    const talking = inside('etymon', 'talk to mabel').state;
+    const chips = engine.suggest(talking).map((c) => c.cmd);
+    expect(chips).toEqual(expect.arrayContaining(['ask mabel about river', 'bye', 'talk to pip', 'examine map', 'leave', 'open']));
+    expect(engine.complete(talking, 'ask mabel about riv')).toContain('ask mabel about river');
+    expect(engine.complete(talking, 'talk to p')).toContain('talk to pip');
+  });
+
+  it('never uses an em dash inside either', () => {
+    const lines: string[] = [];
+    for (const p of world.places.filter((x) => x.interior)) {
+      const room = p.interior!;
+      const cmds = ['look', 'talk', 'help', 'hint', 'where', 'exits', 'take desk', 'fish', 'hello', 'read', 'search', 'x'];
+      for (const t of room.things) cmds.push(`examine ${t.names[0]}`, `search ${t.names[0]}`);
+      for (const c of room.people) cmds.push(`x ${c.name}`, `talk to ${c.name}`, ...c.topics.map((t) => `ask ${c.name} about ${t.names[0]}`), `ask ${c.name} about nothing much`, 'bye');
+      lines.push(inside(p.id, ...cmds, 'leave').all);
+    }
+    const text = lines.join('\n');
+    expect(text.length).toBeGreaterThan(5000);
+    expect(text).not.toContain('—');
   });
 });
 

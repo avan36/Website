@@ -31,6 +31,8 @@ export type Verb =
   | 'inventory' | 'hint' | 'help' | 'map' | 'fish' | 'reel' | 'wait' | 'take'
   | 'about' | 'work' | 'writing' | 'contact' | 'where' | 'exits' | 'clear' | 'undo'
   | 'again' | 'view' | 'portal' | 'yes' | 'no' | 'night' | 'day' | 'score'
+  // Inside a building.
+  | 'talk' | 'ask' | 'leave' | 'bye'
   // A few for fun.
   | 'xyzzy' | 'plugh' | 'sudo' | 'hello' | 'ls' | 'cd' | 'pwd' | 'quit' | 'swim'
   | 'ring' | 'knock' | 'climb' | 'sit' | 'eat' | 'drink' | 'jump' | 'sleep' | 'zork';
@@ -69,6 +71,10 @@ const PHRASES: Record<Verb, string[]> = {
   night: ['night', 'nighttime', 'night time', 'dusk', 'lights off'],
   day: ['day', 'daytime', 'day time', 'dawn', 'lights on'],
   score: ['score', 'progress', 'points'],
+  talk: ['talk', 'talk to', 'talk with', 'speak', 'speak to', 'speak with', 'chat', 'chat to', 'chat with', 'greet', 'say hello to', 'say hi to', 'converse with'],
+  ask: ['ask', 'ask about', 'question', 'tell me about', 'what about', 'inquire about', 'enquire about'],
+  leave: ['leave', 'out', 'go out', 'get out', 'step out', 'head out', 'walk out', 'go outside', 'outside', 'step outside', 'head outside', 'exit building', 'leave building', 'outdoors', 'go outdoors'],
+  bye: ['bye', 'goodbye', 'good bye', 'farewell', 'see you', 'see ya', 'cheerio', 'thanks bye', 'thank you'],
   xyzzy: ['xyzzy'],
   plugh: ['plugh', 'plover'],
   sudo: ['sudo'],
@@ -76,7 +82,7 @@ const PHRASES: Record<Verb, string[]> = {
   ls: ['ls', 'dir', 'll', 'ls -la', 'ls -l'],
   cd: ['cd'],
   pwd: ['pwd'],
-  quit: ['quit', 'exit', 'q', 'bye', 'goodbye', 'logout', 'restart', 'restore', 'save'],
+  quit: ['quit', 'exit', 'q', 'logout', 'restart', 'restore', 'save'],
   swim: ['swim', 'dive', 'paddle', 'bathe', 'go swimming', 'jump in'],
   ring: ['ring', 'toll', 'ding'],
   knock: ['knock', 'knock on'],

@@ -23,7 +23,10 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
   const presence = store.state.presence;
   const startAt = ctx.returnTo ?? presence.at ?? (presence.pos ? geo.nearestPlace(presence.pos.x, presence.pos.z).place.id : geo.hub.id);
   const progress = () => store.state.progress;
-  let state: EngineState = engine.initial(startAt, progress());
+  // Inside a building in another view (and not just back from its page): still inside it here.
+  const startInside = !ctx.returnTo && !ctx.viaPortal && presence.inside === startAt;
+  let state: EngineState = engine.initial(startAt, progress(), { inside: startInside });
+  if (!startInside && presence.inside) store.dispatch({ type: 'inside', at: null });
 
   // ---------- DOM ----------
   const log = h('div', { class: 'tx-log', role: 'log', 'aria-live': 'polite', 'aria-label': 'The story so far' });
@@ -92,6 +95,9 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
           store.dispatch({ type: 'move', at: place.id, pos: place.kind === 'hub' ? place.at : geo.door(place) });
           break;
         }
+        case 'inside':
+          store.dispatch({ type: 'inside', at: e.at });
+          break;
         case 'find':
           store.dispatch({ type: 'find', id: e.id });
           ctx.sound.play('chime');

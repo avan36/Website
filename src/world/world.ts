@@ -88,7 +88,7 @@ const interiors: Record<string, InteriorInput> = {
           },
           {
             id: 'get',
-            names: ['getting it', 'app store', 'download', 'get it'],
+            names: ['the App Store', 'app store', 'download', 'get it', 'getting it'],
             reply: "It's on the App Store, for iPhone, iPad and Mac. Take it somewhere cozy.",
             link: { label: 'Download on the App Store', href: APP_STORE('middle-place') },
           },
@@ -157,7 +157,7 @@ const interiors: Record<string, InteriorInput> = {
           },
           {
             id: 'get',
-            names: ['getting it', 'app store', 'download', 'get it'],
+            names: ['the App Store', 'app store', 'download', 'get it', 'getting it'],
             reply: "It's on the App Store, for iPhone. Cheers to that.",
             link: { label: 'Download on the App Store', href: APP_STORE('busy-beer') },
           },
@@ -391,7 +391,7 @@ const interiors: Record<string, InteriorInput> = {
           },
           {
             id: 'get',
-            names: ['getting it', 'app store', 'download', 'get it'],
+            names: ['the App Store', 'app store', 'download', 'get it', 'getting it'],
             reply: "It's on the App Store, for iPhone and iPad. Tell your teacher I sent you.",
             link: { label: 'Download on the App Store', href: APP_STORE('quizmate') },
           },
