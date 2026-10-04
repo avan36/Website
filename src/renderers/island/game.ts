@@ -79,6 +79,8 @@ export interface GameHandle {
     sea: (x?: number, z?: number) => { depth: number; room: number; swimmable: boolean; walkable: boolean; surface: number };
     /** Where the explorer's head is on screen. */
     playerScreen: () => { x: number; y: number };
+    /** Draw a frame now (with pause(), for still shots of a moment set up with tick()). */
+    render: () => void;
     /** Run the game on for this many seconds at 60 steps a second, without drawing (headless browsers draw slowly). */
     tick: (seconds: number) => void;
     /** Click-to-walk to a spot (as a click on the ground there would); where it will actually go. */
@@ -969,6 +971,22 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
       pointerMoved = false;
     }
     simulate(dt, raw);
+    present(now);
+
+    if (revealT >= 0) {
+      if (revealT === 0) startReveal();
+      revealT += dt;
+      if (revealT > 0.3 && revealT - dt <= 0.3) {
+        player.hop(6);
+        returning?.bounce(1);
+        o.sound.play('pop');
+      }
+      if (revealT > 1) revealT = -1;
+    }
+  };
+
+  /** Draw: the labels over the scene, then the scene. */
+  const present = (now: number) => {
     const hoverId = state === 'play' ? labelHover ?? labelFocus ?? pointerHover : null;
 
     // Labels (kept out of the HUD's way, re-measured a few times a second
@@ -1008,17 +1026,6 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     });
 
     renderer.render(scene, camera);
-
-    if (revealT >= 0) {
-      if (revealT === 0) startReveal();
-      revealT += dt;
-      if (revealT > 0.3 && revealT - dt <= 0.3) {
-        player.hop(6);
-        returning?.bounce(1);
-        o.sound.play('pop');
-      }
-      if (revealT > 1) revealT = -1;
-    }
   };
 
   // Compile shaders before the first visible frame to avoid a hitch, including
@@ -1119,6 +1126,9 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
         const v = player.head(new Vector3()).project(camera);
         return { x: (v.x * 0.5 + 0.5) * viewW, y: (-v.y * 0.5 + 0.5) * viewH };
       },
+      render: () => present(performance.now()),
+      _spawn: (x: number, z: number) => ripples.spawn(x, z, { from: 1, to: 3, life: 10, width: 0.3, alpha: 1 }),
+      _rip: () => [Array.from(ripples.material.uniforms.uShape.value as Float32Array).slice(0, 24), Array.from(ripples.material.uniforms.uLook.value as Float32Array).slice(0, 24)],
       tick: (seconds: number) => {
         for (let t = 0; t < seconds - 1e-6; t += 1 / 60) simulate(1 / 60, 1 / 60);
       },

@@ -66,7 +66,7 @@ export class Ripples {
         }
         if (s < SEG) {
           const a = base + s * 2;
-          index.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
+          index.push(a, a + 2, a + 1, a + 1, a + 2, a + 3);
         }
       }
       this.rings.push({ x: 0, z: 0, y: 0, wave: 1, from: 0, to: 0, width: 0, alpha: 0, age: 1, life: 1 });
