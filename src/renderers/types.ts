@@ -47,7 +47,7 @@ export interface RendererContext {
     announce(text: string): void;
     /** A small, self-dismissing note at the bottom of the screen. */
     toast(t: { title: string; body?: string; color?: string; action?: { label: string; run(): void } }): void;
-    /** Open the card for a lost word (the story, where it came from, how many are left). */
+    /** A lost word was just found: a small note that doesn't stop the walk, with its card (the story) a tap away. */
     showWord(id: string): void;
     /** Open the card for a post caught off the pier. */
     showCatch(slug: string, fresh: boolean): void;

@@ -49,7 +49,7 @@ export interface RoomUI {
   near(t: RoomTarget | null): void;
   /** Inside a room right now (its place id). */
   readonly at: string | null;
-  /** The box is open. */
+  /** The box is open and has the keys (not while it's only passing, as you come in). */
   readonly busy: boolean;
 }
 
@@ -79,6 +79,12 @@ export function createRoomUI(world: World, announce: (s: string) => void, toast:
   const asked = new Map<string, Set<string>>();
   /** Where focus was before the box opened, to go back to. */
   let returnFocus: HTMLElement | null = null;
+  /**
+   * The box is showing the room as you come in. It doesn't hold the keys or
+   * take focus: the first step (or a tap on the room) puts it away, and you're
+   * walking. Going into the box (Tab, E, a click) makes it an ordinary box.
+   */
+  let passive = false;
 
   const person = (id: string) => place?.interior?.people.find((c) => c.id === id) ?? null;
   const thing = (id: string) => place?.interior?.things.find((t) => t.id === id) ?? null;
@@ -91,20 +97,25 @@ export function createRoomUI(world: World, announce: (s: string) => void, toast:
     return `<a class="w-talk__more" href="${esc(l.href)}"${external ? ' target="_blank" rel="noopener"' : ''} data-talk-link>${esc(l.label)} <span aria-hidden="true">${external ? '↗' : '→'}</span></a>`;
   }
 
-  /** Open the box with this inside it, and move focus in. */
-  function show(html: string, color: string, label: string) {
-    if (box.hidden) returnFocus = document.activeElement instanceof HTMLElement && document.activeElement !== document.body ? document.activeElement : null;
+  /** Open the box with this inside it, and move focus in (unless it's only passing, see `passive`). */
+  function show(html: string, color: string, label: string, passing = false) {
+    passive = passing;
+    if (box.hidden && !passing) returnFocus = document.activeElement instanceof HTMLElement && document.activeElement !== document.body ? document.activeElement : null;
     box.innerHTML = html;
     box.style.setProperty('--c', color);
     box.setAttribute('aria-label', label);
     box.hidden = false;
     nudge.hidden = true;
+    if (passing) return;
     const first = box.querySelector<HTMLElement>('[data-first]') ?? box.querySelector<HTMLElement>('.w-talk__choice') ?? box.querySelector<HTMLElement>('a, button');
     first?.focus({ preventScroll: true });
   }
 
   function hush() {
     if (box.hidden) return;
+    const passing = passive;
+    passive = false;
+    const hadFocus = box.contains(document.activeElement);
     box.hidden = true;
     box.innerHTML = '';
     talking = null;
@@ -112,11 +123,12 @@ export function createRoomUI(world: World, announce: (s: string) => void, toast:
     const back = returnFocus;
     returnFocus = null;
     if (back && document.contains(back) && !box.contains(back)) back.focus({ preventScroll: true });
-    else (document.activeElement as HTMLElement | null)?.blur?.();
+    else if (!passing || hadFocus) (document.activeElement as HTMLElement | null)?.blur?.();
     paintNudge();
   }
 
-  function look() {
+  /** The room's overview. Coming in, it only passes by (see `passive`); asked for, it's a box like any other. */
+  function look(entering = false) {
     if (!place?.interior) return;
     const room = place.interior;
     const people = room.people
@@ -138,6 +150,7 @@ export function createRoomUI(world: World, announce: (s: string) => void, toast:
        </div>`,
       p.color,
       `Inside ${the(p)}`,
+      entering,
     );
     announce(`Inside ${the(p)}. ${room.description}`);
   }
@@ -222,6 +235,13 @@ export function createRoomUI(world: World, announce: (s: string) => void, toast:
   });
   // Taps on the box shouldn't walk the explorer somewhere behind it.
   for (const el of [box, bar, nudge]) el.addEventListener('pointerdown', (e) => e.stopPropagation());
+  // The box you came in to stops passing once you go into it; a tap anywhere else puts it away.
+  box.addEventListener('focusin', () => (passive = false));
+  const onDown = (e: PointerEvent) => {
+    const t = e.target as Node;
+    if (passive && !box.hidden && !box.contains(t) && !bar.contains(t) && !nudge.contains(t)) hush();
+  };
+  window.addEventListener('pointerdown', onDown, true);
 
   bar.addEventListener('click', (e) => {
     const b = (e.target as HTMLElement).closest<HTMLElement>('[data-room]');
@@ -251,6 +271,20 @@ export function createRoomUI(world: World, announce: (s: string) => void, toast:
       e.stopPropagation();
       if (!box.hidden) hush();
       else on?.leave();
+      return;
+    }
+    if (!box.hidden && passive && !box.contains(t)) {
+      // Just in the door: a step puts the room's overview away and walks (a key still held
+      // from walking in through the door keeps walking, with the overview up); E talks to
+      // whoever's in reach.
+      if (/^Arrow|^Key[WASD]$|^Space$/.test(e.code)) return void (e.repeat || hush());
+      const control = t !== document.body && (t.tagName === 'A' || t.tagName === 'BUTTON');
+      if ((e.code === 'KeyE' || (e.key === 'Enter' && !control)) && !e.repeat) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (within) (hush(), act());
+        else box.querySelector<HTMLElement>('.w-talk__choice')?.focus();
+      }
       return;
     }
     if (!box.hidden) {
@@ -308,7 +342,7 @@ export function createRoomUI(world: World, announce: (s: string) => void, toast:
       bar.setAttribute('aria-label', `Inside ${the(p)}`);
       bar.hidden = false;
       if (opts.quiet) announce(`Inside ${the(p)}. Press Escape to leave.`);
-      else look();
+      else look(true);
     },
     exit() {
       if (!place) return;
@@ -322,7 +356,7 @@ export function createRoomUI(world: World, announce: (s: string) => void, toast:
     },
     talk: (id) => talk(id),
     inspect,
-    look,
+    look: () => look(),
     hush,
     near(t) {
       if (t?.id === within?.id && t?.kind === within?.kind) return;
@@ -333,7 +367,7 @@ export function createRoomUI(world: World, announce: (s: string) => void, toast:
       return place?.id ?? null;
     },
     get busy() {
-      return !box.hidden;
+      return !box.hidden && !passive;
     },
   };
 }

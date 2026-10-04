@@ -39,26 +39,6 @@ const failure = checkWorld(broken)
 
 const workshop = world.places.find((p) => p.id === 'workshop');
 
-// Illustrative prompts, in the spirit of what I asked for. Not quoted from a log.
-const prompts = [
-  {
-    text: 'Put a tiny Caltrain on the island that loops past the houses. Give it a real timetable: round and round on weekday mornings and evenings, waiting at the platform the rest of the time.',
-    became: 'the railway loop and the station',
-  },
-  {
-    text: 'Give the avatar a wardrobe. Every house gives you one thing to wear when you arrive, and whatever you put on should show up in the 3D island, the map and the text adventure.',
-    became: 'the wardrobe',
-  },
-  {
-    text: 'Each project page should have a small game that teaches something true about the project. It has to work on a phone, with a finger.',
-    became: 'the mini-games on the project pages',
-  },
-  {
-    text: 'Build a workshop on the empty plot inside the railway loop, where visitors can find out how the island was made.',
-    became: 'the workshop, and this part of the page',
-  },
-];
-
 const themes = { light: 'github-light', dark: 'github-dark' } as const;
 const views = [
   { id: 'island', name: 'Island', note: 'three.js, walk it in 3D' },
@@ -69,7 +49,7 @@ const views = [
 ---
 <Reading
   title="How this site works · Ambrose Vannier"
-  description="The home page is one world described as data, drawn four ways: a 3D island, a pixel map, a text adventure and a list. And how I built it, with Claude Code."
+  description="The home page is one world described as data, drawn four ways: a 3D island, a pixel map, a text adventure and a list. And how it was built."
   current="none"
 >
   <header class="col-head">
@@ -173,22 +153,6 @@ const views = [
       There's a workshop on the island{workshop ? ', inside the railway loop' : ''}, with a monitor glowing in the window and a
       pinboard of notes on the wall. This is what's pinned up on it.
     </p>
-    <p>
-      I built this site with <a href="https://claude.com/claude-code">Claude Code</a>, Anthropic's coding agent, working
-      directly in this repository. I describe what I want in plain sentences, the way I'd brief a friend. Claude reads the code,
-      makes the change, runs the checks and shows me what it looks like. I play with the result, read the diff, and ask for
-      what's still wrong. The ideas and the final say are mine. Most of the typing isn't.
-    </p>
-
-    <h3>Several pairs of hands</h3>
-    <p>
-      The bigger pushes were split up. Claude Code can hand parts of a job to subagents that work in parallel, each with one
-      brief and its own corner of the code. When the island grew, one agent expanded the land and laid the railway, another
-      built the wardrobe, one took each pair of mini-games for the project pages, and another made the writing desk and the
-      guestbook. They all work on the same world, which is where the world model earns its keep: if one change breaks a rule
-      the rest depend on, like two places overlapping or a path to nowhere, the build stops and says so in a sentence.
-    </p>
-
     <h3>Checkpoints</h3>
     <p>
       The git history shows the rhythm. Long pieces of work are saved as they go in commits marked <em>checkpoint</em>, so
@@ -205,23 +169,11 @@ const views = [
 
     <h3>Looking, not just testing</h3>
     <p>
-      Tests can't tell you a roof is the wrong color. So each piece is checked by eye, too: Claude builds the site, serves it,
-      and takes screenshots in a headless browser with <a href="https://playwright.dev">Playwright</a>, at desktop and phone
+      Tests can't tell you a roof is the wrong color. So each piece is checked by eye, too: the site is built, served and
+      photographed in a headless browser with <a href="https://playwright.dev">Playwright</a>, at desktop and phone
       sizes. Headless browsers often have no WebGL, so most of those checks go through the pixel map, which draws the same world
       from the same data. Then I look at the screenshots, and at the real thing.
     </p>
-
-    <h3>What I asked for</h3>
-    <p>A few of the requests behind what you see on the island, rewritten here as examples:</p>
-    <ul class="col-prompts" role="list">
-      {prompts.map((p) => (
-        <li>
-          <p class="col-prompts__text">“{p.text}”</p>
-          <p class="col-prompts__became">Became {p.became}.</p>
-        </li>
-      ))}
-    </ul>
-    <p class="col-note">These are illustrative, written in the spirit of what I asked for. They aren't copied from a log.</p>
 
     <h2>Built with</h2>
     <p>
@@ -229,8 +181,7 @@ const views = [
       Canvas 2D API for the pixel map, <a href="https://zod.dev">zod</a> for the world's schema and
       {' '}<a href="https://vitest.dev">Vitest</a> for the tests. The contact form posts to a small Cloudflare Worker. It's set in
       Bricolage Grotesque and Newsreader, and hosted on Vercel. The blog is plain Markdown. The rest of the site has no
-      framework on the client: the island, the map and the text adventure are TypeScript talking to the DOM. And all of it was
-      made with <a href="https://claude.com/claude-code">Claude Code</a>.
+      framework on the client: the island, the map and the text adventure are TypeScript talking to the DOM.
     </p>
   </Prose>
 </Reading>
@@ -269,41 +220,6 @@ const views = [
   }
   .col-jump { margin-block-start: var(--space-4); font-family: var(--font-ui); font-weight: 650; }
   .col-jump a { display: inline-flex; align-items: center; min-height: 44px; }
-
-  .col-prompts {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
-    gap: var(--space-4);
-    margin: var(--space-5) 0 0;
-    padding: 0 !important;
-    list-style: none;
-  }
-  .col-prompts li {
-    display: block;
-    margin: 0 !important;
-    padding: var(--space-4) var(--space-4) var(--space-3);
-    border-radius: var(--r-md);
-    background: color-mix(in srgb, #d97757 10%, var(--bg-sunken));
-    box-shadow: inset 0 0 0 1px var(--line);
-    transform: rotate(-0.6deg);
-  }
-  .col-prompts li:nth-child(even) { transform: rotate(0.7deg); }
-  .col-prompts li::before {
-    content: '';
-    display: block;
-    width: 10px;
-    height: 10px;
-    margin: -6px auto var(--space-2);
-    border-radius: 50%;
-    background: #d97757;
-  }
-  .col-prompts p { margin: 0 !important; }
-  .col-prompts__text { font-family: var(--font-read); font-size: var(--step-0); line-height: 1.45; }
-  .col-prompts__became { margin-block-start: var(--space-2) !important; font-family: var(--font-ui); font-size: var(--step--1); color: var(--muted); }
-  .col-note { font-size: var(--step--1); color: var(--muted); }
-  @media (prefers-reduced-motion: reduce) {
-    .col-prompts li, .col-prompts li:nth-child(even) { transform: none; }
-  }
 
   .col-details { margin-block: var(--space-5); }
   .col-details summary { cursor: pointer; font-family: var(--font-ui); font-weight: 650; font-size: var(--step-0); color: var(--link); padding-block: 10px; }
