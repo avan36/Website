@@ -4,7 +4,7 @@
 
 import type { World } from '../world/schema';
 import type { WorldStore } from '../world/store';
-import type { RendererContext } from './types';
+import type { RendererContext, ViewId } from './types';
 
 type UI = RendererContext['ui'];
 
@@ -15,6 +15,16 @@ const CLOSE =
 
 const FISH =
   '<svg class="w-catch__fish" width="64" height="40" viewBox="0 0 64 40" aria-hidden="true"><path d="M4 20c8-12 22-17 36-12 6 2 10 6 13 12-3 6-7 10-13 12-14 5-28 0-36-12Z" fill="currentColor"/><path d="M50 20 63 9v22Z" fill="currentColor"/><circle cx="17" cy="17" r="2.6" fill="#fff"/><path d="M27 12c3 5 3 11 0 16" stroke="#fff" stroke-opacity=".5" stroke-width="2" fill="none" stroke-linecap="round"/></svg>';
+
+const ICON = (d: string, size = 22) =>
+  `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+const VIEW_ICONS: Record<ViewId | 'data', string> = {
+  island: '<path d="M3.5 19.5c2.6-3.2 5.4-4.8 8.5-4.8s5.9 1.6 8.5 4.8"/><path d="M12 14.7c0-3.2.6-6 2-8.7"/><path d="M14 6c-2-1.6-5-1.6-7.2.3M14 6c1.6-1.9 4.5-2.3 6.6-.8M14 6c-.3 2.1.3 4.1 1.8 5.6"/>',
+  map: '<path d="M9 4 3.5 6v14L9 18l6 2 5.5-2V4L15 6Z"/><path d="M9 4v14M15 6v14"/>',
+  text: '<rect x="3" y="4.5" width="18" height="15" rx="3"/><path d="m7 10 3 2.5L7 15M12.5 15H17"/>',
+  list: '<path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1" fill="currentColor"/><circle cx="4.5" cy="12" r="1" fill="currentColor"/><circle cx="4.5" cy="18" r="1" fill="currentColor"/>',
+  data: '<path d="M8 4c-2 0-3 1-3 3v2.5c0 1.2-.8 2.2-2 2.5 1.2.3 2 1.3 2 2.5V17c0 2 1 3 3 3M16 4c2 0 3 1 3 3v2.5c0 1.2.8 2.2 2 2.5-1.2.3-2 1.3-2 2.5V17c0 2-1 3-3 3"/>',
+};
 
 const WORDS = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
 const spell = (n: number) => WORDS[n] ?? String(n);
@@ -141,5 +151,47 @@ export function createUI(world: World, store: WorldStore, announce: (s: string) 
     }
   }
 
-  return { announce, toast, showWord, showCatch, openHoard, close: () => dialog.open && dialog.close() };
+  /**
+   * The portal's menu: every way of seeing the island, the 3D island first and
+   * biggest, the text adventure and the raw data tucked underneath. Resolves
+   * with the view picked, or null if the visitor closed it (or picked the view
+   * they're already in). The data link is a plain link to world.json.
+   */
+  function choosePortal(current: ViewId): Promise<ViewId | null> {
+    const here = (v: ViewId) => (v === current ? ' is-here' : '');
+    const tag = (v: ViewId) => (v === current ? '<span class="w-portal__here">You are here</span>' : '');
+    // Picking the view you're in just closes the menu: you stay where you are.
+    const big = (v: ViewId, name: string, note: string) =>
+      `<button class="w-portal__opt w-portal__opt--main${here(v)}" value="${v}"${v === current ? '' : ' autofocus'}><span class="w-portal__icon">${ICON(VIEW_ICONS[v], 30)}</span><span class="w-portal__text"><span class="w-portal__name">${name}${tag(v)}</span><span class="w-portal__note">${note}</span></span></button>`;
+    const mid = (v: ViewId, name: string, note: string) =>
+      `<button class="w-portal__opt${here(v)}" value="${v}"><span class="w-portal__icon">${ICON(VIEW_ICONS[v])}</span><span class="w-portal__text"><span class="w-portal__name">${name}${tag(v)}</span><span class="w-portal__note">${note}</span></span></button>`;
+    const small = (v: ViewId, name: string) =>
+      `<button class="w-portal__more${here(v)}" value="${v}">${ICON(VIEW_ICONS[v], 16)}${name}${v === current ? ' (here)' : ''}</button>`;
+    dialog.returnValue = '';
+    open(
+      `<p class="w-kicker">The portal</p>
+       <h2 class="w-title" id="w-dialog-title">Where to?</h2>
+       <p class="w-portal__intro">One island, a few ways to see it. Pick one and step through.</p>
+       ${big('island', 'The 3D island', 'Walk, swim and fish your way around it')}
+       <div class="w-portal__row">
+         ${mid('map', 'The pixel map', 'Top-down, in pixel art')}
+         ${mid('list', 'The list', 'Just the work, plainly')}
+       </div>
+       <div class="w-portal__extra"><span>Or</span>${small('text', 'Text adventure')}<a class="w-portal__more" href="/world.json" target="_blank" rel="noopener">${ICON(VIEW_ICONS.data, 16)}The raw data</a><button class="w-btn w-btn--ghost w-portal__stay" value="stay">Stay here</button></div>`,
+      '#8b5cf6',
+    );
+    announce('The portal. Where to? Pick a way of seeing the island.');
+    return new Promise((resolve) => {
+      dialog.addEventListener(
+        'close',
+        () => {
+          const v = dialog.returnValue as ViewId;
+          resolve(['island', 'map', 'text', 'list'].includes(v) && v !== current ? v : null);
+        },
+        { once: true },
+      );
+    });
+  }
+
+  return { announce, toast, showWord, showCatch, openHoard, choosePortal, close: () => dialog.open && dialog.close() };
 }

@@ -238,7 +238,7 @@ function go(placeId: string, from?: { x: number; y: number }, href?: string) {
  */
 function portal(next: ViewId, from?: { x: number; y: number }) {
   const p = portalOf(world);
-  if (!p || leaving || resolve(next) === view || resolve(next) === 'list') return;
+  if (!p || leaving || resolve(next) === view) return;
   const w = window.innerWidth;
   const h = window.innerHeight;
   const x = from?.x ?? w / 2;
@@ -262,7 +262,7 @@ function portal(next: ViewId, from?: { x: number; y: number }) {
     leaving = 0;
     store.dispatch({ type: 'move', at: p.place, pos: portalExit(p) });
     returnTo = null;
-    viaPortal = true;
+    viaPortal = resolve(next) !== 'list';
     void setView(next);
     window.setTimeout(() => html.classList.remove('isl-returning'), 9000);
   };

@@ -133,7 +133,15 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
           later(() => document.querySelector<HTMLButtonElement>(`[data-view-set="${e.id}"]`)?.click(), 450);
           break;
         case 'portal':
-          later(() => (typewriter.finish(), ctx.portal(e.id, origin())), ctx.reducedMotion ? 60 : 700);
+          later(() => {
+            typewriter.finish();
+            const from = origin();
+            void ctx.ui.choosePortal('text').then((next) => {
+              if (!next) return;
+              ctx.sound.play('whoosh');
+              ctx.portal(next, from);
+            });
+          }, ctx.reducedMotion ? 60 : 500);
           break;
       }
     }

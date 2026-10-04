@@ -12,8 +12,8 @@
 
 import { SWIM_REACH } from '../../world/geo';
 import type { Place } from '../../world/schema';
-import { PORTAL_COLOR, PORTAL_NEXT, portalExit, portalOf, VIEW_TITLE } from '../portal';
-import type { RendererContext, RendererHandle } from '../types';
+import { PORTAL_COLOR, PORTAL_NEXT, portalExit, portalOf } from '../portal';
+import type { RendererContext, RendererHandle, ViewId } from '../types';
 import { clampAxis, damp, pickScale } from './camera';
 import { facingFor, paintExplorer, type Facing } from './explorer';
 import { Fishing } from './fishing';
@@ -99,9 +99,10 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
   const fishSpot = world.activities.find((a) => a.kind === 'fishing') ?? null;
   const portal = portalOf(world);
   const portalArt = paintPortal();
-  const portalTo = PORTAL_NEXT.map;
+  /** Where the portal leads this time: picked from its menu as you step up. */
+  let portalTo: ViewId = PORTAL_NEXT.map;
   /** The portal's name tag, as if it were a place. */
-  const portalTag = { id: 'portal', title: 'The portal to', name: VIEW_TITLE[portalTo], color: PORTAL_COLOR } as Place;
+  const portalTag = { id: 'portal', title: 'The portal', name: 'Choose a view', color: PORTAL_COLOR } as Place;
 
   // The camera's bounds: the island and the water you can swim in, with a little to spare.
   const VIEW = { x0: Infinity, z0: Infinity, x1: -Infinity, z1: -Infinity };
@@ -663,7 +664,27 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
       ctx.sound.play('pop');
     }
   }
+  /** At the portal: open its menu of views, and step through into the one picked. */
+  let choosing = false;
+  /** Closed the menu without picking: walking into the portal again waits until you've stepped back. */
+  let portalShy = false;
   function stepIn() {
+    if (mode !== 'play' || !portal || choosing) return;
+    choosing = true;
+    path = null;
+    pendingEnter = null;
+    pendingPortal = false;
+    clearKeys();
+    if (fishing.phase !== 'idle') fishing.cancel();
+    ctx.sound.play('pop');
+    void ctx.ui.choosePortal('map').then((next) => {
+      choosing = false;
+      if (destroyed) return;
+      if (next) (portalTo = next), stepThrough();
+      else portalShy = true;
+    });
+  }
+  function stepThrough() {
     if (mode !== 'play' || !portal) return;
     mode = 'portal';
     modeT = 0;
@@ -971,7 +992,8 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
     if (portal && !jump.air && wet === 0) {
       const dx = pos.x - portal.at.x;
       const dz = pos.z - portal.at.z;
-      if (Math.abs(dx) < 0.7 && dz > 0 && dz < 0.62 && held.z < 0 && Math.abs(held.x) <= -held.z) return stepIn();
+      if (dz > 1 || Math.abs(dx) > 1) portalShy = false;
+      if (!portalShy && Math.abs(dx) < 0.7 && dz > 0 && dz < 0.62 && held.z < 0 && Math.abs(held.x) <= -held.z) return stepIn();
     }
 
     // Lost words: walk over one to pick it up.
@@ -1027,7 +1049,7 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
         ctx.ui.announce(`${near.place.title}: ${near.place.name}. Press Enter to go in.`);
       } else if (nearPortal && id !== dismissed) {
         ctx.sound.play('pop');
-        ctx.ui.announce(`The portal to ${VIEW_TITLE[portalTo].toLowerCase()}. Press Enter, or walk into it, to step through.`);
+        ctx.ui.announce('The portal. Press Enter, or walk into it, to choose a view and step through.');
       }
     }
   }
