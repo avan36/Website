@@ -30,7 +30,7 @@ export type Verb =
   | 'look' | 'examine' | 'search' | 'go' | 'enter' | 'back' | 'read' | 'open'
   | 'inventory' | 'hint' | 'help' | 'map' | 'fish' | 'reel' | 'wait' | 'take'
   | 'about' | 'work' | 'writing' | 'contact' | 'where' | 'exits' | 'clear' | 'undo'
-  | 'again' | 'view' | 'portal' | 'yes' | 'no' | 'night' | 'day' | 'score' | 'race'
+  | 'again' | 'view' | 'portal' | 'yes' | 'no' | 'night' | 'day' | 'score' | 'race' | 'play' | 'throw'
   // Inside a building.
   | 'talk' | 'ask' | 'leave' | 'bye'
   // A few for fun.
@@ -80,6 +80,8 @@ const PHRASES: Record<Verb, string[]> = {
     'take speedboat', 'board', 'board the boat', 'board boat', 'get in the boat', 'get in boat', 'get in the speedboat', 'get into the boat', 'sail',
     'go boating', 'drive the boat', 'drive boat', 'drive the speedboat', 'start the boat', 'untie the boat', 'take the boat out', 'lap',
   ],
+  play: ['play', 'play a game', 'play game', 'play the game', 'games', 'game', 'minigame', 'minigames', 'mini game', 'mini games', 'have a go', 'high scores', 'best scores', 'scores'],
+  throw: ['throw', 't', 'throw stone', 'throw it', 'skip', 'skim', 'skip stone', 'skim stone', 'toss', 'fling', 'let go', 'let fly', 'release'],
   xyzzy: ['xyzzy'],
   plugh: ['plugh', 'plover'],
   sudo: ['sudo'],

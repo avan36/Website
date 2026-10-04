@@ -3,6 +3,7 @@
 // effects (go into a place, record a find, cast a line), and the page decides
 // how they look and what they do. Tests read the blocks back as plain text.
 
+import type { GameId } from '../../world/schema';
 import type { SoundName, ViewId } from '../types';
 
 /** A run of text. A `cmd` makes it something you can click to type. */
@@ -31,7 +32,7 @@ export type Block =
   | { kind: 'map'; rows: string[]; legend: MapLegend[]; key: [string, string][]; summary: string };
 
 /** A timer the page sets on the engine's behalf; when it fires, it calls engine.signal(). */
-export type Signal = { name: 'bite' | 'escape'; cast: number };
+export type Signal = { name: 'bite' | 'escape' | 'flat' | 'ripple' | 'swell'; cast: number };
 
 export type Effect =
   | { type: 'move'; place: string }
@@ -48,6 +49,10 @@ export type Effect =
   | { type: 'night'; on: boolean }
   | { type: 'clear' }
   | { type: 'timer'; ms: number; signal: Signal }
+  /** Open a mini-game's card (the ones words can't draw). */
+  | { type: 'game'; id: GameId }
+  /** A round of a mini-game ended with this score. */
+  | { type: 'score'; game: GameId; score: number }
   | { type: 'sound'; name: SoundName };
 
 // ---------- Building blocks ----------

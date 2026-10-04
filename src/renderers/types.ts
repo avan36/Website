@@ -11,7 +11,10 @@ import type { RoomUI } from './room';
 
 export type ViewId = 'island' | 'map' | 'text' | 'list';
 
-export type SoundName = 'step' | 'tap' | 'pop' | 'land' | 'chime' | 'bell' | 'whoosh' | 'jump' | 'jump2' | 'splash' | 'swim' | 'spray' | 'beep' | 'go';
+export type SoundName =
+  | 'step' | 'tap' | 'pop' | 'land' | 'chime' | 'bell' | 'whoosh' | 'jump' | 'jump2' | 'splash' | 'swim' | 'spray' | 'beep' | 'go'
+  // The mini-games.
+  | 'skip' | 'plonk' | 'boop' | 'thud' | 'perfect' | 'fanfare' | 'miss' | 'tick';
 
 export interface RendererContext {
   world: World;
