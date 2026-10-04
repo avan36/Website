@@ -37,7 +37,7 @@ import { clamp, easeInCubic, easeOutBack, easeOutCubic, lerp, rng } from '../uti
 /** Walk this close and the scroll is yours. */
 export const PICK_RANGE = 1.2;
 
-const PAPER = '#f1dfb6';
+const PAPER = '#f5e2b2';
 const R = 0.11; // roll radius
 const LEN = 0.84; // roll length
 
@@ -56,12 +56,12 @@ function paperGeometry() {
 /** The ribbon and its bow, in white so each instance can be tinted its place's color. */
 function ribbonGeometry() {
   const k = new Kit(62);
-  k.torus(R + 0.012, 0.018, '#ffffff', { r: [0, Math.PI / 2, 0], jitter: 0 }, 5, 14);
+  k.cyl(R + 0.014, R + 0.014, 0.07, '#ffffff', { r: [0, 0, Math.PI / 2], jitter: 0 }, 10);
   for (const s of [-1, 1]) {
-    k.torus(0.04, 0.014, '#ffffff', { p: [s * 0.04, R + 0.05, 0.01], r: [0.2, Math.PI / 2, s * 0.6], jitter: 0 }, 4, 10);
-    k.box(0.026, 0.13, 0.008, '#ffffff', { p: [s * 0.03, R - 0.02, R + 0.04], r: [0.5, 0, s * 0.25], jitter: 0 });
+    k.torus(0.055, 0.02, '#ffffff', { p: [s * 0.055, R + 0.06, 0.01], r: [0.2, Math.PI / 2, s * 0.6], jitter: 0 }, 4, 10);
+    k.box(0.04, 0.17, 0.01, '#ffffff', { p: [s * 0.04, R - 0.03, R + 0.05], r: [0.5, 0, s * 0.3], jitter: 0 });
   }
-  k.sphere(0.024, '#ffffff', { p: [0, R + 0.03, 0.01], jitter: 0 }, 6, 4);
+  k.sphere(0.032, '#ffffff', { p: [0, R + 0.035, 0.01], jitter: 0 }, 6, 4);
   return k.geometry();
 }
 

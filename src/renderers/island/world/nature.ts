@@ -72,21 +72,25 @@ export function swayMaterials(uniforms: SharedUniforms, sway: number, speed?: nu
 
 // ---------- Prop geometry ----------
 
-function palmGeometry() {
-  const k = new Kit(3);
+/** The palm's trunk: eight segments, leaning more toward the top. */
+function palmTrunk(each: (x: number, y: number, r: number, h: number, lean: number, i: number) => void = () => {}) {
   const segs = 8;
   let x = 0;
   let y = 0;
   for (let i = 0; i < segs; i++) {
     const t = i / segs;
-    const r = 0.25 - t * 0.1;
     const h = 0.62;
     const lean = 0.05 + t * t * 0.32;
-    k.cyl(r * 0.9, r, h, i % 2 ? '#b38552' : '#9b6f42', { p: [x, y + h / 2, 0], r: [0, 0, -lean] }, 7);
+    each(x, y, 0.25 - t * 0.1, h, lean, i);
     x += Math.sin(lean) * h;
     y += Math.cos(lean) * h * 0.97;
   }
-  const top = [x, y, 0] as const;
+  return [x, y, 0] as const;
+}
+
+function palmGeometry() {
+  const k = new Kit(3);
+  const top = palmTrunk((x, y, r, h, lean, i) => k.cyl(r * 0.9, r, h, i % 2 ? '#b38552' : '#9b6f42', { p: [x, y + h / 2, 0], r: [0, 0, -lean] }, 7));
   const greens = ['#3fa64a', '#4fb84f', '#37963f', '#5cc457'];
   const fronds = 8;
   for (let i = 0; i < fronds; i++) {
@@ -233,6 +237,64 @@ function instanced(geo: BufferGeometry, mats: { mat: MeshStandardMaterial; depth
   return mesh;
 }
 
+// ---------- Keeping the lost words in view ----------
+
+export const SPOTS = [...WORDS, ...ACTIVITIES];
+/** The camera's pitches: landscape, square and portrait screens, and leaning in near a place. */
+const PITCHES = [0.6, 0.68, 0.74, 0.86];
+
+/**
+ * Does a prop's crown (a ball at local (x, y), radius r, before its spin and
+ * scale) sit on the camera's line of sight to a spot? The camera looks from
+ * the south (+z), so that's anything tall just south of it.
+ */
+export function hides(spot: { x: number; z: number }, p: Spot, crown: { x: number; y: number; r: number }) {
+  const cx = p.x + Math.cos(p.rot) * crown.x * p.s;
+  const cz = p.z - Math.sin(p.rot) * crown.x * p.s;
+  const vx = cx - spot.x;
+  const vy = p.y + crown.y * p.s - (heightAt(spot.x, spot.z) + 0.15);
+  const vz = cz - spot.z;
+  const r2 = (crown.r * p.s) ** 2;
+  for (const pitch of PITCHES) {
+    const dy = Math.sin(pitch);
+    const dz = Math.cos(pitch);
+    const t = vy * dy + vz * dz;
+    if (t > 0 && vx * vx + (vy - t * dy) ** 2 + (vz - t * dz) ** 2 < r2) return true;
+  }
+  return false;
+}
+
+type Crown = { x: number; y: number; r: number };
+type Accept = (x: number, z: number, h: number) => boolean;
+
+/** Clear of every spot: not within r of it, and not hiding it from the camera. */
+const clearOf = (p: Spot, r: number, crown?: Crown) => SPOTS.every((k) => (p.x - k.x) ** 2 + (p.z - k.z) ** 2 > r * r && !(crown && hides(k, p, crown)));
+
+/**
+ * Keep props clear of the spots. One in the way tries a few steps east and
+ * west (across the camera's line of sight) onto ground it would have chosen
+ * anyway, away from its neighbours; with nowhere to go, it's left out.
+ */
+function settle(list: Spot[], others: Spot[], r: number, crown?: Crown, ok?: Accept, gap = 0) {
+  const out: Spot[] = [];
+  for (const p of list) {
+    if (clearOf(p, r, crown)) {
+      out.push(p);
+      continue;
+    }
+    if (!ok) continue;
+    for (const dx of [1.2, -1.2, 2, -2, 2.8, -2.8, 3.6, -3.6]) {
+      const q = { ...p, x: p.x + dx, y: heightAt(p.x + dx, p.z) };
+      const roomy = [...list, ...others].every((o) => o === p || (o.x - q.x) ** 2 + (o.z - q.z) ** 2 > gap * gap);
+      if (ok(q.x, q.z, q.y) && clearOf(q, r, crown) && roomy) {
+        out.push(q);
+        break;
+      }
+    }
+  }
+  return out;
+}
+
 export function buildNature(uniforms: SharedUniforms, lite = false) {
   const group = new Group();
   group.name = 'nature';
@@ -247,55 +309,33 @@ export function buildNature(uniforms: SharedUniforms, lite = false) {
     (Math.abs(x) < 6 && z > 0 && z < 16) ||
     Math.hypot(x - PLACES.find((p) => p.kind === 'tree')!.x, z - PLACES.find((p) => p.kind === 'tree')!.z) < 8.5;
 
-  let palms = scatter(
-    17,
-    rand,
-    (x, z, h) => h > 0.42 && h < 1.05 && rockiness(x, z) < 0.25 && isOpenGround(x, z, 0.6) && !(z > 10 && Math.abs(x - 2) < 7),
-    3.4,
-    all,
-    [0.85, 1.15],
-  );
+  const palmOk: Accept = (x, z, h) => h > 0.42 && h < 1.05 && rockiness(x, z) < 0.25 && isOpenGround(x, z, 0.6) && !(z > 10 && Math.abs(x - 2) < 7);
+  const treeOk: Accept = (x, z, h) => h > 1.0 && rockiness(x, z) < 0.3 && isOpenGround(x, z, 1.4) && !nearPlaza(x, z) && !blocksView(x, z);
+  const pineOk: Accept = (x, z, h) => h > 1.0 && z < -2 && rockiness(x, z) < 0.5 && isOpenGround(x, z, 1.2) && !blocksView(x, z);
+  const bushOk: Accept = (x, z, h) => h > 0.75 && isOpenGround(x, z, 0.4) && !nearPlaza(x, z);
+  const rockOk: Accept = (x, z, h) => (h > 0.0 && h < 0.5 && isOpenGround(x, z, 0)) || (rockiness(x, z) > 0.5 && h > 0.2 && isOpenGround(x, z, -0.6));
+  let palms = scatter(17, rand, palmOk, 3.4, all, [0.85, 1.15]);
   all.push(...palms);
-  let trees = scatter(
-    16,
-    rand,
-    (x, z, h) => h > 1.0 && rockiness(x, z) < 0.3 && isOpenGround(x, z, 1.4) && !nearPlaza(x, z) && !blocksView(x, z),
-    4.2,
-    all,
-  );
+  let trees = scatter(16, rand, treeOk, 4.2, all);
   all.push(...trees);
-  let pines = scatter(9, rand, (x, z, h) => h > 1.0 && z < -2 && rockiness(x, z) < 0.5 && isOpenGround(x, z, 1.2) && !blocksView(x, z), 3, all, [0.9, 1.3]);
+  let pines = scatter(9, rand, pineOk, 3, all, [0.9, 1.3]);
   all.push(...pines);
-  let bushes = scatter(30, rand, (x, z, h) => h > 0.75 && isOpenGround(x, z, 0.4) && !nearPlaza(x, z), 1.8, all, [0.7, 1.3]);
-  let rocks = scatter(
-    34,
-    rand,
-    (x, z, h) => (h > 0.0 && h < 0.5 && isOpenGround(x, z, 0)) || (rockiness(x, z) > 0.5 && h > 0.2 && isOpenGround(x, z, -0.6)),
-    1.5,
-    all,
-    [0.6, 1.5],
-  );
+  let bushes = scatter(30, rand, bushOk, 1.8, all, [0.7, 1.3]);
+  let rocks = scatter(34, rand, rockOk, 1.5, all, [0.6, 1.5]);
   let tufts = scatter(lite ? 120 : 230, rand, (x, z, h) => h > 0.7 && isOpenGround(x, z, -0.7), 0.6, [], [0.8, 1.4]);
   let flowers = scatter(lite ? 80 : 120, rand, (x, z, h) => h > 0.85 && isOpenGround(x, z, -0.5) && rockiness(x, z) < 0.3, 0.45, [], [0.8, 1.25]);
 
-  // Nothing may bury a lost word or the fishing spot, or stand just south of
-  // one where it would hide it from the camera. Filtered after scattering, so
-  // the rest of the island keeps exactly the layout it always had.
-  const spots = [...WORDS, ...ACTIVITIES];
-  const clear = (r: number, reach = 0, half = 0) => (s: Spot) =>
-    spots.every((k) => {
-      const dx = s.x - k.x;
-      const dz = s.z - k.z;
-      return dx * dx + dz * dz > r * r && !(dz > 0 && dz < reach && Math.abs(dx) < half);
-    });
-  const keep = <T extends Spot>(list: T[], r: number, reach?: number, half?: number) => list.filter(clear(r, reach, half));
-  palms = keep(palms, 2.6, 9.5, 3.2);
-  trees = keep(trees, 2.2, 6, 2.2);
-  pines = keep(pines, 2, 5, 1.8);
-  bushes = keep(bushes, 1.5, 1.6, 1);
-  rocks = keep(rocks, 1.2, 1, 0.8);
-  tufts = keep(tufts, 0.5);
-  flowers = keep(flowers, 0.45);
+  // Nothing may bury a lost word or the fishing spot, or hide it from the
+  // camera. Settled after scattering, so the rest of the island keeps exactly
+  // the layout it always had: a prop in the way steps aside if there's room.
+  const [topX, topY] = palmTrunk();
+  palms = settle(palms, all, 1.6, { x: topX, y: topY - 0.3, r: 1.7 }, palmOk, 3);
+  trees = settle(trees, all, 1.6, { x: 0, y: 2.6, r: 1.5 }, treeOk, 3.5);
+  pines = settle(pines, all, 1.5, { x: 0, y: 1.9, r: 1.1 }, pineOk, 2.6);
+  bushes = settle(bushes, all, 1.2, { x: 0, y: 0.35, r: 0.75 }, bushOk, 1.6);
+  rocks = settle(rocks, all, 1.0, { x: 0, y: 0.2, r: 0.55 }, rockOk, 1.3);
+  tufts = settle(tufts, [], 0.5);
+  flowers = settle(flowers, [], 0.45);
 
   const palmM = swayMaterials(uniforms, 0.0045, 1.1);
   const treeM = swayMaterials(uniforms, 0.006, 1.3);

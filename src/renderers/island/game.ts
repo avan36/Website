@@ -78,6 +78,7 @@ export interface GameHandle {
     screen: (id: string) => { x: number; y: number } | null;
     /** Every lost word: where it lies, whether it's showing, and where it is on screen. */
     words: () => { id: string; x: number; z: number; shown: boolean; screen: { x: number; y: number } }[];
+    camera: () => { position: number[]; target: number[]; dist: number; pitch: number };
     /** Fishing: the phase, and a press of the fishing key. */
     fishing: () => FishPhase | null;
     fish: () => void;
@@ -809,7 +810,8 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
 
   const frame = (now: number) => {
     raf = requestAnimationFrame(frame);
-    const raw = Math.min((now - last) / 1000, 0.1);
+    // A frame stamped before start() (a long first render) must not run time backwards.
+    const raw = clamp((now - last) / 1000, 0, 0.1);
     const dt = Math.min(raw, 1 / 20);
     last = now;
     frames++;
@@ -1027,6 +1029,7 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
           const v = new Vector3(w.x, groundAt(w.x, w.z) + 0.15, w.z).project(camera);
           return { id: w.id, x: w.x, z: w.z, shown: !store.has(w.id), screen: { x: (v.x * 0.5 + 0.5) * viewW, y: (-v.y * 0.5 + 0.5) * viewH } };
         }),
+      camera: () => ({ position: camera.position.toArray(), target: rig.target.toArray(), dist: rig.dist, pitch: rig.pitch }),
       fishing: () => fishing?.phase ?? null,
       fish: () => void fishAction(),
       night: () => night.amount,
