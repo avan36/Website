@@ -80,13 +80,14 @@ export const ScenerySchema = z
   })
   .strict();
 
-export const ARCHETYPES = ['plaza', 'cabin', 'taproom', 'tree', 'library', 'lighthouse', 'schoolhouse', 'depot', 'pier', 'bottle'] as const;
+export const ARCHETYPES = ['plaza', 'cabin', 'taproom', 'tree', 'library', 'lighthouse', 'schoolhouse', 'depot', 'workshop', 'pier', 'bottle'] as const;
 
 export const PlaceSchema = z
   .object({
     id: Id,
-    /** hub: a crossroads with nothing to open. project/writing/contact: opens a page. */
-    kind: z.enum(['hub', 'project', 'writing', 'contact']),
+    /** hub: a crossroads with nothing to open. project/writing/contact: opens a page.
+     *  colophon: opens the page about how the site itself was made. */
+    kind: z.enum(['hub', 'project', 'writing', 'contact', 'colophon']),
     /** What it physically is. Each renderer maps archetypes to its own art. */
     archetype: z.enum(ARCHETYPES),
     /** The thing it stands for, e.g. "busy beer". */

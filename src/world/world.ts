@@ -153,6 +153,30 @@ const places: PlaceInput[] = [
     ],
   }),
   {
+    id: 'workshop',
+    kind: 'colophon',
+    archetype: 'workshop',
+    name: 'How it was built',
+    title: 'The workshop',
+    blurb: 'Where the island was made, and how.',
+    href: '/colophon',
+    color: '#d97757',
+    at: { x: 24, z: 1.5 },
+    footprint: 2.2,
+    clearing: 3.5,
+    aliases: ['workshop', 'shed', 'work shed', 'colophon', 'how it was built', 'how it works', 'making of', 'behind the scenes', 'source'],
+    description:
+      "A timber workshop inside the railway loop, with a big window on the front and the door propped open. Out front, a workbench stands between two sawhorses, covered in blueprints and offcuts. Through the window a monitor glows, a cursor blinking on its screen. This is where the island was made, and the notes on how are pinned up inside.",
+    scenery: [
+      { id: 'workbench', names: ['workbench', 'bench', 'tools', 'vice'], description: 'A heavy bench, scarred and pencil-marked, with a vice at one end. Half a lighthouse is clamped in it, waiting for its stripes.' },
+      { id: 'blueprints', names: ['blueprints', 'blueprint', 'plans', 'drawings', 'map'], description: 'Plans for the whole island, drawn from above in blue. Every place is a circle with a note beside it, and every path is a curve with a number on it. Nothing here says how anything looks, only where it is and what it is.' },
+      { id: 'terminal', names: ['terminal', 'monitor', 'screen', 'computer', 'cursor', 'window'], description: 'Through the window, a monitor full of green text. The last line says the build passed. Below it, the cursor blinks, waiting for the next thing to make.' },
+      { id: 'pinboard', names: ['pinboard', 'prompts', 'notes', 'pins', 'cork board', 'corkboard'], description: 'A cork board crowded with index cards, each one a request in handwriting. "Put a little train on the island." "Give the explorer a wardrobe." "Hide eight lost words." Some are crossed out, which seems to mean done.' },
+      { id: 'sawdust', names: ['sawdust', 'shavings', 'floor', 'offcuts'], description: 'Curls of sawdust and offcuts of low-poly timber, all at slightly different angles. Somebody sweeps up now and then, but not often.' },
+      { id: 'sawhorses', names: ['sawhorses', 'sawhorse', 'trestles', 'plank'], description: 'Two sawhorses with a plank across them, marked out for cutting. Measure twice, build once, run the tests three times.' },
+    ],
+  },
+  {
     id: 'blog',
     kind: 'writing',
     archetype: 'pier',
@@ -209,6 +233,7 @@ const routes: WorldInput['routes'] = [
   { from: 'plaza', to: 'etymon', bend: -0.12 },
   { from: 'plaza', to: 'privacy-research', bend: 0.12 },
   { from: 'plaza', to: 'blog', bend: -0.12 },
+  { from: 'plaza', to: 'workshop', bend: -0.05 },
   // Unpaved: shortcuts across the grass, so neighbours connect directly.
   { from: 'plaza', to: 'contact', paved: false },
   { from: 'middle-place', to: 'etymon', paved: false },
@@ -217,6 +242,8 @@ const routes: WorldInput['routes'] = [
   { from: 'quizmate', to: 'contact', paved: false },
   { from: 'busy-beer', to: 'eqoscan', paved: false },
   { from: 'eqoscan', to: 'privacy-research', paved: false },
+  { from: 'workshop', to: 'busy-beer', paved: false },
+  { from: 'workshop', to: 'eqoscan', paved: false },
 ];
 
 // Eight words English lost, from Etymon's museum of lost words, each hidden
@@ -406,6 +433,15 @@ const outfits: WorldInput['outfits'] = [
     hint: 'The depot crew wear something bright. Ask at the conveyor.',
   },
   {
+    id: 'tool-belt',
+    name: 'tool belt',
+    slot: 'body',
+    place: 'workshop',
+    color: '#8a5a2b',
+    description: "A leather tool belt from the workshop, with a hammer, a tape measure and a carpenter's pencil in its pockets. Everything you need to build an island.",
+    hint: 'Somebody hung a belt of tools by the workbench, inside the railway loop.',
+  },
+  {
     id: 'fishing-hat',
     name: 'fishing hat',
     slot: 'head',
@@ -437,11 +473,10 @@ const geography: WorldInput['geography'] = {
   headlands: [{ toward: 'privacy-research', reach: 7.5, spread: 0.17, rocks: 0.24 }],
   hills: [{ at: 'map-of-evolution', height: 1.1, spread: 5.5 }],
   pier: { x: 4, start: 16.9, end: 28, width: 1.9, deck: 0.82 },
-  // New land to the east: room for the railway loop, the quay and a spare plot.
+  // New land to the east: room for the railway loop, the quay and the workshop inside it.
   shores: [{ toward: { x: 1, z: 0.1 }, reach: 13, spread: 0.45 }],
   railway: { center: { x: 24, z: 1.5 }, rx: 6.5, rz: 9, square: 3.2, bed: 1.3, station: 0.25 },
   quay: { x0: 24, z0: 14.2, x1: 30.5, z1: 19.8, deck: 0.7, bus: { x: 27.4, z: 17.2 }, faces: Math.PI / 2 },
-  plots: [{ id: 'workshop', at: { x: 24, z: 1.5 }, clearing: 3.5 }],
   spawn: { x: 0, z: 7.5 },
 };
 
