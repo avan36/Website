@@ -153,9 +153,9 @@ export function createUI(world: World, store: WorldStore, announce: (s: string) 
 
   /**
    * The portal's menu: every way of seeing the island, the 3D island first and
-   * biggest, the text adventure and the raw data tucked underneath. Resolves
+   * biggest, the text adventure and the blueprint tucked underneath. Resolves
    * with the view picked, or null if the visitor closed it (or picked the view
-   * they're already in). The data link is a plain link to world.json.
+   * they're already in). The blueprint is a plain link to /blueprint.
    */
   function choosePortal(current: ViewId): Promise<ViewId | null> {
     const here = (v: ViewId) => (v === current ? ' is-here' : '');
@@ -177,7 +177,7 @@ export function createUI(world: World, store: WorldStore, announce: (s: string) 
          ${mid('map', 'The pixel map', 'Top-down, in pixel art')}
          ${mid('list', 'The list', 'Just the work, plainly')}
        </div>
-       <div class="w-portal__extra"><span>Or</span>${small('text', 'Text adventure')}<a class="w-portal__more" href="/world.json" target="_blank" rel="noopener">${ICON(VIEW_ICONS.data, 16)}The raw data</a></div>`,
+       <div class="w-portal__extra"><span>Or</span>${small('text', 'Text adventure')}<a class="w-portal__more" href="/blueprint">${ICON(VIEW_ICONS.data, 16)}Under the hood</a></div>`,
       '#8b5cf6',
     );
     announce('The portal. Where to? Pick a way of seeing the island.');

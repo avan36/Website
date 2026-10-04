@@ -9,6 +9,7 @@ const PAGES = [
   '/?view=list',
   '/about',
   '/colophon',
+  '/blueprint',
   '/blog',
   '/contact',
   '/work/middle-place',

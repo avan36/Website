@@ -1,0 +1,122 @@
+---
+// The island as a blueprint: coastline, contours, paths and places, drawn at
+// build time from the same geometry the 3D island and the pixel map use.
+// Anything with a data-key can be picked; the page's script does the rest.
+import type { World } from '../../world/schema';
+import type { Drawing } from './lib';
+import { num } from './lib';
+
+interface Props {
+  world: World;
+  draw: Drawing;
+}
+const { world, draw } = Astro.props;
+const place = (id: string) => world.places.find((p) => p.id === id);
+const titleOf = (id: string) => place(id)?.title ?? id;
+
+// A four-pointed star for each hidden word, centred on 0,0.
+const STAR = 'M0 -1.25L.32 -.32L1.25 0L.32 .32L0 1.25L-.32 .32L-1.25 0L-.32 -.32Z';
+const { box } = draw;
+const scaleAt = { x: box.x0 + 3, z: box.z1 - 3 };
+const north = { x: box.x0 + 5, z: box.z0 + 6 };
+---
+<svg
+  class="bp-svg"
+  viewBox={draw.viewBox}
+  role="group"
+  aria-label="A blueprint of the island. Use the arrow keys to move between places, hidden words and activities."
+  data-bp-svg
+>
+  <defs>
+    <pattern id="bp-grid-minor" width="1" height="1" patternUnits="userSpaceOnUse" x="0" y="0">
+      <path d="M1 0H0V1" fill="none" class="bp-grid bp-grid--minor" />
+    </pattern>
+    <pattern id="bp-grid" width="5" height="5" patternUnits="userSpaceOnUse" x="0" y="0">
+      <rect width="5" height="5" fill="url(#bp-grid-minor)" />
+      <path d="M5 0H0V5" fill="none" class="bp-grid bp-grid--major" />
+    </pattern>
+  </defs>
+
+  <rect x={box.x0} y={box.z0} width={box.x1 - box.x0} height={box.z1 - box.z0} class="bp-paper" />
+  <rect x={box.x0} y={box.z0} width={box.x1 - box.x0} height={box.z1 - box.z0} fill="url(#bp-grid)" />
+
+  <path d={draw.swim} class="bp-swim" data-layer="coast"><title>How far out you can swim</title></path>
+  <path d={draw.coast} class="bp-coast" data-layer="coast" />
+  {draw.contours.map((c) => <path d={c.d} class="bp-contour" data-h={c.h} />)}
+
+  {draw.hills.map((h, i) => h.pos && (
+    <g class="bp-geo" data-key={`geo:hill:${i}`}>
+      <circle cx={h.pos.x} cy={h.pos.z} r={h.spread} class="bp-hill" />
+    </g>
+  ))}
+  {draw.headlands.map((h, i) => (
+    <g class="bp-geo" data-key={`geo:headland:${i}`}>
+      <circle cx={h.tip.x} cy={h.tip.z} r={h.reach / 2} class="bp-hill" />
+    </g>
+  ))}
+
+  <g class="bp-geo" data-key="geo:pier">
+    <rect x={draw.pier.x - draw.pier.width / 2} y={draw.pier.start} width={draw.pier.width} height={draw.pier.end - draw.pier.start} class="bp-pier" />
+  </g>
+
+  <g class="bp-routes">
+    {draw.routes.map((r, n) => r.d && (
+      <path
+        d={r.d}
+        class:list={['bp-route', r.paved ? 'bp-route--paved' : 'bp-route--shortcut']}
+        pathLength={r.paved ? 1 : undefined}
+        style={`--i:${n}`}
+        data-key={`route:${r.i}`}
+        data-rel={`place:${r.from} place:${r.to}`}
+      ><title>{titleOf(r.from)} to {titleOf(r.to)}</title></path>
+    ))}
+  </g>
+
+  <g class="bp-places">
+    {draw.places.map((d) => {
+      const p = place(d.id)!;
+      return (
+        <g class="bp-mark bp-mark--place" data-key={`place:${p.id}`} style={`--c:${p.color}`} tabindex="-1" role="button" aria-label={`${p.title}, ${p.kind}`}>
+          {p.clearing > 0 && <circle cx={p.at.x} cy={p.at.z} r={p.clearing} class="bp-clearing" />}
+          {p.kind !== 'hub' && <path d={`M${num(p.at.x)} ${num(p.at.z)}L${num(d.door.x)} ${num(d.door.z)}`} class="bp-doorline" />}
+          {p.kind !== 'hub' && <circle cx={d.door.x} cy={d.door.z} r="0.32" class="bp-door" />}
+          <circle cx={p.at.x} cy={p.at.z} r={d.r + 1.4} class="bp-hit" />
+          <circle cx={p.at.x} cy={p.at.z} r={d.r} class="bp-dot" />
+          <text x={d.label.x} y={d.label.y} text-anchor={d.label.anchor} class="bp-label">{p.name}</text>
+        </g>
+      );
+    })}
+  </g>
+
+  {world.activities.map((a) => a.at && (
+    <g class="bp-mark bp-mark--activity" data-key={`activity:${a.id}`} tabindex="-1" role="button" aria-label={`Activity: ${a.name}`}>
+      <circle cx={a.at.x} cy={a.at.z} r="1.9" class="bp-hit" />
+      <circle cx={a.at.x} cy={a.at.z} r="0.85" class="bp-activity" />
+      <circle cx={a.at.x} cy={a.at.z} r="0.3" class="bp-activity bp-activity--core" />
+    </g>
+  ))}
+
+  {world.lostWords.map((w) => w.at && (
+    <g class="bp-mark bp-mark--word" data-key={`word:${w.id}`} style={`--c:${place(w.place)?.color ?? '#ffffff'}`} tabindex="-1" role="button" aria-label={`A lost word, hidden at ${titleOf(w.place)}`}>
+      <circle cx={w.at.x} cy={w.at.z} r="1.7" class="bp-hit" />
+      <path d={STAR} transform={`translate(${num(w.at.x)} ${num(w.at.z)})`} class="bp-star" />
+    </g>
+  ))}
+
+  <g class="bp-mark bp-mark--spawn" data-key="geo:spawn" tabindex="-1" role="button" aria-label="Where a new visitor arrives">
+    <circle cx={draw.spawn.x} cy={draw.spawn.z} r="1.5" class="bp-hit" />
+    <path d={`M${draw.spawn.x - 0.6} ${draw.spawn.z - 0.6}l1.2 1.2m0 -1.2l-1.2 1.2`} class="bp-spawn" />
+  </g>
+
+  <g class="bp-furniture" aria-hidden="true">
+    <g transform={`translate(${north.x} ${north.z})`}>
+      <circle r="3" class="bp-rose" />
+      <path d="M0 -2.6L.8 .6L0 0L-.8 .6Z" class="bp-north" />
+      <text y="-3.6" class="bp-mini">N</text>
+    </g>
+    <g transform={`translate(${scaleAt.x} ${scaleAt.z})`}>
+      <path d="M0 0h10M0 -.5v1M5 -.35v.7M10 -.5v1" class="bp-scale" />
+      <text x="5" y="-1.2" class="bp-mini">10 m</text>
+    </g>
+  </g>
+</svg>
