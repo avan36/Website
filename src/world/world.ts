@@ -15,8 +15,485 @@ type PlaceInput = WorldInput['places'][number];
 function projectPlace(slug: string, place: Omit<PlaceInput, 'id' | 'kind' | 'project' | 'name' | 'blurb' | 'href' | 'color'>): PlaceInput {
   const p = projects.find((x) => x.slug === slug);
   if (!p) throw new Error(`world.ts: no project called "${slug}" in src/data/projects.ts`);
-  return { id: slug, kind: 'project', project: slug, name: p.name, blurb: p.blurb, href: `/work/${slug}`, color: p.hex, ...place };
+  const inside = interiors[slug];
+  return { id: slug, kind: 'project', project: slug, name: p.name, blurb: p.blurb, href: `/work/${slug}`, color: p.hex, ...place, ...(inside ? { interior: inside } : {}) };
 }
+
+// ---------- Inside ----------
+// Every building has a room you can walk into, with a few things to look at
+// and an islander or two to talk to. The islanders are made up; what they say
+// about the work is only ever what the work's own page already says, and the
+// links go to the real thing. Rooms are in their own units: (0, 0) is the
+// middle of the floor, the door is in the middle of the front (+z) wall.
+
+type InteriorInput = NonNullable<PlaceInput['interior']>;
+const APP_STORE = (slug: string) => projects.find((p) => p.slug === slug)?.links.find((l) => l.kind === 'appstore')?.href ?? `/work/${slug}`;
+const see = (slug: string, label = `See ${projects.find((p) => p.slug === slug)?.name ?? 'it'}`) => ({ label, href: `/work/${slug}` });
+const ABOUT = { label: 'About Ambrose', href: '/about' };
+
+const interiors: Record<string, InteriorInput> = {
+  'middle-place': {
+    size: { w: 9, d: 7 },
+    description:
+      'Inside, the cabin is all warm wood and lamplight. A fire crackles in the stone hearth, a kettle hums on its hook, and a writing desk sits under the window, angled toward the sea.',
+    things: [
+      {
+        id: 'desk',
+        names: ['writing desk', 'desk', 'journal', 'pencil'],
+        prop: 'desk',
+        at: { x: 2.8, z: -1.2 },
+        description:
+          'A writing desk under the window, with a pencil worn down to a stub and a teal journal lying open. It is the kind of journal that answers back: it remembers the people, the patterns, and where you left off.',
+        link: see('middle-place'),
+      },
+      {
+        id: 'hearth',
+        names: ['hearth', 'fire', 'fireplace', 'kettle'],
+        prop: 'hearth',
+        at: { x: -2.4, z: -2.9 },
+        description: "A stone hearth with a kettle on the hook. The fire pops now and then, as if it agrees with something you didn't say out loud.",
+      },
+      {
+        id: 'picture',
+        names: ['picture', 'frame', 'painting', 'stitching'],
+        prop: 'frame',
+        at: { x: 0.6, z: -2.9 },
+        description:
+          'A framed picture of a phone screen: one long, continuous chat with a journal, picking up exactly where it left off. Someone has stitched a line underneath: never start the story over.',
+        link: { label: 'Visit middleplace.app', href: 'https://middleplace.app' },
+      },
+    ],
+    people: [
+      {
+        id: 'juniper',
+        name: 'Juniper',
+        role: 'the caretaker',
+        aliases: ['caretaker'],
+        looks: 'A round little islander in a mustard scarf, poking the fire with great seriousness.',
+        color: '#e9b949',
+        at: { x: -1.4, z: 0.2 },
+        greeting: "Oh, hello! Come in, come in, mind the kettle. I look after the cabin. Ask me anything, I've had a lot of quiet to think.",
+        topics: [
+          {
+            id: 'journal',
+            names: ['the journal', 'journal', 'middle place', 'app'],
+            reply: "That's middle place: a journal that answers you. It remembers the people, the patterns, and where you left off, so you never start the story over.",
+            link: see('middle-place'),
+          },
+          {
+            id: 'privacy',
+            names: ['privacy', 'secrets', 'data', 'icloud'],
+            reply: "Everything stays on your device and in your own iCloud. No accounts, no tracking, nothing sold. I keep my own secrets in the woodpile, but that's a different system.",
+            link: see('middle-place', 'Read more'),
+          },
+          {
+            id: 'get',
+            names: ['getting it', 'app store', 'download', 'get it'],
+            reply: "It's on the App Store, for iPhone, iPad and Mac. Take it somewhere cozy.",
+            link: { label: 'Download on the App Store', href: APP_STORE('middle-place') },
+          },
+          {
+            id: 'fire',
+            names: ['the fire', 'fire', 'kettle', 'tea'],
+            reply: "Oak, mostly. It's been going since I got here, and I'm not about to be the one who lets it out. Tea's nearly ready, if you're staying.",
+          },
+        ],
+        farewell: "Mind the step on your way out. Come back when you've got something to write down.",
+      },
+    ],
+  },
+  'busy-beer': {
+    size: { w: 9, d: 7 },
+    description:
+      'It is warm in here, and loud in a friendly way. A long counter runs down one side under a row of brass taps, a chalkboard menu hangs on the back wall, and the whole place smells faintly of hops and toast.',
+    things: [
+      {
+        id: 'counter',
+        names: ['counter', 'taps', 'tap', 'bar'],
+        prop: 'counter',
+        at: { x: 2.7, z: -1.3 },
+        description: 'A long oak counter with a row of brass taps, polished to a shine. One handle has been carved into the shape of a tiny phone, pointed at the menu.',
+      },
+      {
+        id: 'menu',
+        names: ['menu', 'chalkboard', 'board', 'drinks'],
+        prop: 'board',
+        at: { x: -1.2, z: -2.9 },
+        description:
+          'A chalkboard menu of every drink on tap, each with a score chalked beside it, ranked from most to least likely to make you happy. You, specifically.',
+        link: see('busy-beer'),
+      },
+      {
+        id: 'chart',
+        names: ['chart', 'palate', 'poster', 'flavor chart'],
+        prop: 'frame',
+        at: { x: -3.5, z: -2.9 },
+        description: "A hand-drawn chart pinned up by the stools: someone's palate, mapped across flavor axes, with a dot for every drink they've rated.",
+        link: see('busy-beer'),
+      },
+    ],
+    people: [
+      {
+        id: 'otto',
+        name: 'Otto',
+        role: 'the barkeep',
+        aliases: ['barkeep', 'bartender', 'barman'],
+        looks: 'A broad, cheerful islander in a brown apron, drying the same mug for the fourth time.',
+        color: '#9a6232',
+        at: { x: 0.9, z: 0.3 },
+        greeting: "Evening! Or morning. It's always a good time in here. What can I get you? Mostly I get people talking.",
+        topics: [
+          {
+            id: 'app',
+            names: ['busy beer', 'the app', 'app', 'taste'],
+            reply: 'busy beer is an AI taste companion for everything you drink. Rate what you try, and it maps your palate across flavor axes. Puts me out of a job, a little.',
+            link: see('busy-beer'),
+          },
+          {
+            id: 'scanner',
+            names: ['the menu scanner', 'menu scanner', 'scanner', 'menu'],
+            reply: "Point the menu scanner at any drinks list and it shows what's actually worth ordering, ranked against your own taste. No more pointing at the third one down and hoping.",
+            link: see('busy-beer'),
+          },
+          {
+            id: 'get',
+            names: ['getting it', 'app store', 'download', 'get it'],
+            reply: "It's on the App Store, for iPhone. Cheers to that.",
+            link: { label: 'Download on the App Store', href: APP_STORE('busy-beer') },
+          },
+          {
+            id: 'sign',
+            names: ['the sign', 'sign', 'motto'],
+            reply: "Know what you'll love before you order. I painted it myself. Took three tries to fit the apostrophe.",
+          },
+        ],
+        farewell: "Mind how you go. The stools will be here.",
+      },
+    ],
+  },
+  etymon: {
+    size: { w: 10, d: 7 },
+    description:
+      'Inside it is hushed and smells of old paper. Shelves climb to the ceiling, a great map hangs on the back wall with a red thread pinned across it, and a few loose letters drift lazily under the reading lamps.',
+    things: [
+      {
+        id: 'shelves',
+        names: ['shelves', 'bookshelf', 'books', 'shelf'],
+        prop: 'bookshelf',
+        at: { x: -3.4, z: -2.9 },
+        description: "Floor-to-ceiling dictionaries, most of them very old. One shelf is labeled Words We Lost, and it's mostly empty. They have a habit of wandering off.",
+        link: { label: 'Explore Etymon', href: 'https://avan36.github.io/Etymology/' },
+      },
+      {
+        id: 'map',
+        names: ['map', 'wall map', 'thread', 'red thread'],
+        prop: 'board',
+        at: { x: 0.2, z: -2.9 },
+        description: 'A wall map with a red thread pinned from city to city: one word followed stage by stage, from its ancient root all the way to the English you speak today.',
+        link: see('etymon'),
+      },
+      {
+        id: 'catalogue',
+        names: ['card catalogue', 'catalogue', 'catalog', 'drawers', 'cards'],
+        prop: 'cabinet',
+        at: { x: 3.4, z: -2.9 },
+        description: 'Hundreds of tiny drawers, one for every root. You slide one open: a single root, branching into dozens of modern words like a family tree.',
+        link: see('etymon'),
+      },
+    ],
+    people: [
+      {
+        id: 'mabel',
+        name: 'Mabel',
+        role: 'the librarian',
+        aliases: ['librarian'],
+        looks: 'A neat islander in a red cardigan, with spectacles on a chain and a pencil behind each ear.',
+        color: '#c0392b',
+        at: { x: -1.8, z: 0.2 },
+        greeting: "Welcome. Voices low, please, the words are resting. I'm the librarian. Is there something you'd like to look up?",
+        topics: [
+          {
+            id: 'etymon',
+            names: ['etymon', 'the library', 'library'],
+            reply: "Etymon is an interactive, animated history of English: where words came from, how they changed on the way, how popular they've been, and the words we lost.",
+            link: see('etymon'),
+          },
+          {
+            id: 'river',
+            names: ['the river', 'river', 'history'],
+            reply: 'Fifteen hundred years of vocabulary, flowing as one river, with a tributary for each source language. I could watch it for hours. I have.',
+            link: { label: 'Explore Etymon', href: 'https://avan36.github.io/Etymology/' },
+          },
+          {
+            id: 'lost',
+            names: ['lost words', 'lost', 'words', 'museum'],
+            reply: "There's a whole museum of words English dropped, like wanhope and overmorrow. A few of them got loose on this island. If you find one, keep it in your word hoard.",
+            link: see('etymon'),
+          },
+          {
+            id: 'missing',
+            names: ['missing words', 'missing', 'wiktionary'],
+            reply: "If a word isn't on my shelves, it gets looked up live on Wiktionary, in about 50 languages, and sent off on the same journey. Very modern of us.",
+            link: see('etymon'),
+          },
+        ],
+        farewell: 'Come back any time. And return your words on time.',
+      },
+      {
+        id: 'pip',
+        name: 'Pip',
+        role: 'a reader',
+        aliases: ['reader', 'scholar'],
+        looks: 'A small islander in a lavender scarf, buried in a dictionary bigger than they are.',
+        color: '#9b87d6',
+        at: { x: 2.0, z: 0.6 },
+        greeting: "Oh! Sorry, I was in the middle of a word. Did you know words travel? Further than you'd think.",
+        topics: [
+          {
+            id: 'disaster',
+            names: ['disaster', 'journeys', 'travel'],
+            reply: 'Take disaster. It came about 4,500 km to get here, from Proto-Indo-European through Ancient Greek, Italian and Middle French, then into English. Etymon draws the whole trip on a map.',
+            link: see('etymon'),
+          },
+          {
+            id: 'name',
+            names: ['names', 'the name', 'ambrose', 'his name'],
+            reply: 'The person who made this island has a name with a story too. Ambrose goes back to Greek ámbrotos, immortal, and a vannier is a basket-maker. So, roughly: an immortal basket-maker.',
+            link: ABOUT,
+          },
+        ],
+        farewell: "Bye! Mind the drifting letters. They're Old English, and very old.",
+      },
+    ],
+  },
+  'privacy-research': {
+    size: { w: 7, d: 6 },
+    description:
+      'You climb the spiral stairs into the lamp room. The great lens turns in the middle of it all, throwing light out over the water, and the wind hums against the glass.',
+    things: [
+      {
+        id: 'lens',
+        names: ['lens', 'lamp', 'light', 'beam'],
+        prop: 'lens',
+        at: { x: 0.4, z: -1.2 },
+        description: 'The great glass lens, ringed like an onion. It turns slowly, and every ship it passes gets one honest look.',
+      },
+      {
+        id: 'logbook',
+        names: ['logbook', 'log', 'desk', 'book'],
+        prop: 'desk',
+        at: { x: -2.1, z: 0.8 },
+        description:
+          "The keeper's logbook. Column after column of websites, more than 11,000 of them, each with a tick or a cross: did it honor a visitor's request not to sell their data?",
+        link: see('privacy-research', 'See the research'),
+      },
+      {
+        id: 'cat',
+        names: ['cat', 'ginger cat', 'optmeowt', 'collar'],
+        prop: 'cat',
+        at: { x: 2.2, z: 1.1 },
+        description:
+          "A ginger cat curled up on a coil of rope. The tag on its collar reads OptMeowt, after the browser extension that tells sites not to sell your data. It takes the job very seriously.",
+        link: { label: 'OptMeowt on GitHub', href: 'https://github.com/privacy-tech-lab/gpc-optmeowt' },
+      },
+    ],
+    people: [
+      {
+        id: 'morwenna',
+        name: 'Morwenna',
+        role: 'the lighthouse keeper',
+        aliases: ['keeper', 'lighthouse keeper'],
+        looks: 'A weathered islander in a navy coat, with a telescope under one arm and salt in her eyebrows.',
+        color: '#2c4a8a',
+        at: { x: -1.9, z: -1.3 },
+        greeting: 'Ahoy. Up you come. I keep the light, and the light keeps an eye on things. What can I tell you?',
+        topics: [
+          {
+            id: 'light',
+            names: ['the light', 'light', 'beam', 'ships'],
+            reply: "Every ship that passes, the beam checks whether it's flying the right flag. The crawler did the same for the web: it measured Global Privacy Control compliance across 11,000+ websites.",
+            link: see('privacy-research', 'See the research'),
+          },
+          {
+            id: 'optmeowt',
+            names: ['optmeowt', 'the extension', 'extension'],
+            reply: 'OptMeowt is a browser extension that automatically tells sites not to sell your data. The cat is named after it, not the other way round.',
+            link: see('privacy-research', 'See the research'),
+          },
+          {
+            id: 'results',
+            names: ['the results', 'results', 'dashboard', 'findings'],
+            reply: 'The findings live in an interactive public dashboard. I check it more often than the weather.',
+            link: { label: 'See the live results', href: 'https://gpc-web-ui.vercel.app' },
+          },
+          {
+            id: 'lab',
+            names: ['the lab', 'privacy tech lab', 'research', 'lab'],
+            reply: "Ambrose contributed to the Privacy Tech Lab's work on Global Privacy Control, research supported by the National Science Foundation. I just keep the lamp lit.",
+            link: see('privacy-research', 'See the research'),
+          },
+        ],
+        farewell: "Fair winds. Watch the third stair, it's always been a bit loose.",
+      },
+    ],
+  },
+  quizmate: {
+    size: { w: 9, d: 7 },
+    description:
+      "One room, rows of little desks, and the particular quiet of a class that's about to start. The chalkboard is full, the globe is slightly crooked, and there's a gold star stuck to the ceiling, somehow.",
+    things: [
+      {
+        id: 'chalkboard',
+        names: ['chalkboard', 'board', 'blackboard', 'lesson'],
+        prop: 'board',
+        at: { x: 0.8, z: -2.9 },
+        description: "Today's lesson and Friday's quiz, in tidy chalk. Every answer has a little note beside it: what was right, and what to look at again.",
+        link: see('quizmate'),
+      },
+      {
+        id: 'desks',
+        names: ['desks', 'desk', 'tablets', 'tablet'],
+        prop: 'desk',
+        at: { x: -2.6, z: -0.4 },
+        description: 'Rows of little desks, each with a tablet propped up and open to a quiz. Practice first, then take on the whole class.',
+        link: see('quizmate'),
+      },
+      {
+        id: 'globe',
+        names: ['globe', 'world'],
+        prop: 'globe',
+        at: { x: 3.1, z: -1.6 },
+        description: "A globe on a wooden stand. It spins a little too freely, and someone has drawn this island on it in pencil, roughly where it isn't.",
+      },
+    ],
+    people: [
+      {
+        id: 'hazel',
+        name: 'Ms Hazel',
+        role: 'the teacher',
+        aliases: ['hazel', 'teacher', 'miss hazel'],
+        looks: "A tall islander in a pink cardigan, holding a piece of chalk like a conductor's baton.",
+        color: '#e58fb5',
+        at: { x: -0.7, z: -1.2 },
+        greeting: "Ah, a new face! Take any seat. We were just about to have a quiz. Don't worry, everyone gets feedback here.",
+        topics: [
+          {
+            id: 'quizmate',
+            names: ['quizmate', 'the app', 'app', 'lessons'],
+            reply: 'QuizMate is a learning app for the classroom. Teachers build lessons and quizzes in minutes; students practice, compete with classmates, and get feedback the moment they need it.',
+            link: see('quizmate'),
+          },
+          {
+            id: 'feedback',
+            names: ['feedback', 'the quiz', 'quiz', 'friday'],
+            reply: "The moment you need it, not three weeks later. That's the whole idea.",
+            link: see('quizmate'),
+          },
+          {
+            id: 'get',
+            names: ['getting it', 'app store', 'download', 'get it'],
+            reply: "It's on the App Store, for iPhone and iPad. Tell your teacher I sent you.",
+            link: { label: 'Download on the App Store', href: APP_STORE('quizmate') },
+          },
+        ],
+        farewell: "Off you go. Don't forget your homework. There isn't any, but don't forget it.",
+      },
+      {
+        id: 'tobias',
+        name: 'Tobias',
+        role: 'a student',
+        aliases: ['student', 'pupil', 'kid'],
+        looks: 'A small islander in a yellow scarf, sitting very straight in the front row, practicing.',
+        color: '#f2c14e',
+        at: { x: 2.0, z: 0.8 },
+        greeting: "Shh, I'm practicing. I'm top of the class. Well, second. Well, I'm on the list.",
+        topics: [
+          {
+            id: 'competing',
+            names: ['competing', 'the class', 'winning', 'practice'],
+            reply: 'You practice, then you compete with your classmates. I like the competing part. I am getting better at the practicing part.',
+            link: see('quizmate'),
+          },
+          {
+            id: 'learning',
+            names: ['learning', 'technology', 'school'],
+            reply: 'The person who made this island did fieldwork with the Assessment Lab, studying how students learn alongside new technology. I am a student. I am learning alongside it right now.',
+            link: ABOUT,
+          },
+        ],
+        farewell: "Bye! If you see the bell rope, don't.",
+      },
+    ],
+  },
+  eqoscan: {
+    size: { w: 9, d: 7 },
+    description:
+      'The depot is cool and echoey, stacked high with bales of flattened cardboard. A handheld scanner hangs by the sorting bench, and a blue ribbon is pinned proudly to the back wall.',
+    things: [
+      {
+        id: 'scanner',
+        names: ['scanner', 'handheld scanner', 'bench', 'sorting bench'],
+        prop: 'scanner',
+        at: { x: 2.5, z: -1.2 },
+        description: 'A handheld scanner on a hook by the sorting bench. Point it at anything on the shelf and it shows you its packaging footprint. Most of it was more packaging than product.',
+        link: see('eqoscan'),
+      },
+      {
+        id: 'ribbon',
+        names: ['ribbon', 'blue ribbon', 'prize', 'award'],
+        prop: 'frame',
+        at: { x: -0.6, z: -2.9 },
+        description: 'A blue ribbon pinned to the wall: WesHack winner. It has been dusted very recently. Possibly this morning. Possibly twice.',
+        link: see('eqoscan'),
+      },
+      {
+        id: 'bales',
+        names: ['bales', 'cardboard', 'crates', 'boxes'],
+        prop: 'crates',
+        at: { x: -3.0, z: -1.0 },
+        description: 'Bales of flattened cardboard, tied up with string and stacked to the rafters, waiting to become something else.',
+      },
+    ],
+    people: [
+      {
+        id: 'rosa',
+        name: 'Rosa',
+        role: 'the sorter',
+        aliases: ['sorter'],
+        looks: 'A brisk islander in an orange hi-vis scarf, with a clipboard and a pencil she keeps losing behind her ear.',
+        color: '#ef8a3c',
+        at: { x: 0.3, z: 0.4 },
+        greeting: "Hi there! Watch your feet, the belt's running. I sort everything that comes through here. Usually twice.",
+        topics: [
+          {
+            id: 'eqoscan',
+            names: ['eqoscan', 'the app', 'app', 'scanning'],
+            reply: 'eQoScan is an iOS app that helps shoppers understand and cut down on the waste they bring home. Scan a product and see its packaging footprint.',
+            link: see('eqoscan'),
+          },
+          {
+            id: 'hackathon',
+            names: ['the hackathon', 'hackathon', 'weshack', 'ribbon'],
+            reply: "It won WesHack! That's the ribbon. I'd frame it, but frames come in so much packaging.",
+            link: see('eqoscan'),
+          },
+          {
+            id: 'source',
+            names: ['the code', 'code', 'source', 'github'],
+            reply: "The source is on GitHub, if you like seeing how things are put together. I do. It's half of why I sort things.",
+            link: { label: 'View source on GitHub', href: 'https://github.com/avan36/eQoScan' },
+          },
+          {
+            id: 'packaging',
+            names: ['packaging', 'waste', 'recycling'],
+            reply: 'Most of what comes down that belt was more packaging than product. Breaks my heart a little, every box.',
+          },
+        ],
+        farewell: 'Take care! Recycle your goodbyes.',
+      },
+    ],
+  },
+};
 
 const places: PlaceInput[] = [
   {

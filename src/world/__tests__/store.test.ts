@@ -40,6 +40,24 @@ describe('reduce', () => {
     expect(reduce(w, a.state, { type: 'move', pos: { x: 2, z: 2 } }).events).toEqual([]);
   });
 
+  it('goes into buildings with a room, and nowhere else', () => {
+    const a = reduce(w, emptyState(), { type: 'inside', at: 'etymon' });
+    expect(a.state.presence).toMatchObject({ inside: 'etymon', at: 'etymon' });
+    expect(a.events).toEqual([{ type: 'inside', at: 'etymon' }, { type: 'arrived', at: 'etymon' }]);
+    for (const at of ['blog', 'contact', 'map-of-evolution', 'nowhere']) expect(reduce(w, emptyState(), { type: 'inside', at }).events, at).toEqual([]);
+    const out = reduce(w, a.state, { type: 'inside', at: null });
+    expect(out.state.presence).toMatchObject({ inside: null, at: 'etymon' });
+    expect(out.events).toEqual([{ type: 'inside', at: null }]);
+  });
+
+  it('takes you back outside when you walk somewhere else', () => {
+    const a = reduce(w, emptyState(), { type: 'inside', at: 'quizmate' });
+    expect(reduce(w, a.state, { type: 'move', pos: null }).state.presence.inside).toBe('quizmate');
+    const b = reduce(w, a.state, { type: 'move', pos: null, at: 'plaza' });
+    expect(b.state.presence.inside).toBeNull();
+    expect(b.events).toContainEqual({ type: 'inside', at: null });
+  });
+
   it('records each catch once but reports every cast', () => {
     const a = reduce(w, emptyState(), { type: 'catch', slug: 'first' });
     const b = reduce(w, a.state, { type: 'catch', slug: 'first' });
@@ -59,7 +77,7 @@ describe('sanitize', () => {
   it('drops progress for words and posts that no longer exist', () => {
     const s = sanitize(w, { progress: { found: ['attercop', 'gone', 'attercop', 7], caught: ['first', 'deleted'], night: true }, presence: { at: 'nowhere', pos: { x: 'a' } } });
     expect(s.progress).toEqual({ found: ['attercop'], caught: ['first'], night: false });
-    expect(s.presence).toEqual({ at: null, pos: null });
+    expect(s.presence).toEqual({ at: null, pos: null, inside: null });
   });
 
   it('survives garbage', () => {
