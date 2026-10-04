@@ -70,7 +70,8 @@ export interface GameHandle {
   /** For tests and debugging. */
   debug: {
     state: () => string;
-    player: () => { x: number; z: number };
+    /** Where the explorer is; y is its feet's height (up in the air while jumping). */
+    player: () => { x: number; z: number; y: number; airborne: boolean };
     near: () => string | null;
     frames: () => number;
     places: () => { id: string; x: number; z: number; stand: { x: number; z: number } }[];
@@ -165,7 +166,10 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
   const player = new Explorer();
   scene.add(player.root, player.shadowMesh);
   player.onStep = () => o.sound.play('step');
-  player.onLand = (impact) => impact > 0.5 && o.sound.play('land');
+  player.onLand = (impact) => (impact > 1.1 ? o.sound.play('land') : impact > 0.15 && o.sound.play('step'));
+  player.onJump = () => o.sound.play('jump');
+  player.lowJumps = o.reducedMotion;
+  const hill = PLACES.find((p) => p.kind === 'tree');
 
   // ---------- Things to do ----------
   const { store } = o;
@@ -359,7 +363,7 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
   const ndc = new Vector2();
   let pointerInside = false;
   let pointerMoved = false;
-  let press: { id: string | null; x: number; y: number; ground: boolean; pointerId: number } | null = null;
+  let press: { id: string | null; x: number; y: number; ground: boolean; pointerId: number; jump?: boolean } | null = null;
 
   const setNdc = (e: PointerEvent) => {
     const r = canvas.getBoundingClientRect();
@@ -428,6 +432,12 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
       fishAction();
       return;
     }
+    // Tap the explorer to jump (a long press jumps higher, like holding Space).
+    if (onPlayer()) {
+      jump();
+      press = { id: null, x: e.clientX, y: e.clientY, ground: false, pointerId: e.pointerId, jump: true };
+      return;
+    }
     const target = pickTarget();
     const id = target && 'place' in target ? target.place : null;
     press = { id, x: e.clientX, y: e.clientY, ground: !target, pointerId: e.pointerId };
@@ -475,6 +485,7 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
   };
   const onPointerUp = (e: PointerEvent) => {
     if (!press || e.pointerId !== press.pointerId) return;
+    if (press.jump) player.releaseJump();
     const moved = Math.hypot(e.clientX - press.x, e.clientY - press.y);
     if (press.id && moved < 14) activate(press.id);
     press = null;
@@ -510,17 +521,20 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     }
     const active = document.activeElement as HTMLElement | null;
     const onControl = !!active && active !== document.body && active !== canvas && (active.tagName === 'A' || active.tagName === 'BUTTON');
-    // Fishing: E or F casts and reels in; so does space once the line is out.
+    // Fishing: E or F casts and reels in.
     if ((e.code === 'KeyE' || e.code === 'KeyF') && !e.repeat && state === 'play') {
       if (fishAction()) e.preventDefault();
       return;
     }
-    if (e.key === ' ' && !onControl && fishing?.active && state === 'play') {
+    // Space jumps, or reels in while the line is out. A focused button or link keeps its own Space.
+    if (e.code === 'Space' && !onControl) {
       e.preventDefault();
-      fishing.reel();
+      if (state !== 'play') return;
+      if (fishing?.active) return fishing.reel();
+      if (!e.repeat) jump();
       return;
     }
-    if ((e.key === 'Enter' || e.key === ' ') && !onControl && state === 'play') {
+    if (e.key === 'Enter' && !onControl && state === 'play') {
       const id = nearId && nearId !== dismissedId ? nearId : null;
       if (id) {
         e.preventDefault();
@@ -533,7 +547,10 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
       if (active && o.labelsHost.contains(active)) active.blur();
     }
   };
-  const onKeyUp = (e: KeyboardEvent) => keys.delete(e.code);
+  const onKeyUp = (e: KeyboardEvent) => {
+    keys.delete(e.code);
+    if (e.code === 'Space') player.releaseJump();
+  };
   const onBlur = () => keys.clear();
 
   canvas.addEventListener('pointerdown', onPointerDown);
@@ -589,6 +606,21 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     } else fishing.cast();
     return true;
   }
+
+  /** Jump, unless something else has the explorer's attention: a scroll, a door, a card. */
+  function jump() {
+    if (state !== 'play' || words.picking || pendingEnter || dialog?.open) return;
+    stopFishing();
+    player.jump();
+    firstMove();
+  }
+
+  /** Is the pointer on the explorer? (A ray against a ball round its body.) */
+  const onPlayer = () => {
+    raycaster.setFromCamera(ndc, camera);
+    player.head(tmpV).y -= 0.15;
+    return raycaster.ray.distanceSqToPoint(tmpV) < 0.95 * 0.95;
+  };
 
   /** Walking off mid-cast reels the line in and puts the rod away. */
   function stopFishing() {
@@ -739,6 +771,9 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
         pendingCast = false;
       }
     } else blockedT = 0;
+
+    // The hilltop under the ancient tree is a good place for a long, floaty jump.
+    player.floaty = !!hill && Math.hypot(player.pos.x - hill.x, player.pos.z - hill.z) < 5.5;
 
     // A lost word within reach?
     if (!words.picking) {
@@ -908,7 +943,8 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     }
     avoidAll.length = 0;
     avoidAll.push(...avoid);
-    if (promptRect) avoidAll.push(promptRect);
+    // Idle labels also keep clear of the explorer standing under the prompt.
+    if (promptRect) avoidAll.push(promptRect, { l: promptRect.l, t: promptRect.b, r: promptRect.r, b: promptRect.b + 90 });
     labels.update(camera, anchors, viewW, viewH, {
       avoid: avoidAll,
       visible: state === 'play',
@@ -1015,7 +1051,7 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     destroy,
     debug: {
       state: () => state,
-      player: () => ({ x: player.pos.x, z: player.pos.z }),
+      player: () => ({ x: player.pos.x, z: player.pos.z, y: player.root.position.y, airborne: player.airborne }),
       near: () => nearId,
       frames: () => frames,
       places: () => PLACES.map((p) => ({ id: p.id, x: p.x, z: p.z, stand: p.stand })),

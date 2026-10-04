@@ -1,7 +1,7 @@
 // The explorer: a round little marshmallow with an orange scarf, a backpack
 // and a sprout. Owns its own movement (with circle collisions and staying on
-// land) and all the juice: hop, squash and stretch, dust, blinks, glances.
-// Off the pier it can hold out a little bamboo fishing rod.
+// land) and all the juice: hop, jump, squash and stretch, dust, blinks,
+// glances. Off the pier it can hold out a little bamboo fishing rod.
 
 import {
   CanvasTexture,
@@ -26,6 +26,12 @@ import { groundAt, isWalkable } from './world/shape';
 const SPEED = 5.4;
 const BODY_R = 0.5;
 const SCALE = 1.6;
+const GRAVITY = 32;
+/** Takeoff speed of a full jump (about 1.3 high), and of a gentler one for reduced motion. */
+const JUMP = 9.2;
+const JUMP_LOW = 6;
+/** A press this soon before landing still jumps, on landing. */
+const JUMP_BUFFER = 0.12;
 
 export class Explorer {
   readonly root = new Group();
@@ -68,6 +74,13 @@ export class Explorer {
   private lastSin = 0;
   onStep?: () => void;
   onLand?: (impact: number) => void;
+  onJump?: () => void;
+  /** Lower jumps (reduced motion). */
+  lowJumps = false;
+  /** Hang a moment longer at the top of a jump (on the hilltop). */
+  floaty = false;
+  private jumping = false;
+  private jumpBuffer = 0;
 
   constructor() {
     const white = this.mat(new MeshStandardMaterial({ color: '#fffaf1', roughness: 0.55 }));
@@ -244,6 +257,36 @@ export class Explorer {
     this.land.kick(4);
   }
 
+  /** Jump now if on the ground, or on landing if that's moments away. True if it took off. */
+  jump() {
+    if (!this.grounded) {
+      this.jumpBuffer = JUMP_BUFFER;
+      return false;
+    }
+    this.takeOff();
+    return true;
+  }
+
+  /** Let go of jump: a rising jump is cut short, so a tap is a hop and a hold a full jump. */
+  releaseJump() {
+    this.jumpBuffer = 0;
+    if (this.jumping && this.airVel > 0) this.airVel *= 0.45;
+    this.jumping = false;
+  }
+
+  get airborne() {
+    return !this.grounded;
+  }
+
+  private takeOff() {
+    this.airVel = this.lowJumps ? JUMP_LOW : JUMP;
+    this.grounded = false;
+    this.jumping = true;
+    this.jumpBuffer = 0;
+    this.land.kick(7);
+    this.onJump?.();
+  }
+
   faceToward(x: number, z: number) {
     this.yawTarget = Math.atan2(x - this.pos.x, z - this.pos.z);
   }
@@ -269,7 +312,8 @@ export class Explorer {
     const dir = wish.lengthSq() > 1e-6 ? wish.clone().normalize() : new Vector2();
     const tx = dir.x * max;
     const tz = dir.y * max;
-    const accel = max > 0.01 ? 16 : 12;
+    // In the air you keep your momentum and steer a little less.
+    const accel = this.grounded ? (max > 0.01 ? 16 : 12) : max > 0.01 ? 9 : 1.5;
     this.vel.x = damp(this.vel.x, tx, accel, dt);
     this.vel.y = damp(this.vel.y, tz, accel, dt);
     if (this.vel.lengthSq() < 1e-4 && max < 0.01) this.vel.set(0, 0);
@@ -319,18 +363,22 @@ export class Explorer {
     const ground = groundAt(this.pos.x, this.pos.z);
     this.pos.y = damp(this.pos.y, ground, 25, dt);
 
-    // Vertical: drop-in and hops
+    // Vertical: drop-in, hops and jumps
+    this.jumpBuffer = Math.max(0, this.jumpBuffer - dt);
     if (!this.grounded) {
-      this.airVel -= 32 * dt;
+      const hang = this.floaty && this.jumping && Math.abs(this.airVel) < 3 ? 0.45 : 1;
+      this.airVel -= GRAVITY * hang * dt;
       this.air += this.airVel * dt;
       if (this.air <= 0) {
         const impact = Math.min(1.6, -this.airVel / 10);
         this.air = 0;
         this.airVel = 0;
         this.grounded = true;
+        this.jumping = false;
         this.land.kick(-9 * impact);
         this.onLand?.(impact);
         if (impact > 0.5) puffs.ring(this.pos.x, this.pos.y, this.pos.z, 10, 2.6 * impact, '#fbf1dc', 0.22);
+        if (this.jumpBuffer > 0) this.takeOff();
       }
     }
 
