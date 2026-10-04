@@ -235,6 +235,7 @@
     font: inherit;
   }
   .w-ward__item.is-locked { align-items: flex-start; }
+  .w-ward__item:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
   .w-ward__icon { flex: none; }
   .w-ward__icon.is-locked * { fill: var(--line-strong) !important; stroke: var(--line-strong) !important; fill-opacity: 1 !important; }
   .w-ward__text { display: grid; gap: 3px; min-width: 0; }
@@ -248,9 +249,9 @@
   .w-ward__item .w-ward__icon { transition: transform var(--dur-3) var(--ease-spring); }
   .w-ward__item.is-on .w-ward__icon { transform: rotate(-6deg) scale(1.08); }
   .w-ward__state {
-    margin-left: auto;
-    flex: none;
-    padding: 4px 10px;
+    justify-self: start;
+    margin-top: 4px;
+    padding: 3px 10px;
     border-radius: var(--r-pill);
     font-size: 12.5px;
     font-weight: 750;

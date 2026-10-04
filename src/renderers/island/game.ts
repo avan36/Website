@@ -32,6 +32,9 @@ import { Fishing, FISH_RANGE, type FishPhase } from './play/fishing';
 import { Prompt, type PromptText } from './play/prompt';
 import { LostWords } from './play/words';
 import { buildAmbient } from './world/ambient';
+import { buildCommute } from './world/commute';
+import { buildSkyline } from './world/skyline';
+import { daylight, pageClock } from '../../world/clock';
 import { resetSharedMaterials } from './world/kit';
 import { buildNature, type Collider, type SharedUniforms } from './world/nature';
 import { buildNight } from './world/night';
@@ -85,6 +88,8 @@ export interface GameHandle {
     fish: () => void;
     /** How far night has fallen, 0..1. */
     night: () => number;
+    /** Island time: how dark the clock and reward make it, and what the train is doing. */
+    clock: () => { dark: number; commuting: boolean; train: { s: number; v: number; dwell: number; atStation: boolean } };
   };
 }
 
@@ -152,6 +157,11 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
   scene.add(ambient.group);
   const puffs = new Puffs();
   scene.add(puffs.mesh);
+  // The railway, the train, the quay and its bus; and the city across the water.
+  const commute = buildCommute();
+  island.add(commute.group);
+  const skyline = buildSkyline();
+  scene.add(skyline.group);
 
   const landmarks = PLACES.map((p) => new Landmark(p));
   const byId = new Map(landmarks.map((l) => [l.place.id, l]));
@@ -161,6 +171,7 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
   const colliders: Collider[] = [
     ...nature.colliders,
     ...landmarks.map((l) => ({ x: l.place.x, z: l.place.z, r: l.place.radius })),
+    ...commute.colliders,
   ];
 
   const player = new Explorer();
@@ -217,12 +228,23 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     fishing.onMiss = () => o.ui.toast({ title: 'It got away', body: 'Cast again?', color: fishColor });
   }
 
-  const night = buildNight({ scene, hemi, sun, sky, water: water.material, ambient, landmarks, mobile });
+  const night = buildNight({ scene, hemi, sun, sky, water: water.material, ambient, landmarks: [...landmarks, commute], extras: [skyline], mobile });
   scene.add(night.group);
   let nightWant = store.state.progress.night;
   /** Night waits for the last word's card to close, so you see it fall. */
   let nightHold = false;
   night.set(nightWant, true);
+  // Island time: the real clock (or ?time=22:00) sets how dark it is and
+  // whether the train is running. Checked about once a second.
+  const clock = pageClock(location.search);
+  let clockAt = -Infinity;
+  let commuting = false;
+  const tickClock = (instant = false) => {
+    const d = clock.date();
+    night.setClock(1 - daylight(d), instant);
+    commuting = clock.commute(d);
+  };
+  tickClock(true);
   const dialog = document.getElementById('w-dialog') as HTMLDialogElement | null;
   const unsubscribe = store.subscribe((_, events) => {
     words.sync(store.has);
@@ -885,7 +907,9 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     // Night falls (or lifts). After the last word it waits for the card to close.
     if (nightHold && !words.picking && !dialog?.open) nightHold = false;
     if (!nightHold) night.set(nightWant);
+    if (now - clockAt > 1000) (clockAt = now), tickClock();
     night.update(time, dt, o.reducedMotion);
+    commute.update(state === 'intro' ? 0 : dt, commuting, player.pos);
 
     // Click marker
     if (markerT < 1) {
@@ -1076,6 +1100,7 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
       fishing: () => fishing?.phase ?? null,
       fish: () => void fishAction(),
       night: () => night.amount,
+      clock: () => ({ dark: night.dark, commuting, train: commute.state() }),
       screen: (id: string) => {
         const l = byId.get(id);
         if (!l) return null;

@@ -571,7 +571,7 @@ function dress(o: Wearable, mat: MatFn): Group {
       dome.scale.set(1, 0.85, 1);
       dome.position.y = 0.83;
       dome.add(new Mesh(new SphereGeometry(0.3, 22, 10, 0, Math.PI * 2, 0, Math.PI / 2), mat(c, { rough: 0.35 })));
-      const ridge = new Mesh(new TorusGeometry(0.3, 0.035, 6, 18, Math.PI), mat(d, { rough: 0.35 }));
+      const ridge = new Mesh(new TorusGeometry(0.3, 0.024, 6, 18, Math.PI), mat(d, { rough: 0.35 }));
       ridge.rotation.y = Math.PI / 2;
       dome.add(ridge);
       const brim = at(new Mesh(new CylinderGeometry(0.37, 0.37, 0.035, 28), mat(d, { rough: 0.35 })), 0, 0.84, 0.05);
@@ -645,10 +645,11 @@ function dress(o: Wearable, mat: MatFn): Group {
       return g;
     case 'recycling-vest': {
       // Wraps the sides and back, open at the front.
-      const open = 0.5;
-      const vest = at(new Mesh(new SphereGeometry(0.515, 32, 16, Math.PI / 2 + open, Math.PI * 2 - 2 * open, 0.85, 1.35), mat(c, { side: true })), 0, 0.47, 0);
+      // Below the face, around the sides and back (under the backpack), open at the front.
+      const open = 0.66;
+      const vest = at(new Mesh(new SphereGeometry(0.515, 32, 12, Math.PI / 2 + open, Math.PI * 2 - 2 * open, 1.3, 1.45), mat(c, { side: true })), 0, 0.47, 0);
       vest.scale.set(1, 0.94, 0.97);
-      const stripe = at(new Mesh(new SphereGeometry(0.522, 32, 2, Math.PI / 2 + open, Math.PI * 2 - 2 * open, 1.72, 0.12), mat('#e9f1dc', { rough: 0.3, side: true })), 0, 0.47, 0);
+      const stripe = at(new Mesh(new SphereGeometry(0.522, 32, 2, Math.PI / 2 + open, Math.PI * 2 - 2 * open, 2.22, 0.1), mat('#e9f1dc', { rough: 0.3, side: true })), 0, 0.47, 0);
       stripe.scale.copy(vest.scale);
       g.add(vest, stripe);
       return g;
@@ -658,7 +659,7 @@ function dress(o: Wearable, mat: MatFn): Group {
   if (o.slot === 'head') hat(0.26, 0.18, 0.36);
   else if (o.slot === 'face') for (const s of [-1, 1]) g.add(at(new Mesh(new TorusGeometry(0.088, 0.016, 8, 22), mat(c)), s * 0.155, 0.56, 0.475));
   else if (o.slot === 'body') {
-    const vest = at(new Mesh(new SphereGeometry(0.515, 32, 16, Math.PI / 2 + 0.5, Math.PI * 2 - 1, 0.85, 1.35), mat(c, { side: true })), 0, 0.47, 0);
+    const vest = at(new Mesh(new SphereGeometry(0.515, 32, 12, Math.PI / 2 + 0.82, Math.PI * 2 - 1.64, 1.55, 1.05), mat(c, { side: true })), 0, 0.47, 0);
     vest.scale.set(1, 0.94, 0.97);
     g.add(vest);
   }

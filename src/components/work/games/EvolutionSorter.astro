@@ -180,7 +180,7 @@ const d = segments.map((s) => `M${s.x1.toFixed(1)} ${s.y1.toFixed(1)}L${s.x2.toF
   .es__branch.is-good { animation: es-good 700ms var(--ease-out); }
   .es__branch.is-bad { animation: es-bad 420ms var(--ease-out); }
   .es__bemoji { font-size: 1.7rem; line-height: 1.1; }
-  .es__blabel { font-size: var(--step--1); font-weight: 700; line-height: 1.15; text-wrap: balance; overflow-wrap: anywhere; }
+  .es__blabel { max-width: 100%; font-size: var(--step--1); font-weight: 700; line-height: 1.15; text-wrap: balance; hyphens: auto; -webkit-hyphens: auto; }
   .es__count { font-family: var(--font-mono); font-size: 11px; color: var(--ink-3); min-height: 1.2em; }
   .es__placed { display: flex; flex-wrap: wrap; justify-content: center; gap: 1px; font-size: 1.05rem; line-height: 1.2; }
   .es__placed :global(.miss) { opacity: 0.85; border-radius: 6px; box-shadow: 0 0 0 1.5px var(--coral); }
@@ -191,6 +191,7 @@ const d = segments.map((s) => `M${s.x1.toFixed(1)} ${s.y1.toFixed(1)}L${s.x2.toF
     .es__tree { padding: var(--space-3); }
     .es__branches { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px 0; }
     .es__branch { min-height: 96px; }
+    .es__blabel { font-size: 12.5px; }
   }
 
   /* ---------- End ---------- */
@@ -423,7 +424,7 @@ const d = segments.map((s) => `M${s.x1.toFixed(1)} ${s.y1.toFixed(1)}L${s.x2.toF
     tray.addEventListener('click', (e) => {
       const c = (e.target as HTMLElement).closest<HTMLButtonElement>('.es__card');
       if (!c || suppressClick) return;
-      select(selected === c.dataset.id ? null : c.dataset.id!);
+      select(c.dataset.id!);
     });
     targets.forEach((t) => t.addEventListener('click', () => placeOn(t.dataset.branch as BranchId)));
 
@@ -467,13 +468,31 @@ const d = segments.map((s) => `M${s.x1.toFixed(1)} ${s.y1.toFixed(1)}L${s.x2.toF
         select(drag.id);
       }
       drag.ghost.style.transform = `translate(${e.clientX - drag.dx}px, ${e.clientY - drag.dy}px)`;
+      lastX = e.clientX;
+      lastY = e.clientY;
       setOver(hit(e.clientX, e.clientY));
+      if (!scrollRaf) scrollRaf = requestAnimationFrame(edgeScroll);
     });
+
+    // Near the top or bottom of the screen, scroll so far-off branches come into reach (phones).
+    let lastX = 0, lastY = 0, scrollRaf = 0;
+    const EDGE = 72;
+    function edgeScroll() {
+      scrollRaf = 0;
+      if (!drag?.ghost) return;
+      const v = lastY < EDGE ? -(EDGE - lastY) : lastY > innerHeight - EDGE ? lastY - (innerHeight - EDGE) : 0;
+      if (!v) return;
+      scrollBy(0, Math.round(v / 4));
+      setOver(hit(lastX, lastY));
+      scrollRaf = requestAnimationFrame(edgeScroll);
+    }
 
     function endDrag(e: PointerEvent, cancelled: boolean) {
       if (!drag || e.pointerId !== drag.pointer) return;
       const d = drag;
       drag = null;
+      cancelAnimationFrame(scrollRaf);
+      scrollRaf = 0;
       d.card.classList.remove('is-lifted');
       d.over?.classList.remove('is-over');
       if (!d.ghost) return; // a plain tap: the click handler selects it

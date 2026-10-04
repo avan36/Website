@@ -147,7 +147,7 @@ export function createUI(world: World, store: WorldStore, announce: (s: string) 
           const where = esc(placeTitle(o.place));
           if (wardrobe.includes(o.id)) {
             const isOn = worn[slot] === o.id;
-            return `<button type="button" class="w-ward__item is-unlocked${isOn ? ' is-on' : ''}" style="--c:${c}" data-ui="wear:${o.id}" aria-pressed="${isOn}" title="${esc(o.description)}">${outfitIcon(o)}<span class="w-ward__text"><span class="w-ward__name">${esc(o.name)}</span><span class="w-slot__where">${where}</span></span><span class="w-ward__state" aria-hidden="true">${isOn ? 'Wearing' : 'Wear'}</span></button>`;
+            return `<button type="button" class="w-ward__item is-unlocked${isOn ? ' is-on' : ''}" style="--c:${c}" data-ui="wear:${o.id}" aria-pressed="${isOn}" title="${esc(o.description)}">${outfitIcon(o)}<span class="w-ward__text"><span class="w-ward__name">${esc(o.name)}</span><span class="w-slot__where">${where}</span><span class="w-ward__state" aria-hidden="true">${isOn ? 'Wearing' : 'Wear'}</span></span></button>`;
           }
           return `<div class="w-ward__item is-locked" style="--c:${c}">${outfitIcon(o, true)}<span class="w-ward__text"><span class="w-ward__name"><span aria-hidden="true">? ? ?</span><span class="visually-hidden">Locked: something for your ${slot}, kept at ${where}.</span></span><span class="w-slot__where" aria-hidden="true">Visit ${where}</span><span class="w-slot__hint">${esc(o.hint)}</span></span></div>`;
         })

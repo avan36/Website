@@ -517,7 +517,7 @@ export const RACE_WORDS: RaceWord[] = [
   },
   {
     word: "corgi",
-    gloss: "a short-legged Welsh breed of dog with a fox-like head",
+    gloss: "a short-legged herding dog with a fox-like head",
     origin: "Welsh",
     path: [{ lang: "ine-pro", form: "*ḱwṓ", year: -4000, meaning: "dog" }, { lang: "cy", form: "cor + ci", year: 1500, meaning: "dwarf + dog" }, { lang: "en", form: "corgi", year: 1926 }],
     story: "Welsh cor (dwarf) + ci (dog): a dwarf dog, bred to herd cattle by nipping at their heels. Ci comes from the same ancient root as hound and cynic. Queen Elizabeth II owned more than thirty corgis over her reign.",
@@ -531,14 +531,14 @@ export const RACE_WORDS: RaceWord[] = [
   },
   {
     word: "kangaroo",
-    gloss: "a large Australian marsupial that moves by hopping",
+    gloss: "a large marsupial that moves by hopping",
     origin: "Australian Aboriginal languages",
     path: [{ lang: "aus", form: "gangurru (Guugu Yimidhirr)", year: 1770, meaning: "a large grey kangaroo" }, { lang: "en", form: "kangaroo", year: 1770 }],
     story: "In 1770, while Captain Cook's Endeavour was being repaired on the Endeavour River in Queensland, the crew noted the local name for the animal. A popular myth says it meant 'I don't understand you', but in the 1970s the linguist John Haviland found that Guugu Yimidhirr speakers still call a large grey kangaroo gangurru.",
   },
   {
     word: "ukulele",
-    gloss: "a small four-stringed guitar from Hawaii",
+    gloss: "a small four-stringed guitar",
     origin: "Hawaiian",
     path: [{ lang: "haw", form: "ʻukulele", year: 1880, meaning: "jumping flea (ʻuku 'flea' + lele 'jumping')" }, { lang: "en", form: "ukulele", year: 1896 }],
     story: "Portuguese immigrants from Madeira brought a small guitar, the machete, to Hawaii in 1879; Hawaiians renamed it ʻukulele, 'jumping flea', perhaps for the player's darting fingers. King Kalākaua championed it, and it swept the American mainland after 1915.",

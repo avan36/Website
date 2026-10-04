@@ -73,7 +73,8 @@ import { ROUND_LENGTH } from './etymologyRace';
   </div>
 </ToyFrame>
 
-<style>
+<style is:global>
+  /* Global (every class is er__-prefixed): the options and journey are built in JS. */
   .er { display: grid; gap: var(--space-4); }
 
   /* ---------- HUD ---------- */
@@ -163,7 +164,7 @@ import { ROUND_LENGTH } from './etymologyRace';
     color: var(--ink-2);
   }
   .er__rules li::before { content: '· '; color: var(--p); font-weight: 700; }
-  kbd {
+  .er kbd {
     font-family: var(--font-mono); font-size: 0.85em;
     padding: 0 5px; border-radius: 5px;
     box-shadow: inset 0 0 0 1px var(--line-strong);

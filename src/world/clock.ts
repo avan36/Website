@@ -130,3 +130,25 @@ export function formatIslandTime(date: Date): string {
   const h12 = t.hour % 12 || 12;
   return `${h12}:${String(t.minute).padStart(2, '0')} ${t.hour < 12 ? 'am' : 'pm'}`;
 }
+
+/**
+ * The island's clock for a page: real time, or, for checking how things look
+ * at any hour, an override from the URL. `?time=22:00` sets the clock to ten
+ * tonight (island time) and lets it run on from there; `?commute=on` or
+ * `?commute=off` forces the train to run or rest whatever the hour.
+ */
+export function pageClock(search: string, now: () => number = () => Date.now()) {
+  const params = new URLSearchParams(search);
+  const fixed = parseIslandTime(params.get('time'), new Date(now()));
+  const offset = fixed ? fixed.getTime() - now() : 0;
+  const c = params.get('commute');
+  const force = c === 'on' ? true : c === 'off' ? false : null;
+  return {
+    /** The island's instant right now. */
+    date: () => new Date(now() + offset),
+    /** True when ?time= moved the clock. */
+    overridden: !!fixed,
+    /** Is the train running at this instant? */
+    commute: (d: Date) => force ?? commuteHours(d),
+  };
+}

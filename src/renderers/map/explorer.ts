@@ -169,12 +169,12 @@ function dressUp(p: Pix, worn: readonly Wearable[], facing: Facing, oy: number) 
         p.rect(x, oy + 6, 3, 2, c);
         p.px(x, oy + 6, col('#8fa3c4'));
       } else {
+        // Thin rims round the eye, open at the bottom so the face still reads.
         p.hline(x, x + 2, oy + 5, c);
         p.px(x, oy + 6, c);
         p.px(x + 2, oy + 6, c);
         p.px(x, oy + 7, c);
         p.px(x + 2, oy + 7, c);
-        p.hline(x, x + 2, oy + 8, c);
       }
     };
     if (facing === 'down') {

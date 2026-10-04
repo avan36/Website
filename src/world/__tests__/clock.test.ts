@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { atIslandTime, commuteHours, daylight, formatIslandTime, islandTime, parseIslandTime, sunElevation } from '../clock';
+import { atIslandTime, commuteHours, daylight, formatIslandTime, islandTime, pageClock, parseIslandTime, sunElevation } from '../clock';
 
 // Instants are written in UTC; the island runs 8 hours behind in winter and 7 in summer.
 const utc = (s: string) => new Date(`${s}Z`);
@@ -103,5 +103,34 @@ describe('commute hours', () => {
     expect(on(23, 0, weekday)).toBe(false);
     expect(on(8, 0, saturday)).toBe(false);
     expect(on(17, 0, '2026-10-11T19:00:00')).toBe(false); // Sunday
+  });
+});
+
+describe('the page clock', () => {
+  const now = () => utc('2026-10-07T19:00:00').getTime(); // Wednesday, noon on the island
+
+  it('is the real time without an override', () => {
+    const c = pageClock('', now);
+    expect(c.overridden).toBe(false);
+    expect(c.date().getTime()).toBe(now());
+  });
+
+  it('jumps to ?time= and runs on from there', () => {
+    let t = now();
+    const c = pageClock('?time=22:00', () => t);
+    expect(c.overridden).toBe(true);
+    expect(islandTime(c.date()).hour).toBe(22);
+    expect(daylight(c.date())).toBe(0);
+    t += 30 * 60000;
+    expect(islandTime(c.date()).minute).toBe(30);
+  });
+
+  it('runs the train at rush hour, or as ?commute= says', () => {
+    expect(pageClock('?time=08:00', now).commute(pageClock('?time=08:00', now).date())).toBe(true);
+    expect(pageClock('?time=12:00', now).commute(pageClock('?time=12:00', now).date())).toBe(false);
+    const forced = pageClock('?time=12:00&commute=on', now);
+    expect(forced.commute(forced.date())).toBe(true);
+    const off = pageClock('?time=08:00&commute=off', now);
+    expect(off.commute(off.date())).toBe(false);
   });
 });

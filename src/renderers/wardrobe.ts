@@ -86,6 +86,6 @@ export function avatar(worn: Outfit[], size = 120): string {
     <path d="M22 88c12 9 64 9 76 0l1 8c-12 10-66 10-78 0Z" fill="${scarf}"/>
     <path d="M78 96l4 20 8-2-5-19Z" fill="${scarfD}"/>
     ${sprout ? `<g fill="#57c15a"><rect x="58.8" y="22" width="2.6" height="13" rx="1.3"/><ellipse cx="52" cy="22" rx="7.5" ry="3.4" transform="rotate(-20 52 22)"/><ellipse cx="68" cy="22" rx="7.5" ry="3.4" transform="rotate(20 68 22)"/></g>` : ''}
-    ${head ? nest(head, 26, head.id === 'leaf-crown' ? 4 : 0, 68) : ''}
+    ${head ? nest(head, 26, head.id === 'leaf-crown' ? 6 : 3, 68) : ''}
   </svg>`;
 }
