@@ -769,7 +769,8 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
   window.addEventListener('pointerup', onPointerUp);
   window.addEventListener('pointercancel', onPointerUp);
   canvas.addEventListener('pointerleave', onPointerLeave);
-  canvas.addEventListener('wheel', onWheel, { passive: false });
+  // On the whole stage, so the labels floating over the island don't swallow it.
+  stage.addEventListener('wheel', onWheel, { passive: false });
   canvas.addEventListener('contextmenu', onContextMenu);
   window.addEventListener('keydown', onKeyDown);
   window.addEventListener('keyup', onKeyUp);
@@ -1370,7 +1371,7 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     window.removeEventListener('pointerup', onPointerUp);
     window.removeEventListener('pointercancel', onPointerUp);
     canvas.removeEventListener('pointerleave', onPointerLeave);
-    canvas.removeEventListener('wheel', onWheel);
+    stage.removeEventListener('wheel', onWheel);
     canvas.removeEventListener('contextmenu', onContextMenu);
     window.removeEventListener('keydown', onKeyDown);
     window.removeEventListener('keyup', onKeyUp);
