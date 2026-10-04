@@ -171,7 +171,8 @@ test.describe('map', () => {
     await page.keyboard.press('Escape');
     await expect(page.locator('#w-dialog')).not.toHaveAttribute('open', '');
     expect(await page.evaluate(() => document.documentElement.dataset.view)).toBe('map');
-    await page.waitForTimeout(250); // the menu's close event lands a moment after it shuts
+    // The menu's close event lands a moment after it shuts: Enter before then does nothing.
+    await expect.poll(() => page.evaluate(() => (window as DebugWindow).__map!.portal())).toMatchObject({ tag: true, choosing: false });
     // ...and Enter at it opens the menu again; the text adventure is tucked underneath.
     await page.keyboard.press('Enter');
     const text = page.locator('#w-dialog .w-portal__more[value="text"]');

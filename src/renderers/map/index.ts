@@ -2103,7 +2103,7 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
       player: () => ({ x: pos.x, z: pos.z, air: jump.y, twice: jump.twice, wet, vx: vel.x, vz: vel.z, facing, run: runK }),
       swimRoom: () => geo.swimRoom(pos.x, pos.z),
       heroScreen: () => toScreen(pos.x, pos.z),
-      portal: () => ({ near: nearPortal, tag: tagPortal, screen: portal ? portalScreen() : null }),
+      portal: () => ({ near: nearPortal, tag: tagPortal, choosing, screen: portal ? portalScreen() : null }),
       teleport: (x: number, z: number) => {
         pos.x = x;
         pos.z = z;
