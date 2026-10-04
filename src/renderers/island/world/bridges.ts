@@ -11,24 +11,18 @@
 
 import {
   BoxGeometry,
-  BufferAttribute,
-  BufferGeometry,
   CanvasTexture,
   Color,
   CylinderGeometry,
   ExtrudeGeometry,
   Group,
-  InstancedMesh,
-  Matrix4,
   Mesh,
   MeshBasicMaterial,
   MeshStandardMaterial,
-  Object3D,
   PlaneGeometry,
   Shape,
   SphereGeometry,
   SRGBColorSpace,
-  Vector3,
 } from 'three';
 import type { Obstacle } from '../character';
 import type { Glow } from '../landmarks/builders';
@@ -620,92 +614,4 @@ function towerBridge(b: Bridge) {
     obstacles.push({ ax: p.x, az: p.z, bx: q.x, bz: q.z, r: td2 + 0.3, top: 9 });
   }
   return { group, colliders, obstacles, halos, pools, glass: { mat, day, night } };
-}
-
-/**
- * Clear the way on and off a bridge where it lands on something built (the
- * quay): whatever of `group` stands on the deck's end or just behind it, where
- * you step on, is taken out, and so are its colliders. Kit meshes are cut by
- * whole parts and instanced ones by whole instances; only small, low things
- * go (a bollard, a crate), never anything as big as the bus.
- */
-export function clearLandings(group: Object3D, colliders: Collider[]) {
-  const zones = BRIDGES.flatMap((b) =>
-    ([0, 1] as const).map((end) => {
-      const [x, z] = end === 0 ? [b.ax, b.az] : [b.bx, b.bz];
-      const out = end === 0 ? -1 : 1;
-      return { b, x, z, out };
-    }),
-  );
-  /** In a zone: across the deck's width (and a little more), from just past its end back over where you step on. */
-  const inZone = (x: number, z: number, y: number) =>
-    zones.some(({ b, x: ex, z: ez, out }) => {
-      const along = ((x - ex) * b.ux + (z - ez) * b.uz) * out;
-      const across = Math.abs((x - ex) * b.uz - (z - ez) * b.ux);
-      return along > -0.45 && along < 0.75 && across < b.width / 2 + 0.25 && y < b.deck + 1.6;
-    });
-  for (let i = colliders.length - 1; i >= 0; i--) {
-    const c = colliders[i];
-    if (c.r < 0.7 && inZone(c.x, c.z, 0)) colliders.splice(i, 1);
-  }
-  group.updateMatrixWorld(true);
-  const v = new Vector3();
-  const lo = new Vector3();
-  const hi = new Vector3();
-  group.traverse((o) => {
-    const m = o as Mesh;
-    if (!m.isMesh) return;
-    if ((m as InstancedMesh).isInstancedMesh) {
-      const im = m as InstancedMesh;
-      const mm = new Matrix4();
-      const zero = new Matrix4().makeScale(0, 0, 0);
-      let hit = false;
-      for (let i = 0; i < im.count; i++) {
-        im.getMatrixAt(i, mm);
-        v.setFromMatrixPosition(mm).applyMatrix4(im.matrixWorld);
-        if (inZone(v.x, v.z, v.y)) (im.setMatrixAt(i, zero), (hit = true));
-      }
-      if (hit) im.instanceMatrix.needsUpdate = true;
-      return;
-    }
-    const parts = m.userData.parts as number[] | undefined;
-    if (!parts) return;
-    const pos = m.geometry.getAttribute('position');
-    const keep: boolean[] = [];
-    let at = 0;
-    for (const n of parts) {
-      lo.set(Infinity, Infinity, Infinity);
-      hi.set(-Infinity, -Infinity, -Infinity);
-      for (let i = at; i < at + n; i++) {
-        v.fromBufferAttribute(pos, i).applyMatrix4(m.matrixWorld);
-        lo.min(v);
-        hi.max(v);
-      }
-      at += n;
-      const small = hi.x - lo.x < 1.4 && hi.z - lo.z < 1.4 && hi.y - lo.y < 1.8;
-      v.addVectors(lo, hi).multiplyScalar(0.5);
-      keep.push(!(small && inZone(v.x, v.z, v.y)));
-    }
-    if (keep.every(Boolean)) return;
-    const geo = new BufferGeometry();
-    const kept = parts.filter((_, i) => keep[i]);
-    const count = kept.reduce((s, n) => s + n, 0);
-    for (const [name, a] of Object.entries(m.geometry.attributes)) {
-      const size = a.itemSize;
-      const arr = new Float32Array(count * size);
-      let o2 = 0;
-      let from = 0;
-      parts.forEach((n, i) => {
-        if (keep[i]) {
-          arr.set((a.array as Float32Array).subarray(from * size, (from + n) * size), o2);
-          o2 += n * size;
-        }
-        from += n;
-      });
-      geo.setAttribute(name, new BufferAttribute(arr, size, a.normalized));
-    }
-    m.geometry.dispose();
-    m.geometry = geo;
-    m.userData.parts = kept;
-  });
 }

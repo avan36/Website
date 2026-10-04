@@ -46,7 +46,7 @@ import { buildNight } from './world/night';
 import { Puffs } from './world/particles';
 import { Ripples } from './world/ripples';
 import { buildBuoys } from './world/buoys';
-import { buildBridges, clearLandings } from './world/bridges';
+import { buildBridges } from './world/bridges';
 import { buildLondon } from './world/london';
 import { ROWBOAT } from './landmarks/builders';
 import { ACTIVITIES, groundAt, heightAt, HUB, isSwimmable, isWalkable, LAND, LAND_OUTLINE, nextStop, PIER, PLACES, placeOf, PLAZA, SPAWN, swimRoom, WORDS } from './world/shape';
@@ -275,10 +275,9 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
   // The railway, the train, the quay and its bus; and the city across the water.
   const commute = buildCommute();
   island.add(commute.group);
-  // The bridges out to the islets (Tower Bridge lands on the quay: whatever stood in its way there is cleared).
+  // The bridges out to the islets (Tower Bridge lands on the quay, whose bollards stand aside for it).
   const bridges = buildBridges();
   island.add(bridges.group);
-  clearLandings(commute.group, commute.colliders);
   // Little London's street furniture, on the way from the bridge to the mall.
   const london = buildLondon();
   island.add(london.group);
