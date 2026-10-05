@@ -25,16 +25,19 @@ export function waveHeight(x: number, z: number, t: number) {
   return w * amp;
 }
 
-export function buildWater(height: { tex: DataTexture; extent: number }, sunDir: Vector3) {
+/** The sea's grid: rings this far apart out to `fine` (past the furthest islets), then wider and wider; `seg` spokes round. */
+export const WATER_GRID = { full: { step: 0.55, seg: 256 }, phone: { step: 0.7, seg: 208 }, fine: 96 };
+
+export function buildWater(height: { tex: DataTexture; extent: number }, sunDir: Vector3, mobile = false) {
   // A polar grid: fine near the island, coarse toward the horizon.
+  const { step, seg } = mobile ? WATER_GRID.phone : WATER_GRID.full;
   const radii: number[] = [];
-  for (let r = 0; r <= 64; r += 0.8) radii.push(r);
-  let r = 64;
+  for (let r = 0; r <= WATER_GRID.fine; r += step) radii.push(r);
+  let r = radii[radii.length - 1];
   while (r < 700) {
     r *= 1.09;
     radii.push(r);
   }
-  const seg = 168;
   const pos: number[] = [];
   const idx: number[] = [];
   pos.push(0, 0, 0);
@@ -130,7 +133,7 @@ export function buildWater(height: { tex: DataTexture; extent: number }, sunDir:
         // (the headland's rocky shelf would otherwise run right up to one).
         vec2 uv = vWorld.xz / uExtent + 0.5;
         float far = smoothstep(uFar.x, uFar.y, length(vWorld.xz));
-        float h = mix(texture2D(uHeight, uv).r * 12.0 - 8.0, -8.0, far);
+        float h = mix(texture2D(uHeight, uv).r, -8.0, far);
         // While the island rises out of the sea the seabed comes up with it.
         h -= uRise;
         float depth = max(-h, 0.0) + max(vWorld.y, 0.0) * 0.5;
