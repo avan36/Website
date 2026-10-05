@@ -1,5 +1,5 @@
 // People out walking, on the pixel map: the same marshmallow sprite as the
-// explorer and the islanders indoors, in their own scarf, coat and woolly
+// explorer and the islanders indoors, in their own scarf, coat, skirt and woolly
 // hat, walking their loops by the clock (src/world/wander.ts, so they're
 // where the 3D island and the text adventure say they are). Walk up and they
 // stop, turn to you, and a name tag opens; its button (or E) has them say
@@ -29,9 +29,9 @@ const onColor = (hex: string) => {
   return l > 0.6 ? '#2a201b' : '#ffffff';
 };
 
-/** What a wanderer wears, as the sprite's wardrobe: a coat over the body and a woolly hat. */
+/** What a wanderer wears, as the sprite's wardrobe: a coat (or a skirt) over the body and a woolly hat. */
 const wearing = (v: Wanderer): Wearable[] => [
-  ...(v.coat ? [{ id: 'coat', slot: 'body' as const, color: v.coat }] : []),
+  ...(v.coat ? [{ id: 'coat', slot: 'body' as const, color: v.coat }] : v.skirt ? [{ id: 'skirt', slot: 'body' as const, color: v.skirt }] : []),
   ...(v.hat ? [{ id: 'beanie', slot: 'head' as const, color: v.hat }] : []),
 ];
 

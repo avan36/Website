@@ -180,6 +180,21 @@ function dressUp(p: Pix, worn: readonly Wearable[], facing: Facing, oy: number) 
     }
     // The carpenter's pencil, poking out of the first pouch.
     if (pouches.length && onBody(pouches[0], 10)) p.px(pouches[0], oy + 10, col('#ffbe0b'));
+  } else if (body?.id === 'skirt') {
+    // A frayed denim mini skirt (someone out walking): a sparkly band at the
+    // waist, the denim, and a fringe of loose threads at the hem.
+    const c = col(body.color);
+    const d = col(shade(body.color, -0.12));
+    const sparkle = col('#d9dde3');
+    const fray = col('#e6d7b4');
+    for (let y = 11; y <= 12; y++) {
+      for (let x = 0; x < W; x++) {
+        const v = p.get(x, oy + y);
+        if (v !== BASE.w && v !== BASE.s) continue;
+        const odd = (x + y) % 2 === 1;
+        p.px(x, oy + y, y === 11 ? (odd ? sparkle : c) : odd ? fray : v === BASE.s ? d : c);
+      }
+    }
   } else if (body) {
     // Recolor the body below the scarf, open at the front.
     const c = col(body.color);

@@ -422,7 +422,7 @@ describe('people out walking', () => {
 
   it('are the people Ambrose asked for, on the island and on Little London', () => {
     const on = (roams: string) => w.wanderers.filter((v) => v.roams === roams).map((v) => v.name);
-    expect(on('main')).toEqual(['Pushkar', 'Jeremy', 'Eugene', 'Abdu', 'the protector']);
+    expect(on('main')).toEqual(['Pushkar', 'Jeremy', 'Eugene', 'Abdu', 'the protector', 'Tati']);
     expect(on('little-london')).toEqual(['Dad', 'Mom', 'Lucia', 'Andrew', 'Isaac']);
   });
 

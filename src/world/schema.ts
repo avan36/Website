@@ -299,9 +299,10 @@ export const WandererSchema = z
     looks: z.string(),
     /** Their scarf: the one color every view gives them. */
     color: Hex,
-    /** A coat over the body, and a woolly hat, if they wear them. */
+    /** A coat over the body, a woolly hat, and a frayed denim mini skirt, if they wear them. */
     coat: Hex.optional(),
     hat: Hex.optional(),
+    skirt: Hex.optional(),
     /** What they're up to, after their name: "out for a walk", "keeping watch". */
     doing: z.string().default('out for a walk'),
     /** The island they walk on: "main", or an islet's id. */

@@ -1,5 +1,5 @@
 // People out walking on the island: the same round marshmallows as the
-// islanders indoors, in their own scarves (and coats and woolly hats), each
+// islanders indoors, in their own scarves (and coats, skirts and woolly hats), each
 // built from the kit as one mesh, so ten of them are ten draw calls. They walk
 // their loops (src/world/wander.ts: a pure function of the time, so the map
 // and the text adventure agree on where everyone is), stop at each corner to
@@ -24,7 +24,7 @@ const BODY = 0.55;
 const hitMaterial = new MeshBasicMaterial({ visible: false });
 const cap = (s: string) => s[0].toUpperCase() + s.slice(1);
 
-/** A wanderer, built from the kit: body, face, scarf, and a coat and a woolly hat if they wear them. Front is +z. */
+/** A wanderer, built from the kit: body, face, scarf, and a coat (or a skirt) and a woolly hat if they wear them. Front is +z. */
 function figure(v: Wanderer): Group {
   const k = new Kit(v.id.length * 31 + 7);
   const WHITE = '#fffaf1';
@@ -37,6 +37,18 @@ function figure(v: Wanderer): Group {
     k.add(new SphereGeometry(r + 0.035, 18, 8, 0, Math.PI * 2, Math.PI * 0.6, Math.PI * 0.36), v.coat, { p: [0, cy, 0], s: [1, 0.94, 0.96], jitter: 0.02 });
     // Its buttons, down the front.
     for (const y of [0.42, 0.6]) k.sphere(0.035, '#2b2622', { p: [0, cy - y, r * (y < 0.5 ? 0.93 : 0.8)], jitter: 0 }, 5, 4);
+  } else if (v.skirt) {
+    // A frayed denim mini skirt, flaring out from under the scarf, with a
+    // sparkly trim round the hem and a fringe of loose threads hanging off it.
+    const hemY = cy - 0.66;
+    const hemR = 0.68;
+    k.add(new CylinderGeometry(0.6, hemR, 0.28, 18, 1, true), v.skirt, { p: [0, hemY + 0.14, 0], jitter: 0.03 });
+    k.torus(hemR, 0.035, '#d9dde3', { p: [0, hemY, 0], r: [Math.PI / 2, 0, 0], jitter: 0 }, 4, 22);
+    for (let i = 0; i < 18; i++) {
+      const a = (i / 18) * Math.PI * 2;
+      const h = 0.08 + (i % 3) * 0.03;
+      k.rbox(0.06, h, 0.02, 0.008, '#e6d7b4', { p: [Math.sin(a) * hemR, hemY - h / 2, Math.cos(a) * hemR], r: [0, a, 0], jitter: 0.01 });
+    }
   }
   // The face.
   for (const s of [-1, 1]) {
