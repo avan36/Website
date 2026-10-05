@@ -145,6 +145,8 @@ export type IslandDebug = {
   gates(): { id: string; x: number; z: number; open: boolean; swing: number }[];
   /** The red bus on Little London. */
   bus(): BusState | null;
+  fx(): { level: string; effects: string[] };
+  setFx(level: string, effects?: string[]): void;
 };
 export type BusState = { s: number; v: number; dwell: number; atStop: boolean; held: boolean; x: number; z: number; yaw: number };
 export type WorldHandle = {

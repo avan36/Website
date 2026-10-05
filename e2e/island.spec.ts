@@ -10,10 +10,10 @@ const me = (page: Page) => page.evaluate(() => (window as DebugWindow).__island!
 const tick = (page: Page, s: number) => page.evaluate((s) => (window as DebugWindow).__island!.debug.tick(s), s);
 
 /** Opens the island standing on the plaza (a saved spot skips the intro), paused. */
-async function openIsland(page: Page) {
+async function openIsland(page: Page, query = '') {
   const errors = watchErrors(page);
   await seed(page, { found: await wordIds(page), at: { x: 0, z: 9 } });
-  await page.goto('/?view=island&debug');
+  await page.goto(`/?view=island&debug${query}`);
   await homeReady(page, 'island');
   await page.waitForFunction(() => (window as DebugWindow).__island?.debug.state() === 'play', null, { timeout: 90_000 });
   await page.evaluate(() => (window as DebugWindow).__island!.pause());
@@ -31,6 +31,25 @@ test.describe('3D island', () => {
     await page.evaluate(() => (window as DebugWindow).__island!.resume());
     await page.waitForFunction((f0) => (window as DebugWindow).__island!.debug.frames() > f0 + 3, f0, { timeout: 30_000 });
     expect(await page.evaluate(() => document.documentElement.dataset.view)).toBe('island');
+    expect(errors).toEqual([]);
+  });
+
+  test('the effects over the picture follow ?fx=, and switch on and off while it runs', async ({ page }) => {
+    const errors = await openIsland(page, '&fx=lite');
+    const fx = () => page.evaluate(() => (window as DebugWindow).__island!.debug.fx());
+    expect(await fx()).toEqual({ level: 'lite', effects: ['bloom', 'tilt', 'grade'] });
+    const draw = (level: string, effects?: string[]) =>
+      page.evaluate(([level, effects]) => {
+        const d = (window as DebugWindow).__island!.debug;
+        d.setFx(level as string, effects as string[] | undefined);
+        d.render();
+      }, [level, effects] as const);
+    await draw('off');
+    expect(await fx()).toEqual({ level: 'off', effects: [] });
+    await draw('high', ['bloom']);
+    expect(await fx()).toEqual({ level: 'high', effects: ['bloom'] });
+    await draw('high');
+    expect((await fx()).effects).toEqual(['bloom', 'tilt', 'grade']);
     expect(errors).toEqual([]);
   });
 
