@@ -30,6 +30,16 @@ describe('the content pack', () => {
     expect(pack.play.games.find((g) => g.id === 'bartender')).not.toHaveProperty('unit');
   });
 
+  it('carries everyone out walking and what they say, without their walks', () => {
+    const w = world();
+    expect(pack.play.wanderers.map((v) => v.id)).toEqual(w.wanderers.map((v) => v.id));
+    const dad = pack.play.wanderers.find((v) => v.id === 'dad')!;
+    expect(dad).toMatchObject({ name: 'Dad', island: 'Little London' });
+    expect(dad.lines).toEqual(w.wanderers.find((v) => v.id === 'dad')!.lines);
+    expect(pack.play.wanderers.find((v) => v.id === 'pushkar')!.island).toBe('the island');
+    expect(dad).not.toHaveProperty('walk');
+  });
+
   it('gives each project the building that stands for it on the island', () => {
     const w = world();
     for (const p of pack.projects) {
@@ -46,7 +56,7 @@ describe('the content pack', () => {
 
   it('leaves the island out: no coordinates, places, routes or geography', () => {
     const keys = new Set([...entries(pack)].map(([k]) => k));
-    for (const k of ['at', 'x', 'z', 'door', 'footprint', 'places', 'routes', 'geography', 'hint', 'in']) expect(keys.has(k), k).toBe(false);
+    for (const k of ['at', 'x', 'z', 'door', 'footprint', 'places', 'routes', 'geography', 'hint', 'in', 'walk', 'roams']) expect(keys.has(k), k).toBe(false);
   });
 
   it('reads the look from tokens.css, light and dark', () => {

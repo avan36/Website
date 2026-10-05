@@ -34,6 +34,27 @@ function peak(page: Page, ms: number) {
 }
 
 test.describe('map', () => {
+  test('someone out walking stops as you come up, and says hello', async ({ page }) => {
+    const errors = await openMap(page);
+    await closeDialog(page);
+    const lines = await page.evaluate(() => ((window as DebugWindow).__world!.world as unknown as { wanderers: { id: string; lines: string[] }[] }).wanderers.find((v) => v.id === 'jeremy')!.lines);
+    const jeremy = () => page.evaluate(() => (window as DebugWindow).__map!.wanderers().find((v) => v.id === 'jeremy')!);
+    await page.evaluate(() => {
+      const m = (window as DebugWindow).__map!;
+      const v = m.wanderers().find((x) => x.id === 'jeremy')!;
+      m.teleport(v.x + 1, v.z + 0.3);
+    });
+    await expect.poll(async () => (await jeremy()).open).toBe(true);
+    const tag = page.locator('.map-walker');
+    await expect(tag).toBeVisible();
+    await expect(tag).toContainText('Jeremy');
+    await page.keyboard.press('KeyE');
+    await expect(tag).toContainText(lines[0]);
+    expect((await jeremy()).said).toBe(1);
+    expect((await jeremy()).moving).toBe(false);
+    expect(errors).toEqual([]);
+  });
+
   test('walks to a door', async ({ page }) => {
     const errors = await openMap(page);
     const places = await page.evaluate(() => (window as DebugWindow).__map!.places());

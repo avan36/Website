@@ -2,7 +2,7 @@
 
 This file and [`/pack.json`](https://ambrosevannier.com/pack.json) are a starter kit for whatever gets built next: a racing game, a new site, some other experiment.
 
-- **The pack** is the content, as data: who Ambrose is, the projects, the posts, what matters, the colors and fonts, and the island's ideas (lost words, games, wardrobe, islanders) with the island's coordinates taken out. Every link in it is absolute, and [`/pack.schema.json`](https://ambrosevannier.com/pack.schema.json) describes its exact shape.
+- **The pack** is the content, as data: who Ambrose is, the projects, the posts, what matters, the colors and fonts, and the island's ideas (lost words, games, wardrobe, islanders, people out walking) with the island's coordinates taken out. Every link in it is absolute, and [`/pack.schema.json`](https://ambrosevannier.com/pack.schema.json) describes its exact shape.
 - **This brief** is everything that doesn't fit in JSON: the taste, the voice, the rules, and the ideas already built that are worth borrowing.
 
 ## How to use it
@@ -32,7 +32,7 @@ Check it against the schema when you load it, so a change on this site can't qui
 | `posts` | The blog, newest first |
 | `life` | The journal word count and the film and TV shelf |
 | `style` | Every color token (light and dark) and the font stacks |
-| `play` | Lost words, the seven mini-games, the wardrobe, and the islanders with everything they say |
+| `play` | Lost words, the seven mini-games, the wardrobe, the islanders with everything they say, and the people out walking (real people: they only ever say what's true of any visit) |
 | `site.world` | A link to `/world.json`, if you do want the island too |
 
 ## What matters
@@ -90,6 +90,8 @@ Things that worked here and could be borrowed, remixed or taken further:
 - **Rooms you walk into**, built as a dollhouse in 3D and a pixel room on the map.
 - **Real time.** The island keeps the clock of the place it was made in: morning light, dusk, lit windows after dark, and a commuter train that runs at rush hour.
 - **Islets and bridges.** The island grew two islets off its west coast, joined to it by footbridges with railings: Root Isle for where words and living things come from, Boardwalk Isle with a beach bar and a pushy cookie-banner billboard. Off the east end, Tower Bridge runs from the quay (where the London bus is parked, facing it) out to Little London.
+- **People out walking.** Friends and family stroll the island in their own scarves and coats: Pushkar, Jeremy, Eugene, Abdu and the protector, who walks a slow, wide patrol, on the main island, and Dad, Mom, Lucia, Andrew and Isaac on Little London. They stop as you come up and say a few small, true-of-any-visit things in turn: hello, the weather, the way to somewhere. Where they are is a function of the time, so every view agrees.
+- **A quiet room.** Along from the mall on Little London, a townhouse with a green door and a brass plate that only says ROOMS. Inside: two armchairs facing each other, a box of tissues within reach, a clock only one chair can see, a calm painting and a plant, and Wren, who asks how you are and says "Take your time." It never says what it is.
 - **A memory you can walk into.** Not everything on the island is work. Westfield, over Tower Bridge, is a building with a room and no page, with Five Guys inside, and one line in Ambrose's words: "I spent a lot of time here growing up, with my dad." In the data it's a place of kind `memory`.
 - **A toy on every project page:** a journal chat that types itself out, a five-axis taste match, a tree of life that grows, a word that morphs through its history, a lighthouse beam over 11,000 dots, a barcode scan, a pop quiz.
 - **A name card** told the way Etymon tells a word's story.
@@ -114,7 +116,7 @@ The pack is rebuilt from this site's own files every time it deploys, so there's
 | Name story, beliefs, milestones | `src/data/about.ts` |
 | Word jar, shelf | `src/data/life.ts` |
 | Posts | `posts/*.md` (or `/admin`) |
-| Lost words, games, wardrobe, islanders | `src/world/world.ts` |
+| Lost words, games, wardrobe, islanders, people out walking | `src/world/world.ts` |
 | Colors and fonts | `src/styles/tokens.css` |
 
 Edit this brief whenever the taste changes. It's the part a computer can't work out from the code.

@@ -601,6 +601,89 @@ const westfield: InteriorInput = {
   ],
 };
 
+// A quiet house on Little London, with a brass plate that only says ROOMS.
+// Inside: two armchairs facing each other, tissues within reach, a clock only
+// one chair can see. The islander who keeps it is made up, and says only
+// gentle, ordinary things.
+const quietRoom: InteriorInput = {
+  size: { w: 9, d: 7 },
+  description:
+    "Inside it's warm and hushed. Two armchairs face each other across a small rug, a lamp makes a soft pool of light, and the noise of the street stops at the door. Nobody is in a hurry in here.",
+  things: [
+    {
+      id: 'armchairs',
+      names: ['armchairs', 'armchair', 'chairs', 'chair', 'rug', 'notepad'],
+      prop: 'armchairs',
+      at: { x: 0.6, z: -0.6 },
+      description:
+        'Two deep armchairs, facing each other across a small rug: close enough to talk quietly, far enough apart to breathe. A notepad and a pen rest on the arm of the far one, closed.',
+    },
+    {
+      id: 'tissues',
+      names: ['box of tissues', 'tissues', 'tissue', 'side table', 'table', 'lamp'],
+      prop: 'sidetable',
+      at: { x: -2.3, z: 0.6 },
+      description: 'A little side table by the near armchair, with a lamp on it and a box of tissues, one already pulled up, ready. Nobody will mind if you take one.',
+    },
+    {
+      id: 'clock',
+      names: ['clock', 'little clock', 'shelf'],
+      prop: 'clock',
+      at: { x: -2.2, z: -2.0 },
+      description: 'A small clock on a shelf behind the near armchair, turned so that only the far armchair can see it. It ticks so softly you have to listen for it.',
+    },
+    {
+      id: 'painting',
+      names: ['painting', 'picture', 'frame', 'calm sea'],
+      prop: 'frame',
+      at: { x: 1.6, z: -2.9 },
+      description: 'A painting of a calm sea at dusk: a long horizon, a low sun, and nothing else. It is very easy to look at.',
+    },
+    {
+      id: 'plant',
+      names: ['plant', 'pot plant', 'leaves', 'pot'],
+      prop: 'plant',
+      at: { x: 3.4, z: -2.3 },
+      description: 'A leafy plant in a clay pot, turned now and then so it grows straight. It is doing well. Most things do, given time and a bit of light.',
+    },
+  ],
+  people: [
+    {
+      id: 'wren',
+      name: 'Wren',
+      role: 'the listener',
+      aliases: ['listener'],
+      looks: 'A calm islander in a soft sage cardigan, with a notepad they hardly ever write in.',
+      color: '#8fae9b',
+      at: { x: 2.9, z: 0.7 },
+      greeting: 'Hello. Come in, and sit wherever feels right. How are you doing, really?',
+      topics: [
+        {
+          id: 'how',
+          names: ['how I am', 'how i am', 'how i feel', 'feelings', 'me', 'myself'],
+          reply: "Take your time. There's no right answer here, and no wrong one. Whatever you bring in with you is welcome.",
+        },
+        {
+          id: 'quiet',
+          names: ['the quiet', 'quiet', 'silence'],
+          reply: "We don't have to fill it. Sometimes the quiet does half the work.",
+        },
+        {
+          id: 'clock',
+          names: ['the clock', 'clock', 'time'],
+          reply: "I keep an eye on it, so you don't have to. That's why it sits where it does.",
+        },
+        {
+          id: 'tissues',
+          names: ['the tissues', 'tissues', 'crying'],
+          reply: "They're there for anyone. Nobody has ever needed to say sorry for using one.",
+        },
+      ],
+      farewell: 'We can stop here for today. Be gentle with yourself on the way out.',
+    },
+  ],
+};
+
 const places: PlaceInput[] = [
   {
     id: 'plaza',
@@ -839,6 +922,29 @@ const places: PlaceInput[] = [
     ],
     interior: westfield,
   },
+  {
+    id: 'no-12',
+    kind: 'quiet',
+    archetype: 'townhouse',
+    name: 'No. 12',
+    title: 'The townhouse',
+    blurb: 'A quiet room, if you want somewhere to sit for a while.',
+    color: '#6f8f7a',
+    at: { x: 62.6, z: 12.4 },
+    footprint: 2.3,
+    clearing: 3.6,
+    faces: -0.3,
+    aliases: ['townhouse', 'town house', 'no 12', 'number 12', 'number twelve', 'twelve', 'quiet room', 'quiet house', 'rooms', 'green door'],
+    description:
+      "Along from the mall, a narrow brick townhouse with a sage green door, a fanlight over it and a window box of lavender. A small brass plate by the bell says ROOMS, and nothing else. It's quiet here, the kind of quiet you can hear.",
+    scenery: [
+      { id: 'plate', names: ['brass plate', 'plate', 'bell', 'sign'], description: 'A small brass plate, polished thin, that says ROOMS. Under it, a bell. Ring it, or just go in: the door is on the latch.' },
+      { id: 'door', names: ['door', 'green door', 'fanlight', 'knocker'], description: 'A sage green door with a brass knocker and a half-moon of glass over it. It opens gently, and closes the same way.' },
+      { id: 'lavender', names: ['lavender', 'window box', 'flowers'], description: 'A window box of lavender. When the breeze picks up, so does the smell.' },
+      { id: 'steps', names: ['steps', 'step', 'railings'], description: 'Two stone steps up to the door, worn smooth in the middle, with black railings either side.' },
+    ],
+    interior: quietRoom,
+  },
 ];
 
 const routes: WorldInput['routes'] = [
@@ -862,8 +968,9 @@ const routes: WorldInput['routes'] = [
   { from: 'eqoscan', to: 'privacy-research', paved: false },
   { from: 'workshop', to: 'busy-beer', paved: false },
   { from: 'workshop', to: 'eqoscan', paved: false },
-  // Down to the quay and over Tower Bridge.
+  // Down to the quay and over Tower Bridge, and along from the mall to the townhouse.
   { from: 'busy-beer', to: 'westfield', paved: false },
+  { from: 'westfield', to: 'no-12', paved: false },
 ];
 
 // Eight words English lost, from Etymon's museum of lost words, each hidden
@@ -1162,6 +1269,15 @@ const outfits: WorldInput['outfits'] = [
     hint: 'The fry cook at the mall wears one, and keeps a spare behind the counter.',
   },
   {
+    id: 'soft-scarf',
+    name: 'soft scarf',
+    slot: 'neck',
+    place: 'no-12',
+    color: '#8fae9b',
+    description: 'A soft sage scarf from the hook by the green door. It feels like being told to take your time.',
+    hint: 'There is a hook by a green door on Little London, with something soft on it.',
+  },
+  {
     id: 'sailor-hat',
     name: "sailor's cap",
     slot: 'head',
@@ -1169,6 +1285,184 @@ const outfits: WorldInput['outfits'] = [
     color: '#f4f1ea',
     description: "A white sailor's cap that washed up beside the bottle. It smells of salt and good news.",
     hint: 'Something besides a bottle washed up on the quiet beach.',
+  },
+];
+
+// People out walking: real people from Ambrose's life, on the main island
+// and on Little London. They only say what's true of any visit (hello, the
+// weather, the way to somewhere), never anything about themselves. Each walks
+// a loop and stops at every corner of it; see src/world/wander.ts.
+const wanderers: WorldInput['wanderers'] = [
+  {
+    id: 'pushkar',
+    name: 'Pushkar',
+    looks: 'In a mustard scarf and a navy coat, out for a stroll between the depot and the plaza.',
+    color: '#e9a23b',
+    coat: '#2f3e66',
+    roams: 'main',
+    walk: [{ x: 5.4, z: 0.6 }, { x: 8.8, z: -2 }, { x: 7.4, z: -6.4 }, { x: 3.6, z: -4.4 }],
+    lines: [
+      'Hello! Nice day for a walk round the island.',
+      "The recycling depot's just there. The belt never stops.",
+      'If you see a silver train, it runs round the east end at rush hour, island time.',
+      'Mind the crates by the depot. People will try to stack anything.',
+    ],
+  },
+  {
+    id: 'jeremy',
+    name: 'Jeremy',
+    looks: 'In a green scarf and a grey coat, ambling along between the cabin and the schoolhouse.',
+    color: '#3f9e6b',
+    coat: '#8c8f93',
+    roams: 'main',
+    walk: [{ x: -4.6, z: 1.2 }, { x: -8.4, z: 2.4 }, { x: -7.8, z: 6.2 }, { x: -4.4, z: 7.6 }],
+    lines: [
+      'Oh, hi! Lovely to see you.',
+      "The cabin's off to the west. Someone always has the kettle on.",
+      "The schoolhouse is just down there. There's a quiz on Friday. There's always a quiz on Friday.",
+      "Take your time. The island isn't going anywhere.",
+    ],
+  },
+  {
+    id: 'eugene',
+    name: 'Eugene',
+    looks: 'In a red scarf and a brown coat, with a blue woolly hat, walking up toward the old tree.',
+    color: '#c8443a',
+    coat: '#7a5236',
+    hat: '#3d6fb6',
+    roams: 'main',
+    walk: [{ x: -3.6, z: -5.4 }, { x: -5.6, z: -8.2 }, { x: -4.4, z: -14.8 }, { x: -3.2, z: -6.4 }],
+    lines: [
+      "Hello there. Have you seen the old tree yet? It's just up the rise.",
+      "The library's over to the west. Voices low in there, the words are resting.",
+      'Keep an eye out as you go: there are words hidden all over this island.',
+      'Lovely light up here this time of day.',
+    ],
+  },
+  {
+    id: 'abdu',
+    name: 'Abdu',
+    looks: 'In an orange scarf and an olive coat, wandering down toward the pier.',
+    color: '#ef7d3c',
+    coat: '#6b7046',
+    roams: 'main',
+    walk: [{ x: 6, z: 10.4 }, { x: 9.8, z: 12.6 }, { x: 8.8, z: 16.6 }, { x: 6.4, z: 14.8 }],
+    lines: [
+      'Hey! Good to see you.',
+      "The pier's just there. Cast a line off the end and see what bites.",
+      "There's a speedboat tied up at the very end, if you fancy a lap of the island.",
+      "Bit of a breeze off the sea today. The gulls don't seem to mind.",
+    ],
+  },
+  {
+    id: 'protector',
+    name: 'the protector',
+    aliases: ['protector'],
+    looks: 'In a long dark coat and a deep green scarf, walking slowly round the island, with a quiet, watchful look.',
+    color: '#2f6b4f',
+    coat: '#2e3440',
+    hat: '#2e3440',
+    doing: 'keeping watch',
+    roams: 'main',
+    walk: [
+      { x: 2.6, z: -14.4 },
+      { x: -4.6, z: -16.4 },
+      { x: -5.2, z: -8.6 },
+      { x: -11.2, z: -7.4 },
+      { x: -16.6, z: -7.2 },
+      { x: -17.4, z: 0.6 },
+      { x: -16.4, z: 4.4 },
+      { x: -7.6, z: 4.6 },
+      { x: -6.8, z: 14.4 },
+      { x: 5.8, z: 13.2 },
+      { x: 7.2, z: -3.4 },
+    ],
+    pace: 0.9,
+    pause: 6,
+    lines: [
+      "I keep an eye on things here. Everyone's all right.",
+      "Go on, have a look round. I'll be about.",
+      'If you ever lose your way, head for the plaza. Every path leads back there.',
+      'The lighthouse watches over the water. I watch over the rest.',
+    ],
+  },
+  {
+    id: 'dad',
+    name: 'Dad',
+    aliases: ['father', 'my dad', 'papa'],
+    looks: 'In a navy scarf and a camel coat, smiling as you come up.',
+    color: '#2c4170',
+    coat: '#b98d5e',
+    roams: 'little-london',
+    walk: [{ x: 59.2, z: 19.6 }, { x: 63.2, z: 19.2 }, { x: 64.4, z: 22.8 }, { x: 60.4, z: 23.2 }],
+    lines: [
+      "Hello! I'm so glad you came by.",
+      "Westfield's just there. Five Guys is inside, if you're hungry.",
+      'Tower Bridge takes you back to the island when you are ready. No rush.',
+      'Mind how you go. Come again soon.',
+    ],
+  },
+  {
+    id: 'mom',
+    name: 'Mom',
+    aliases: ['mother', 'my mom', 'mum', 'mama'],
+    looks: 'In a rose pink scarf and a cream coat, waving as you come up.',
+    color: '#e58fa8',
+    coat: '#efe3cf',
+    roams: 'little-london',
+    walk: [{ x: 55.6, z: 25 }, { x: 58.8, z: 26.2 }, { x: 61.4, z: 25.4 }, { x: 58.4, z: 24.4 }],
+    lines: [
+      "Oh, hello! It's so good to see you.",
+      'Have you eaten? There are burgers in Westfield. Have something.',
+      "It's breezy out here by the water. Keep warm.",
+      "I'm glad you came all this way.",
+    ],
+  },
+  {
+    id: 'lucia',
+    name: 'Lucia',
+    looks: 'In a lilac scarf and a teal coat, walking along behind the mall.',
+    color: '#a98bd6',
+    coat: '#2d8c8a',
+    roams: 'little-london',
+    walk: [{ x: 53.4, z: 9.4 }, { x: 56.6, z: 7.8 }, { x: 59.2, z: 8.8 }, { x: 56.2, z: 11.6 }],
+    lines: [
+      'Hi! Welcome to Little London.',
+      "There's a red phone box by the path. There's nobody to call, but it's nice to step in.",
+      'If it rains, Westfield has a glass roof. Very handy.',
+    ],
+  },
+  {
+    id: 'andrew',
+    name: 'Andrew',
+    looks: 'In a yellow scarf and a charcoal coat, with a red woolly hat, walking the east end of the islet.',
+    color: '#f2c14e',
+    coat: '#4a4d52',
+    hat: '#c8433a',
+    roams: 'little-london',
+    walk: [{ x: 66.6, z: 10.6 }, { x: 67.6, z: 15.4 }, { x: 66.4, z: 20.6 }, { x: 65.4, z: 15.6 }],
+    lines: [
+      'Hey, hello! Good to see you.',
+      'The mall is big. Look for the map with the red dot that says YOU ARE HERE.',
+      'Tower Bridge is the long way back. It is also the only way back.',
+      "Grey sky or blue, it's a nice spot for a walk.",
+    ],
+  },
+  {
+    id: 'isaac',
+    name: 'Isaac',
+    looks: 'In a sky blue scarf and a green coat, with a grey woolly hat, out for a wander.',
+    color: '#7cc0e6',
+    coat: '#4f8a4b',
+    hat: '#9a958c',
+    roams: 'little-london',
+    walk: [{ x: 48.4, z: 14.2 }, { x: 51.6, z: 12.4 }, { x: 50.4, z: 9.6 }, { x: 48, z: 11 }],
+    lines: [
+      'Hello! Out exploring?',
+      "There's a quiet house along there with a brass plate on the door. It's a good place to sit for a while.",
+      "The bus on the quay is parked facing the bridge. I think it's thinking about it.",
+      "Have a good look round. There's no hurry.",
+    ],
   },
 ];
 
@@ -1195,7 +1489,7 @@ const geography: WorldInput['geography'] = {
   islets: [
     { id: 'root-isle', name: 'Root Isle', at: { x: -31.7, z: -14.8 }, coast: { radius: 6.6, ripples: [{ freq: 3, amp: 0.5, phase: 1.2 }, { freq: 5, amp: 0.3, phase: 0.4 }] } },
     { id: 'boardwalk-isle', name: 'Boardwalk Isle', at: { x: -33.1, z: 14.1 }, coast: { radius: 6.6, ripples: [{ freq: 3, amp: 0.5, phase: 2.6 }, { freq: 4, amp: 0.35, phase: 0.9 }] } },
-    { id: 'little-london', name: 'Little London', at: { x: 54, z: 17.2 }, coast: { radius: 9, ripples: [{ freq: 3, amp: 0.5, phase: 0.4 }, { freq: 5, amp: 0.3, phase: 1.9 }] } },
+    { id: 'little-london', name: 'Little London', at: { x: 58, z: 15.6 }, coast: { radius: 13, ripples: [{ freq: 3, amp: 0.5, phase: 0.4 }, { freq: 5, amp: 0.3, phase: 1.9 }] } },
   ],
   bridges: [
     { from: { x: -15.6, z: -10.5 }, to: { x: -27, z: -13.5 }, width: 2.4, deck: 1.15 },
@@ -1232,6 +1526,7 @@ export function buildWorld(posts: Post[]): World {
     lostWords,
     activities,
     outfits,
+    wanderers,
     geography,
   } satisfies WorldInput);
 }

@@ -158,6 +158,40 @@ test.describe('3D island', () => {
     expect(errors).toEqual([]);
   });
 
+  test('someone out walking on Little London stops as you come up, and says hello', async ({ page }) => {
+    const errors = await openIsland(page);
+    const lines = await page.evaluate(() => ((window as DebugWindow).__world!.world as unknown as { wanderers: { id: string; lines: string[] }[] }).wanderers.find((v) => v.id === 'andrew')!.lines);
+    const andrew = () => page.evaluate(() => (window as DebugWindow).__island!.debug.wanderers().find((v) => v.id === 'andrew')!);
+    // Just beside him, on the islet.
+    await page.evaluate(() => {
+      const d = (window as DebugWindow).__island!.debug;
+      const v = d.wanderers().find((x) => x.id === 'andrew')!;
+      d.teleport(v.x - 1.3, v.z + 0.4);
+    });
+    await tick(page, 0.6);
+    const near = await andrew();
+    expect(near.open, 'his prompt is up').toBe(true);
+    expect(near.moving, 'he has stopped').toBe(false);
+    const prompt = page.locator('.isl-label', { hasText: 'Andrew' });
+    await expect(prompt).toContainText('Say hello');
+    // E says hello, and again says the next thing.
+    await page.keyboard.press('KeyE');
+    await tick(page, 0.1);
+    await expect(prompt).toContainText(lines[0]);
+    await page.keyboard.press('KeyE');
+    await tick(page, 0.1);
+    await expect(prompt).toContainText(lines[1]);
+    expect((await andrew()).said).toBe(2);
+    // Walk away and he carries on.
+    await page.evaluate(() => (window as DebugWindow).__island!.debug.teleport(58, 12.4));
+    await tick(page, 1);
+    const later = await andrew();
+    expect(later.open).toBe(false);
+    await tick(page, 6);
+    expect(Math.hypot((await andrew()).x - later.x, (await andrew()).z - later.z), 'walked on').toBeGreaterThan(0.5);
+    expect(errors).toEqual([]);
+  });
+
   test('stepping through the portal switches the view', async ({ page }) => {
     const errors = await openIsland(page);
     // Just in front of the ring on the plaza.

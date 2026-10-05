@@ -104,7 +104,11 @@ export type MapHandle = {
   inside(): { at: string } | null;
   /** Device pixels to a map pixel: the map's own (S), and the camera's right now (Z: more inside a building). */
   scale(): { S: number; Z: number };
+  /** People out walking: where each is, whether they've stopped for you (open), and how many lines they've said. */
+  wanderers(): Walker[];
+  talk(id: string): void;
 };
+export type Walker = { id: string; x: number; z: number; moving: boolean; open: boolean; said: number };
 export type IslandPlayer = { x: number; z: number; y: number; airborne: boolean; water: string; doubleJumped: boolean };
 export type IslandDebug = {
   state(): string;
@@ -121,6 +125,8 @@ export type IslandDebug = {
   inside(): { at: string; x: number; z: number } | null;
   walkTo(x: number, z: number): { x: number; z: number } | null;
   games(): { id: string; x: number; z: number; stand: { x: number; z: number }; open: boolean }[];
+  wanderers(): (Walker & { visible: boolean })[];
+  talk(id: string): void;
 };
 export type WorldHandle = {
   world: { activities: { kind: string; at: { x: number; z: number } }[]; places: { id: string; interior?: unknown }[] };

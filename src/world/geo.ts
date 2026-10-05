@@ -547,6 +547,17 @@ export function createGeo(world: World) {
   // The platform stands on level ground at the height of the rails.
   if (station && rw) pads.push({ x: station.x, z: station.z, r: 2.4, blend: 2, h: rw.bed });
 
+  // ---------- People out walking ----------
+  /** Every leg of every loop someone walks (see wander.ts), for the scenery to keep off. */
+  const walkSegs: Segment[] = (world.wanderers ?? []).flatMap((v) =>
+    v.walk.map((p, j) => {
+      const q = v.walk[(j + 1) % v.walk.length];
+      return { ax: p.x, az: p.z, bx: q.x, bz: q.z };
+    }),
+  );
+  /** Distance to the nearest walk anyone takes (Infinity with nobody out walking). */
+  const walkDist = (x: number, z: number) => (walkSegs.length ? segDist(walkSegs, x, z) : Infinity);
+
   /** Compass bearing from one point to another: 0 = north, π/2 = east. */
   const bearing = (a: Vec2, b: Vec2) => Math.atan2(b.x - a.x, -(b.z - a.z));
 
@@ -592,6 +603,7 @@ export function createGeo(world: World) {
     pathDist,
     nearestPlace,
     isOpenGround,
+    walkDist,
     bearing,
   };
 }

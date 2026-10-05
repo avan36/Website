@@ -1,7 +1,7 @@
 // The content pack: everything about Ambrose and the work that isn't the
 // island. Who, what's been made and written, what matters, the colors and
 // type, and the island's fun as plain ideas (lost words, games, the wardrobe,
-// the islanders) with every coordinate left out. It's the portable half of
+// the islanders, and the people out walking) with every coordinate left out. It's the portable half of
 // /world.json: a racing game, a new site or anything else can read it and lay
 // things out its own way. Published as /pack.json, with a JSON Schema at
 // /pack.schema.json. Every link in it is absolute, so it works from anywhere.
@@ -138,6 +138,28 @@ export const PackSchema = z
             })
             .strict(),
         ),
+        /**
+         * Real people from Ambrose's life, out walking on the island. They only
+         * say what's true of any visit (hello, the weather, the way to
+         * somewhere): never give them anything else to say, or anything about
+         * themselves.
+         */
+        wanderers: z.array(
+          z
+            .object({
+              id: Id,
+              name: z.string(),
+              looks: z.string(),
+              color: Hex,
+              /** What they're up to: "out for a walk", "keeping watch". */
+              doing: z.string(),
+              /** The island they walk on, by name. */
+              island: z.string(),
+              /** What they say, in turn. */
+              lines: z.array(z.string()).min(1),
+            })
+            .strict(),
+        ),
       })
       .strict(),
   })
@@ -244,6 +266,15 @@ export function buildPack(world: World, css: string = tokens): Pack {
           farewell: c.farewell,
         })),
       ),
+      wanderers: world.wanderers.map((v) => ({
+        id: v.id,
+        name: v.name,
+        looks: v.looks,
+        color: v.color,
+        doing: v.doing,
+        island: v.roams === 'main' ? 'the island' : (world.geography.islets.find((s) => s.id === v.roams)?.name ?? v.roams),
+        lines: v.lines,
+      })),
     },
   });
 }

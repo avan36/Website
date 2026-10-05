@@ -14,7 +14,7 @@ import { mulberry32 } from './rng';
 /** How far the explorer's body reaches from its feet, for collisions. */
 export const BODY_R = 0.32;
 
-export type LandmarkKind = 'cabin' | 'taproom' | 'tree' | 'library' | 'lighthouse' | 'schoolhouse' | 'depot' | 'mall' | 'workshop' | 'postbox' | 'bottle';
+export type LandmarkKind = 'cabin' | 'taproom' | 'tree' | 'library' | 'lighthouse' | 'schoolhouse' | 'depot' | 'mall' | 'townhouse' | 'workshop' | 'postbox' | 'bottle';
 
 /** Half the width of each landmark's front wall, in world units. */
 export const HALF_WIDTH: Record<LandmarkKind, number> = {
@@ -26,6 +26,7 @@ export const HALF_WIDTH: Record<LandmarkKind, number> = {
   schoolhouse: 2.8,
   depot: 3.1,
   mall: 5.0,
+  townhouse: 2.0,
   workshop: 2.7,
   postbox: 0.5,
   bottle: 0.6,
@@ -51,7 +52,7 @@ export interface MapPlace {
   boxes: Box[];
 }
 
-const BUILDINGS = new Set<LandmarkKind>(['cabin', 'taproom', 'library', 'schoolhouse', 'depot', 'mall', 'workshop', 'lighthouse']);
+const BUILDINGS = new Set<LandmarkKind>(['cabin', 'taproom', 'library', 'schoolhouse', 'depot', 'mall', 'townhouse', 'workshop', 'lighthouse']);
 const clamp = (v: number, a: number, b: number) => (v < a ? a : v > b ? b : v);
 
 export function layoutPlaces(world: World, geo: Geo): MapPlace[] {
@@ -133,7 +134,7 @@ export function layoutStreet(geo: Geo, places: MapPlace[]): Street | null {
   const bridge = geo.bridges.find((b) => b.style === 'tower');
   if (!bridge) return null;
   const isle = bridge.joins[1];
-  const m = places.find((p) => BUILDINGS.has(p.kind) && geo.islandOf(p.place.at.x, p.place.at.z) === isle);
+  const m = places.find((p) => p.kind === 'mall' && geo.islandOf(p.place.at.x, p.place.at.z) === isle) ?? places.find((p) => BUILDINGS.has(p.kind) && geo.islandOf(p.place.at.x, p.place.at.z) === isle);
   if (!m || isle < 1) return null;
   const a = geo.landing(bridge, 1);
   const d = m.door;
@@ -220,7 +221,8 @@ export function scatterProps(world: World, geo: Geo, places: MapPlace[], seed = 
         const roll = rnd();
         const variant = Math.floor(rnd() * 6);
         const h = geo.heightAt(x, z);
-        if (h < 0.2 || !geo.isOpenGround(x, z, 0.3)) continue;
+        // Nothing grows on the open ground, or where anyone out walking walks.
+        if (h < 0.2 || !geo.isOpenGround(x, z, 0.3) || geo.walkDist(x, z) < 1.1) continue;
         const rock = geo.rockiness(x, z);
         let kind: PropKind | null = null;
         if (rock > 0.45) kind = roll < 0.22 ? 'boulder' : roll < 0.42 ? 'rock' : null;
@@ -241,6 +243,6 @@ export function scatterProps(world: World, geo: Geo, places: MapPlace[], seed = 
   grow(-44, -30, -30, 30, mulberry32(seed + 1));
   // Little London, east of it, from another: clear of its street (the path, the lamps, the telephone box).
   const street = layoutStreet(geo, places);
-  grow(44, 66, 6, 30, mulberry32(seed + 2), (x, z) => !street || (polylineDist(street.walk, x, z) > 1.6 && street.things.every((t) => Math.hypot(x - t.x, z - t.z) > t.r + 1.2)));
+  grow(44, 74, 0, 32, mulberry32(seed + 2), (x, z) => !street || (polylineDist(street.walk, x, z) > 1.6 && street.things.every((t) => Math.hypot(x - t.x, z - t.z) > t.r + 1.2)));
   return props;
 }

@@ -51,7 +51,8 @@ describe('the course', () => {
     // And round the islets: every point of it clear of all the swimming water, a gate's width and more.
     for (const p of course.line) expect(geo.swimRoom(p.x, p.z), `${p.x.toFixed(1)}, ${p.z.toFixed(1)}`).toBeLessThan(-(GATE_HALF + 2));
     expect(course.length).toBeGreaterThan(200);
-    expect(course.length).toBeLessThan(400);
+    // Little London grew, and the course goes round it.
+    expect(course.length).toBeLessThan(450);
   });
 
   it('keeps every gate, posts and all, in deep water clear of the buoys', () => {

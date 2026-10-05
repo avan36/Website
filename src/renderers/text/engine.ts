@@ -9,9 +9,12 @@
 //
 // `out` is blocks to show (see output.ts). `effects` ask the page to do
 // something: go into a place, record a found word, cast a line, set a timer.
+// The one thing it asks the page for is the time (`now`), for who's out
+// walking where (src/world/wander.ts); tests pass a fixed one.
 
 import type { Geo } from '../../world/geo';
-import type { Character, LostWord, Outfit, OutfitSlot, Place, Post, Scenery, Thing, Topic, World } from '../../world/schema';
+import type { Character, LostWord, Outfit, OutfitSlot, Place, Post, Scenery, Thing, Topic, Wanderer, World } from '../../world/schema';
+import { walkClock, walker } from '../../world/wander';
 import type { ViewId } from '../types';
 import { portalOf } from '../portal';
 import { boatOf } from '../boat';
@@ -43,6 +46,8 @@ export type EngineState = {
   inside: boolean;
   /** Who you're talking to in there, by id. */
   talking: string | null;
+  /** How many times you've chatted to each person out walking (they say their lines in turn). */
+  chats: Record<string, number>;
   /** Where you were before, for BACK. */
   from: string | null;
   /** Mirrors of the store's progress, refreshed by the page before every turn. */
@@ -74,11 +79,15 @@ export type Result = { state: EngineState; out: Block[]; effects: Effect[] };
 
 export type Chip = { label: string; cmd: string; tone?: 'go' | 'urgent' };
 
-export type EngineOptions = { random?: () => number };
+export type EngineOptions = {
+  random?: () => number;
+  /** The time, in seconds, for who's out walking where (walkClock by default: the real time). */
+  now?: () => number;
+};
 
 const VIEWS: Record<string, ViewId> = { island: 'island', '3d': 'island', map: 'map', '2d': 'map', pixel: 'map', text: 'text', list: 'list', plain: 'list' };
 
-export function createEngine(world: World, geo: Geo, { random = Math.random }: EngineOptions = {}) {
+export function createEngine(world: World, geo: Geo, { random = Math.random, now = () => walkClock() }: EngineOptions = {}) {
   const byId = new Map(world.places.map((pl) => [pl.id, pl]));
   const place = (id: string) => byId.get(id)!;
   const hub = geo.hub;
@@ -91,6 +100,49 @@ export function createEngine(world: World, geo: Geo, { random = Math.random }: E
   const PORTAL_WORDS = ['portal', 'ring', 'ring of light', 'light'];
   let island: IslandMap | null = null; // drawn the first time someone asks for the map
   const games = createTextGames({ world, random, walk: (s, to) => walk(s, to), ref });
+
+  // ---------- People out walking ----------
+  // Where everyone is comes from the clock: they're "by" whichever place's door is nearest.
+  const walkers = world.wanderers.map((v) => ({ v, lap: walker(v) }));
+  const nearOf = (v: Wanderer) => {
+    const at = walkers.find((w) => w.v === v)!.lap.at(now());
+    return geo.nearestPlace(at.x, at.z).place;
+  };
+  /** Who's out walking by a place right now. */
+  const passersBy = (pl: Place) => {
+    const t = now();
+    return walkers.filter(({ lap }) => {
+      const at = lap.at(t);
+      return geo.nearestPlace(at.x, at.z).place.id === pl.id;
+    }).map((w) => w.v);
+  };
+  const walkerKeys = (v: Wanderer) => [v.name, v.id, ...v.aliases].map(key).filter(Boolean);
+  const walkerNamed = (noun: string, among: Wanderer[] = world.wanderers) => matchNames(noun, among, walkerKeys)[0];
+  const chatCmd = (v: Wanderer) => `talk to ${key(v.name)}`;
+  const walkerSpan = (v: Wanderer, start = false): Span => ({ text: start ? cap(v.name) : v.name, cmd: chatCmd(v), color: v.color });
+
+  /** "Pushkar is out for a walk nearby, and the protector is keeping watch. You could talk to Pushkar or the protector." */
+  function passersLine(by: Wanderer[]): Block {
+    const spans: Span[] = [];
+    by.forEach((v, i) => spans.push(...(i ? [i === by.length - 1 ? ', and ' : ', '] : []), walkerSpan(v, !i), ` is ${v.doing}`));
+    spans.push(' nearby. You could talk to ', ...orList(by.map((v) => walkerSpan(v))));
+    return p(...spans);
+  }
+
+  /** Someone out walking says their next line. */
+  function chat(s: EngineState, v: Wanderer): Result {
+    const n = s.chats[v.id] ?? 0;
+    const out: Block[] = [p({ text: `${cap(v.name)}: `, color: v.color, tone: 'em' }, `“${v.lines[n % v.lines.length]}”`)];
+    if (!n) out.push(dim(...md(`[Talk to ${v.name}](${chatCmd(v)}) again, and there's more.`)));
+    return result({ ...s, chats: { ...s.chats, [v.id]: n + 1 }, pending: null }, out, [{ type: 'sound', name: 'pop' }]);
+  }
+
+  /** Where someone out walking is, from here. */
+  function whereWalker(here: Place, v: Wanderer, lead = ''): Block {
+    const by = nearOf(v);
+    if (by.id === here.id) return p(lead, walkerSpan(v, !lead), ` is ${v.doing} just outside.`);
+    return p(lead, walkerSpan(v, !lead), ` is ${v.doing} by `, placeSpan(by), `, ${DIR_NAMES[travel.towards(here, by)]} of here.`);
+  }
 
   const wordIn = (pl: Place, s: Scenery) => world.lostWords.find((w) => w.place === pl.id && w.in === s.id);
   const project = (pl: Place) => world.projects.find((x) => x.slug === pl.project);
@@ -132,6 +184,8 @@ export function createEngine(world: World, geo: Geo, { random = Math.random }: E
     if (fishing?.place === pl.id) out.push(dim(fishing.description, ' ', ...md('Type [FISH] to try your luck.')));
     if (boat?.place === pl.id) out.push(dim(boat.description, ' ', ...md('Type [RACE] to take it out.')));
     out.push(...games.describe(pl));
+    const by = passersBy(pl);
+    if (by.length) out.push(passersLine(by));
     if (portal?.place === pl.id) out.push(dim(...md(`In the middle of it all, a ring of violet light hangs over the cobbles, humming. Through it you can see the island other ways: in 3D, as a pixel map, as a plain list. [Step through](portal) if you're curious.`)));
     if (pl.href || pl.interior) {
       const verb = pl.kind === 'contact' ? 'OPEN' : 'ENTER';
@@ -299,7 +353,11 @@ export function createEngine(world: World, geo: Geo, { random = Math.random }: E
     const here = place(s.at);
     const ps = people(here);
     if (!s.inside) {
-      // Outside, the islanders are all indoors: talking to one takes you in.
+      // Outside: someone out walking by here, or an islander indoors (talking to one takes you in).
+      const by = passersBy(here);
+      const passer = noun ? walkerNamed(noun, by) : !here.interior && by.length === 1 ? by[0] : undefined;
+      if (passer) return chat(s, passer);
+      if (!noun && !here.interior && by.length > 1) return result(s, [p('Talk to whom? ', ...orList(by.map((v) => walkerSpan(v)), ' or ', '?'))]);
       if (here.interior && (!noun || personAt(here, noun).length)) {
         const r = enter(s);
         const c = noun ? personAt(here, noun)[0] : ps.length === 1 ? ps[0] : null;
@@ -307,15 +365,19 @@ export function createEngine(world: World, geo: Geo, { random = Math.random }: E
         const t = greet(r.state, c);
         return result(t.state, [...r.out.slice(0, 1), ...t.out], [...r.effects, ...t.effects]);
       }
+      const walking = noun ? walkerNamed(noun) : undefined;
+      if (walking) return result(s, [whereWalker(here, walking)]);
       const elsewhere = noun ? world.places.find((x) => personAt(x, noun).length) : undefined;
       if (elsewhere) return result(s, [p(`${personAt(elsewhere, noun)[0].name} is inside `, placeSpan(elsewhere), `, ${DIR_NAMES[travel.towards(here, elsewhere)]} of here.`)]);
-      return result(s, [say("There's nobody out here to talk to but the gulls, and they only want your sandwich. The islanders are all indoors.")]);
+      return result(s, [say("There's nobody out here to talk to just now but the gulls, and they only want your sandwich. The islanders are indoors, and the people out walking are somewhere else on their rounds.")]);
     }
     if (!noun) return ps.length === 1 ? greet(s, ps[0]) : result(s, [whom(ps, 'Talk to whom? ')]);
     const c = personAt(here, noun)[0];
     if (c) return greet(s, c);
     const t = thingAt(here, noun)[0];
     if (t) return result(s, [say(`You say hello to ${thing(t)}. It doesn't say anything back, which is fair.`)]);
+    const walking = walkerNamed(noun);
+    if (walking) return result(s, [whereWalker(here, walking, `Not in here. `)]);
     return result(s, [p(`There's nobody called '${noun}' in here. `, ...orList(ps.map((x) => cmd(x.name, talkCmd(x))), ' and ', ps.length > 1 ? ' are here.' : ' is here.'))]);
   }
 
@@ -396,6 +458,10 @@ export function createEngine(world: World, geo: Geo, { random = Math.random }: E
     if (!noun) return result(s, [p(...whatSpans(here, searching ? 'Search what? ' : 'Examine what? ', searching ? 'search' : 'examine'))]);
     const sc = lex.scenery(here, noun);
     if (sc.length) return scenery(s, here, sc[0], closely || searching);
+    const passer = walkerNamed(noun, passersBy(here));
+    if (passer) return result(s, [p(`${cap(passer.name)}, ${passer.doing}. ${passer.looks} `, ...md(`[Talk to ${passer.name}](${chatCmd(passer)}).`))]);
+    const walking = walkerNamed(noun);
+    if (walking && !lex.places(noun).length) return result(s, [whereWalker(here, walking)]);
     if (['me', 'myself', 'self', 'yourself', 'you'].includes(noun))
       return result(s, [say("You look like someone who explores websites properly. I appreciate that. The [ABOUT] page is about me, not you, but it's a start.")]);
     const named = sceneryNamed(noun);
@@ -844,6 +910,9 @@ export function createEngine(world: World, geo: Geo, { random = Math.random }: E
     if (lex.scenery(here, noun).length) return result(s, [say(`You're standing right by ${thing(lex.scenery(here, noun)[0])}.`)]);
     const elsewhere = lex.sceneryAnywhere(noun)[0];
     if (elsewhere) return walk(s, elsewhere.place.id);
+    // "go to dad": wherever they're walking by.
+    const walking = walkerNamed(noun);
+    if (walking) return nearOf(walking).id === s.at ? chat(s, walking) : walk(s, nearOf(walking).id);
     return unknownNoun(s, noun, 'go to');
   }
 
@@ -877,7 +946,7 @@ export function createEngine(world: World, geo: Geo, { random = Math.random }: E
     if (s.inside) {
       const r = inside(s, c, noun, raw);
       if (r) return r;
-    } else if (c.verb === 'talk') return talk(s, noun);
+    } else if (c.verb === 'talk' || (c.verb === 'hello' && noun && walkerNamed(noun, passersBy(here)))) return talk(s, noun);
     else if (c.verb === 'ask') return ask(s, c.rest, noun);
     else if (c.verb === 'leave') return leave(s);
     else if (c.verb === 'bye') return result(s, [say('Bye for now. The island will be here.')]);
@@ -886,7 +955,8 @@ export function createEngine(world: World, geo: Geo, { random = Math.random }: E
     if (fun) return 'instead' in fun ? dispatch(s, parse(fun.instead), fun.instead) : result(s, fun.out, fun.effects);
     switch (c.verb) {
       case null: {
-        // A bare noun: scenery here is examined, a place is walked to.
+        // A bare noun: someone walking by is talked to, scenery here is examined, a place is walked to.
+        if (walkerNamed(noun, passersBy(here))) return talk(s, noun);
         if (lex.scenery(here, noun).length || sceneryNamed(noun)) return examine(s, noun, false);
         if (lex.places(noun).length) return goNoun(s, noun);
         if (lex.words(noun).length || lex.sceneryAnywhere(noun).length || lex.posts(noun).length) return examine(s, noun, false);
@@ -1127,6 +1197,7 @@ export function createEngine(world: World, geo: Geo, { random = Math.random }: E
       at: where,
       inside: !!opts.inside && !!place(where).interior,
       talking: null,
+      chats: {},
       from: null,
       found: progress.found ?? [],
       caught: progress.caught ?? [],
@@ -1192,6 +1263,7 @@ export function createEngine(world: World, geo: Geo, { random = Math.random }: E
     if (fishing?.place === here.id && !s.fishing) chips.push({ label: 'Fish', cmd: 'fish', tone: 'go' });
     if (boat?.place === here.id) chips.push({ label: 'Race the boat', cmd: 'race', tone: 'go' });
     if (portal?.place === here.id) chips.push({ label: 'Step through the portal', cmd: 'portal', tone: 'go' });
+    for (const v of passersBy(here)) chips.push({ label: `Talk to ${v.name}`, cmd: chatCmd(v), tone: 'go' });
     const game = games.here(here.id);
     if (game) chips.push({ label: `Play ${game}`, cmd: `play ${game}`, tone: 'go' });
     for (const line of exitLines(here)) {
@@ -1217,7 +1289,7 @@ export function createEngine(world: World, geo: Geo, { random = Math.random }: E
     if (!head.trim()) pool = [...VERB_WORDS.filter((w) => w.length > 2), ...dirs, ...sceneryNames, ...placeNames];
     else if (before === 'go' || before === 'enter' || before === 'cd') pool = [...placeNames, ...dirs];
     else if (before === 'view') pool = ['island', 'map', 'list'];
-    else if (before === 'talk') pool = people(here).map((c) => key(c.name));
+    else if (before === 'talk') pool = s.inside ? people(here).map((c) => key(c.name)) : [...people(here), ...passersBy(here)].map((c) => key(c.name));
     else if (before === 'ask') {
       const c = people(here).find((x) => x.id === s.talking) ?? people(here)[0];
       pool = c ? [...people(here).map((x) => key(x.name)), ...c.topics.map((t) => key(t.names[0]))] : [];

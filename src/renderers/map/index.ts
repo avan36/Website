@@ -20,6 +20,7 @@ import { Fishing } from './fishing';
 import { createBoatCard } from './boat';
 import { boatOf } from '../boat';
 import { createMapGames } from './minigames';
+import { createMapWanderers } from './wanderers';
 import { BODY_R, HALF_WIDTH, layoutPlaces, layoutStreet, scatterProps, type MapPlace } from './layout';
 import { createOverlay, type FishPrompt } from './overlay';
 import { HEX } from './palette';
@@ -178,6 +179,13 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
     halt: () => ((path = null), clearKeys(), (facing = 'up')),
   });
   for (const b of games.blocks) stampCircle(b.x, b.z, b.r + BODY_R);
+  // People out walking: they stop for you, and say hello.
+  const walkers = createMapWanderers(ctx, root, {
+    walk: (x, z) => (walkTo(x, z) ? path : null),
+    route: () => path,
+    halt: (face) => ((path = null), clearKeys(), (facing = face)),
+    night: () => night,
+  });
   // The bus on the quay and the station's shelter stand in the way too.
   const quay = geo.quay;
   const busAt = quay ? { x: quay.bus.x, z: quay.bus.z + 0.5 } : null;
@@ -707,6 +715,11 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
       e.preventDefault();
       return games.play(games.open);
     }
+    // Someone out walking has stopped for you: E or Enter says hello, and then chats.
+    if ((e.code === 'KeyE' || e.key === 'Enter') && !onControl && walkers.open && fishing.phase === 'idle') {
+      e.preventDefault();
+      return walkers.talk(walkers.open);
+    }
     if (e.code === 'KeyE' || ((e.key === 'Enter' || e.key === ' ') && fishing.phase !== 'idle')) {
       if (atFishing() || fishing.phase !== 'idle') {
         e.preventDefault();
@@ -791,6 +804,7 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
     if (hitHero(w.x, w.z)) return tryJump();
     if (hitPortal(w.x, w.z)) return activatePortal();
     if (games.hit(w.x, w.z)) return;
+    if (walkers.hit(w.x, w.z)) return;
     const m = hitLandmark(w.x, w.z);
     if (m) return activate(m);
     if (fishSpot && Math.hypot(w.x - fishSpot.at.x, w.z - fishSpot.at.z) < 0.9) {
@@ -1350,7 +1364,10 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
       const d = Math.min(Math.hypot(pos.x - m.door.x, pos.z - m.door.z), Math.hypot(pos.x - m.worldDoor.x, pos.z - m.worldDoor.z) + 0.3);
       if (d < DOOR_RANGE && d < bestD) (best = m), (bestD = d);
     }
+    // Right beside someone out walking, they have your attention rather than a door.
+    if (best && walkers.claims(pos.x, pos.z)) best = null;
     games.update(pos, mode === 'play' && !best && !jump.air && wet === 0);
+    walkers.update(pos, dt, mode === 'play' && !best && !games.open && !insideOf && !jump.air && wet === 0);
     let atPortal = false;
     if (portal && !jump.air && wet === 0) {
       const d = Math.hypot(pos.x - portal.at.x, pos.z - portal.at.z - 0.75);
@@ -1865,6 +1882,7 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
     if (!insideOf) dynShown.push(heroThing);
     if (bottlePlace) dynShown.push(crabThing);
     for (let i = 0; i < words.length; i++) if (words[i].here) dynShown.push(wordThings[i]);
+    dynShown.push(...walkers.things);
     // Insertion sort: a handful of items, no allocation.
     for (let i = 1; i < dynShown.length; i++) {
       const v = dynShown[i];
@@ -2048,6 +2066,7 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
       overlay.fish(fp, p.x, p.y);
     } else overlay.fish(null);
     games.render((x, z) => toScreen(x, z, scratch), mode === 'play' && !tagFor && !tagPortal);
+    walkers.render((x, z) => toScreen(x, z, scratch), mode === 'play' && !tagFor && !tagPortal && !games.open && !insideOf);
   }
 
   /**
@@ -2169,6 +2188,9 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
       fishing: () => fishing.phase,
       games: () => games.debug(),
       play: (id: Parameters<typeof games.play>[0]) => games.play(id),
+      /** People out walking: where each is, and talking to one (walking over first if need be). */
+      wanderers: () => walkers.debug(),
+      talk: (id: string) => walkers.talk(id),
       frames: () => frames,
       /** How long the ground took to paint, and how big it is, in map pixels. */
       paint: () => ({ ms: Math.round(paintMs), w: W, h: H }),
@@ -2239,6 +2261,7 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
       overlay.destroy();
       boatCard.destroy();
       games.destroy();
+      walkers.destroy();
       root.remove();
       if (debug) delete (window as unknown as { __map?: unknown }).__map;
     },

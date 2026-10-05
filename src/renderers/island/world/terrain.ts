@@ -12,12 +12,14 @@ import {
   RGBAFormat,
   UnsignedByteType,
 } from 'three';
-import { heightAt, pathDist, rockiness } from './shape';
+import { heightAt, ISLANDS, pathDist, rockiness } from './shape';
 import { fbm, noise2 } from '../util/noise';
 import { clamp, rng, smoothstep } from '../util/math';
 
 /** The square the land is built over: the main island, the islets off its west coast, and their shelves. */
 export const TERRAIN_SIZE = 112;
+/** How far east the land goes on past that square: out over Little London and its shelf. */
+const EAST = Math.max(TERRAIN_SIZE / 2, ...ISLANDS.map((s) => s.x + s.outer * 1.35));
 
 const C = {
   sandDry: new Color('#f4dca6'),
@@ -38,14 +40,16 @@ export function buildTerrain() {
   const N = 154; // about 0.73 a cell
   const size = TERRAIN_SIZE;
   const cell = size / N;
+  // Wider than it is deep when an islet lies off the east end, at the same size of cell.
+  const NX = Math.ceil((EAST + size / 2) / cell);
   const rand = rng(42);
-  const vx = new Float32Array((N + 1) * (N + 1));
-  const vz = new Float32Array((N + 1) * (N + 1));
-  const vy = new Float32Array((N + 1) * (N + 1));
+  const vx = new Float32Array((NX + 1) * (N + 1));
+  const vz = new Float32Array((NX + 1) * (N + 1));
+  const vy = new Float32Array((NX + 1) * (N + 1));
   for (let j = 0; j <= N; j++) {
-    for (let i = 0; i <= N; i++) {
-      const k = j * (N + 1) + i;
-      const edge = i === 0 || j === 0 || i === N || j === N;
+    for (let i = 0; i <= NX; i++) {
+      const k = j * (NX + 1) + i;
+      const edge = i === 0 || j === 0 || i === NX || j === N;
       const x = -size / 2 + i * cell + (edge ? 0 : (rand() - 0.5) * cell * 0.62);
       const z = -size / 2 + j * cell + (edge ? 0 : (rand() - 0.5) * cell * 0.62);
       vx[k] = x;
@@ -75,10 +79,10 @@ export function buildTerrain() {
     for (let k = 0; k < 3; k++) col.push(c.r, c.g, c.b);
   };
   for (let j = 0; j < N; j++) {
-    for (let i = 0; i < N; i++) {
-      const a = j * (N + 1) + i;
+    for (let i = 0; i < NX; i++) {
+      const a = j * (NX + 1) + i;
       const b = a + 1;
-      const d = a + N + 1;
+      const d = a + NX + 1;
       const e = d + 1;
       if ((i + j) % 2) {
         tri(a, d, b);

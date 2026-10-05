@@ -56,6 +56,28 @@ describe('the islets', () => {
   });
 });
 
+describe('Little London', () => {
+  const w = world();
+  const geo = createGeo(w);
+  const isle = geo.islands.find((s) => s.id === 'little-london')!;
+  const on = (p: { x: number; z: number }) => geo.islandOf(p.x, p.z) === isle.i;
+
+  it('is big enough for the mall, the townhouse and five people out walking', () => {
+    expect(isle.coast(0)).toBeGreaterThan(12);
+    const places = w.places.filter((p) => on(p.at)).map((p) => p.id).sort();
+    expect(places).toEqual(['no-12', 'westfield']);
+    expect(w.wanderers.filter((v) => v.roams === 'little-london')).toHaveLength(5);
+  });
+
+  it('still has Tower Bridge coming ashore on it, from the quay', () => {
+    const tower = geo.bridges.find((b) => b.style === 'tower')!;
+    expect(tower.joins).toEqual([0, isle.i]);
+    const l = geo.landing(tower, 1);
+    expect(on(l)).toBe(true);
+    expect(geo.isWalkable(l.x, l.z)).toBe(true);
+  });
+});
+
 describe('the bridges', () => {
   const w = world();
   const geo = createGeo(w);

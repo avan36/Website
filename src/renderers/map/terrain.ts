@@ -24,7 +24,7 @@ export const TEX = 8;
  * and Tower Bridge out to it, the water you can swim in round all of them,
  * and the drop-off past it.
  */
-export const RECT = { x0: -51, z0: -37, x1: 75, z1: 37 };
+export const RECT = { x0: -51, z0: -37, x1: 81, z1: 38 };
 /** Deeper than this (world units) you swim; shallower, you wade. */
 export const SWIM_DEPTH = 0.45;
 

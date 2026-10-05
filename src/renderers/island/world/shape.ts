@@ -51,6 +51,7 @@ const METRICS: Record<PlaceKind, { labelY: number; hitR: number; hitH: number; r
   taproom: { labelY: 3.7, hitR: 3.2, hitH: 4.6, eaves: 2.75 },
   depot: { labelY: 3.1, hitR: 3.2, hitH: 4.0, eaves: 2.5 },
   mall: { labelY: 4.5, hitR: 3.9, hitH: 4.3, eaves: 2.45 },
+  townhouse: { labelY: 6.6, hitR: 2.6, hitH: 6.4, eaves: 4.2 },
   workshop: { labelY: 4.0, hitR: 2.9, hitH: 5.0 },
   library: { labelY: 5.4, hitR: 3.2, hitH: 7.4, eaves: 2.86 },
   lighthouse: { labelY: 8.2, hitR: 2.4, hitH: 10, eaves: 0.6 },
@@ -61,7 +62,7 @@ const METRICS: Record<PlaceKind, { labelY: number; hitR: number; hitH: number; r
 const world = readWorld();
 const geo = readGeo();
 
-export const { coastRadius, rockiness, heightAt, groundAt, isWalkable, pathDist, isOpenGround, depthAt, swimRoom, isSwimmable, islandOf, owner, nextStop, swimEdge, clearOfBridges, landing } = geo;
+export const { coastRadius, rockiness, heightAt, groundAt, isWalkable, pathDist, isOpenGround, depthAt, swimRoom, isSwimmable, islandOf, owner, nextStop, swimEdge, clearOfBridges, landing, walkDist } = geo;
 /** The main island (0) and the islets off it, and the footbridges out to them. */
 export const ISLANDS = geo.islands;
 export const BRIDGES = geo.bridges;
@@ -138,6 +139,9 @@ export const PLACES: Place[] = world.places
       clearing: p.clearing,
     };
   });
+
+/** People out walking (see play/wanderers.ts and src/world/wander.ts). */
+export const WANDERERS = world.wanderers;
 
 /** The world's place, with its room if it's a building you can walk into. */
 export const placeOf = (id: string) => world.places.find((p) => p.id === id) ?? null;

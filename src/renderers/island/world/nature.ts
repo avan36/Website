@@ -18,7 +18,7 @@ import {
 } from 'three';
 import { Kit } from './kit';
 import { LONDON_SPOTS, LONDON_WALK } from './london';
-import { ACTIVITIES, clearOfBridges, heightAt, isOpenGround, ISLANDS, owner, rockiness, PLAZA, PLACES, WORDS } from './shape';
+import { ACTIVITIES, clearOfBridges, heightAt, isOpenGround, ISLANDS, owner, rockiness, PLAZA, PLACES, walkDist, WORDS } from './shape';
 import { rng } from '../util/math';
 
 export interface SharedUniforms {
@@ -396,14 +396,25 @@ export function buildNature(uniforms: SharedUniforms, lite = false) {
     flowers.push(...scatter(lite ? 10 : 16, r, (x, z, h) => h > 0.85 && isOpenGround(x, z, -0.5) && !nearGame(x, z, 1.6, 0) && !onWay(x, z, -0.6), 0.45, [], [0.8, 1.2], around));
   }
 
+  // Nobody out walking walks into a tree: their walks are cleared last, so nothing else moves.
+  const offWalks = (m: number) => (p: Spot) => walkDist(p.x, p.z) > m;
+  palms = palms.filter(offWalks(1));
+  // (Each tree keeps its shape: the halves are split before anything is cleared.)
+  const treesA = trees.slice(0, half).filter(offWalks(1.4));
+  const treesB = trees.slice(half).filter(offWalks(1.4));
+  trees = [...treesA, ...treesB];
+  pines = pines.filter(offWalks(1.3));
+  bushes = bushes.filter(offWalks(0.9));
+  rocks = rocks.filter(offWalks(0.7));
+
   const palmM = swayMaterials(uniforms, 0.0045, 1.1);
   const treeM = swayMaterials(uniforms, 0.006, 1.3);
   const stiffM = swayMaterials(uniforms, 0.0, 1);
   const grassM = swayMaterials(uniforms, 0.35, 2.2);
 
   group.add(instanced(palmGeometry(), palmM, palms, true, 0.1));
-  group.add(instanced(roundTreeGeometry(0), treeM, trees.slice(0, half), true));
-  group.add(instanced(roundTreeGeometry(1), treeM, trees.slice(half), true));
+  group.add(instanced(roundTreeGeometry(0), treeM, treesA, true));
+  group.add(instanced(roundTreeGeometry(1), treeM, treesB, true));
   group.add(instanced(pineGeometry(), treeM, pines, true));
   group.add(instanced(bushGeometry(), treeM, bushes, true));
   group.add(instanced(rockGeometry(3), stiffM, rocks.filter((_, i) => i % 2 === 0), true, 0.12));

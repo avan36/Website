@@ -2,8 +2,19 @@
 // The plain-HTML home page: server rendered, fully readable without JS or
 // WebGL, and the default for reduced motion. Also reachable from the HUD.
 import { person, projects } from '../../data/projects';
+import type { Wanderer } from '../../world/schema';
 import LandmarkIcon from './LandmarkIcon.astro';
 import SiteFooter from '../SiteFooter.astro';
+
+interface Props {
+  /** People out walking on the island, from the world. */
+  wanderers?: Wanderer[];
+  /** What each island is called, by the id a wanderer roams ("main" is the island itself). */
+  islands?: Record<string, string>;
+}
+const { wanderers = [], islands = {} } = Astro.props;
+const where = (roams: string) => (roams === 'main' ? 'on the island' : `on ${islands[roams] ?? 'an islet'}`);
+const cap = (s: string) => s[0].toUpperCase() + s.slice(1);
 ---
 <div class="isl-list" id="list-view">
   <header class="lv-header wrap">
@@ -187,6 +198,24 @@ import SiteFooter from '../SiteFooter.astro';
     </a>
   </section>
 
+  {wanderers.length > 0 && (
+    <section class="lv-about wrap" aria-labelledby="about-title">
+      <div class="lv-section-head">
+        <h2 id="about-title">Who's about</h2>
+        <p>A few people out walking. Stop and say hello on the island, the map or in the text adventure.</p>
+      </div>
+      <ul class="lv-people" role="list">
+        {wanderers.map((v) => (
+          <li class="lv-person" style={`--c: ${v.color}`}>
+            <span class="lv-person__dot" aria-hidden="true"></span>
+            <span class="lv-person__name">{cap(v.name)}</span>
+            <span class="lv-person__where">{v.doing} {where(v.roams)}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )}
+
   <SiteFooter />
 </div>
 
@@ -368,6 +397,22 @@ import SiteFooter from '../SiteFooter.astro';
   .lv-more__card > span:last-child { display: grid; gap: 2px; }
   .lv-more__title { font-family: var(--font-display); font-weight: 720; font-size: var(--step-1); letter-spacing: -0.02em; }
   .lv-more__text { color: var(--ink-2); }
+  .lv-about { padding-top: var(--space-8); }
+  .lv-people { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-top: var(--space-5); padding: 0; list-style: none; }
+  .lv-person {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 2px var(--space-2);
+    max-width: 100%;
+    padding: 8px 14px;
+    border-radius: var(--r-pill);
+    background: color-mix(in srgb, var(--c) 9%, var(--bg-raised));
+    box-shadow: inset 0 0 0 1px var(--line);
+  }
+  .lv-person__dot { width: 10px; height: 10px; border-radius: 50%; background: var(--c); align-self: center; box-shadow: inset 0 0 0 1px var(--line); }
+  .lv-person__name { font-family: var(--font-display); font-weight: 700; }
+  .lv-person__where { color: var(--ink-3); font-size: var(--step--1); }
 
   @media (max-width: 860px) {
     .lv-hero { grid-template-columns: 1fr; gap: var(--space-6); }

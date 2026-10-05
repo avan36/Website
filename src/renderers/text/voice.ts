@@ -21,6 +21,7 @@ export const WAY_IN: Record<Archetype, string> = {
   schoolhouse: 'slip into the schoolhouse and take a seat at the back',
   depot: 'duck under the conveyor and into the depot',
   mall: 'step through the sliding doors into a warm gust of air, and fries',
+  townhouse: 'go up the two steps, and the green door opens gently onto a quiet room',
   workshop: 'step over the sawdust and into the workshop, where the notes are pinned up',
   pier: 'open the post box and pull out the letters',
   bottle: 'pull out the cork and unroll the note',
@@ -37,6 +38,7 @@ export const INVITE: Record<Archetype, string> = {
   schoolhouse: 'join the class',
   depot: 'look around the depot',
   mall: 'go in',
+  townhouse: 'go in and sit for a while',
   workshop: 'read how the island was built',
   pier: "read everything I've posted from here, or [READ] to list it",
   bottle: 'write me a message',
@@ -50,6 +52,7 @@ export const ARRIVE: Partial<Record<Archetype, string>> = {
   tree: 'up the gentle rise to the ancient tree',
   workshop: 'across the tracks to the workshop inside the railway loop',
   mall: 'down to the quay, past the bus and over Tower Bridge to the mall',
+  townhouse: 'along from the mall to the townhouse with the green door',
 };
 
 /** One extra line for each place after dark. */
@@ -63,6 +66,7 @@ export const NIGHT: Record<Archetype, string> = {
   schoolhouse: 'The schoolhouse is dark. Somebody left the chalk out.',
   depot: 'The conveyor has stopped for the night. Even recycling sleeps.',
   mall: 'The mall is lit up like a ship, and Tower Bridge has its lights on too, a string of them along the walkways.',
+  townhouse: 'One lamp is on in the townhouse window, low and warm. The street is very quiet.',
   workshop: 'The workshop is dark except for the monitor, glowing through the window. The cursor is still blinking.',
   pier: 'The sea is black and full of stars, and the fish have come up to look at them.',
   bottle: 'The bottle catches the moonlight. The crab has gone to bed.',

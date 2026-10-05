@@ -1582,6 +1582,83 @@ function painted(w: number, h: number, paint: (g: CanvasRenderingContext2D, font
   return tex;
 }
 
+// ---------------------------------------------------------------- townhouse
+
+/**
+ * A narrow London townhouse in brick, two floors under a slate mansard with a
+ * dormer and chimney stacks at either end: white sash windows, a white band
+ * between the floors, a green door (the place's color) under a half-moon
+ * fanlight, a little brass plate by it, a window box of lavender, and two
+ * stone steps up between black railings. A lamp by the door after dark.
+ */
+export function buildTownhouse(color: string): Built {
+  const k = new Kit(1212);
+  const W = 3.8;
+  const D = 3.3;
+  const H = 4.3;
+  const BRICK = '#b8674b';
+  const BRICK_DARK = '#a2573f';
+  const MORTAR = '#d8c3ad';
+  const SLATE = '#5b6470';
+  const SLATE_DARK = '#48505b';
+  const GOLD = '#f2c14e';
+  const RAIL = '#2b2f33';
+  const front = D / 2;
+  // A stone plinth, then the brick, with a few darker courses to show it's brick.
+  k.box(W + 0.3, 0.35, D + 0.3, STONE, { p: [0, 0.17, 0] });
+  k.box(W, H - 0.35, D, BRICK, { p: [0, 0.35 + (H - 0.35) / 2, 0], jitter: 0.06 });
+  for (let y = 0.7; y < H - 0.2; y += 0.42) k.box(W + 0.02, 0.05, D + 0.02, y % 0.84 < 0.42 ? BRICK_DARK : MORTAR, { p: [0, y, 0], jitter: 0.02 });
+  // White band between the floors, and a cornice along the top.
+  k.box(W + 0.12, 0.16, D + 0.12, TRIM, { p: [0, 2.25, 0] });
+  k.box(W + 0.24, 0.22, D + 0.24, TRIM, { p: [0, H + 0.02, 0] });
+  // The mansard: steep slate slopes front and back, a flat top, a dormer, chimney stacks at the ends.
+  const roofY = H + 0.13;
+  k.box(W, 0.9, D - 1.0, SLATE, { p: [0, roofY + 0.45, 0] });
+  for (const s of [-1, 1]) k.box(W, 0.12, 1.05, SLATE_DARK, { p: [0, roofY + 0.45, s * (D / 2 - 0.42)], r: [s * -1.05, 0, 0] });
+  k.box(W - 0.1, 0.1, D - 1.0, SLATE_DARK, { p: [0, roofY + 0.92, 0] });
+  k.box(1.0, 0.8, 0.5, SLATE_DARK, { p: [0, roofY + 0.4, front - 0.45] });
+  k.box(1.1, 0.12, 0.6, SLATE, { p: [0, roofY + 0.84, front - 0.45] });
+  windowAt(k, 0, roofY + 0.36, front - 0.18, { w: 0.55, h: 0.42 });
+  for (const s of [-1, 1]) {
+    k.box(0.45, 1.3, 1.1, BRICK, { p: [s * (W / 2 - 0.22), roofY + 0.65, 0] });
+    k.box(0.55, 0.12, 1.2, STONE, { p: [s * (W / 2 - 0.22), roofY + 1.32, 0] });
+    for (const z of [-0.3, 0.3]) k.cyl(0.09, 0.11, 0.3, '#c96f4a', { p: [s * (W / 2 - 0.22), roofY + 1.53, z] }, 8);
+  }
+  // The door, off to one side, in a white surround under a fanlight.
+  const dx = 0.75;
+  k.box(1.25, 2.25, 0.12, TRIM, { p: [dx, 0.35 + 1.12, front + 0.04] });
+  k.rbox(0.9, 1.6, 0.12, 0.04, color, { p: [dx, 0.35 + 0.8, front + 0.1] });
+  for (const y of [0.75, 1.35]) for (const x of [-0.2, 0.2]) k.box(0.28, 0.42, 0.04, shade(color, -0.08), { p: [dx + x, 0.35 + y, front + 0.17] });
+  k.sphere(0.05, GOLD, { p: [dx, 0.35 + 1.15, front + 0.2] }, 6, 4);
+  k.addGlow(new CylinderGeometry(0.38, 0.38, 0.06, 14, 1, false, -Math.PI / 2, Math.PI), GLOW, { p: [dx, 0.35 + 1.75, front + 0.08], r: [Math.PI / 2, 0, 0] });
+  // The brass plate, small, by the door: it says ROOMS, too small to read from here.
+  k.box(0.2, 0.13, 0.03, GOLD, { p: [dx - 0.78, 1.45, front + 0.03], jitter: 0 });
+  // Two stone steps, and black railings either side.
+  k.box(1.3, 0.16, 0.5, STONE_DARK, { p: [dx, 0.08, front + 0.42] });
+  k.box(1.3, 0.16, 0.3, STONE, { p: [dx, 0.24, front + 0.3] });
+  for (const x of [-0.72, 0.72]) {
+    k.box(0.04, 0.04, 0.75, RAIL, { p: [dx + x, 0.95, front + 0.38] });
+    for (let i = 0; i < 4; i++) k.box(0.03, 0.75, 0.03, RAIL, { p: [dx + x, 0.55, front + 0.05 + i * 0.22] });
+    k.sphere(0.035, GOLD, { p: [dx + x, 1.0, front + 0.75] }, 6, 4);
+  }
+  // Sash windows: one beside the door with a window box of lavender, two upstairs.
+  windowAt(k, -0.95, 1.35, front + 0.06, { w: 0.8, h: 1.05 });
+  k.box(1.05, 0.18, 0.28, WOOD_DARK, { p: [-0.95, 0.72, front + 0.2] });
+  for (let i = 0; i < 6; i++) k.ico(0.07, i % 2 ? '#9b87d6' : '#b9a4e8', { p: [-1.33 + i * 0.15, 0.86, front + 0.22] });
+  for (const x of [-0.95, 0.95]) windowAt(k, x, 3.25, front + 0.06, { w: 0.8, h: 1.1 });
+  // A window down each side.
+  for (const s of [-1, 1]) windowAt(k, s * (W / 2 + 0.06), 3.25, 0, { ry: (s * Math.PI) / 2, w: 0.7, h: 1.0 });
+  // A lamp by the door.
+  k.box(0.05, 0.3, 0.05, RAIL, { p: [dx + 0.78, 2.05, front + 0.1] });
+  k.addGlow(new BoxGeometry(0.16, 0.22, 0.16), '#ffd27a', { p: [dx + 0.78, 1.82, front + 0.14] });
+  const group = k.build({ glowMaterial: glowMat() });
+  const glows = {
+    halos: [[dx + 0.78, 1.82, front + 0.3, 1.2], [dx, 2.1, front + 0.3, 1.0], [-0.95, 1.35, front + 0.25, 1.3], [-0.95, 3.25, front + 0.25, 1.2], [0.95, 3.25, front + 0.25, 1.2]] as Glow[],
+    pools: [[dx, 0.05, front + 1.3, 2.4]] as Glow[],
+  };
+  return { group, bouncy: group, glows };
+}
+
 /** A flat quad from four corners (counter-clockwise seen from its front), for glass that follows a curve. */
 function quad(a: V3, b: V3, c: V3, d: V3) {
   const g = new BufferGeometry();
@@ -1800,6 +1877,7 @@ export const BUILDERS = {
   schoolhouse: buildSchoolhouse,
   depot: buildDepot,
   mall: buildMall,
+  townhouse: buildTownhouse,
   workshop: buildWorkshop,
   pier: buildPier,
   bottle: buildBottle,

@@ -21,7 +21,7 @@ export const shade = (hex: string, k: number) => {
 
 /** About how tall each kind of thing is, for its click box. */
 export function propHeight(p: Prop) {
-  return { desk: 1.4, hearth: 2.8, frame: 1.2, board: 1.5, counter: 1.5, bookshelf: 3, cabinet: 2.2, lens: 2.8, cat: 0.7, globe: 1.5, scanner: 1.5, crates: 1.9, grill: 3.0, sacks: 1.0, escalator: 3.2, shopfront: 2.8 }[p];
+  return { desk: 1.4, hearth: 2.8, frame: 1.2, board: 1.5, counter: 1.5, bookshelf: 3, cabinet: 2.2, lens: 2.8, cat: 0.7, globe: 1.5, scanner: 1.5, crates: 1.9, grill: 3.0, sacks: 1.0, escalator: 3.2, shopfront: 2.8, armchairs: 1.5, sidetable: 1.6, clock: 1.5, plant: 1.6 }[p];
 }
 
 /** One thing, built from the kit, standing at the origin facing +z. */
@@ -113,6 +113,12 @@ export function buildProp(prop: Prop, place: Place, s: Spot, mat: <T extends Mat
         kit.box(0.42, 0.78, 0.04, IRON, { p: [0, 2.1, wallZ + 0.06] });
         kit.box(0.34, 0.66, 0.04, CREAM, { p: [0, 2.1, wallZ + 0.07] });
         for (let i = 0; i < 5; i++) kit.box(0.16, 0.06, 0.03, i % 2 ? '#bdb5a8' : accent, { p: [i % 2 ? -0.06 : 0.06, 2.34 - i * 0.12, wallZ + 0.09] });
+      } else if (place.archetype === 'townhouse') {
+        // A calm sea at dusk: a pale sky, a low sun, a long horizon.
+        kit.box(hw * 2 - 0.3, 0.42, 0.03, '#f3d9b8', { p: [0, 2.31, wallZ + 0.07], jitter: 0 });
+        kit.box(hw * 2 - 0.3, 0.4, 0.03, '#7fa6b8', { p: [0, 1.9, wallZ + 0.07], jitter: 0 });
+        kit.cyl(0.11, 0.11, 0.03, '#f7b26b', { p: [0.2, 2.13, wallZ + 0.085], r: [Math.PI / 2, 0, 0] }, 14);
+        kit.box(hw * 2 - 0.3, 0.02, 0.03, '#5f8597', { p: [0, 2.1, wallZ + 0.09], jitter: 0 });
       } else if (place.archetype === 'depot') {
         kit.cyl(0.22, 0.22, 0.05, '#3f7fd6', { p: [0, 2.25, wallZ + 0.07], r: [Math.PI / 2, 0, 0] });
         kit.cyl(0.08, 0.08, 0.06, GOLD, { p: [0, 2.25, wallZ + 0.09], r: [Math.PI / 2, 0, 0] });
@@ -473,6 +479,71 @@ export function buildProp(prop: Prop, place: Place, s: Spot, mat: <T extends Mat
         kit.box(sw - 0.2, 0.36, 0.12, shop.fascia, { p: [cx, 2.45, z + 0.04] });
         kit.addGlow(new BoxGeometry(sw * 0.4, 0.1, 0.02), shop.fascia === '#f4efe6' ? '#2e9c8f' : '#ffffff', { p: [cx, 2.45, z + 0.11] });
       });
+      break;
+    }
+    case 'armchairs': {
+      // Two deep armchairs facing each other across a rug: the near one (west) for whoever comes in, the far one
+      // (east) with a closed notepad on its arm. Upholstered in oatmeal, with the room's green for cushions.
+      const CLOTH = '#d9c8ad';
+      const CLOTH_DARK = '#c2ae8f';
+      const S = 1.3; // a size you'd sink into, next to the explorer
+      kit.box(hw * 1.1, 0.03, hd * 2 + 0.5, shade(accent, 0.18), { p: [0, 0.015, 0], jitter: 0 });
+      kit.box(hw * 1.1 - 0.3, 0.035, hd * 2 + 0.2, shade(accent, 0.3), { p: [0, 0.02, 0], jitter: 0 });
+      const far = hw - 0.5 * S;
+      for (const s of [-1, 1]) {
+        const x = s * far;
+        const k = (dx: number) => x + s * dx * S; // toward the outside of the room's middle
+        kit.rbox(1.0 * S, 0.42 * S, 1.05 * S, 0.08, CLOTH_DARK, { p: [x, 0.26 * S, 0] });
+        kit.rbox(0.95 * S, 0.18 * S, 0.95 * S, 0.08, CLOTH, { p: [k(-0.02), 0.55 * S, 0] });
+        // The back, on the outer side, so the chairs face each other.
+        kit.rbox(0.28 * S, 1.0 * S, 1.05 * S, 0.1, CLOTH_DARK, { p: [k(0.42), 0.82 * S, 0], r: [0, 0, s * 0.12] });
+        kit.rbox(0.22 * S, 0.4 * S, 0.5 * S, 0.08, shade(accent, 0.12), { p: [k(0.24), 0.8 * S, 0], r: [0, 0, s * 0.18] });
+        // The arms, and little feet.
+        for (const z of [-0.47, 0.47]) kit.rbox(0.95 * S, 0.3 * S, 0.16 * S, 0.06, CLOTH_DARK, { p: [k(-0.02), 0.7 * S, z * S] });
+        for (const z of [-0.4, 0.4]) for (const dx of [-0.38, 0.38]) kit.cyl(0.04, 0.03, 0.08, WOOD_DARK, { p: [x + dx * S, 0.04, z * S] }, 6);
+      }
+      // The notepad and pen, on the far chair's arm.
+      const ay = 0.85 * S + 0.02;
+      kit.box(0.3, 0.03, 0.2, CREAM, { p: [far - 0.05, ay + 0.01, -0.47 * S], r: [0, 0.2, 0] });
+      kit.box(0.31, 0.02, 0.21, shade(accent, -0.1), { p: [far - 0.05, ay - 0.01, -0.47 * S], r: [0, 0.2, 0] });
+      kit.cyl(0.012, 0.012, 0.22, IRON, { p: [far + 0.03, ay + 0.03, -0.47 * S], r: [0, 0.2, Math.PI / 2] }, 5);
+      break;
+    }
+    case 'sidetable': {
+      // A little round table with a lamp (lit, soft) and a box of tissues, one pulled up ready.
+      kit.cyl(0.36, 0.36, 0.05, WOOD, { p: [0, 0.78, 0] }, 16);
+      kit.cyl(0.04, 0.05, 0.75, WOOD_DARK, { p: [0, 0.39, 0] }, 8);
+      kit.cyl(0.22, 0.24, 0.04, WOOD_DARK, { p: [0, 0.02, 0] }, 12);
+      kit.cyl(0.07, 0.09, 0.08, '#e7dccb', { p: [-0.12, 0.85, -0.08] }, 10);
+      kit.cyl(0.018, 0.018, 0.34, GOLD, { p: [-0.12, 1.04, -0.08] }, 6);
+      kit.addGlow(new CylinderGeometry(0.12, 0.2, 0.22, 12, 1, true), '#ffe2b0', { p: [-0.12, 1.26, -0.08] });
+      kit.rbox(0.26, 0.12, 0.16, 0.02, '#a9c4d8', { p: [0.13, 0.87, 0.1], r: [0, -0.3, 0] });
+      kit.box(0.07, 0.08, 0.05, '#fffdf8', { p: [0.13, 0.96, 0.1], r: [0.2, -0.3, 0.15], jitter: 0 });
+      break;
+    }
+    case 'clock': {
+      // A narrow shelf on a stand, and a little clock on it, its face turned to the far chair (east).
+      kit.box(0.5, 0.06, 0.32, WOOD, { p: [0, 0.95, 0] });
+      kit.box(0.08, 0.92, 0.08, WOOD_DARK, { p: [0, 0.46, 0] });
+      kit.box(0.34, 0.04, 0.3, WOOD_DARK, { p: [0, 0.02, 0] });
+      kit.rbox(0.16, 0.26, 0.26, 0.04, WOOD_DARK, { p: [0, 1.11, 0] });
+      kit.cyl(0.1, 0.1, 0.02, CREAM, { p: [0.085, 1.12, 0], r: [0, 0, Math.PI / 2] }, 14);
+      kit.box(0.01, 0.06, 0.012, IRON, { p: [0.1, 1.14, 0], jitter: 0 });
+      kit.box(0.01, 0.012, 0.05, IRON, { p: [0.1, 1.12, 0.02], jitter: 0 });
+      break;
+    }
+    case 'plant': {
+      // A leafy plant in a clay pot.
+      kit.cyl(0.26, 0.2, 0.42, '#c47a4e', { p: [0, 0.21, 0] }, 10);
+      kit.cyl(0.28, 0.28, 0.06, '#b06a42', { p: [0, 0.43, 0] }, 10);
+      kit.cyl(0.24, 0.24, 0.02, '#5b4030', { p: [0, 0.44, 0] }, 10);
+      const greens = ['#5fae5a', '#4f9c4d', '#6fc06a'];
+      for (let i = 0; i < 9; i++) {
+        const a = (i / 9) * Math.PI * 2;
+        const r = 0.12 + (i % 3) * 0.08;
+        kit.sphere(0.2, greens[i % 3], { p: [Math.cos(a) * r, 0.75 + (i % 3) * 0.2, Math.sin(a) * r], s: [1, 0.55, 0.7], r: [0, -a, 0.5] }, 7, 5);
+      }
+      kit.cyl(0.02, 0.03, 0.6, '#4f7a3a', { p: [0, 0.7, 0] }, 5);
       break;
     }
   }

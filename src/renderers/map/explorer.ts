@@ -93,6 +93,8 @@ const HATS: Record<string, string[]> = {
   'fishing-hat': ['.....oooo.....', '....oAAAAo....', '...oGGGGGGo...', '.oaaaaaaaaaao.'],
   'sailor-hat': ['....oooooo....', '...oAAAAAAo...', '...oBBBBBBo...', '.oaaaaaaaaaao.'],
   'leaf-crown': ['...A..AA..A...', '..AaAAaaAAaA..', '..aPaaAaaaPa..'],
+  // A woolly hat, for people out walking: a bobble, a dome and a turned-up band.
+  beanie: ['......oo......', '.....oAAo.....', '...ooAAAAoo...', '..oAAAAAAAAo..', '..oaaaaaaaao..'],
 };
 const HAT_PAL = { o: col(HEX.ink), Y: col('#f5c542'), G: col('#5b7a4a'), B: col('#2b5fa8'), P: col('#ffb7c9') };
 /**
@@ -188,7 +190,8 @@ function dressUp(p: Pix, worn: readonly Wearable[], facing: Facing, oy: number) 
         if (facing === 'down' && (x === 6 || x === 7)) continue;
         if (facing === 'right' && x >= 10) continue;
         const v = p.get(x, oy + y);
-        if (v === BASE.w || v === BASE.s) p.px(x, oy + y, y === 11 ? stripe : v === BASE.s ? d : c);
+        // A coat (someone out walking) has no hi-vis stripe.
+        if (v === BASE.w || v === BASE.s) p.px(x, oy + y, y === 11 && body.id !== 'coat' ? stripe : v === BASE.s ? d : c);
       }
     }
   }

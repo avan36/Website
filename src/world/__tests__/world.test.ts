@@ -315,7 +315,7 @@ describe('inside the buildings', () => {
   };
 
   it('gives every building a room, and nothing else one', () => {
-    expect(inside.map((p) => p.archetype).sort()).toEqual(['cabin', 'depot', 'library', 'lighthouse', 'mall', 'schoolhouse', 'taproom']);
+    expect(inside.map((p) => p.archetype).sort()).toEqual(['cabin', 'depot', 'library', 'lighthouse', 'mall', 'schoolhouse', 'taproom', 'townhouse']);
     for (const id of ['blog', 'contact', 'map-of-evolution', 'plaza']) expect(w.places.find((p) => p.id === id)!.interior, id).toBeUndefined();
   });
 
@@ -333,8 +333,8 @@ describe('inside the buildings', () => {
     }
   });
 
-  it('points every room back at the page it stands for (a memory has none)', () => {
-    for (const p of inside.filter((x) => x.kind !== 'memory')) {
+  it('points every room back at the page it stands for (a memory or a quiet place has none)', () => {
+    for (const p of inside.filter((x) => x.kind !== 'memory' && x.kind !== 'quiet')) {
       const links = [...p.interior!.things.map((t) => t.link), ...p.interior!.people.flatMap((c) => c.topics.map((t) => t.link))];
       expect(links.some((l) => l?.href === p.href), p.id).toBe(true);
     }
@@ -365,5 +365,104 @@ describe('inside the buildings', () => {
     const text = checkWorld(bad).map((i) => i.message).join('\n');
     expect(text).toMatch(/"blog" is a pier, not a building/);
     expect(text).toMatch(/"etymon" is a library: give it an interior/);
+  });
+});
+
+describe('the quiet room', () => {
+  const w = world();
+  const house = w.places.find((p) => p.id === 'no-12')!;
+  const room = house.interior!;
+  const said = [
+    house.name,
+    house.title,
+    house.blurb,
+    house.description,
+    ...house.aliases,
+    ...house.scenery.flatMap((s) => [s.description, ...s.names]),
+    room.description,
+    ...room.things.flatMap((t) => [t.description, ...t.names]),
+    ...room.people.flatMap((c) => [c.name, c.role, c.looks, c.greeting, c.farewell, ...c.topics.flatMap((t) => [t.reply, ...t.names])]),
+  ];
+
+  it('is a townhouse on Little London, with a room and no page to open', () => {
+    const geo = createGeo(w);
+    expect(house).toMatchObject({ kind: 'quiet', archetype: 'townhouse' });
+    expect(house.href).toBeUndefined();
+    expect(geo.islands[geo.islandOf(house.at.x, house.at.z)!].id).toBe('little-london');
+  });
+
+  it('has the two armchairs, the tissues, the clock, a plant and a calm painting', () => {
+    expect(room.things.map((t) => t.prop).sort()).toEqual(['armchairs', 'clock', 'frame', 'plant', 'sidetable']);
+    expect(room.people.map((c) => c.farewell)).toContain('We can stop here for today. Be gentle with yourself on the way out.');
+    expect(room.people.flatMap((c) => c.topics.map((t) => t.reply)).join(' ')).toMatch(/Take your time\./);
+  });
+
+  it('never says what it is', () => {
+    for (const s of said) expect(s).not.toMatch(/therap|counsel|psych|session|appointment/i);
+  });
+});
+
+describe('people out walking', () => {
+  const w = world();
+  const geo = createGeo(w);
+  const isle = (id: string) => (id === 'main' ? 0 : geo.islands.findIndex((s) => s.id === id));
+
+  it('are the people Ambrose asked for, on the island and on Little London', () => {
+    const on = (roams: string) => w.wanderers.filter((v) => v.roams === roams).map((v) => v.name);
+    expect(on('main')).toEqual(['Pushkar', 'Jeremy', 'Eugene', 'Abdu', 'the protector']);
+    expect(on('little-london')).toEqual(['Dad', 'Mom', 'Lucia', 'Andrew', 'Isaac']);
+  });
+
+  it('walk on dry land on their own island, never through a building', () => {
+    for (const v of w.wanderers) {
+      for (const p of v.walk) {
+        expect(geo.islandOf(p.x, p.z), v.id).toBe(isle(v.roams));
+        expect(geo.isWalkable(p.x, p.z), v.id).toBe(true);
+        for (const pl of w.places) if (pl.archetype !== 'pier' && pl.kind !== 'hub') expect(Math.hypot(p.x - pl.at.x, p.z - pl.at.z), `${v.id} in ${pl.id}`).toBeGreaterThan(pl.footprint);
+      }
+    }
+  });
+
+  it('say a few short, plain things, with no em dashes', () => {
+    for (const v of w.wanderers) {
+      expect(v.lines.length, v.id).toBeGreaterThanOrEqual(3);
+      for (const s of [v.looks, v.doing, ...v.lines]) {
+        expect(s, v.id).not.toMatch(/—/);
+        expect(s.length, v.id).toBeLessThan(160);
+      }
+    }
+  });
+
+  it('keep the scenery off their walks', () => {
+    expect(geo.walkDist(w.wanderers[0].walk[0].x, w.wanderers[0].walk[0].z)).toBe(0);
+    expect(geo.walkDist(0, 40)).toBeGreaterThan(5);
+  });
+
+  it('catch a walk into the sea, through a building, onto an island that is not there, or a name already taken', () => {
+    const bad = clone(w);
+    bad.wanderers[0].walk[1] = { x: 0, z: 40 };
+    const westfield = bad.places.find((p) => p.id === 'westfield')!;
+    const dad = bad.wanderers.find((v) => v.id === 'dad')!;
+    dad.walk[0] = { x: westfield.at.x - 5, z: westfield.at.z };
+    dad.walk[1] = { x: westfield.at.x + 6, z: westfield.at.z };
+    bad.wanderers.find((v) => v.id === 'lucia')!.roams = 'atlantis';
+    bad.wanderers.find((v) => v.id === 'jeremy')!.name = 'Wren';
+    const text = checkWorld(bad).map((i) => i.message).join('\n');
+    expect(text).toMatch(/Pushkar's waypoint 1 at \(0, 40\) isn't on the main island: move it onto its land/);
+    expect(text).toMatch(/Pushkar's walk from waypoint 0 to 1 leaves the main island/);
+    expect(text).toMatch(/Dad's walk from waypoint 0 to 1 goes through "westfield"/);
+    expect(text).toMatch(/Lucia roams "atlantis", which isn't an island/);
+    expect(text).toMatch(/Wren is out walking, and Wren in "no-12" has the same name/);
+  });
+
+  it('catch a walk across the railway or past the end of a bridge', () => {
+    const bad = clone(w);
+    const rw = bad.geography.railway!;
+    bad.wanderers[0].walk = [{ x: rw.center.x - rw.rx - 4, z: rw.center.z }, { x: rw.center.x, z: rw.center.z - 3 }];
+    const b = bad.geography.bridges[0];
+    bad.wanderers[1].walk = [{ x: b.from.x + 2, z: b.from.z - 2 }, { x: b.from.x + 2, z: b.from.z + 3 }];
+    const text = checkWorld(bad).map((i) => i.message).join('\n');
+    expect(text).toMatch(/Pushkar's walk from waypoint 0 to 1 crosses the railway/);
+    expect(text).toMatch(/Jeremy's walk from waypoint 0 to 1 goes across the end of a bridge/);
   });
 });
