@@ -9,10 +9,13 @@
 //
 //   E or Enter     talk to, or look at, whatever is within reach
 //   Escape         close the box (saying goodbye, mid-conversation); with it closed, leave the room
-//   arrows         move between the choices in the box
+//   arrows         move between the choices in the box (when it was opened, or
+//                  gone into, with the keys); otherwise they walk, like WASD
 //
-// The box isn't modal: the room stays on screen behind it. Focus moves into
-// it when it opens and goes back where it was when it closes, and what people
+// The box isn't modal: the room stays on screen behind it, and it never holds
+// you there. Walking off (a step, or a tap on the floor or on someone else;
+// the renderers call `hush()` before they act on a tap) says goodbye and
+// closes it. Focus moves into it when it opens and goes back where it was when it closes, and what people
 // say is announced as they say it.
 
 import type { Character, Place, Pointer, Thing, World } from '../world/schema';
@@ -91,6 +94,10 @@ export function createRoomUI(world: World, announce: (s: string) => void, toast:
   let showing: 'look' | 'talk' | 'thing' | null = null;
   /** The overview was put away (its close button): it stays away this visit. */
   let tucked = false;
+  /** The box was opened (or since gone into) with the keys: the arrows are its own, not walking. */
+  let keyed = false;
+  /** Whether the last thing the visitor did was press a key (rather than point or tap). */
+  let byKeys = false;
   const docked = () => boxDocksRight(window.innerWidth, window.innerHeight);
 
   const person = (id: string) => place?.interior?.people.find((c) => c.id === id) ?? null;
@@ -107,6 +114,7 @@ export function createRoomUI(world: World, announce: (s: string) => void, toast:
 
   /** Open the box with this inside it, and move focus in (unless it's only passing, see `passive`). */
   function show(html: string, color: string, label: string, what: NonNullable<typeof showing>, passing = false) {
+    if (box.hidden || passive) keyed = byKeys;
     passive = passing;
     showing = what;
     if (box.hidden && !passing) returnFocus = document.activeElement instanceof HTMLElement && document.activeElement !== document.body ? document.activeElement : null;
@@ -294,6 +302,7 @@ export function createRoomUI(world: World, announce: (s: string) => void, toast:
     clicked = false;
   });
   const onDown = (e: PointerEvent) => {
+    byKeys = false;
     const t = e.target as Node;
     if (passive && !box.hidden && !docked() && !box.contains(t) && !bar.contains(t) && !nudge.contains(t)) close();
   };
@@ -318,6 +327,7 @@ export function createRoomUI(world: World, announce: (s: string) => void, toast:
   const typing = (el: Element | null) => !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || (el as HTMLElement).isContentEditable);
   // Capture, so the room answers before the renderer underneath does anything with the same key.
   const onKey = (e: KeyboardEvent) => {
+    byKeys = true;
     if (!place || e.metaKey || e.ctrlKey || e.altKey) return;
     const t = e.target as HTMLElement;
     if (typing(t) || (document.getElementById('w-dialog') as HTMLDialogElement | null)?.open || t.closest?.('.isl-views')) return;
@@ -344,9 +354,17 @@ export function createRoomUI(world: World, announce: (s: string) => void, toast:
       return;
     }
     if (!box.hidden) {
-      // Arrows move between the choices; everything else stays with the box (no walking off mid-sentence).
+      // The box doesn't hold you there. Walking (WASD, or the arrows when you came by pointer)
+      // says goodbye and lets the step through to the renderer underneath. Arrows move
+      // between the choices once you're working the box with the keys.
       const inBox = box.contains(t);
-      if (e.key.startsWith('Arrow')) {
+      if (e.key === 'Tab') keyed = true;
+      const arrow = e.key.startsWith('Arrow');
+      if (/^Key[WASD]$/.test(e.code) || (arrow && !(keyed && inBox))) {
+        if (!e.repeat) hush();
+        return;
+      }
+      if (arrow) {
         const items = [...box.querySelectorAll<HTMLElement>('.w-talk__choice, .w-talk__more')];
         const i = items.indexOf(document.activeElement as HTMLElement);
         const step = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : -1;
@@ -360,7 +378,7 @@ export function createRoomUI(world: World, announce: (s: string) => void, toast:
         e.stopPropagation();
         box.querySelector<HTMLElement>('.w-talk__choice')?.focus();
       }
-      if (/^Key[WASD]$/.test(e.code) || e.code === 'Space') e.stopPropagation();
+      if (e.code === 'Space') e.stopPropagation();
       return;
     }
     const onControl = t !== document.body && (t.tagName === 'A' || t.tagName === 'BUTTON');

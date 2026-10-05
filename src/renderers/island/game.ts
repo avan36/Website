@@ -836,6 +836,8 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
       // In a room: no turning or zooming, just walking over to things.
       if (!e.isPrimary || e.button > 0 || state !== 'inside' || !room) return;
       setNdc(e);
+      // A tap on the room while someone's talking says goodbye, then goes where it was meant to.
+      if (o.ui.room.busy) o.ui.room.hush();
       room.tap(ndc);
       return;
     }

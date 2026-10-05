@@ -816,6 +816,8 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
   const onPointerDown = (e: PointerEvent) => {
     if (!e.isPrimary || e.button > 0 || busy()) return;
     if (mode === 'inside' && inside) {
+      // A tap on the room while someone's talking says goodbye, then goes where it was meant to.
+      if (ctx.ui.room.busy) ctx.ui.room.hush();
       const rr = canvas.getBoundingClientRect();
       inside.tap(e.clientX - rr.left, e.clientY - rr.top, roomFrame());
       return;
