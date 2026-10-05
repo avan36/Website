@@ -4,12 +4,12 @@ My personal site. The home page is a tiny island you can explore. Every place on
 
 Those are four views of **one world**, and the world is data. The first half of this file is what's on the island and how to play it. The second half is how it's built.
 
-- [On the island](#on-the-island)
+- [What's on the island](#whats-on-the-island)
 - [The rest of the site](#the-rest-of-the-site)
 - [How it's built](#how-its-built)
 - [Working on it](#working-on-it)
 
-## On the island
+## What's on the island
 
 ### Four ways to see it
 
@@ -61,6 +61,8 @@ Every path starts at the plaza. Walk up to a place and its card opens. Going in 
 | The pier | Writing | `/blog` | No room | fishing hat |
 | Message in a bottle | Contact | `/contact` | No room | sailor's cap |
 | Westfield | A memory, over Tower Bridge | No page | Clem, the fry cook, and Nell, a shopper | red cap |
+
+Off the coast are three islets. Root Isle and Boardwalk Isle are to the west, over footbridges, with four of the games. Little London is to the east, over Tower Bridge, with Westfield on it.
 
 Everywhere has scenery to look at: in the text adventure you `EXAMINE` it, and in the spatial views it's the props you walk past.
 
@@ -171,7 +173,7 @@ Your progress is saved in this browser: the words you've found, the posts you've
 
 | Project | The toy |
 | --- | --- |
-| middle place | Journal chat: a journal remembering an earlier entry, typing itself out on a phone. The page also has a word jar of words journaled so far, which counts up from wherever it was on your last visit |
+| middle place | Journal chat: a journal remembering an earlier entry, typing itself out on a phone. The page also has a writing desk: a word jar of how much I've journaled (a count only), which counts up from wherever it was on your last visit, and a shelf of what I'm watching |
 | busy beer | Taste match: drag a five-axis radar of your palate, or pick a preset, and watch a menu of six beers re-rank |
 | Map of Evolution | Tree of life: a tree grows from the first cell out to "You are here" |
 | Etymon | Word journey: pick water, nice, salary, disaster or window, and watch it change stage by stage from its oldest form into English |
@@ -215,7 +217,7 @@ Your progress is saved in this browser: the words you've found, the posts you've
 - **Lost words**: eight words English lost (from [Etymon](https://avan36.github.io/Etymology/)'s museum), each hidden in a specific piece of scenery and at a specific spot.
 - **Interiors**: every building (and nothing else) has a room: a description, a few `things` to look at (each with a `prop` the renderers draw, and an optional link), and one or two islanders with a greeting, 2 to 4 `topics` and a farewell. Rooms have their own units, door in the middle of the front wall; `checkWorld` keeps everything on the floor, clear of the door and each other, and every link pointing at a real page. The islanders are fictional; what they say about a project only restates its page, and in Westfield they only say what's true of any visit (Five Guys is as it really is).
 - **Activities**: fishing off the pier, which catches a post from the blog; the portal; a speedboat at the end of the pier to race round the island (the course itself is pure math in `src/world/race.ts`); and seven mini-games (`kind: 'minigame'` with a `game` id). Three are on the main island: skipping stones, crab boop and crate stack. Four are out on the islets, each teaching something true about a project: Ask the bartender (busy beer) and Spot the dark pattern (Global Privacy Control) on Boardwalk Isle, Etymology race (Etymon) and Sort the tree of life (Map of Evolution) on Root Isle. The games live in `src/renderers/games/`: pure rules, tested (the islet games' in `games/rules/`), and one shared card every view opens, which paints a game on a canvas or builds it from buttons and words. `games/catalog.ts` says which views can play each one: the islet games are on the 3D island only so far, so the map and the text adventure leave them out. Best scores are part of the store's progress (Ask the bartender has none: it's a drink).
-- **Outfits**: the explorer's wardrobe, one piece per place, each for a slot (head, face, neck or body), unlocked by arriving there.
+- **Outfits**: eleven wardrobe pieces in four slots (head, face, neck, body), one per place, each with a hint. Arriving at the place unlocks its piece.
 - **Geography**: the island's shape as a recipe (coast ripples, a headland, a hill, the pier, the railway loop and the quay), plus **islets** (each with its own coast recipe round its middle: two off the west coast, and Little London off the east end) and **bridges** out to them (a level deck from land, or the quay, to other land, with railings). A bridge's `style` is a plain `footbridge` or a `tower` bridge, which the views draw as Tower Bridge: two towers in the water, walkways high between them and chains swooping down to either end. `geo.ts` turns it into height (whichever island's ground is highest), coastline, paths, doors, decks you can walk on, the swimming water round every island, which island you're on, and the way over the bridges (`nextStop`, which also steps round buildings in the way). `checkWorld` fails the build if a bridge starts in the sea, an islet can't be walked to, or a game is left in the water.
 
 Nothing in it knows about pixels, meshes or fonts. Renderers map archetypes to their own art. Island time (`src/world/clock.ts`) and the train's timetable (`src/world/train.ts`) are pure functions of a date, tested without a browser.
