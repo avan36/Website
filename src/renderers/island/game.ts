@@ -274,13 +274,13 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
   const island = new Group();
   island.name = 'island';
   scene.add(island);
-  const terrain = buildTerrain();
+  const terrain = buildTerrain(mobile);
   island.add(terrain);
   const nature = buildNature(uniforms, mobile);
   island.add(nature.group);
   // The seabed's texture reaches a little past the land, so the shallows round the furthest islets are baked in too.
-  const height = buildHeightTexture(380, TERRAIN_SIZE * 1.26);
-  const water = buildWater(height, sunDir);
+  const height = buildHeightTexture(mobile ? 380 : 448, TERRAIN_SIZE * 1.26);
+  const water = buildWater(height, sunDir, mobile);
   scene.add(water.mesh);
   const ambient = buildAmbient();
   scene.add(ambient.group);

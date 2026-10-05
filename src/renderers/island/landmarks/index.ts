@@ -32,6 +32,8 @@ export class Landmark {
   private cut: { lid: Group; body: Group; depth: number } | null = null;
   private lidK = 0;
   private wallK = 0;
+  /** The pose its halos were last placed for (see haloMoves()). */
+  private haloPose = [1, 0, 1];
 
   constructor(readonly place: Place) {
     this.built = BUILDERS[place.kind](place.color);
@@ -193,6 +195,23 @@ export class Landmark {
     const toWorld = ([lx, ly, lz, size]: Glow): Glow => [x + lx * c + lz * s, y + ly, z - lx * s + lz * c, size];
     const g = this.built.glows;
     return { halos: g?.halos.map(toWorld) ?? [], pools: g?.pools.map(toWorld) ?? [] };
+  }
+
+  /**
+   * Where its halos are now, in world space, if it has squashed, tipped or
+   * popped since this was last asked (a hover's wobble, an arrival's bounce);
+   * null if it's held still. Night lights them where they hang, so they ride
+   * along with the building instead of floating where it stood.
+   */
+  haloMoves(): Vector3[] | null {
+    const halos = this.built.glows?.halos;
+    // Only when the whole building bounces: a pier's box or a bottle's holder moves on its own.
+    if (!halos?.length || this.bouncy !== this.built.group) return null;
+    const pose = [this.squash.value, this.tilt.value, this.root.scale.x];
+    if (pose.every((v, i) => Math.abs(v - this.haloPose[i]) < 1e-4)) return null;
+    this.haloPose = pose;
+    this.root.updateMatrixWorld(true);
+    return halos.map(([x, y, z]) => this.built.group.localToWorld(new Vector3(x, y, z)));
   }
 
   /** Where it's solid beyond its footprint's circle (a long building's ends), in world space. */

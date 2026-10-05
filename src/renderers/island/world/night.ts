@@ -39,7 +39,7 @@ export interface NightTargets {
   sky: Mesh;
   water: ShaderMaterial;
   ambient: { night(n: number): void; boatLamp: Mesh };
-  landmarks: { night(n: number): void; glows(): { halos: Glow[]; pools: Glow[] } }[];
+  landmarks: { night(n: number): void; glows(): { halos: Glow[]; pools: Glow[] }; haloMoves?(): Vector3[] | null }[];
   /** Anything else that changes after dark but has no lamps of its own. */
   extras?: { night(n: number): void }[];
   mobile: boolean;
@@ -357,6 +357,15 @@ export function buildNight(o: NightTargets) {
       const n = Math.max(r, smoothstep(0, 1, clock));
       if (r !== shown || n !== dark) apply((dark = n), (shown = r));
       if (group.visible) {
+        // A building bouncing (hovered, arrived at) takes its halos with it.
+        const at = haloMesh.geometry.getAttribute('position') as BufferAttribute;
+        o.landmarks.forEach((l, i) => {
+          const moved = l.haloMoves?.();
+          if (!moved) return;
+          const [h0] = owns[i].halos;
+          moved.forEach((v, j) => at.setXYZ(h0 + j, v.x, v.y, v.z));
+          at.needsUpdate = true;
+        });
         o.ambient.boatLamp.getWorldPosition(lamp);
         boatHalo.position.copy(lamp);
       }

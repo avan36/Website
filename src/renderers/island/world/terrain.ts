@@ -6,11 +6,12 @@ import {
   BufferGeometry,
   Color,
   DataTexture,
+  DataUtils,
+  HalfFloatType,
   LinearFilter,
   Mesh,
   MeshStandardMaterial,
-  RGBAFormat,
-  UnsignedByteType,
+  RedFormat,
 } from 'three';
 import { heightAt, ISLANDS, pathDist, rockiness } from './shape';
 import { fbm, noise2 } from '../util/noise';
@@ -36,8 +37,11 @@ const C = {
   rockDark: new Color('#8a8279'),
 };
 
-export function buildTerrain() {
-  const N = 192; // about 0.73 a cell
+/** Cells across the square: 0.55 of a unit each, or 0.63 on a phone (it began at 0.73). */
+export const TERRAIN_CELLS = { full: 256, phone: 224 };
+
+export function buildTerrain(mobile = false) {
+  const N = mobile ? TERRAIN_CELLS.phone : TERRAIN_CELLS.full;
   const size = TERRAIN_SIZE;
   const cell = size / N;
   // Wider than it is deep when an islet lies off the east end, at the same size of cell.
@@ -170,22 +174,18 @@ function faceColor(c: Color, x: number, y: number, z: number, steep: number, ran
  * shallows and draw foam exactly where sand meets the sea.
  */
 export function buildHeightTexture(res = 300, extent = TERRAIN_SIZE) {
-  const data = new Uint8Array(res * res * 4);
+  // The height itself, as a half float (clamped to -8..+4), so the shallows
+  // shade and foam smoothly: 8 bits made steps a twentieth of a unit deep,
+  // and the foam at the waterline only a few steps wide.
+  const data = new Uint16Array(res * res);
   for (let j = 0; j < res; j++) {
     for (let i = 0; i < res; i++) {
       const x = -extent / 2 + ((i + 0.5) / res) * extent;
       const z = -extent / 2 + ((j + 0.5) / res) * extent;
-      // Encode -8..+4 into 0..1.
-      const h = clamp((heightAt(x, z) + 8) / 12);
-      const v = Math.round(h * 255);
-      const k = (j * res + i) * 4;
-      data[k] = v;
-      data[k + 1] = v;
-      data[k + 2] = v;
-      data[k + 3] = 255;
+      data[j * res + i] = DataUtils.toHalfFloat(clamp(heightAt(x, z), -8, 4));
     }
   }
-  const tex = new DataTexture(data, res, res, RGBAFormat, UnsignedByteType);
+  const tex = new DataTexture(data, res, res, RedFormat, HalfFloatType);
   tex.magFilter = LinearFilter;
   tex.minFilter = LinearFilter;
   tex.needsUpdate = true;
