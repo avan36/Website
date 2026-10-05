@@ -338,6 +338,29 @@ export const GeographySchema = z
     bridges: z
       .array(z.object({ from: Vec2, to: Vec2, width: z.number().min(1.6).max(4), deck: z.number(), style: z.enum(['footbridge', 'tower']).default('footbridge') }).strict())
       .default([]),
+    /** Big standing letters on a hillside, like the Hollywood sign: `text` in
+     *  capitals (A to Z and spaces), `height` tall, the line's middle at `at`,
+     *  read by someone standing in front, facing `faces` (0 = south, π/2 =
+     *  east). `name` is what the hill is called in words; `place` is the place
+     *  it stands by. Each letter stands on the ground beneath it. */
+    signs: z
+      .array(
+        z
+          .object({
+            id: Id,
+            name: z.string(),
+            text: z.string().regex(/^[A-Z]+( [A-Z]+)*$/, 'sign text is capital letters A to Z, a single space between words'),
+            place: Id,
+            at: Vec2,
+            faces: z.number(),
+            height: z.number().min(0.5).max(4),
+          })
+          .strict(),
+      )
+      .default([]),
+    /** Small striped flags on short poles, waving in the wind. Their stripes
+     *  are the --flag-* colors in tokens.css. */
+    flags: z.array(z.object({ at: Vec2 }).strict()).default([]),
     /** Where a new visitor appears. */
     spawn: Vec2,
   })
@@ -524,6 +547,12 @@ export function checkWorld(w: z.infer<typeof WorldSchema> | World): Issue[] {
   w.geography.hills.forEach((h, i) => {
     if (!places.has(h.at)) add(`Hill ${i} is at unknown place "${h.at}".`, ['geography', 'hills', i]);
   });
+  const signIds = new Set<string>();
+  (w.geography.signs ?? []).forEach((s, i) => {
+    if (signIds.has(s.id)) add(`Two signs share the id "${s.id}".`, ['geography', 'signs', i, 'id']);
+    signIds.add(s.id);
+    if (!places.has(s.place)) add(`Sign "${s.id}" stands by unknown place "${s.place}".`, ['geography', 'signs', i, 'place']);
+  });
 
   // The ground itself can only be worked out once the places it hangs off are sound.
   const sound =
@@ -596,6 +625,31 @@ function checkGround(w: World): Issue[] {
     if (!geo.isWalkable(a.at.x, a.at.z)) add(`Activity "${a.id}" is in the sea at ${at(a.at)}: move it onto land.`, ['activities', i, 'at']);
     else if (!reachable(a.at)) add(`Activity "${a.id}" is on an islet you can't walk to: add a bridge out to it.`, ['activities', i, 'at']);
     else if (a.kind === 'minigame' && geo.bridgeDist(a.at.x, a.at.z) < 2.5) add(`Mini-game "${a.id}" is in the way of a bridge: keep it 2.5 clear.`, ['activities', i, 'at']);
+  });
+  // A sign's letters stand on dry land, off every path and clear of places,
+  // doors, bridges and the railway, and never on top of a lost word or a game.
+  const spots = [...w.lostWords.map((l) => ({ what: `the lost word "${l.id}"`, at: l.at })), ...w.activities.map((a) => ({ what: `activity "${a.id}"`, at: a.at }))];
+  const crowds = (x: number, z: number, r: number) => spots.find((s) => Math.hypot(s.at.x - x, s.at.z - z) < r);
+  geo.signs.forEach((s, i) => {
+    const path = ['geography', 'signs', i, 'at'];
+    for (const l of s.letters) {
+      const feet = [-0.5, 0, 0.5].map((k) => ({ x: l.x + l.ax * l.width * k, z: l.z + l.az * l.width * k }));
+      if (feet.some((p) => !geo.isWalkable(p.x, p.z))) add(`Sign "${s.id}"'s ${l.ch} at ${at(l)} is in the sea: move the sign onto land.`, path);
+      else if (feet.some((p) => !geo.isOpenGround(p.x, p.z))) add(`Sign "${s.id}"'s ${l.ch} at ${at(l)} is in the way of a path, a place or a bridge: move the sign to open ground.`, path);
+      const near = feet.map((p) => crowds(p.x, p.z, 1.5)).find(Boolean);
+      if (near) add(`Sign "${s.id}"'s ${l.ch} at ${at(l)} stands on ${near.what}: keep it 1.5 clear.`, path);
+      // The camera looks from the south: a letter just south of a lost word would hide it.
+      const hid = w.lostWords.find((x) => Math.abs(x.at.x - l.x) < l.width / 2 + 0.5 && l.z > x.at.z && l.z - x.at.z < 4);
+      if (hid) add(`Sign "${s.id}"'s ${l.ch} at ${at(l)} hides the lost word "${hid.id}" from the camera: move the sign, or leave a gap in front of the word.`, path);
+    }
+  });
+  geo.flags.forEach((f, i) => {
+    const path = ['geography', 'flags', i, 'at'];
+    if (!geo.isWalkable(f.x, f.z)) add(`Flag ${i} at ${at(f)} is in the sea: move it onto land.`, path);
+    else if (!geo.isOpenGround(f.x, f.z)) add(`Flag ${i} at ${at(f)} is in the way of a path, a place or a bridge: move it to open ground.`, path);
+    else if (geo.signDist(f.x, f.z) < 1) add(`Flag ${i} at ${at(f)} is in a sign's letters: keep it 1 clear.`, path);
+    const near = crowds(f.x, f.z, 1.5);
+    if (near) add(`Flag ${i} at ${at(f)} stands on ${near.what}: keep it 1.5 clear.`, path);
   });
   return issues;
 }

@@ -20,6 +20,7 @@ import { Fishing } from './fishing';
 import { createBoatCard } from './boat';
 import { boatOf } from '../boat';
 import { createMapGames } from './minigames';
+import { layoutFossHill } from './fossHill';
 import { BODY_R, HALF_WIDTH, layoutPlaces, layoutStreet, scatterProps, type MapPlace } from './layout';
 import { createOverlay, type FishPrompt } from './overlay';
 import { HEX } from './palette';
@@ -178,6 +179,9 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
     halt: () => ((path = null), clearKeys(), (facing = 'up')),
   });
   for (const b of games.blocks) stampCircle(b.x, b.z, b.r + BODY_R);
+  // FOSS HILL's letters below the lighthouse, and the small flag on the hilltop.
+  const fossHill = layoutFossHill(geo);
+  for (const b of fossHill.blocks) stampCircle(b.x, b.z, b.r + BODY_R * 0.5);
   // The bus on the quay and the station's shelter stand in the way too.
   const quay = geo.quay;
   const busAt = quay ? { x: quay.bus.x, z: quay.bus.z + 0.5 } : null;
@@ -294,6 +298,8 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
   }
   things.push({ x: lampAt.x, z: lampAt.z, sprite: lampPost() });
   things.push(...games.things);
+  for (const l of fossHill.letters) things.push(l);
+  for (const f of fossHill.flags) things.push({ x: f.x, z: f.z, sprite: null, after: (c, sx, sy) => drawSprite(c, fossHill.flagArt[motion ? Math.floor(time * 3) % 2 : 0], sx, sy) });
   if (busAt) things.push({ x: busAt.x, z: busAt.z, sprite: bus() });
   if (shelterAt) things.push({ x: shelterAt.x, z: shelterAt.z, sprite: shelter() });
   if (bottlePlace) things.push({ x: bottlePlace.base.x + 1.3, z: bottlePlace.base.z + 0.9, sprite: shells() });
