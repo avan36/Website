@@ -891,9 +891,9 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
     if (!jump.air && wet === 2) return kick();
     if (jump.air) {
       if (jump.twice) return void (jump.buffered = 0.12);
-      // The double jump: a touch lower than the first, with a spin and a puff of air underfoot.
+      // The double jump: a touch higher than the first, with a spin and a puff of air underfoot.
       jump.twice = true;
-      jump.vy = JUMP.v * 0.85;
+      jump.vy = JUMP.v * 1.05;
       jump.buffered = -1;
       if (motion) {
         jump.spinT = 0;

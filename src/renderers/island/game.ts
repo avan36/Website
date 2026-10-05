@@ -166,7 +166,7 @@ type State = 'intro' | 'play' | 'entering' | 'portal' | 'inside' | 'door' | 'boa
 
 const INTRO = 3.0;
 /** How far the view can be zoomed in and out, as a share of the usual distance, and how far Q and E turn it. */
-const ZOOM_MIN = 0.55;
+const ZOOM_MIN = 0.4;
 const ZOOM_MAX = 1.45;
 const TURN_STEP = Math.PI / 4;
 /** How long being drawn into the portal takes, and stepping back out of one. */
@@ -545,6 +545,9 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     room?.view(camera, viewW, viewH);
   };
   resize();
+  // Start leaned in close enough to see the explorer and the place ahead; a
+  // narrow portrait view starts a little further out so it still shows the way.
+  rig.zoom = viewW / viewH < 0.8 ? 0.8 : 0.68;
   const ro = new ResizeObserver(resize);
   ro.observe(stage);
 
@@ -646,11 +649,11 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     else if (resume) player.place(resume.x, resume.z, 0, o.reducedMotion ? 0 : 2.4);
     else player.place(SPAWN.x, SPAWN.z, 0);
     rig.target.set(player.pos.x, player.pos.y + 0.8, player.pos.z);
-    rig.dist = baseDist;
+    rig.dist = baseDist * rig.zoom;
     rig.pitch = basePitch;
     if (resume && !arriving && !o.reducedMotion) {
       // A short settle instead of the long swoop: start a little high and drift down.
-      rig.dist = baseDist * 1.3;
+      rig.dist = baseDist * rig.zoom * 1.3;
       rig.pitch = basePitch + 0.12;
     }
     if (p) {
@@ -1652,7 +1655,7 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     const k = easeInOutCubic(clamp(t / (INTRO - 0.1)));
     const tgt = camGoal.set(lerp(0, player.pos.x, k), lerp(0.5, player.pos.y + 0.8, k), lerp(-2, player.pos.z, k));
     rig.target.copy(tgt);
-    rig.dist = lerp(110, baseDist, k);
+    rig.dist = lerp(110, baseDist * rig.zoom, k);
     rig.pitch = lerp(1.0, basePitch, k);
     rig.yaw = lerp(-0.85, 0, k);
     if (t >= INTRO) {
