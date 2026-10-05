@@ -748,11 +748,6 @@ const tower: InteriorInput = {
           names: ['the kombucha', 'kombucha', 'drinks', 'q3'],
           reply: "The kombucha is a big part of our culture. Q3 is our most forward-looking flavour. I'd love to circle back with tasting notes once we have bandwidth.",
         },
-        {
-          id: 'ping-pong',
-          names: ['the ping-pong table', 'ping-pong', 'ping pong', 'table'],
-          reply: "We're super proud of the ping-pong table. Nobody has played on it yet, but it really moves the needle on optics. Let's take a game offline sometime.",
-        },
       ],
       farewell: "Amazing. Let's touch base soon. Mind the revolving door, it's very agile.",
     },
@@ -808,14 +803,15 @@ const places: PlaceInput[] = [
     clearing: 4.6,
     aliases: ['taproom', 'pub', 'bar', 'tavern', 'beer'],
     description:
-      'A timber-framed taproom with an arched door, string lights sagging between two poles, and a sign that swings whenever the breeze picks up. Out front, mugs sit on a barrel table between a pair of stools. Further east, a little railway runs round to a station, and a red bus is parked on the quay below it, facing Tower Bridge.',
+      'A timber-framed taproom with an arched door, string lights sagging between two poles, and a sign that swings whenever the breeze picks up. Out front, mugs sit on a barrel table between a pair of stools. Further east, a little railway runs round to a station, and below it a stone quay where Tower Bridge sets off for Little London.',
     scenery: [
       { id: 'barrels', names: ['barrels', 'barrel', 'casks', 'kegs'], description: 'Oak barrels stacked against the wall, most of them empty.' },
       { id: 'sign', names: ['sign', 'swinging sign'], description: 'It reads: "Know what you\'ll love before you order."' },
       { id: 'mugs', names: ['mugs', 'mug', 'table', 'stools'], description: 'Two mugs, one full, one empty. Somebody already knows what they like.' },
       { id: 'lights', names: ['lights', 'string lights', 'bulbs'], description: 'Warm little bulbs on a sagging wire. They hum faintly.' },
       { id: 'train', names: ['train', 'caltrain', 'railway', 'rails', 'tracks', 'station', 'platform', 'carriages'], description: "Out past the taproom, a little railway loops round the east end of the island. The train is a Caltrain: silver, two decks high, with a red nose at each end and its name painted down the sides. It goes round and round the loop all day and well into the night, stopping at the platform for a moment every lap. Only in the small hours, between one and five, does it rest there with its doors open." },
-      { id: 'bus', names: ['bus', 'london bus', 'double-decker', 'double decker', 'quay'], description: "Down on the stone quay by the water, a red London double-decker is parked with its engine off, a long way from home. LONDON is painted in gold down its sides, and the lit blind over the cab says LONDON too. It's parked facing Tower Bridge, which runs east from the end of the quay, as if it's thinking about it." },
+      { id: 'quay', names: ['quay', 'crates', 'bus stop sign', 'stone quay'], description: "Down by the water, a stone quay with bollards along its edge, a couple of crates waiting to go somewhere, and a bus stop sign with no bus. Tower Bridge runs east from the end of it, out to Little London." },
+      { id: 'bus', names: ['bus', 'london bus', 'double-decker', 'double decker', 'red bus'], description: "Over the water on Little London, a red London double-decker goes round and round the islet on a little road of its own. It used to wait here on the quay, facing Tower Bridge, thinking about it. In the end it went." },
     ],
   }),
   projectPlace('map-of-evolution', {
@@ -978,13 +974,13 @@ const places: PlaceInput[] = [
     title: 'The mall',
     blurb: 'I spent a lot of time here growing up, with my dad.',
     color: '#c8102e',
-    at: { x: 54.6, z: 16.8 },
+    at: { x: 56.2, z: 13.4 },
     footprint: 3.3,
     clearing: 4.4,
-    faces: -0.75,
+    faces: -0.4,
     aliases: ['westfield', 'mall', 'shopping centre', 'shopping center', 'shopping mall', 'shops', 'five guys', 'little london'],
     description:
-      "Over Tower Bridge, on an island of its own, there's a shopping centre with a long glass roof and WESTFIELD in big letters over the doors. Every time they slide open, out comes a warm gust of air and the smell of fries. I spent a lot of time here growing up, with my dad.",
+      "Over Tower Bridge, on an island of its own, there's a shopping centre with a long glass roof and WESTFIELD in big letters over the doors. Every time they slide open, out comes a warm gust of air and the smell of fries. A red bus goes round and round outside. I spent a lot of time here growing up, with my dad.",
     scenery: [
       { id: 'sign', names: ['sign', 'westfield', 'letters'], description: 'WESTFIELD, in big letters over the doors. You would know it anywhere.' },
       { id: 'doors', names: ['doors', 'sliding doors', 'entrance', 'door'], description: 'Glass doors that slide open as you come near. Out comes a warm gust of air, and fries, every time.' },
@@ -994,6 +990,17 @@ const places: PlaceInput[] = [
         names: ['bridge', 'tower bridge', 'towers', 'walkways', 'chains'],
         description:
           'Tower Bridge, back the way you came: two stone towers with pointed roofs, walkways strung high between them, and blue and white chains swooping down to either end. The middle of the road can lift for tall ships. Today it is staying down.',
+      },
+      {
+        id: 'bus',
+        names: ['bus', 'london bus', 'double-decker', 'double decker', 'red bus', 'road'],
+        description:
+          "A red London double-decker, with LONDON in gold down its sides and on the lit blind over the cab. It drives round and round Little London on its own little road, on the left, and pulls in at the stop every time it comes by. It never goes anywhere else. It doesn't seem to mind. If you stand in the road, it waits for you.",
+      },
+      {
+        id: 'bus-stop',
+        names: ['bus stop', 'stop', 'shelter', 'timetable', 'bench'],
+        description: "A bus stop on the south side of the road: a red and white sign on a pole, and a little shelter with a bench. There's no timetable. The bus comes round when it comes round, about every half a minute.",
       },
       { id: 'phone-box', names: ['phone box', 'telephone box', 'red phone box', 'telephone', 'phone'], description: 'A red telephone box by the path, with its little windows and its crown on top. You step in. There is nobody to call, but it feels like there should be.' },
     ],
@@ -1007,7 +1014,7 @@ const places: PlaceInput[] = [
     title: 'The townhouse',
     blurb: 'A quiet room, if you want somewhere to sit for a while.',
     color: '#6f8f7a',
-    at: { x: 62.6, z: 12.4 },
+    at: { x: 64.6, z: 12.2 },
     footprint: 2.3,
     clearing: 3.6,
     faces: -0.3,
@@ -1515,12 +1522,12 @@ const wanderers: WorldInput['wanderers'] = [
     color: '#2c4170',
     coat: '#b98d5e',
     roams: 'little-london',
-    walk: [{ x: 59.2, z: 19.6 }, { x: 63.2, z: 19.2 }, { x: 64.4, z: 22.8 }, { x: 60.4, z: 23.2 }],
+    walk: [{ x: 60.4, z: 19.6 }, { x: 64.4, z: 18.8 }, { x: 65.6, z: 21.2 }, { x: 61.6, z: 22.2 }],
     lines: [
       "Hello! I'm so glad you came by.",
       "Westfield's just there. Five Guys is inside, if you're hungry.",
       'Tower Bridge takes you back to the island when you are ready. No rush.',
-      'Mind how you go. Come again soon.',
+      'Look both ways when you cross the road. The bus always stops, but still.',
     ],
   },
   {
@@ -1531,7 +1538,7 @@ const wanderers: WorldInput['wanderers'] = [
     color: '#e58fa8',
     coat: '#efe3cf',
     roams: 'little-london',
-    walk: [{ x: 55.6, z: 25 }, { x: 58.8, z: 26.2 }, { x: 61.4, z: 25.4 }, { x: 58.4, z: 24.4 }],
+    walk: [{ x: 61.2, z: 27 }, { x: 64.6, z: 26.8 }, { x: 67.2, z: 25.2 }, { x: 63.6, z: 26.4 }],
     lines: [
       "Oh, hello! It's so good to see you.",
       'Have you eaten? There are burgers in Westfield. Have something.',
@@ -1546,7 +1553,7 @@ const wanderers: WorldInput['wanderers'] = [
     color: '#a98bd6',
     coat: '#2d8c8a',
     roams: 'little-london',
-    walk: [{ x: 53.4, z: 9.4 }, { x: 56.6, z: 7.8 }, { x: 59.2, z: 8.8 }, { x: 56.2, z: 11.6 }],
+    walk: [{ x: 54.2, z: 9.6 }, { x: 56.2, z: 8.4 }, { x: 59.6, z: 8.4 }, { x: 56.2, z: 9.1 }],
     lines: [
       'Hi! Welcome to Little London.',
       "There's a red phone box by the path. There's nobody to call, but it's nice to step in.",
@@ -1561,7 +1568,7 @@ const wanderers: WorldInput['wanderers'] = [
     coat: '#4a4d52',
     hat: '#c8433a',
     roams: 'little-london',
-    walk: [{ x: 66.6, z: 10.6 }, { x: 67.6, z: 15.4 }, { x: 66.4, z: 20.6 }, { x: 65.4, z: 15.6 }],
+    walk: [{ x: 71.8, z: 11.6 }, { x: 72.4, z: 15.6 }, { x: 71.8, z: 19.6 }, { x: 71.6, z: 15.6 }],
     lines: [
       'Hey, hello! Good to see you.',
       'The mall is big. Look for the map with the red dot that says YOU ARE HERE.',
@@ -1577,11 +1584,11 @@ const wanderers: WorldInput['wanderers'] = [
     coat: '#4f8a4b',
     hat: '#9a958c',
     roams: 'little-london',
-    walk: [{ x: 48.4, z: 14.2 }, { x: 51.6, z: 12.4 }, { x: 50.4, z: 9.6 }, { x: 48, z: 11 }],
+    walk: [{ x: 61.4, z: 14.6 }, { x: 62.6, z: 17.8 }, { x: 60.2, z: 20 }, { x: 59.8, z: 17.4 }],
     lines: [
       'Hello! Out exploring?',
       "There's a quiet house along there with a brass plate on the door. It's a good place to sit for a while.",
-      "The bus on the quay is parked facing the bridge. I think it's thinking about it.",
+      "The bus goes round and round. It stops at the stop every time, just in case.",
       "Have a good look round. There's no hurry.",
     ],
   },
@@ -1602,7 +1609,7 @@ const geography: WorldInput['geography'] = {
   // New land to the east: room for the railway loop, the quay and the workshop inside it.
   shores: [{ toward: { x: 1, z: 0.1 }, reach: 13, spread: 0.45 }],
   railway: { center: { x: 24, z: 1.5 }, rx: 6.5, rz: 9, square: 3.2, bed: 1.3, station: 0.25 },
-  quay: { x0: 24, z0: 14.2, x1: 30.5, z1: 19.8, deck: 0.7, bus: { x: 26.6, z: 17.2 }, faces: Math.PI / 2 },
+  quay: { x0: 24, z0: 14.2, x1: 30.5, z1: 19.8, deck: 0.7 },
   // Two islets off the west coast, a footbridge out to each: Root Isle, for
   // where words and living things come from, and Boardwalk Isle, with a beach
   // bar and a pushy kiosk. Their games are on the island's activities. Off the
@@ -1612,9 +1619,11 @@ const geography: WorldInput['geography'] = {
   islets: [
     { id: 'root-isle', name: 'Root Isle', at: { x: -31.7, z: -14.8 }, coast: { radius: 6.6, ripples: [{ freq: 3, amp: 0.5, phase: 1.2 }, { freq: 5, amp: 0.3, phase: 0.4 }] } },
     { id: 'boardwalk-isle', name: 'Boardwalk Isle', at: { x: -33.1, z: 14.1 }, coast: { radius: 6.6, ripples: [{ freq: 3, amp: 0.5, phase: 2.6 }, { freq: 4, amp: 0.35, phase: 0.9 }] } },
-    { id: 'little-london', name: 'Little London', at: { x: 58, z: 15.6 }, coast: { radius: 13, ripples: [{ freq: 3, amp: 0.5, phase: 0.4 }, { freq: 5, amp: 0.3, phase: 1.9 }] } },
+    { id: 'little-london', name: 'Little London', at: { x: 59.6, z: 15.6 }, coast: { radius: 14.6, ripples: [{ freq: 3, amp: 0.5, phase: 0.4 }, { freq: 5, amp: 0.3, phase: 1.9 }] } },
     { id: 'synergy-isle', name: 'Synergy Isle', at: { x: -54, z: 42 }, coast: { radius: 7.6, ripples: [{ freq: 3, amp: 0.4, phase: 1.7 }, { freq: 5, amp: 0.25, phase: 0.2 }] } },
   ],
+  // Round Little London, a road for the red bus, with its stop on the south side.
+  busRoute: { center: { x: 59.9, z: 15.3 }, rx: 10, rz: 9.2, square: 2.3, bed: 1.05, stop: 0.3 },
   bridges: [
     { from: { x: -15.6, z: -10.5 }, to: { x: -27, z: -13.5 }, width: 2.4, deck: 1.15 },
     { from: { x: -16.8, z: 11 }, to: { x: -28.3, z: 13.2 }, width: 2.4, deck: 1.15 },

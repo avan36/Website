@@ -621,10 +621,10 @@ describe('the workshop', () => {
 });
 
 describe('Westfield, over Tower Bridge', () => {
-  it('walks there down past the bus and over Tower Bridge, and back again', () => {
+  it('walks there down over Tower Bridge and across the road, and back again', () => {
     const { state, text } = play('plaza', 'go to westfield');
     expect(state.at).toBe('westfield');
-    expect(text).toMatch(/past the bus and over Tower Bridge to the mall/);
+    expect(text).toMatch(/over Tower Bridge and across the road to the mall/);
     expect(text).toMatch(/I spent a lot of time here growing up, with my dad\./);
     expect(text).toMatch(/ENTER to go in and meet Clem, the fry cook and Nell, a shopper/);
     expect(play('westfield', 'go to the taproom').text).toMatch(/^You walk back over Tower Bridge, then /);

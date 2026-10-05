@@ -210,6 +210,7 @@ export const person = {
   intro:
     'I build apps people love to use and tools that keep the web honest. Recently graduated from Wesleyan University, B.A. in Computer Science & History, May 2026.',
   github: 'https://github.com/avan36',
+  linkedin: 'https://www.linkedin.com/in/ambrosev',
   education: [
     {
       title: 'Wesleyan University',

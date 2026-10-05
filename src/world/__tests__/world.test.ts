@@ -141,10 +141,11 @@ describe('the commute: railway, quay and plots', () => {
     expect(geo.isOpenGround(s.x, s.z)).toBe(false); // nothing grows on the platform
   });
 
-  it('builds the quay out over the water, walkable, with the bus parked on it', () => {
+  it('builds the quay out over the water, walkable', () => {
     const q = geo.quay!;
-    expect(geo.isWalkable(q.bus.x, q.bus.z)).toBe(true);
-    expect(geo.quayDist(q.bus.x, q.bus.z)).toBeLessThan(-1.2);
+    const mid = { x: (q.x0 + q.x1) / 2, z: (q.z0 + q.z1) / 2 };
+    expect(geo.isWalkable(mid.x, mid.z)).toBe(true);
+    expect(geo.quayDist(mid.x, mid.z)).toBeLessThan(-1.2);
     // Its seaward edge drops straight into the sea; its landward edge meets the beach.
     expect(geo.heightAt((q.x0 + q.x1) / 2, q.z1 + 1.5)).toBeLessThan(0);
     expect(geo.isWalkable((q.x0 + q.x1) / 2, q.z0 - 1)).toBe(true);
@@ -455,7 +456,7 @@ describe('people out walking', () => {
     bad.wanderers[0].walk[1] = { x: 0, z: 40 };
     const westfield = bad.places.find((p) => p.id === 'westfield')!;
     const dad = bad.wanderers.find((v) => v.id === 'dad')!;
-    dad.walk[0] = { x: westfield.at.x - 5, z: westfield.at.z };
+    dad.walk[0] = { x: westfield.at.x - 4.4, z: westfield.at.z };
     dad.walk[1] = { x: westfield.at.x + 6, z: westfield.at.z };
     bad.wanderers.find((v) => v.id === 'lucia')!.roams = 'atlantis';
     bad.wanderers.find((v) => v.id === 'jeremy')!.name = 'Wren';

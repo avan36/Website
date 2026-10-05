@@ -101,7 +101,12 @@ export type MapHandle = {
   swimRoom(): number;
   portal(): { near: boolean; tag: boolean; choosing: boolean };
   places(): { id: string; door: { x: number; z: number } }[];
-  inside(): { at: string } | null;
+  inside(): { at: string; x: number; z: number; within: string | null; busy: boolean } | null;
+  /** In a room: walk up to someone or something (and talk to them, or look at it, on arriving). */
+  approach(id: string): boolean;
+  /** In a room: where a point on its floor (room units) is on the canvas, in CSS pixels. */
+  roomScreen(x: number, z: number): { x: number; y: number } | null;
+  enter(id: string): boolean;
   /** Device pixels to a map pixel: the map's own (S), and the camera's right now (Z: more inside a building). */
   scale(): { S: number; Z: number };
   /** People out walking: where each is, whether they've stopped for you (open), and how many lines they've said. */
@@ -126,16 +131,24 @@ export type IslandDebug = {
   portalled(): { x: number; y: number } | null;
   near(): string | null;
   places(): { id: string; x: number; z: number; stand: { x: number; z: number } }[];
-  inside(): { at: string; x: number; z: number } | null;
+  inside(): { at: string; x: number; z: number; within: string | null; busy: boolean } | null;
+  /** Inside a room: walk up to someone or something there (and talk to them, or look at it, on arriving). */
+  approach(id: string): boolean;
+  /** Inside a room: where a point on its floor (room units) is on screen, in CSS pixels. */
+  roomScreen(x: number, z: number): { x: number; y: number } | null;
+  enter(id: string): boolean;
   walkTo(x: number, z: number): { x: number; z: number } | null;
   games(): { id: string; x: number; z: number; stand: { x: number; z: number }; open: boolean }[];
   wanderers(): (Walker & { visible: boolean })[];
   talk(id: string): void;
   boat: { board(): void; leave(): void; info(): { phase: string; pad: { throttle: number; steer: number } } } | null;
   gates(): { id: string; x: number; z: number; open: boolean; swing: number }[];
+  /** The red bus on Little London. */
+  bus(): BusState | null;
   fx(): { level: string; effects: string[] };
   setFx(level: string, effects?: string[]): void;
 };
+export type BusState = { s: number; v: number; dwell: number; atStop: boolean; held: boolean; x: number; z: number; yaw: number };
 export type WorldHandle = {
   world: { activities: { kind: string; at: { x: number; z: number } }[]; places: { id: string; interior?: unknown }[] };
   geo: { coastRadius(theta: number): number };
