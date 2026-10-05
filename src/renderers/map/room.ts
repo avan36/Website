@@ -84,6 +84,9 @@ const STYLES: Record<string, Style> = {
   schoolhouse: { wall: 'wainscot', floor: 'planks', wallHex: '#f4ead2' },
   depot: { wall: 'metal', floor: 'concrete', wallHex: '#a9b2b0' },
   mall: { wall: 'mall', floor: 'tiles', wallHex: '#f3efe8' },
+  townhouse: { wall: 'plaster', floor: 'planks', wallHex: '#e3e6d6' },
+  // The tower's lobby: the same glass along the top and steel at the foot, in paler stone.
+  skyscraper: { wall: 'mall', floor: 'tiles', wallHex: '#eceeee' },
 };
 
 export interface RoomSprite {
@@ -178,6 +181,54 @@ function desk(arch: string, accent: string): { pix: Pix; ax: number; ay: number 
     p.px(2, 1, col('#ffd166'));
   }
   return { pix: p, ax: 15, ay: 19 };
+}
+
+/** The tower lobby's reception desk: pale stone, a kombucha tap with three handles, three jars and a laptop. */
+function reception(accent: string): { pix: Pix; ax: number; ay: number } {
+  const p = new Pix(40, 22);
+  const STONE_TOP = col('#f6f4f0');
+  const STONE_FACE = col('#e3dfd8');
+  const STONE_EDGE = col('#c9c3b8');
+  ['#f2c14e', '#9bd36a', accent].forEach((c, i) => {
+    const x = 24 + i * 4;
+    p.vline(x, 1, 6, col('#8b9198'));
+    p.rect(x - 1, 0, 3, 2, col(c));
+    p.rect(4 + i * 4, 3, 3, 4, col(shade(c, 0.12)));
+  });
+  p.rect(0, 7, 40, 5, STONE_TOP);
+  p.hline(0, 39, 7, WHITE);
+  p.rect(0, 12, 40, 9, STONE_FACE);
+  p.hline(0, 39, 12, STONE_EDGE);
+  p.hline(2, 37, 17, col(accent));
+  p.rect(15, 4, 7, 3, col('#3d4248'));
+  p.hline(15, 21, 7, col('#8b9198'));
+  return { pix: p, ax: 20, ay: 21 };
+}
+
+/** A ping-pong table nobody has played on: green, white lines, the net, two paddles still in their wrapper. */
+function pingpong(): { pix: Pix; ax: number; ay: number } {
+  const p = new Pix(34, 22);
+  const TABLE = col('#2f6e5a');
+  const TABLE_D = col('#245646');
+  const LINE = col('#f4f1ea');
+  p.rect(0, 2, 34, 13, TABLE);
+  p.hline(0, 33, 2, LINE);
+  p.hline(0, 33, 14, LINE);
+  p.vline(0, 2, 14, LINE);
+  p.vline(33, 2, 14, LINE);
+  p.hline(1, 32, 8, LINE);
+  // The net, across the middle.
+  p.vline(16, 0, 16, LINE);
+  p.vline(17, 0, 16, col('#d8d4cc'));
+  p.rect(0, 15, 34, 2, TABLE_D);
+  for (const x of [2, 31]) p.vline(x, 17, 21, IRON);
+  // The paddles, still wrapped, and the ball nobody has hit.
+  p.ellipse(8, 6, 2.5, 2, RED);
+  p.rect(10, 6, 3, 1, WOOD_LIGHT);
+  p.ellipse(25, 10, 2.5, 2, col('#1f2a44'));
+  p.rect(21, 10, 3, 1, WOOD_LIGHT);
+  p.px(20, 4, WHITE);
+  return { pix: p, ax: 17, ay: 21 };
 }
 
 function counter(accent: string): { pix: Pix; ax: number; ay: number } {
@@ -359,12 +410,97 @@ function sacks(): { pix: Pix; ax: number; ay: number } {
   return { pix: p, ax: 9, ay: 19 };
 }
 
+/** Two armchairs facing each other across a rug; a closed notepad on the far one's arm. */
+function armchairs(accent: string): { pix: Pix; ax: number; ay: number } {
+  const p = new Pix(40, 22);
+  const CLOTH = col('#d9c8ad');
+  const CLOTH_LIGHT = col('#e8dcc6');
+  const CLOTH_DARK = col('#bba582');
+  const rug = col(shade(accent, 0.22));
+  p.rect(9, 12, 22, 9, rug);
+  p.rect(11, 13, 18, 7, col(shade(accent, 0.34)));
+  const chair = (x: number, back: 'left' | 'right') => {
+    // Seen from the front and above: arms front and back, a cushion, the back on the outer side.
+    p.rect(x, 6, 12, 14, CLOTH_DARK);
+    p.rect(x + 1, 9, 10, 8, CLOTH);
+    p.hline(x + 1, x + 10, 9, CLOTH_LIGHT);
+    p.rect(x, 5, 12, 3, CLOTH_DARK);
+    p.hline(x, x + 11, 5, CLOTH);
+    p.rect(x, 18, 12, 2, CLOTH_DARK);
+    const bx = back === 'left' ? x : x + 9;
+    p.rect(bx, 1, 3, 18, CLOTH_DARK);
+    p.vline(back === 'left' ? bx : bx + 2, 1, 18, CLOTH);
+    p.rect(back === 'left' ? x + 3 : x + 6, 8, 3, 6, col(shade(accent, 0.1)));
+    p.px(x + 1, 20, WOOD_DEEP);
+    p.px(x + 10, 20, WOOD_DEEP);
+  };
+  chair(0, 'left');
+  chair(28, 'right');
+  // The notepad on the far chair's arm, and a pen.
+  p.rect(29, 4, 4, 3, CREAM);
+  p.hline(29, 32, 7, col(shade(accent, -0.1)));
+  p.hline(33, 35, 5, IRON);
+  return { pix: p, ax: 20, ay: 21 };
+}
+
+/** A little round table with a lamp, lit, and a box of tissues, one pulled up. */
+function sidetable(): { pix: Pix; ax: number; ay: number } {
+  const p = new Pix(14, 22);
+  p.ellipse(7, 12, 6, 2, WOOD_LIGHT);
+  p.hline(2, 12, 13, WOOD);
+  p.vline(7, 14, 20, WOOD_DARK);
+  p.hline(4, 10, 21, WOOD_DEEP);
+  // The lamp: a gold stem and a warm shade.
+  p.vline(4, 5, 11, GOLD_DARK);
+  p.rect(1, 1, 7, 4, col('#ffe2b0'));
+  p.hline(2, 6, 0, col('#ffeccb'));
+  p.hline(1, 7, 5, col('#e8c48e'));
+  // The tissues.
+  p.rect(8, 8, 5, 3, col('#a9c4d8'));
+  p.hline(8, 12, 8, col('#c3d8e6'));
+  p.px(10, 7, WHITE);
+  p.px(10, 6, WHITE);
+  p.px(11, 6, WHITE);
+  return { pix: p, ax: 7, ay: 21 };
+}
+
+/** A narrow shelf on a stand, with a little clock on it, its face turned to the far chair. */
+function clock(): { pix: Pix; ax: number; ay: number } {
+  const p = new Pix(12, 22);
+  p.rect(1, 9, 10, 2, WOOD);
+  p.hline(1, 10, 9, WOOD_LIGHT);
+  p.vline(5, 11, 20, WOOD_DARK);
+  p.vline(6, 11, 20, WOOD_DEEP);
+  p.hline(3, 8, 21, WOOD_DEEP);
+  // The clock, side on: a wooden case and a sliver of its face to the right.
+  p.rect(3, 2, 5, 7, WOOD_DARK);
+  p.hline(3, 7, 2, WOOD);
+  p.vline(8, 3, 7, CREAM);
+  p.px(9, 5, CREAM);
+  return { pix: p, ax: 6, ay: 21 };
+}
+
+/** A leafy plant in a clay pot. */
+function plant(): { pix: Pix; ax: number; ay: number } {
+  const p = new Pix(14, 22);
+  const POT = col('#c47a4e');
+  p.rect(3, 14, 8, 7, POT);
+  p.hline(2, 11, 13, col('#b06a42'));
+  p.hline(4, 9, 21, col('#a05e3a'));
+  const LEAF = [col('#6fc06a'), col('#5fae5a'), col('#4f9c4d')];
+  for (const [x, y, k] of [[7, 3, 0], [4, 6, 1], [10, 6, 2], [6, 8, 1], [3, 10, 0], [11, 10, 1], [8, 10, 2], [5, 12, 2], [9, 12, 0]] as const) p.ellipse(x, y, 2.4, 1.6, LEAF[k]);
+  p.vline(7, 5, 12, col('#4f7a3a'));
+  return { pix: p, ax: 7, ay: 21 };
+}
+
 function floorThing(prop: Prop, arch: string, accent: string) {
   switch (prop) {
     case 'desk':
       return desk(arch, accent);
     case 'counter':
-      return counter(accent);
+      return arch === 'skyscraper' ? reception(accent) : counter(accent);
+    case 'pingpong':
+      return pingpong();
     case 'lens':
       return lens();
     case 'cat':
@@ -379,6 +515,14 @@ function floorThing(prop: Prop, arch: string, accent: string) {
       return grill();
     case 'sacks':
       return sacks();
+    case 'armchairs':
+      return armchairs(accent);
+    case 'sidetable':
+      return sidetable();
+    case 'clock':
+      return clock();
+    case 'plant':
+      return plant();
     default:
       return null;
   }
@@ -676,6 +820,20 @@ function paintBackground(place: Place, plan: RoomPlan, night: boolean): Pix {
           p.rect(ph, iy, 9, ih, IRON);
           p.rect(ph + 1, iy + 1, 7, ih - 2, CREAM);
           for (let y = iy + 2, k = 0; y < iy + ih - 2; y += 2, k++) p.hline(k % 2 ? ph + 2 : ph + 4, k % 2 ? ph + 4 : ph + 6, y, k % 2 ? STONE : R[2]);
+        } else if (arch === 'townhouse') {
+          // A calm sea at dusk: a warm sky, a low sun, a long horizon.
+          p.rect(ix, iy, iw, ih >> 1, col('#f3d9b8'));
+          p.rect(ix, iy + (ih >> 1), iw, ih - (ih >> 1), col('#7fa6b8'));
+          p.hline(ix, ix + iw - 1, iy + (ih >> 1), col('#5f8597'));
+          p.ellipse(cx + 2, iy + (ih >> 1) - 1, 2, 1.5, col('#f7b26b'));
+          p.hline(ix + 2, ix + iw - 4, iy + (ih >> 1) + 3, col('#9cc0cf'));
+        } else if (arch === 'skyscraper') {
+          // A motivational poster: a lone rowboat on a misty lake at dawn, and a word underneath.
+          p.rect(ix, iy, iw, ih, col('#c9dcea'));
+          p.rect(ix, iy + (ih >> 1), iw, ih - (ih >> 1), col('#f3d6b8'));
+          p.hline(cx - 3, cx + 2, iy + (ih >> 1) + 1, WOOD_DARK);
+          p.vline(cx, iy + (ih >> 1) - 2, iy + (ih >> 1), WOOD_DARK);
+          p.hline(cx - 4, cx + 3, iy + ih - 2, IRON);
         } else if (arch === 'depot') {
           // A blue ribbon.
           p.rect(ix, iy, iw, ih, CREAM);
@@ -696,6 +854,23 @@ function paintBackground(place: Place, plan: RoomPlan, night: boolean): Pix {
       case 'board': {
         if (arch === 'mall') {
           directory(p, x0, width, R);
+          break;
+        }
+        if (arch === 'skyscraper') {
+          // A rack of visitor lanyards on brass hooks, a badge on each.
+          p.hline(x0, x0 + width - 1, 6, STEEL_LIGHT);
+          p.hline(x0, x0 + width - 1, 7, STEEL_DARK);
+          const colors = [R[2], col('#b8508a'), GOLD, col('#2e9c8f'), RED, col('#9bd36a')];
+          const n = Math.max(3, Math.floor((width - 4) / 7));
+          for (let k = 0; k < n; k++) {
+            const x = x0 + 3 + Math.round((k * (width - 7)) / Math.max(1, n - 1));
+            const c = colors[k % colors.length];
+            p.px(x + 1, 8, GOLD);
+            p.vline(x, 9, 18, c);
+            p.vline(x + 2, 9, 18, c);
+            p.rect(x - 1, 19, 5, 6, WHITE);
+            p.hline(x - 1, x + 3, 20, c);
+          }
           break;
         }
         const y0 = 5;

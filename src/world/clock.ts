@@ -1,6 +1,6 @@
 // Island time: the island keeps the clock of the place it was made in, so a
 // visitor sees it the way it is right now there: morning light, dusk, the
-// windows lit after dark, the commuter train running at rush hour. Pure
+// windows lit after dark, the train going round except in the small hours. Pure
 // functions of a Date (no DOM, no state), so they're tested without a browser.
 //
 // Wall-clock time (for the timetable) comes from Intl in the island's time
@@ -117,11 +117,18 @@ export function daylight(date: Date): number {
   return smoothstep(-7, 5, sunElevation(date));
 }
 
-/** Rush hour: weekday mornings 6:30 to 9:30 and evenings 16:00 to 19:30, island time. */
-export function commuteHours(date: Date): boolean {
-  const t = islandTime(date);
-  if (t.weekday === 0 || t.weekday === 6) return false;
-  return (t.hours >= 6.5 && t.hours < 9.5) || (t.hours >= 16 && t.hours < 19.5);
+/** When the first train leaves and when the last one gets in, island time (hours). */
+export const FIRST_TRAIN = 5;
+export const LAST_TRAIN = 1;
+
+/**
+ * Is the train in service? Every day from five in the morning until one at
+ * night, island time, so whenever you visit at a normal hour it's going round.
+ * In the small hours between, it sleeps at the platform.
+ */
+export function trainHours(date: Date): boolean {
+  const { hours } = islandTime(date);
+  return hours >= FIRST_TRAIN || hours < LAST_TRAIN;
 }
 
 /** "7:05 pm", the island's time for people. */
@@ -156,14 +163,15 @@ const SKY: Record<DayPart, string> = {
  * A line for the home page about island time, so the light makes sense:
  * "It's 10:26 pm on the island, Pacific time. Night has fallen: ...". A
  * visitor who found every lost word can have night in the middle of the day
- * (`night`), and the line says why.
+ * (`night`), and the line says why. In the small hours it also says the
+ * train is resting.
  */
 export function timeLine(date: Date, o: { commute: boolean; night: boolean }): { part: DayPart; text: string } {
   const real = dayPart(date);
   const dark = real === 'night' || real === 'small-hours';
   const part = o.night && !dark ? 'night' : real;
   const sky = o.night && !dark ? "You found every lost word, so it's night here anyway." : SKY[real];
-  return { part, text: `It's ${formatIslandTime(date)} on the island, Pacific time. ${sky}${o.commute ? ' The Caltrain is running.' : ''}` };
+  return { part, text: `It's ${formatIslandTime(date)} on the island, Pacific time. ${sky}${o.commute ? '' : ' The Caltrain is resting at the platform.'}` };
 }
 
 /**
@@ -184,6 +192,6 @@ export function pageClock(search: string, now: () => number = () => Date.now()) 
     /** True when ?time= moved the clock. */
     overridden: !!fixed,
     /** Is the train running at this instant? */
-    commute: (d: Date) => force ?? commuteHours(d),
+    commute: (d: Date) => force ?? trainHours(d),
   };
 }

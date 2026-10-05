@@ -13,6 +13,21 @@ async function say(page: Page, command: string) {
   return turns.last();
 }
 
+test('text adventure: someone out walking, found by name and talked to', async ({ page }) => {
+  const errors = watchErrors(page);
+  await seed(page, { found: await wordIds(page) });
+  await page.goto('/?view=text&debug');
+  await homeReady(page, 'text');
+  const lines = await page.evaluate(() => ((window as unknown as { __world: { world: { wanderers: { id: string; lines: string[] }[] } } }).__world.world.wanderers.find((v) => v.id === 'protector')!.lines));
+  // Wherever they are, "go to" walks you there (or they're right here), and then they talk.
+  await say(page, 'go to the protector');
+  const talk = await say(page, 'talk to the protector');
+  await expect(talk).toContainText(/The protector: “/);
+  const said = (await talk.innerText()).replace(/\s+/g, ' ');
+  expect(lines.some((l) => said.includes(l))).toBe(true);
+  expect(errors).toEqual([]);
+});
+
 test('text adventure: help, look, go, and the portal', async ({ page }) => {
   const errors = watchErrors(page);
   await seed(page, { found: await wordIds(page) });

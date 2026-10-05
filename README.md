@@ -54,23 +54,31 @@ Every path starts at the plaza. Walk up to a place and its card opens. Going in 
 | The taproom | busy beer, a taste companion for what you drink | `/work/busy-beer` | Otto, the barkeep | hard hat |
 | The ancient tree | Map of Evolution | `/work/map-of-evolution` | No room | leaf crown |
 | The old library | [Etymon](https://avan36.github.io/Etymology/), where English words came from | `/work/etymon` | Mabel, the librarian, and Pip, a reader | reading glasses |
-| The lighthouse | Global Privacy Control research | `/work/privacy-research` | Morwenna, the lighthouse keeper | sunglasses |
+| The lighthouse | Global Privacy Control research, on top of Foss Hill | `/work/privacy-research` | Morwenna, the lighthouse keeper | sunglasses |
 | The schoolhouse | QuizMate, lessons and quizzes for the classroom | `/work/quizmate` | Ms Hazel, the teacher, and Tobias, a student | graduation cap |
 | The recycling depot | eQoScan, a product's packaging footprint | `/work/eqoscan` | Rosa, the sorter | recycling vest |
 | The workshop | How the island was built | `/colophon` | No room | tool belt |
 | The pier | Writing | `/blog` | No room | fishing hat |
 | Message in a bottle | Contact | `/contact` | No room | sailor's cap |
 | Westfield | A memory, over Tower Bridge | No page | Clem, the fry cook, and Nell, a shopper | red cap |
+| No. 12 | A quiet townhouse along from the mall, with a brass plate that only says ROOMS | No page | Wren, the listener | soft scarf |
+| The glass tower | Not a project, just for fun: a tower on Synergy Isle so tall it has its own weather | No page | Skye, the Head of Vibes | fleece vest |
 
-Off the coast are three islets. Root Isle and Boardwalk Isle are to the west, over footbridges, with four of the games. Little London is to the east, over Tower Bridge, with Westfield on it.
+The lighthouse stands on **Foss Hill**, the rocky headland at the north-east corner. Big letters on the slope below it spell FOSS HILL, Hollywood style, facing the island, and a small pink, purple and blue flag waves on the hilltop.
+
+Off the coast are four islets. Root Isle and Boardwalk Isle are to the west, over footbridges, with four of the games. Synergy Isle is further out past Boardwalk Isle, over a long bridge with a badge gate on it, and the glass tower stands on it. Little London is to the east, over Tower Bridge, with Westfield and No. 12 on it.
 
 Everywhere has scenery to look at: in the text adventure you `EXAMINE` it, and in the spatial views it's the props you walk past.
 
 ### Inside the buildings
 
-Seven buildings have a room. In both spatial views the camera eases in, the roof lifts off and the walls sink, and the room appears where the building stood, with the island still round it.
+Nine buildings have a room. In both spatial views the camera eases in, the roof lifts off and the walls sink, and the room appears where the building stood, with the island still round it.
 
 Each room has a few things to look at, some of them linked to the real project, and one or two islanders. Walk up to someone and press E, or tap them. They greet you, offer two to four topics (pick with the arrow keys), and say goodbye when you press Escape. The islanders are made up, and what they say about a project is only what its own page says. In the text adventure it's `ENTER`, `TALK TO JUNIPER`, `ASK OTTO ABOUT THE SCANNER`, `BYE` and `LEAVE`.
+
+### People out walking
+
+Not everyone is indoors. Pushkar, Jeremy, Eugene, Abdu and the protector stroll the island, and Dad, Mom, Lucia, Andrew and Isaac walk Little London. They stop as you come up, and each says a few small things in turn: hello, the weather, the way to somewhere. Walk up to one (or tap them) on the island or the map, `TALK TO` them in the text adventure, or see who's about at the bottom of the list.
 
 ### Lost words
 
@@ -101,9 +109,9 @@ Each word comes with its meaning, its story and a bar for when it lived and died
 
 ### Mini-games
 
-Seven games, each with your best score kept. Walk up to a game's signpost and press E, or tap it. Every game opens the same card: how to play, your best, and at the end your score, a "New best!" with confetti when it is one, and a nudge to have another go. In the three games on the main island, R starts the round over.
+Eight games, each with your best score kept. Walk up to a game's signpost and press E, or tap it. Every game opens the same card: how to play, your best, and at the end your score, a "New best!" with confetti when it is one, and a nudge to have another go. In the three games on the main island, R starts the round over.
 
-Three are on the main island and can be played in every view. The other four are on two islets off the west coast, over footbridges, and can only be played on the 3D island so far. Each islet game teaches something true about the project it's for.
+Three are on the main island and can be played in every view. The other four are on two islets off the west coast, over footbridges, and can only be played on the 3D island so far. Each of those teaches something true about the project it's for. The eighth, Speak corporate, is the badge desk at the end of Boardwalk Isle, and it's words and buttons, so every view can play it.
 
 | Game | Where | How it plays | Score |
 | --- | --- | --- | --- |
@@ -114,8 +122,13 @@ Three are on the main island and can be played in every view. The other four are
 | Spot the dark pattern | The kiosk on Boardwalk Isle | Fernhollow Kitchen's signup page hides eight tricks, from lopsided buttons to a countdown that quietly starts over. Flag the ones built to steer you, then see which ones Global Privacy Control would have settled for you, and whether your own browser sends it | Tricks found, of 8 |
 | Etymology race | The giant dictionary on Root Isle | Ten words from a pool of 77. Which language did English borrow each one from, or which is its oldest ancestor? Quick answers score more, a streak multiplies everything up to ×2, and every answer shows the word's journey. The clock can be turned off | Points |
 | Sort the tree of life | The young tree on Root Isle | Twelve living things, dealt from 59 (platypus, axolotl, zombie-ant fungus…), to hang on nine branches. Drag a card, tap it and then a branch, or press 1 to 9. Every card comes with a fact | Correct, of 12 |
+| Speak corporate | The badge desk at the end of Boardwalk Isle, by the long bridge | The greeter reads out three plain things ("Let's talk later."). Pick the most corporate way to say each one ("Let's circle back and take this offline.") with 1 to 4 or a tap. Get two and the badge gate opens | Answers, of 3 |
 
-In the text adventure, `PLAY` lists the games. Skipping stones is played in words (`THROW` when the sea goes flat as glass), and crab boop and crate stack open the same card the other views use.
+In the text adventure, `PLAY` lists the games. Skipping stones is played in words (`THROW` when the sea goes flat as glass), and crab boop, crate stack and Speak corporate open the same card the other views use.
+
+### The badge gate
+
+A turnstile stands across the long bridge out to Synergy Isle, and it won't turn until you've talked your way through at the badge desk beside it. Get two of Speak corporate's three right and the gate opens for good, in every view. Past it is the glass tower, where the Head of Vibes keeps a spare fleece vest behind reception.
 
 ### Fishing for posts
 
@@ -131,7 +144,7 @@ On the map, the boat's card offers "Race it in 3D", which puts you in the boat o
 
 ### The wardrobe
 
-Every place but the plaza keeps a piece of clothing, eleven in all, and it's yours the moment you arrive (the table above says which is where). Open the wardrobe from the top bar and wear one piece per slot: head, face, neck and body. Your explorer wears them in 3D, in pixels and inside the rooms, and the text adventure tells you what you've got on (`WARDROBE`, `WEAR`, `TAKE OFF`). Pieces you haven't found yet are silhouettes with a hint.
+Every place but the plaza keeps a piece of clothing, thirteen in all, and it's yours the moment you arrive (the table above says which is where). Open the wardrobe from the top bar and wear one piece per slot: head, face, neck and body. Your explorer wears them in 3D, in pixels and inside the rooms, and the text adventure tells you what you've got on (`WARDROBE`, `WEAR`, `TAKE OFF`). Pieces you haven't found yet are silhouettes with a hint.
 
 ### The portal
 
@@ -141,7 +154,7 @@ A ring of violet light hangs over the plaza. Walk into it, click it or type `POR
 
 The island keeps the clock of where it was made: Pacific time. Its light comes from where the sun really is there right now, so you might arrive at dawn, in the afternoon or after dark, when the sky is starry and every window and lamp is lit. The intro card says what time it is on the island.
 
-- **The Caltrain.** A silver double-decker Caltrain runs on a little railway round the east end. On weekday mornings (6:30 to 9:30) and evenings (4:00 to 7:30) it goes round and round, stopping at the station every lap; the rest of the time it waits at the platform with its doors open. It stops for anyone standing on the track.
+- **The Caltrain.** A silver double-decker Caltrain runs on a little railway round the east end. Every day from five in the morning until one at night it goes round and round, stopping at the platform for a few seconds every lap. In the small hours it rests there. It stops for anyone standing on the track.
 - **The skyline.** Far off to the north there's a city, or two cities that have run into each other: a big wheel, a clock tower, a glass shard, a slim pyramid. After dark their windows light up one by one.
 - **The sea and sky.** Clouds with shadows, circling gulls, a sailboat that lights its lamp at night, and a ring of buoys at the swimming limit with red lamps after dark.
 
@@ -151,13 +164,17 @@ Visit at any hour you like: `?time=22:00` sets the island's clock to ten tonight
 
 Down on the stone quay past the taproom, a red London double-decker is parked facing Tower Bridge: two towers in the water, walkways high between them, and chains swooping down to either end. Cross it to Little London, an islet with a red phone box, a pillar box, street lamps, and Westfield, a shopping centre whose glass roof lifts off whole when you go in. Inside there's Five Guys, an escalator and a row of shopfronts. It isn't a project. I spent a lot of time there growing up, with my dad.
 
+Along from the mall is No. 12, a narrow brick townhouse with a sage green door and a window box of lavender. A small brass plate by the bell says ROOMS, and nothing else. Inside it's warm and hushed: two armchairs facing each other, tissues within reach, and Wren, who asks how you are and lets you take your time. A soft scarf hangs on the hook by the door.
+
+Dad, Mom, Lucia, Andrew and Isaac are out walking the streets, and stop to say hello.
+
 ### Sound
 
 Sound is off until you turn it on with the speaker in the top bar. Everything is made with Web Audio, with no sound files: the sea, footsteps, splashes and jumps, the race countdown, the school bell, and a sound for every game (each skip a semitone higher than the last).
 
 ### What the island remembers
 
-Your progress is saved in this browser: the words you've found, the posts you've caught, your best at every game, your best lap and its ghost, your wardrobe and what you're wearing, and whether night has fallen. Where you're standing, and which building you're in, last only as long as the tab, so a new visit starts at the plaza. "Forget what I found" clears the words, the catches and the night, and keeps your bests and your wardrobe.
+Your progress is saved in this browser: the words you've found, the posts you've caught, your best at every game, your best lap and its ghost, your wardrobe and what you're wearing, the gates you've talked your way through, and whether night has fallen. Where you're standing, and which building you're in, last only as long as the tab, so a new visit starts at the plaza. "Forget what I found" clears the words, the catches and the night, and keeps your bests, your wardrobe and the open gates.
 
 ### For everyone
 
@@ -212,15 +229,16 @@ Your progress is saved in this browser: the words you've found, the posts you've
 
 `src/world/world.ts` is the one file to edit to change the island. It describes:
 
-- **Places**: where each thing stands (`at`, in world units, +z is south), what it is (`archetype`: cabin, lighthouse, pier, mall…), what it opens (`href`), and what you see when you get there (`description`, `scenery` you can examine). Project places pull their name, color and blurb from `src/data/projects.ts`. Not every place is work: a `memory` is somewhere from Ambrose's own life, a building with a room and no page to open (Westfield, over Tower Bridge, is the first).
+- **Places**: where each thing stands (`at`, in world units, +z is south), what it is (`archetype`: cabin, lighthouse, pier, mall, townhouse, skyscraper…), what it opens (`href`), and what you see when you get there (`description`, `scenery` you can examine). Project places pull their name, color and blurb from `src/data/projects.ts`. Not every place is work: a `memory` is somewhere from Ambrose's own life, a building with a room and no page to open (Westfield, over Tower Bridge, is the first), a `quiet` place is just a room to sit in, with no page either (No. 12, the townhouse along from the mall), and a `folly` is somewhere made up just for fun, also a room and no page (the glass tower on Synergy Isle).
 - **Routes**: which places connect. Paved ones become paths in the spatial views; the rest are shortcuts the text adventure narrates.
 - **Lost words**: eight words English lost (from [Etymon](https://avan36.github.io/Etymology/)'s museum), each hidden in a specific piece of scenery and at a specific spot.
 - **Interiors**: every building (and nothing else) has a room: a description, a few `things` to look at (each with a `prop` the renderers draw, and an optional link), and one or two islanders with a greeting, 2 to 4 `topics` and a farewell. Rooms have their own units, door in the middle of the front wall; `checkWorld` keeps everything on the floor, clear of the door and each other, and every link pointing at a real page. The islanders are fictional; what they say about a project only restates its page, and in Westfield they only say what's true of any visit (Five Guys is as it really is).
-- **Activities**: fishing off the pier, which catches a post from the blog; the portal; a speedboat at the end of the pier to race round the island (the course itself is pure math in `src/world/race.ts`); and seven mini-games (`kind: 'minigame'` with a `game` id). Three are on the main island: skipping stones, crab boop and crate stack. Four are out on the islets, each teaching something true about a project: Ask the bartender (busy beer) and Spot the dark pattern (Global Privacy Control) on Boardwalk Isle, Etymology race (Etymon) and Sort the tree of life (Map of Evolution) on Root Isle. The games live in `src/renderers/games/`: pure rules, tested (the islet games' in `games/rules/`), and one shared card every view opens, which paints a game on a canvas or builds it from buttons and words. `games/catalog.ts` says which views can play each one: the islet games are on the 3D island only so far, so the map and the text adventure leave them out. Best scores are part of the store's progress (Ask the bartender has none: it's a drink).
-- **Outfits**: eleven wardrobe pieces in four slots (head, face, neck, body), one per place, each with a hint. Arriving at the place unlocks its piece.
-- **Geography**: the island's shape as a recipe (coast ripples, a headland, a hill, the pier, the railway loop and the quay), plus **islets** (each with its own coast recipe round its middle: two off the west coast, and Little London off the east end) and **bridges** out to them (a level deck from land, or the quay, to other land, with railings). A bridge's `style` is a plain `footbridge` or a `tower` bridge, which the views draw as Tower Bridge: two towers in the water, walkways high between them and chains swooping down to either end. `geo.ts` turns it into height (whichever island's ground is highest), coastline, paths, doors, decks you can walk on, the swimming water round every island, which island you're on, and the way over the bridges (`nextStop`, which also steps round buildings in the way). `checkWorld` fails the build if a bridge starts in the sea, an islet can't be walked to, or a game is left in the water.
+- **Activities**: fishing off the pier, which catches a post from the blog; the portal; a speedboat at the end of the pier to race round the island (the course itself is pure math in `src/world/race.ts`); and eight mini-games (`kind: 'minigame'` with a `game` id). Three are on the main island: skipping stones, crab boop and crate stack. Four are out on the islets, each teaching something true about a project: Ask the bartender (busy beer) and Spot the dark pattern (Global Privacy Control) on Boardwalk Isle, Etymology race (Etymon) and Sort the tree of life (Map of Evolution) on Root Isle. The eighth, Speak corporate, is the badge desk at the gate out to Synergy Isle. The games live in `src/renderers/games/`: pure rules, tested (the islet games' in `games/rules/`), and one shared card every view opens, which paints a game on a canvas or builds it from buttons and words. `games/catalog.ts` says which views can play each one: the four project games on the islets are on the 3D island only so far, so the map and the text adventure leave them out; Speak corporate is words and buttons, so all three play it. Best scores are part of the store's progress (Ask the bartender has none: it's a drink).
+- **Outfits**: thirteen wardrobe pieces in four slots (head, face, neck, body), one per place, each with a hint. Arriving at the place unlocks its piece.
+- **People out walking** (`wanderers`): real people from Ambrose's life, out in the open air rather than in a room. Each has a name, what they look like (`looks`, a scarf `color`, and a `coat` and `hat` if they wear them), what they're up to (`doing`), the island they `roams` (`main`, or an islet's id), a loop of waypoints they `walk` at a `pace`, stopping for `pause` seconds at each, and three to six `lines` they say in turn. They only say what's true of any visit, never anything about themselves. Where they are is a pure function of the time (`src/world/wander.ts`), so every view puts them in the same place; they stop for you as you come up. `checkWorld` keeps every walk on its own island's dry land, round the buildings and the games, off the railway, the quay, the ends of the bridges and the signs and flags, and every name different from everyone else's (the text adventure finds people by name).
+- **Geography**: the island's shape as a recipe (coast ripples, a headland, a hill, the pier, the railway loop and the quay), plus **islets** (each with its own coast recipe round its middle: two off the west coast, Synergy Isle further out past Boardwalk Isle, and Little London off the east end, big enough for the mall, the townhouse and five people out walking) and **bridges** out to them (a level deck from land, or the quay, to other land, with railings). **Signs** are big standing letters on a hillside (`text`, `height`, where the line's middle is and which way it `faces`): FOSS HILL on the slope below the lighthouse is the first, and `signLetters` in `geo.ts` lays its letters out for every view. **Flags** are small flags on poles, their stripes the `--flag-*` colors in `tokens.css`. A bridge's `style` is a plain `footbridge` or a `tower` bridge, which the views draw as Tower Bridge: two towers in the water, walkways high between them and chains swooping down to either end. A bridge can have a `gate`: a turnstile where its deck leaves the land at its `from` end, shut until you score its `pass` at its `game`. `geo.ts` turns it into height (whichever island's ground is highest), coastline, paths, doors, decks you can walk on, the swimming water round every island, which island you're on, the way over the bridges (`nextStop`, which also steps round buildings in the way), and where each gate stands and which islands are behind it (`gates`, `gatesBetween`). `checkWorld` fails the build if a bridge starts in the sea, an islet can't be walked to, a game is left in the water, or a gate has no game to open it, has its game on its far side or more than 8 away, guards nothing (there's another way round), or a sign's letters stand in the sea, on a path or in front of a lost word. Synergy Isle stands far enough out that its swimming water never meets Boardwalk Isle's, so nobody swims round the gate.
 
-Nothing in it knows about pixels, meshes or fonts. Renderers map archetypes to their own art. Island time (`src/world/clock.ts`) and the train's timetable (`src/world/train.ts`) are pure functions of a date, tested without a browser.
+Nothing in it knows about pixels, meshes or fonts. Renderers map archetypes to their own art. Island time (`src/world/clock.ts`), the train's timetable (`src/world/train.ts`) and where people out walking are (`src/world/wander.ts`) are pure functions of a date, tested without a browser.
 
 `buildWorld()` validates everything with the zod schema in `schema.ts`, then runs cross-checks that span the whole world: every project has exactly one place, every place is reachable from the plaza, nothing overlaps, every lost word is hidden in scenery that exists. A mistake fails the build with a sentence:
 
@@ -233,7 +251,7 @@ The same schema is published as JSON Schema at [`/world.schema.json`](https://am
 
 ### The content pack
 
-`/world.json` is the island. [`/pack.json`](https://ambrosevannier.com/pack.json) is everything else, the half that travels: who I am (`src/data/projects.ts`, `src/data/about.ts`), the projects and posts, the word jar and shelf (`src/data/life.ts`), the site's colors and fonts (read from `src/styles/tokens.css`), and the island's ideas without their coordinates: the lost words, the games, the wardrobe and the islanders. Every link in it is absolute. `src/world/pack.ts` builds it and checks it with a zod schema, published at [`/pack.schema.json`](https://ambrosevannier.com/pack.schema.json).
+`/world.json` is the island. [`/pack.json`](https://ambrosevannier.com/pack.json) is everything else, the half that travels: who I am (`src/data/projects.ts`, `src/data/about.ts`), the projects and posts, the word jar and shelf (`src/data/life.ts`), the site's colors and fonts (read from `src/styles/tokens.css`), and the island's ideas without their coordinates: the lost words, the games, the wardrobe, the islanders and the people out walking. Every link in it is absolute. `src/world/pack.ts` builds it and checks it with a zod schema, published at [`/pack.schema.json`](https://ambrosevannier.com/pack.schema.json).
 
 It's there for whatever comes next: a racing game, another site, anything that wants the content without the island. [`docs/brief.md`](docs/brief.md) is its companion, the taste and rules that don't fit in JSON.
 
@@ -245,8 +263,8 @@ Renderers are loaded with `import()` only when chosen, so someone reading the li
 
 | View | Folder | What it is |
 | --- | --- | --- |
-| Island | `src/renderers/island` | three.js, procedural low-poly, instanced vegetation, shader water; the bridges (Tower Bridge too) in `world/bridges.ts`, the islet games' props in `play/isletProps.ts` |
-| Map | `src/renderers/map` | Canvas 2D pixel art drawn from the same height field |
+| Island | `src/renderers/island` | three.js, procedural low-poly, instanced vegetation, shader water; the bridges (Tower Bridge too) in `world/bridges.ts`, the gates on them in `play/gate.ts`, the islet games' props in `play/isletProps.ts`, the glass tower in `landmarks/skyscraper.ts`, people out walking in `play/wanderers.ts` (one kit mesh each) |
+| Map | `src/renderers/map` | Canvas 2D pixel art drawn from the same height field; a shut gate is stamped across its deck (`map/gate.ts`); people out walking in `wanderers.ts` |
 | Text | `src/renderers/text` | A pure parser/engine with tests, and a terminal UI |
 | List | `src/components/island/ListView.astro` | Server-rendered HTML: the no-JS, reduced-motion and search-engine view |
 
@@ -256,7 +274,7 @@ Inside a building, the spatial views share more: `renderers/roomPlan.ts` is the 
 
 ### Shared state
 
-`src/world/store.ts` remembers what a visitor has done: the lost words they've found, the posts they've caught, their best score at each mini-game, whether night has fallen, their best lap round the island in the boat, the wardrobe they've collected and what they're wearing, and where they're standing. The rules are a pure `reduce(world, state, action) → { state, events }`, tested without a browser. Progress lives in `localStorage`; position lives in `sessionStorage`. Switch views mid-walk and you're still standing in the same spot with the same pockets.
+`src/world/store.ts` remembers what a visitor has done: the lost words they've found, the posts they've caught, their best score at each mini-game, the gates they've talked their way through (a passing score at a gate's game opens it, and it stays open), whether night has fallen, their best lap round the island in the boat, the wardrobe they've collected and what they're wearing, and where they're standing. The rules are a pure `reduce(world, state, action) → { state, events }`, tested without a browser. Progress lives in `localStorage`; position lives in `sessionStorage`. Switch views mid-walk and you're still standing in the same spot with the same pockets.
 
 ## Working on it
 

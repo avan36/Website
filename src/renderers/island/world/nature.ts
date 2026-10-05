@@ -18,7 +18,7 @@ import {
 } from 'three';
 import { Kit } from './kit';
 import { LONDON_SPOTS, LONDON_WALK } from './london';
-import { ACTIVITIES, clearOfBridges, heightAt, isOpenGround, ISLANDS, owner, rockiness, PLAZA, PLACES, WORDS } from './shape';
+import { ACTIVITIES, clearOfBridges, FLAGS, heightAt, isOpenGround, ISLANDS, owner, rockiness, PLAZA, PLACES, SIGNS, signDist, walkDist, WORDS } from './shape';
 import { rng } from '../util/math';
 
 export interface SharedUniforms {
@@ -365,6 +365,16 @@ export function buildNature(uniforms: SharedUniforms, lite = false) {
   rocks = rocks.filter(offBridges(0));
   tufts = tufts.filter(offBridges(-0.7));
   flowers = flowers.filter(offBridges(-0.5));
+  // Nothing grows through Foss Hill's letters or the flag, and nothing tall stands in front of the letters.
+  const offSigns = (m: number, tall = false) => (p: Spot) =>
+    signDist(p.x, p.z) > m && FLAGS.every((f) => Math.hypot(p.x - f.x, p.z - f.z) > m) && !(tall && SIGNS.some((s) => s.letters.some((l) => p.z > l.z - 0.5 && p.z - l.z < 7 && Math.abs(p.x - l.x) < 1.6)));
+  palms = palms.filter(offSigns(1.8, true));
+  trees = trees.filter(offSigns(2.2, true));
+  pines = pines.filter(offSigns(1.8, true));
+  bushes = bushes.filter(offSigns(0.9));
+  rocks = rocks.filter(offSigns(0.7));
+  tufts = tufts.filter(offSigns(0.3));
+  flowers = flowers.filter(offSigns(0.3));
 
   // (Which trees take which of the two shapes stays as it was, too.)
   const half = Math.ceil(trees.length / 2);
@@ -396,14 +406,25 @@ export function buildNature(uniforms: SharedUniforms, lite = false) {
     flowers.push(...scatter(lite ? 10 : 16, r, (x, z, h) => h > 0.85 && isOpenGround(x, z, -0.5) && !nearGame(x, z, 1.6, 0) && !onWay(x, z, -0.6), 0.45, [], [0.8, 1.2], around));
   }
 
+  // Nobody out walking walks into a tree: their walks are cleared last, so nothing else moves.
+  const offWalks = (m: number) => (p: Spot) => walkDist(p.x, p.z) > m;
+  palms = palms.filter(offWalks(1));
+  // (Each tree keeps its shape: the halves are split before anything is cleared.)
+  const treesA = trees.slice(0, half).filter(offWalks(1.4));
+  const treesB = trees.slice(half).filter(offWalks(1.4));
+  trees = [...treesA, ...treesB];
+  pines = pines.filter(offWalks(1.3));
+  bushes = bushes.filter(offWalks(0.9));
+  rocks = rocks.filter(offWalks(0.7));
+
   const palmM = swayMaterials(uniforms, 0.0045, 1.1);
   const treeM = swayMaterials(uniforms, 0.006, 1.3);
   const stiffM = swayMaterials(uniforms, 0.0, 1);
   const grassM = swayMaterials(uniforms, 0.35, 2.2);
 
   group.add(instanced(palmGeometry(), palmM, palms, true, 0.1));
-  group.add(instanced(roundTreeGeometry(0), treeM, trees.slice(0, half), true));
-  group.add(instanced(roundTreeGeometry(1), treeM, trees.slice(half), true));
+  group.add(instanced(roundTreeGeometry(0), treeM, treesA, true));
+  group.add(instanced(roundTreeGeometry(1), treeM, treesB, true));
   group.add(instanced(pineGeometry(), treeM, pines, true));
   group.add(instanced(bushGeometry(), treeM, bushes, true));
   group.add(instanced(rockGeometry(3), stiffM, rocks.filter((_, i) => i % 2 === 0), true, 0.12));

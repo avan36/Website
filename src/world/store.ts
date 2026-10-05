@@ -1,7 +1,7 @@
 // What a visitor has done, shared by every renderer: where they are, which
 // lost words they've found, what they've caught off the pier, their best
-// score at each of the island's little games, and what they've unlocked for
-// the wardrobe and are wearing. Switch from the
+// score at each of the island's little games, what they've unlocked for the
+// wardrobe and are wearing, and which gates they've talked their way through. Switch from the
 // island to the map to the text adventure and you're still standing in the
 // same spot with the same pockets.
 //
@@ -28,6 +28,8 @@ export type Progress = {
   wardrobe: string[];
   /** What the explorer has on: at most one unlocked piece per slot. */
   worn: Partial<Record<OutfitSlot, string>>;
+  /** Gates opened (by gate id), by passing the game that opens each. Once open, they stay open. */
+  gates: string[];
 };
 
 export type GameRecord = { best: number; plays: number };
@@ -50,7 +52,7 @@ export type Action =
   | { type: 'catch'; slug: string }
   | { type: 'night'; on: boolean }
   | { type: 'lap'; time: number }
-  /** A round of a mini-game ended with this score. */
+  /** A round of a mini-game ended with this score (a good enough one opens any gate it's the key to). */
   | { type: 'score'; game: string; score: number }
   /** Unlock a piece directly (arriving at its place does this on its own). */
   | { type: 'unlock'; id: string }
@@ -72,6 +74,8 @@ export type WorldEvent =
   /** `record`: a new best (a score above zero that beats the last best). */
   | { type: 'scored'; game: string; score: number; best: number; previous: number; record: boolean }
   | { type: 'unlocked'; id: string; count: number; total: number }
+  /** A gate across a bridge opened: its game was passed. */
+  | { type: 'gate'; id: string }
   | { type: 'wardrobe-complete' }
   /** A slot changed: `id` is what's in it now (null: nothing). */
   | { type: 'dressed'; slot: OutfitSlot; id: string | null };
@@ -85,8 +89,11 @@ const MAX_SCORE = 999_999;
 /** The mini-games this world has, by game id. */
 export const gameIds = (world: World): string[] => world.activities.flatMap((a) => (a.kind === 'minigame' && a.game ? [a.game] : []));
 
+/** The gates across the bridges, with the game that opens each and the score it takes. */
+export const gatesOf = (world: World) => world.geography.bridges.flatMap((b) => (b.gate ? [b.gate] : []));
+
 export const emptyState = (): WorldState => ({
-  progress: { found: [], caught: [], night: false, bestLap: null, games: {}, wardrobe: [], worn: {} },
+  progress: { found: [], caught: [], night: false, bestLap: null, games: {}, wardrobe: [], worn: {}, gates: [] },
   presence: { at: null, pos: null, inside: null },
 });
 
@@ -171,12 +178,16 @@ export function reduce(world: World, state: WorldState, action: Action): { state
       const record = score > was.best;
       const now: GameRecord = { best: Math.max(was.best, score), plays: was.plays + 1 };
       events.push({ type: 'scored', game: action.game, score, best: now.best, previous: was.best, record });
-      return { state: { presence, progress: { ...progress, games: { ...progress.games, [action.game]: now } } }, events };
+      // A gate this game is the key to opens for a passing score, and stays open.
+      const opened = gatesOf(world).filter((g) => g.game === action.game && score >= g.pass && !progress.gates.includes(g.id)).map((g) => g.id);
+      for (const id of opened) events.push({ type: 'gate', id });
+      const gates = opened.length ? [...progress.gates, ...opened] : progress.gates;
+      return { state: { presence, progress: { ...progress, games: { ...progress.games, [action.game]: now }, gates } }, events };
     }
     case 'reset': {
-      // Forgets the words and the catches. The lap record, the best scores and the
-      // wardrobe (earned by walking) are kept: the card only asks about words.
-      const fresh = { ...emptyState().progress, bestLap: progress.bestLap, games: progress.games, wardrobe: progress.wardrobe, worn: progress.worn };
+      // Forgets the words and the catches. The lap record, the best scores, the
+      // wardrobe (earned by walking) and the open gates are kept: the card only asks about words.
+      const fresh = { ...emptyState().progress, bestLap: progress.bestLap, games: progress.games, wardrobe: progress.wardrobe, worn: progress.worn, gates: progress.gates };
       return { state: { presence, progress: fresh }, events: progress.night ? [{ type: 'night', on: false }] : [] };
     }
   }
@@ -232,6 +243,8 @@ export function sanitize(world: World, raw: unknown): WorldState {
       if (o && o.slot === slot && s.progress.wardrobe.includes(o.id)) s.progress.worn[o.slot] = o.id;
     }
   }
+  const gates = new Set(gatesOf(world).map((g) => g.id));
+  s.progress.gates = [...new Set(strings(r.progress?.gates))].filter((id) => gates.has(id));
   const at = r.presence?.at;
   if (typeof at === 'string' && world.places.some((p) => p.id === at)) s.presence.at = at;
   const pos = r.presence?.pos;
@@ -328,5 +341,7 @@ export function createStore(
     best: (game: string) => state.progress.games[game]?.best ?? 0,
     /** The outfit pieces being worn right now, by slot. */
     worn: () => state.progress.worn,
+    /** Whether a gate across a bridge is open. */
+    open: (gate: string) => state.progress.gates.includes(gate),
   };
 }

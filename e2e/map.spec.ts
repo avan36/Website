@@ -34,6 +34,27 @@ function peak(page: Page, ms: number) {
 }
 
 test.describe('map', () => {
+  test('someone out walking stops as you come up, and says hello', async ({ page }) => {
+    const errors = await openMap(page);
+    await closeDialog(page);
+    const lines = await page.evaluate(() => ((window as DebugWindow).__world!.world as unknown as { wanderers: { id: string; lines: string[] }[] }).wanderers.find((v) => v.id === 'jeremy')!.lines);
+    const jeremy = () => page.evaluate(() => (window as DebugWindow).__map!.wanderers().find((v) => v.id === 'jeremy')!);
+    await page.evaluate(() => {
+      const m = (window as DebugWindow).__map!;
+      const v = m.wanderers().find((x) => x.id === 'jeremy')!;
+      m.teleport(v.x + 1, v.z + 0.3);
+    });
+    await expect.poll(async () => (await jeremy()).open).toBe(true);
+    const tag = page.locator('.map-walker');
+    await expect(tag).toBeVisible();
+    await expect(tag).toContainText('Jeremy');
+    await page.keyboard.press('KeyE');
+    await expect(tag).toContainText(lines[0]);
+    expect((await jeremy()).said).toBe(1);
+    expect((await jeremy()).moving).toBe(false);
+    expect(errors).toEqual([]);
+  });
+
   test('walks to a door', async ({ page }) => {
     const errors = await openMap(page);
     const places = await page.evaluate(() => (window as DebugWindow).__map!.places());
@@ -116,6 +137,45 @@ test.describe('map', () => {
     expect(at.wet, 'walked the deck, not the sea').toBe(0);
     expect(Math.hypot(at.x - mall.door.x, at.z - mall.door.z), `stopped at ${JSON.stringify(at)}`).toBeLessThan(0.8);
     await expect.poll(() => page.evaluate(() => (window as DebugWindow).__map!.near())).toBe(mall.id);
+    expect(errors).toEqual([]);
+  });
+
+  test('the badge gate keeps the long bridge to the glass tower shut until it is open', async ({ page }) => {
+    const errors = watchErrors(page);
+    const tower = async () => {
+      await page.goto('/?view=map&debug');
+      await homeReady(page, 'map');
+      await page.waitForFunction(() => !!(window as DebugWindow).__map);
+      await closeDialog(page);
+      return page.evaluate(() => (window as DebugWindow).__map!.places().find((p) => p.id === 'synergy-tower')!);
+    };
+    // Shut: no way over from Boardwalk Isle, and the badge desk's tag pops up at the turnstile.
+    await seed(page, { found: await wordIds(page), at: { x: -34.5, z: 17.5 } });
+    const t = await tower();
+    expect(await page.evaluate(() => (window as DebugWindow).__map!.gates())).toMatchObject([{ id: 'badge-gate', open: false }]);
+    expect(await page.evaluate((d) => (window as DebugWindow).__map!.walkTo(d.x, d.z), t.door), 'no way past the gate').toBe(false);
+    const gate = await page.evaluate(() => (window as DebugWindow).__map!.gates()[0]);
+    await page.evaluate((g) => (window as DebugWindow).__map!.teleport(g.x + 0.62, g.z - 0.78), gate);
+    await expect.poll(() => page.evaluate(() => (window as DebugWindow).__map!.games().find((g) => g.id === 'jargon')!.open)).toBe(true);
+    await expect(page.locator('.map-game:not([hidden]) .map-tag__name')).toHaveText('Speak corporate');
+    expect(errors).toEqual([]);
+  });
+
+  test('once the badge gate is open, walks the long bridge to the glass tower, dry all the way', async ({ page }) => {
+    const errors = watchErrors(page);
+    await seed(page, { found: await wordIds(page), at: { x: -34.5, z: 17.5 }, gates: ['badge-gate'] });
+    await page.goto('/?view=map&debug');
+    await homeReady(page, 'map');
+    await page.waitForFunction(() => !!(window as DebugWindow).__map);
+    await closeDialog(page);
+    const t = await page.evaluate(() => (window as DebugWindow).__map!.places().find((p) => p.id === 'synergy-tower')!);
+    expect(await page.evaluate(() => (window as DebugWindow).__map!.gates()[0].open)).toBe(true);
+    expect(await page.evaluate((d) => (window as DebugWindow).__map!.walkTo(d.x, d.z), t.door), 'a way over').toBe(true);
+    await page.waitForFunction(() => !(window as DebugWindow).__map!.path() || (window as DebugWindow).__map!.player().wet > 0, null, { timeout: 90_000, polling: 50 });
+    const at = await player(page);
+    expect(at.wet, 'walked the deck, not the sea').toBe(0);
+    expect(Math.hypot(at.x - t.door.x, at.z - t.door.z), `stopped at ${JSON.stringify(at)}`).toBeLessThan(0.8);
+    await expect.poll(() => page.evaluate(() => (window as DebugWindow).__map!.near())).toBe('synergy-tower');
     expect(errors).toEqual([]);
   });
 

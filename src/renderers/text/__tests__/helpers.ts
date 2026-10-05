@@ -5,7 +5,9 @@ import { plain } from '../output';
 
 export const world = makeWorld();
 export const geo = createGeo(world);
-export const engine = createEngine(world, geo, { random: () => 0.5 });
+/** A fixed moment, so who's out walking where never changes between runs. */
+export const NOW = 1_800_000_000;
+export const engine = createEngine(world, geo, { random: () => 0.5, now: () => NOW });
 export { posts };
 
 /** Play a list of commands from a state, keeping every result. */
