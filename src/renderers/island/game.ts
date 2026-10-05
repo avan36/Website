@@ -1825,7 +1825,8 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     const now = performance.now();
     if (now - clockAt > 1000) (clockAt = now), tickClock();
     night.update(time, dt, o.reducedMotion);
-    commute.update(state === 'intro' ? 0 : dt, commuting, player.pos);
+    // The train keeps going behind the intro too, so it's already on its way round when you look.
+    commute.update(dt, commuting, player.pos);
 
     // Click marker
     if (markerT < 1) {

@@ -74,7 +74,7 @@ Off the coast are three islets: **Boardwalk Isle** and **Root Isle** to the west
 
 - **Wardrobe**: eleven pieces to find, one near each place (a cardinal scarf on the cabin porch, a hard hat at the taproom, a leaf crown from the tree, reading glasses at the library, sunglasses at the lighthouse, a graduation cap at the schoolhouse, a recycling vest at the depot, a tool belt in the workshop, a fishing hat on the pier, a red cap at Westfield and a sailor's cap on the quiet beach). Mix and match them on the explorer: head, face, neck and body.
 - **Talk to the islanders**: each room has someone with a few topics. What they say about a project only repeats what's on its page.
-- **Island time**: the island keeps California time. The light follows the real sun, windows light up after dark, and the commuter train runs round its loop at rush hour (`src/world/clock.ts`, `src/world/train.ts`). It stops for anyone standing on the line.
+- **Island time**: the island keeps California time. The light follows the real sun, windows light up after dark, and the Caltrain goes round its loop from five in the morning until one at night, every day, stopping at the platform for a few seconds each lap and resting there in the small hours (`src/world/clock.ts`, `src/world/train.ts`). It stops for anyone standing on the line. `?commute=on` or `?commute=off` forces it to run or rest.
 - **Sound**: small synthesized sounds (footsteps, the sea, the games), off by default.
 - **Progress travels**: words found, posts caught, scores, laps, outfits and where you're standing carry over when you switch views.
 
