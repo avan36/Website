@@ -21,7 +21,7 @@ export const shade = (hex: string, k: number) => {
 
 /** About how tall each kind of thing is, for its click box. */
 export function propHeight(p: Prop) {
-  return { desk: 1.4, hearth: 2.8, frame: 1.2, board: 1.5, counter: 1.5, bookshelf: 3, cabinet: 2.2, lens: 2.8, cat: 0.7, globe: 1.5, scanner: 1.5, crates: 1.9, grill: 3.0, sacks: 1.0, escalator: 3.2, shopfront: 2.8 }[p];
+  return { desk: 1.4, hearth: 2.8, frame: 1.2, board: 1.5, counter: 1.5, bookshelf: 3, cabinet: 2.2, lens: 2.8, cat: 0.7, globe: 1.5, scanner: 1.5, crates: 1.9, grill: 3.0, sacks: 1.0, escalator: 3.2, shopfront: 2.8, pingpong: 1.1 }[p];
 }
 
 /** One thing, built from the kit, standing at the origin facing +z. */
@@ -69,6 +69,24 @@ export function buildProp(prop: Prop, place: Place, s: Spot, mat: <T extends Mat
       break;
     }
     case 'counter': {
+      if (place.archetype === 'skyscraper') {
+        // A reception desk in pale stone, with a kombucha tap where the bell would be: three handles, three jars.
+        kit.rbox(hw * 2, 1.0, hd * 2, 0.08, '#f4f2ee', { p: [0, 0.5, 0] });
+        kit.box(hw * 2 + 0.1, 0.08, hd * 2 + 0.15, '#dcd8d0', { p: [0, 1.04, 0] });
+        kit.box(hw * 2 - 0.3, 0.08, 0.04, accent, { p: [0, 0.3, hd + 0.01], jitter: 0 });
+        kit.box(0.9, 0.5, 0.3, '#c9ced3', { p: [0.6, 1.33, -hd + 0.25] });
+        ['#f2c14e', '#9bd36a', accent].forEach((c, i) => {
+          const x = 0.32 + i * 0.28;
+          kit.cyl(0.03, 0.03, 0.22, '#8b9198', { p: [x, 1.65, -hd + 0.25] });
+          kit.cyl(0.045, 0.035, 0.18, c, { p: [x, 1.85, -hd + 0.25] });
+          kit.cyl(0.09, 0.08, 0.22, shade(c, 0.15), { p: [x - 1.2, 1.2, 0.05] }, 8);
+        });
+        // A laptop nobody is using, and a little sign: VISITORS.
+        kit.box(0.5, 0.03, 0.34, '#8b9198', { p: [-0.6, 1.1, 0.05] });
+        kit.box(0.5, 0.32, 0.03, '#3d4248', { p: [-0.6, 1.26, -0.12], r: [-0.25, 0, 0] });
+        kit.box(0.42, 0.14, 0.04, accent, { p: [hw - 0.35, 1.16, hd - 0.05] });
+        break;
+      }
       kit.box(hw * 2, 1.0, hd * 2, WOOD_DARK, { p: [0, 0.5, 0] });
       kit.box(hw * 2 + 0.15, 0.1, hd * 2 + 0.2, WOOD_LIGHT, { p: [0, 1.05, 0] });
       for (let x = -hw + 0.3; x < hw - 0.1; x += 0.45) kit.box(0.05, 0.9, 0.04, '#6b4228', { p: [x, 0.5, hd + 0.01] });
@@ -113,6 +131,13 @@ export function buildProp(prop: Prop, place: Place, s: Spot, mat: <T extends Mat
         kit.box(0.42, 0.78, 0.04, IRON, { p: [0, 2.1, wallZ + 0.06] });
         kit.box(0.34, 0.66, 0.04, CREAM, { p: [0, 2.1, wallZ + 0.07] });
         for (let i = 0; i < 5; i++) kit.box(0.16, 0.06, 0.03, i % 2 ? '#bdb5a8' : accent, { p: [i % 2 ? -0.06 : 0.06, 2.34 - i * 0.12, wallZ + 0.09] });
+      } else if (place.archetype === 'skyscraper') {
+        // A motivational poster: a lone rowboat on a misty lake at dawn, and a word underneath.
+        kit.box(hw * 2 - 0.3, 0.32, 0.03, '#c9dcea', { p: [0, 2.38, wallZ + 0.07], jitter: 0 });
+        kit.box(hw * 2 - 0.3, 0.3, 0.03, '#f3d6b8', { p: [0, 2.08, wallZ + 0.07], jitter: 0 });
+        kit.box(0.34, 0.06, 0.03, '#6b4228', { p: [0.1, 2.0, wallZ + 0.09], jitter: 0 });
+        kit.box(0.02, 0.14, 0.02, '#6b4228', { p: [0.15, 2.08, wallZ + 0.1], r: [0, 0, 0.5], jitter: 0 });
+        kit.box(0.7, 0.06, 0.03, IRON, { p: [0, 1.76, wallZ + 0.08], jitter: 0 });
       } else if (place.archetype === 'depot') {
         kit.cyl(0.22, 0.22, 0.05, '#3f7fd6', { p: [0, 2.25, wallZ + 0.07], r: [Math.PI / 2, 0, 0] });
         kit.cyl(0.08, 0.08, 0.06, GOLD, { p: [0, 2.25, wallZ + 0.09], r: [Math.PI / 2, 0, 0] });
@@ -166,6 +191,19 @@ export function buildProp(prop: Prop, place: Place, s: Spot, mat: <T extends Mat
         });
         // A little red tag beside it, where the words would be.
         kit.addGlow(new BoxGeometry(0.34, 0.1, 0.02), '#e5202e', { p: [mx0 + 3.2 * uw + 0.3, 2.12, wallZ + 0.1] });
+        break;
+      }
+      if (place.archetype === 'skyscraper') {
+        // A rack of visitor lanyards on brass hooks, each with its badge.
+        kit.box(hw * 2, 0.12, 0.1, '#c9ced3', { p: [0, 2.55, wallZ] });
+        const colors = [accent, '#b8508a', '#f2c14e', '#2e9c8f', accent, '#e5484d', '#9bd36a'];
+        colors.forEach((c, i) => {
+          const x = -hw + 0.35 + (i * (hw * 2 - 0.7)) / (colors.length - 1);
+          kit.cyl(0.025, 0.025, 0.12, GOLD, { p: [x, 2.5, wallZ + 0.08], r: [Math.PI / 2, 0, 0] }, 6);
+          for (const s of [-1, 1]) kit.box(0.035, 0.6, 0.02, c, { p: [x + s * 0.07, 2.2, wallZ + 0.1], r: [0, 0, s * 0.1], jitter: 0 });
+          kit.box(0.24, 0.3, 0.02, '#fbfaf7', { p: [x, 1.8, wallZ + 0.11], jitter: 0 });
+          kit.box(0.18, 0.05, 0.02, c, { p: [x, 1.9, wallZ + 0.12], jitter: 0 });
+        });
         break;
       }
       kit.box(hw * 2, 1.45, 0.1, WOOD_DARK, { p: [0, 2.0, wallZ] });
@@ -424,6 +462,27 @@ export function buildProp(prop: Prop, place: Place, s: Spot, mat: <T extends Mat
       animated.push((t) => {
         if (!calm) steps.position.z = -((t * 0.45) % STEP);
       });
+      break;
+    }
+    case 'pingpong': {
+      // A ping-pong table in perfect condition: the net taut, the paddles still in their wrapper.
+      const top = 0.76;
+      kit.box(hw * 2, 0.06, hd * 2, '#2f6e5a', { p: [0, top, 0] });
+      kit.box(hw * 2, 0.065, 0.03, '#f4f1ea', { p: [0, top + 0.001, hd - 0.02], jitter: 0 });
+      kit.box(hw * 2, 0.065, 0.03, '#f4f1ea', { p: [0, top + 0.001, -hd + 0.02], jitter: 0 });
+      for (const x of [-hw + 0.02, hw - 0.02]) kit.box(0.03, 0.065, hd * 2, '#f4f1ea', { p: [x, top + 0.001, 0], jitter: 0 });
+      kit.box(0.02, 0.065, hd * 2, '#f4f1ea', { p: [0, top + 0.002, 0], jitter: 0 });
+      // The net, across the middle.
+      kit.box(0.03, 0.16, hd * 2 + 0.12, '#f4f1ea', { p: [0, top + 0.1, 0] });
+      for (const z of [-hd - 0.06, hd + 0.06]) kit.cyl(0.02, 0.02, 0.2, IRON, { p: [0, top + 0.08, z] }, 6);
+      for (const x of [-hw + 0.2, hw - 0.2]) for (const z of [-hd + 0.2, hd - 0.2]) kit.box(0.06, top, 0.06, IRON, { p: [x, top / 2, z] });
+      // Two paddles, still in their plastic, and the ball nobody has hit.
+      for (const [x, c] of [[-0.55, '#e5484d'], [0.6, '#1f2a44']] as const) {
+        kit.cyl(0.13, 0.13, 0.025, c, { p: [x, top + 0.05, 0.15] }, 12);
+        kit.box(0.05, 0.025, 0.16, WOOD_LIGHT, { p: [x, top + 0.05, 0.33] });
+        kit.box(0.3, 0.01, 0.42, '#e8f2f6', { p: [x, top + 0.07, 0.22], jitter: 0 });
+      }
+      kit.sphere(0.035, '#fbf6ec', { p: [0.25, top + 0.07, -0.3] }, 8, 6);
       break;
     }
     case 'shopfront': {

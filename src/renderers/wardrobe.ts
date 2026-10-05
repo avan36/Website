@@ -91,7 +91,7 @@ export function avatar(worn: Outfit[], size = 120): string {
     <ellipse cx="60" cy="122" rx="34" ry="5" fill="rgba(40,30,20,.16)"/>
     <ellipse cx="45" cy="116" rx="11" ry="7" fill="#6b4a3a"/><ellipse cx="75" cy="116" rx="11" ry="7" fill="#6b4a3a"/>
     <circle cx="60" cy="74" r="40" fill="#fffaf1" stroke="rgba(29,26,22,.12)" stroke-width="1.5"/>
-    ${body && body.id !== 'tool-belt' ? `<g clip-path="url(#w-av-body)"><path d="M10 64h40l10 22 10-22h40v60H10Z" fill="${body.color}"/><path d="M60 86v40" stroke="${tint(body.color, 0.28)}" stroke-width="1.6"/><rect x="10" y="98" width="100" height="5" fill="#e9f1dc"/></g>` : ''}
+    ${body && body.id !== 'tool-belt' ? `<g clip-path="url(#w-av-body)"><path d="M10 64h40l10 22 10-22h40v60H10Z" fill="${body.color}"/><path d="M60 86v40" stroke="${tint(body.color, 0.28)}" stroke-width="1.6"/>${body.id === 'recycling-vest' ? '<rect x="10" y="98" width="100" height="5" fill="#e9f1dc"/>' : ''}</g>` : ''}
     <ellipse cx="18" cy="80" rx="7" ry="9.5" fill="#fffaf1" stroke="rgba(29,26,22,.12)" stroke-width="1.5"/><ellipse cx="102" cy="80" rx="7" ry="9.5" fill="#fffaf1" stroke="rgba(29,26,22,.12)" stroke-width="1.5"/>
     <ellipse cx="38" cy="80" rx="6" ry="3.6" fill="#ff9e9e"/><ellipse cx="82" cy="80" rx="6" ry="3.6" fill="#ff9e9e"/>
     <ellipse cx="47" cy="68" rx="5" ry="7.2" fill="${ink}"/><ellipse cx="73" cy="68" rx="5" ry="7.2" fill="${ink}"/>

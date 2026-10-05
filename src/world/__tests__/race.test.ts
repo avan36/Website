@@ -50,8 +50,9 @@ describe('the course', () => {
     }
     // And round the islets: every point of it clear of all the swimming water, a gate's width and more.
     for (const p of course.line) expect(geo.swimRoom(p.x, p.z), `${p.x.toFixed(1)}, ${p.z.toFixed(1)}`).toBeLessThan(-(GATE_HALF + 2));
+    // Round Synergy Isle too, out past Boardwalk Isle, so a little longer than it once was.
     expect(course.length).toBeGreaterThan(200);
-    expect(course.length).toBeLessThan(400);
+    expect(course.length).toBeLessThan(500);
   });
 
   it('keeps every gate, posts and all, in deep water clear of the buoys', () => {

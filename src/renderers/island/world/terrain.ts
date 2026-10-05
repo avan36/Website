@@ -16,8 +16,8 @@ import { heightAt, pathDist, rockiness } from './shape';
 import { fbm, noise2 } from '../util/noise';
 import { clamp, rng, smoothstep } from '../util/math';
 
-/** The square the land is built over: the main island, the islets off its west coast, and their shelves. */
-export const TERRAIN_SIZE = 112;
+/** The square the land is built over: the main island, the islets off it (Synergy Isle, far out to the south-west, too), and their shelves. */
+export const TERRAIN_SIZE = 140;
 
 const C = {
   sandDry: new Color('#f4dca6'),
@@ -35,7 +35,7 @@ const C = {
 };
 
 export function buildTerrain() {
-  const N = 154; // about 0.73 a cell
+  const N = 192; // about 0.73 a cell
   const size = TERRAIN_SIZE;
   const cell = size / N;
   const rand = rng(42);

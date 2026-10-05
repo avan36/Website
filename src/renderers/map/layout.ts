@@ -14,7 +14,7 @@ import { mulberry32 } from './rng';
 /** How far the explorer's body reaches from its feet, for collisions. */
 export const BODY_R = 0.32;
 
-export type LandmarkKind = 'cabin' | 'taproom' | 'tree' | 'library' | 'lighthouse' | 'schoolhouse' | 'depot' | 'mall' | 'workshop' | 'postbox' | 'bottle';
+export type LandmarkKind = 'cabin' | 'taproom' | 'tree' | 'library' | 'lighthouse' | 'schoolhouse' | 'depot' | 'mall' | 'skyscraper' | 'workshop' | 'postbox' | 'bottle';
 
 /** Half the width of each landmark's front wall, in world units. */
 export const HALF_WIDTH: Record<LandmarkKind, number> = {
@@ -26,6 +26,7 @@ export const HALF_WIDTH: Record<LandmarkKind, number> = {
   schoolhouse: 2.8,
   depot: 3.1,
   mall: 5.0,
+  skyscraper: 2.4,
   workshop: 2.7,
   postbox: 0.5,
   bottle: 0.6,
@@ -51,7 +52,7 @@ export interface MapPlace {
   boxes: Box[];
 }
 
-const BUILDINGS = new Set<LandmarkKind>(['cabin', 'taproom', 'library', 'schoolhouse', 'depot', 'mall', 'workshop', 'lighthouse']);
+const BUILDINGS = new Set<LandmarkKind>(['cabin', 'taproom', 'library', 'schoolhouse', 'depot', 'mall', 'skyscraper', 'workshop', 'lighthouse']);
 const clamp = (v: number, a: number, b: number) => (v < a ? a : v > b ? b : v);
 
 export function layoutPlaces(world: World, geo: Geo): MapPlace[] {
@@ -73,7 +74,7 @@ export function layoutPlaces(world: World, geo: Geo): MapPlace[] {
       // goes along it on the side the world's door is on.
       base = { x: at.x, z: at.z + fp * 0.85 };
       doorDx = clamp(worldDoor.x - at.x, -(hw - 1.15), hw - 1.15);
-      if (kind === 'lighthouse') doorDx = 0;
+      if (kind === 'lighthouse' || kind === 'skyscraper') doorDx = 0;
       door = { x: at.x + doorDx, z: Math.max(base.z + 0.75, at.z + fp + BODY_R + 0.12) };
       boxes.push({ x0: at.x - hw, z0: base.z - 3.2, x1: at.x + hw, z1: base.z - 0.05 });
     } else if (kind === 'tree') {

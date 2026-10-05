@@ -601,6 +601,81 @@ const westfield: InteriorInput = {
   ],
 };
 
+// Not everything is work, or even real. Out past Boardwalk Isle, through a
+// gate that only opens for the right words, stands a glass tower for a company
+// that doesn't exist. Its one islander speaks only in office jargon. Nothing
+// here is about anyone real: it's a joke about the words, gently told.
+const tower: InteriorInput = {
+  size: { w: 11, d: 8 },
+  description:
+    'The lobby is all glass and pale stone, three floors high, and very quiet in the way only a lot of money is quiet. A reception desk curves round one side, a living wall drips politely behind it, and somewhere a fountain is making a point.',
+  things: [
+    {
+      id: 'kombucha',
+      names: ['kombucha tap', 'kombucha', 'tap', 'reception', 'reception desk', 'desk'],
+      prop: 'counter',
+      at: { x: 3.4, z: -1.4 },
+      description: 'The reception desk, with a kombucha tap where a bell would be. Three flavours: Ginger, Lemongrass and Q3. Nobody knows what Q3 tastes like. Nobody has asked.',
+    },
+    {
+      id: 'ping-pong',
+      names: ['ping-pong table', 'ping-pong', 'ping pong', 'table tennis', 'table', 'paddles'],
+      prop: 'pingpong',
+      at: { x: -2.6, z: 0.6 },
+      description: 'A ping-pong table in perfect condition. The net is taut, the paddles are still in their wrapper, and the ball has never once been hit. It is mostly there to be in photos.',
+    },
+    {
+      id: 'poster',
+      names: ['poster', 'motivational poster', 'rowboat', 'teamwork'],
+      prop: 'frame',
+      at: { x: -2.4, z: -3.4 },
+      description: 'A framed poster of a single rowboat on a misty lake at dawn. Underneath, in thin capitals: TEAMWORK. It is a lot to ask of one rowboat.',
+    },
+    {
+      id: 'lanyards',
+      names: ['lanyards', 'lanyard', 'badges', 'badge', 'visitor badges', 'hooks'],
+      prop: 'board',
+      at: { x: 1.4, z: -3.4 },
+      description: 'A rack of visitor lanyards on little brass hooks, each with a badge that says HELLO, MY ROLE IS. Yours is already printed. It says GUEST, in a very encouraging font.',
+    },
+  ],
+  people: [
+    {
+      id: 'skye',
+      name: 'Skye',
+      role: 'the Head of Vibes',
+      aliases: ['head of vibes', 'vibes', 'greeter', 'receptionist'],
+      looks: 'A bright islander in a fleece vest over a fleece vest, with a lanyard, a headset and a smile that has been through a workshop.',
+      color: '#4f7ea8',
+      at: { x: 0.4, z: 0.2 },
+      greeting: "Welcome, welcome! Love that you're here. I'm Head of Vibes, so I'm basically the North Star for how this lobby feels. What can I unblock for you?",
+      topics: [
+        {
+          id: 'tower',
+          names: ['the tower', 'tower', 'building', 'skyscraper', 'weather'],
+          reply: "The tower? It's our flagship. Very tall, very glass, rounded at the top so the clouds feel included. It has its own weather, which we see as a strength.",
+        },
+        {
+          id: 'job',
+          names: ['your job', 'job', 'vibes', 'head of vibes', 'work'],
+          reply: "Great question. At a high level, I own the vibes end to end. I align on them, I double-click on them, and at the end of the day I make sure they're scalable.",
+        },
+        {
+          id: 'kombucha',
+          names: ['the kombucha', 'kombucha', 'drinks', 'q3'],
+          reply: "The kombucha is a big part of our culture. Q3 is our most forward-looking flavour. I'd love to circle back with tasting notes once we have bandwidth.",
+        },
+        {
+          id: 'ping-pong',
+          names: ['the ping-pong table', 'ping-pong', 'ping pong', 'table'],
+          reply: "We're super proud of the ping-pong table. Nobody has played on it yet, but it really moves the needle on optics. Let's take a game offline sometime.",
+        },
+      ],
+      farewell: "Amazing. Let's touch base soon. Mind the revolving door, it's very agile.",
+    },
+  ],
+};
+
 const places: PlaceInput[] = [
   {
     id: 'plaza',
@@ -839,6 +914,28 @@ const places: PlaceInput[] = [
     ],
     interior: westfield,
   },
+  {
+    id: 'synergy-tower',
+    kind: 'folly',
+    archetype: 'skyscraper',
+    name: 'Synergy Tower',
+    title: 'The glass tower',
+    blurb: 'A glass tower so tall it has its own weather.',
+    color: '#4f7ea8',
+    at: { x: -54, z: 42 },
+    footprint: 2.4,
+    clearing: 3.4,
+    aliases: ['synergy tower', 'synergy isle', 'glass tower', 'skyscraper', 'office', 'offices', 'corporate island', 'lobby', 'head of vibes'],
+    description:
+      "Through the badge gate and over the long bridge, Synergy Isle is all business. A glass tower rises out of the middle of it, so tall it has its own weather, with a rounded crown on top like a lid on a very serious jar. Two smaller glass blocks stand beside it, and a lanyard flaps from a lamp post where someone has given up on it.",
+    scenery: [
+      { id: 'tower', names: ['tower', 'glass tower', 'crown', 'top', 'clouds', 'weather'], description: 'You lean back and keep leaning. The glass goes up and up, gently tapering, until the rounded crown at the top disappears into its own little cloud. It might be raining up there. It is hard to tell.' },
+      { id: 'blocks', names: ['glass blocks', 'blocks', 'offices', 'office blocks', 'windows'], description: 'Two shorter glass office blocks, which would be tall anywhere else. Every window has a plant in it, angled toward the tower as if for approval.' },
+      { id: 'lanyard', names: ['lanyard', 'lamp post', 'badge'], description: 'A lanyard on a lamp post, flapping in the breeze. The badge on the end says VISITOR, and under that, in pen: back in 5.' },
+      { id: 'gate', names: ['gate', 'badge gate', 'turnstile', 'turnstiles', 'barrier'], description: 'Back along the bridge, the turnstile at the far end blinks green now. It remembers you. It remembers everyone who speaks fluent corporate.' },
+    ],
+    interior: tower,
+  },
 ];
 
 const routes: WorldInput['routes'] = [
@@ -864,6 +961,8 @@ const routes: WorldInput['routes'] = [
   { from: 'workshop', to: 'eqoscan', paved: false },
   // Down to the quay and over Tower Bridge.
   { from: 'busy-beer', to: 'westfield', paved: false },
+  // Over to Boardwalk Isle, through the badge gate and out along the long bridge.
+  { from: 'quizmate', to: 'synergy-tower', paved: false },
 ];
 
 // Eight words English lost, from Etymon's museum of lost words, each hidden
@@ -1066,6 +1165,17 @@ const activities: WorldInput['activities'] = [
     name: 'Sort the tree of life',
     description: 'A young tree on Root Isle with nine branches, and a basket of living things to hang on them. Is a whale a fish? Is a horseshoe crab a crab?',
   },
+  // And the gate out to Synergy Isle: a badge desk at the near end of the long
+  // bridge, where you get through by saying plain things the corporate way.
+  {
+    id: 'badge-desk',
+    kind: 'minigame',
+    game: 'jargon',
+    place: 'synergy-tower',
+    at: { x: -32.4, z: 18.4 },
+    name: 'The badge desk',
+    description: 'A security desk at the end of Boardwalk Isle, by the turnstile onto the long bridge. The greeter will badge you through to Synergy Isle if you can say plain things the corporate way.',
+  },
 ];
 
 // The explorer's wardrobe: one piece at every house, yours the moment you
@@ -1170,6 +1280,15 @@ const outfits: WorldInput['outfits'] = [
     description: "A white sailor's cap that washed up beside the bottle. It smells of salt and good news.",
     hint: 'Something besides a bottle washed up on the quiet beach.',
   },
+  {
+    id: 'fleece-vest',
+    name: 'fleece vest',
+    slot: 'body',
+    place: 'synergy-tower',
+    color: '#6b7684',
+    description: 'A grey fleece vest from the glass tower, zipped right up. Warm, soft and fully aligned.',
+    hint: 'Past the badge gate, the Head of Vibes keeps a spare vest behind reception.',
+  },
 ];
 
 const geography: WorldInput['geography'] = {
@@ -1190,18 +1309,23 @@ const geography: WorldInput['geography'] = {
   quay: { x0: 24, z0: 14.2, x1: 30.5, z1: 19.8, deck: 0.7, bus: { x: 26.6, z: 17.2 }, faces: Math.PI / 2 },
   // Two islets off the west coast, a footbridge out to each: Root Isle, for
   // where words and living things come from, and Boardwalk Isle, with a beach
-  // bar and a pushy kiosk. Their games are on the island's activities. And off
-  // the east end, Little London: Tower Bridge from the quay, out to Westfield.
+  // bar and a pushy kiosk. Their games are on the island's activities. Off the
+  // east end, Little London: Tower Bridge from the quay, out to Westfield. And
+  // further out past Boardwalk Isle, through a badge gate on a long footbridge,
+  // Synergy Isle, far enough out that nobody swims round the gate.
   islets: [
     { id: 'root-isle', name: 'Root Isle', at: { x: -31.7, z: -14.8 }, coast: { radius: 6.6, ripples: [{ freq: 3, amp: 0.5, phase: 1.2 }, { freq: 5, amp: 0.3, phase: 0.4 }] } },
     { id: 'boardwalk-isle', name: 'Boardwalk Isle', at: { x: -33.1, z: 14.1 }, coast: { radius: 6.6, ripples: [{ freq: 3, amp: 0.5, phase: 2.6 }, { freq: 4, amp: 0.35, phase: 0.9 }] } },
     { id: 'little-london', name: 'Little London', at: { x: 54, z: 17.2 }, coast: { radius: 9, ripples: [{ freq: 3, amp: 0.5, phase: 0.4 }, { freq: 5, amp: 0.3, phase: 1.9 }] } },
+    { id: 'synergy-isle', name: 'Synergy Isle', at: { x: -54, z: 42 }, coast: { radius: 7.6, ripples: [{ freq: 3, amp: 0.4, phase: 1.7 }, { freq: 5, amp: 0.25, phase: 0.2 }] } },
   ],
   bridges: [
     { from: { x: -15.6, z: -10.5 }, to: { x: -27, z: -13.5 }, width: 2.4, deck: 1.15 },
     { from: { x: -16.8, z: 11 }, to: { x: -28.3, z: 13.2 }, width: 2.4, deck: 1.15 },
     // Tower Bridge, level with the quay at the bus's end and straight out to Little London.
     { from: { x: 30.2, z: 17.2 }, to: { x: 46.4, z: 17.2 }, width: 3.4, deck: 0.76, style: 'tower' },
+    // The long bridge from Boardwalk Isle out to Synergy Isle, with the badge gate at its near end.
+    { from: { x: -35.6, z: 19.1 }, to: { x: -50.1, z: 37.2 }, width: 2.4, deck: 1.15, gate: { id: 'badge-gate', name: 'the badge gate', game: 'jargon', pass: 2 } },
   ],
   spawn: { x: 0, z: 7.5 },
 };

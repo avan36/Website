@@ -27,7 +27,8 @@ describe('layoutPlaces', () => {
 
   it('draws doors along the front wall, on the side the shared door is', () => {
     for (const m of places) {
-      if (!m.boxes.length || m.kind === 'lighthouse') continue;
+      // The lighthouse and the glass tower have one door, in the middle of the front.
+      if (!m.boxes.length || m.kind === 'lighthouse' || m.kind === 'skyscraper') continue;
       const side = Math.sign(m.worldDoor.x - m.place.at.x);
       if (Math.abs(m.worldDoor.x - m.place.at.x) > 0.5) expect(Math.sign(m.doorDx), m.place.id).toBe(side);
       expect(m.door.z).toBeGreaterThan(m.base.z);

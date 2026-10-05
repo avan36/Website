@@ -20,6 +20,8 @@ import { Fishing } from './fishing';
 import { createBoatCard } from './boat';
 import { boatOf } from '../boat';
 import { createMapGames } from './minigames';
+import { createMapGates } from './gate';
+import { isGame } from '../games/catalog';
 import { BODY_R, HALF_WIDTH, layoutPlaces, layoutStreet, scatterProps, type MapPlace } from './layout';
 import { createOverlay, type FishPrompt } from './overlay';
 import { HEX } from './palette';
@@ -172,10 +174,29 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
   const speedAt = speedboat ? { x: speedboat.at.x, z: speedboat.at.z + 1.3 } : null;
   if (speedAt) stampBox(speedAt.x - 0.7, speedAt.z - 2.6, speedAt.x + 0.7, speedAt.z);
   // The mini-games: a sprite and a tag at each spot; the games open in the shared games card.
+  // The gates across the bridges: shut ones are stamped across their decks until they open.
+  const gates = createMapGates(geo, (id) => store.open(id));
+  const gateCells = new Map<string, [number, number][]>();
+  for (const g of gates.shut()) {
+    const saved: [number, number][] = [];
+    for (const p of gates.cells(g)) {
+      const i = ti(p.x);
+      const j = tj(p.z);
+      if (i < 0 || j < 0 || i >= W || j >= H) continue;
+      saved.push([j * W + i, blocked[j * W + i]]);
+      blocked[j * W + i] = 1;
+    }
+    gateCells.set(g.id, saved);
+  }
   const games = createMapGames(ctx, root, {
     walk: (x, z) => (walkTo(x, z) ? path : null),
     route: () => path,
     halt: () => ((path = null), clearKeys(), (facing = 'up')),
+    // Up at a shut gate: the game that opens it.
+    gate: (x, z) => {
+      const g = gates.near(x, z);
+      return g && isGame(g.game) ? g.game : null;
+    },
   });
   for (const b of games.blocks) stampCircle(b.x, b.z, b.r + BODY_R);
   // The bus on the quay and the station's shelter stand in the way too.
@@ -214,13 +235,16 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
   // a walk round the shore wins unless the swim is a lot shorter.
   const cells = (W / CELL) * (H / CELL);
   const grid: Grid = { w: W / CELL, h: H / CELL, blocked: new Uint8Array(cells), cost: new Uint8Array(cells) };
-  for (let cj = 0; cj < grid.h; cj++) {
-    for (let ci = 0; ci < grid.w; ci++) {
-      const k = (cj * CELL + CELL / 2) * W + ci * CELL + CELL / 2;
-      grid.blocked[cj * grid.w + ci] = blocked[k] === 0 ? 0 : 1;
-      grid.cost![cj * grid.w + ci] = terrain.water[k] === 2 ? 3 : 1;
+  const fillGrid = () => {
+    for (let cj = 0; cj < grid.h; cj++) {
+      for (let ci = 0; ci < grid.w; ci++) {
+        const k = (cj * CELL + CELL / 2) * W + ci * CELL + CELL / 2;
+        grid.blocked[cj * grid.w + ci] = blocked[k] === 0 ? 0 : 1;
+        grid.cost![cj * grid.w + ci] = terrain.water[k] === 2 ? 3 : 1;
+      }
     }
-  }
+  };
+  fillGrid();
   const cellOf = (x: number, z: number): Pt => ({ x: Math.floor(((x - RECT.x0) * TEX) / CELL), y: Math.floor(((z - RECT.z0) * TEX) / CELL) });
   const cellCentre = (c: Pt) => ({ x: RECT.x0 + ((c.x + 0.5) * CELL) / TEX, z: RECT.z0 + ((c.y + 0.5) * CELL) / TEX });
   const clearWalk = (ax: number, az: number, bx: number, bz: number) => {
@@ -293,7 +317,7 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
     });
   }
   things.push({ x: lampAt.x, z: lampAt.z, sprite: lampPost() });
-  things.push(...games.things);
+  things.push(...games.things, ...gates.things);
   if (busAt) things.push({ x: busAt.x, z: busAt.z, sprite: bus() });
   if (shelterAt) things.push({ x: shelterAt.x, z: shelterAt.z, sprite: shelter() });
   if (bottlePlace) things.push({ x: bottlePlace.base.x + 1.3, z: bottlePlace.base.z + 0.9, sprite: shells() });
@@ -1033,6 +1057,11 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
   let nightGoal = nightK;
   const unsub = store.subscribe((_state, events) => {
     nightGoal = darkness();
+    // A gate opened: lift it off the deck, and let the paths through.
+    if (events.some((e) => e.type === 'gate')) {
+      for (const g of gates.sync()) for (const [k, was] of (gateCells.get(g.id) ?? []).reverse()) blocked[k] = was;
+      fillGrid();
+    }
     if (events.some((e) => e.type === 'dressed') && wornNow().map((o) => o.id).join() !== wornKey) {
       wornKey = wornNow().map((o) => o.id).join();
       hero = paintExplorer(wornNow());
@@ -2168,6 +2197,7 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
       },
       fishing: () => fishing.phase,
       games: () => games.debug(),
+      gates: () => gates.debug(),
       play: (id: Parameters<typeof games.play>[0]) => games.play(id),
       frames: () => frames,
       /** How long the ground took to paint, and how big it is, in map pixels. */

@@ -84,6 +84,8 @@ const STYLES: Record<string, Style> = {
   schoolhouse: { wall: 'wainscot', floor: 'planks', wallHex: '#f4ead2' },
   depot: { wall: 'metal', floor: 'concrete', wallHex: '#a9b2b0' },
   mall: { wall: 'mall', floor: 'tiles', wallHex: '#f3efe8' },
+  // The tower's lobby: the same glass along the top and steel at the foot, in paler stone.
+  skyscraper: { wall: 'mall', floor: 'tiles', wallHex: '#eceeee' },
 };
 
 export interface RoomSprite {
@@ -178,6 +180,54 @@ function desk(arch: string, accent: string): { pix: Pix; ax: number; ay: number 
     p.px(2, 1, col('#ffd166'));
   }
   return { pix: p, ax: 15, ay: 19 };
+}
+
+/** The tower lobby's reception desk: pale stone, a kombucha tap with three handles, three jars and a laptop. */
+function reception(accent: string): { pix: Pix; ax: number; ay: number } {
+  const p = new Pix(40, 22);
+  const STONE_TOP = col('#f6f4f0');
+  const STONE_FACE = col('#e3dfd8');
+  const STONE_EDGE = col('#c9c3b8');
+  ['#f2c14e', '#9bd36a', accent].forEach((c, i) => {
+    const x = 24 + i * 4;
+    p.vline(x, 1, 6, col('#8b9198'));
+    p.rect(x - 1, 0, 3, 2, col(c));
+    p.rect(4 + i * 4, 3, 3, 4, col(shade(c, 0.12)));
+  });
+  p.rect(0, 7, 40, 5, STONE_TOP);
+  p.hline(0, 39, 7, WHITE);
+  p.rect(0, 12, 40, 9, STONE_FACE);
+  p.hline(0, 39, 12, STONE_EDGE);
+  p.hline(2, 37, 17, col(accent));
+  p.rect(15, 4, 7, 3, col('#3d4248'));
+  p.hline(15, 21, 7, col('#8b9198'));
+  return { pix: p, ax: 20, ay: 21 };
+}
+
+/** A ping-pong table nobody has played on: green, white lines, the net, two paddles still in their wrapper. */
+function pingpong(): { pix: Pix; ax: number; ay: number } {
+  const p = new Pix(34, 22);
+  const TABLE = col('#2f6e5a');
+  const TABLE_D = col('#245646');
+  const LINE = col('#f4f1ea');
+  p.rect(0, 2, 34, 13, TABLE);
+  p.hline(0, 33, 2, LINE);
+  p.hline(0, 33, 14, LINE);
+  p.vline(0, 2, 14, LINE);
+  p.vline(33, 2, 14, LINE);
+  p.hline(1, 32, 8, LINE);
+  // The net, across the middle.
+  p.vline(16, 0, 16, LINE);
+  p.vline(17, 0, 16, col('#d8d4cc'));
+  p.rect(0, 15, 34, 2, TABLE_D);
+  for (const x of [2, 31]) p.vline(x, 17, 21, IRON);
+  // The paddles, still wrapped, and the ball nobody has hit.
+  p.ellipse(8, 6, 2.5, 2, RED);
+  p.rect(10, 6, 3, 1, WOOD_LIGHT);
+  p.ellipse(25, 10, 2.5, 2, col('#1f2a44'));
+  p.rect(21, 10, 3, 1, WOOD_LIGHT);
+  p.px(20, 4, WHITE);
+  return { pix: p, ax: 17, ay: 21 };
 }
 
 function counter(accent: string): { pix: Pix; ax: number; ay: number } {
@@ -364,7 +414,9 @@ function floorThing(prop: Prop, arch: string, accent: string) {
     case 'desk':
       return desk(arch, accent);
     case 'counter':
-      return counter(accent);
+      return arch === 'skyscraper' ? reception(accent) : counter(accent);
+    case 'pingpong':
+      return pingpong();
     case 'lens':
       return lens();
     case 'cat':
@@ -676,6 +728,13 @@ function paintBackground(place: Place, plan: RoomPlan, night: boolean): Pix {
           p.rect(ph, iy, 9, ih, IRON);
           p.rect(ph + 1, iy + 1, 7, ih - 2, CREAM);
           for (let y = iy + 2, k = 0; y < iy + ih - 2; y += 2, k++) p.hline(k % 2 ? ph + 2 : ph + 4, k % 2 ? ph + 4 : ph + 6, y, k % 2 ? STONE : R[2]);
+        } else if (arch === 'skyscraper') {
+          // A motivational poster: a lone rowboat on a misty lake at dawn, and a word underneath.
+          p.rect(ix, iy, iw, ih, col('#c9dcea'));
+          p.rect(ix, iy + (ih >> 1), iw, ih - (ih >> 1), col('#f3d6b8'));
+          p.hline(cx - 3, cx + 2, iy + (ih >> 1) + 1, WOOD_DARK);
+          p.vline(cx, iy + (ih >> 1) - 2, iy + (ih >> 1), WOOD_DARK);
+          p.hline(cx - 4, cx + 3, iy + ih - 2, IRON);
         } else if (arch === 'depot') {
           // A blue ribbon.
           p.rect(ix, iy, iw, ih, CREAM);
@@ -696,6 +755,23 @@ function paintBackground(place: Place, plan: RoomPlan, night: boolean): Pix {
       case 'board': {
         if (arch === 'mall') {
           directory(p, x0, width, R);
+          break;
+        }
+        if (arch === 'skyscraper') {
+          // A rack of visitor lanyards on brass hooks, a badge on each.
+          p.hline(x0, x0 + width - 1, 6, STEEL_LIGHT);
+          p.hline(x0, x0 + width - 1, 7, STEEL_DARK);
+          const colors = [R[2], col('#b8508a'), GOLD, col('#2e9c8f'), RED, col('#9bd36a')];
+          const n = Math.max(3, Math.floor((width - 4) / 7));
+          for (let k = 0; k < n; k++) {
+            const x = x0 + 3 + Math.round((k * (width - 7)) / Math.max(1, n - 1));
+            const c = colors[k % colors.length];
+            p.px(x + 1, 8, GOLD);
+            p.vline(x, 9, 18, c);
+            p.vline(x + 2, 9, 18, c);
+            p.rect(x - 1, 19, 5, 6, WHITE);
+            p.hline(x - 1, x + 3, 20, c);
+          }
           break;
         }
         const y0 = 5;
