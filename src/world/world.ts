@@ -700,11 +700,13 @@ const places: PlaceInput[] = [
     footprint: 1.7,
     clearing: 3.2,
     faces: Math.atan2(-18.5, 16.5),
-    aliases: ['lighthouse', 'tower', 'light', 'beam'],
+    aliases: ['lighthouse', 'tower', 'light', 'beam', 'foss hill'],
     description:
-      'A striped lighthouse at the end of a rocky headland. Its beam sweeps slowly over the water, picking out every passing ship, and a weather vane creaks on the top. Far off to the north, a city skyline sits on the horizon.',
+      'A striped lighthouse on top of Foss Hill, the rocky headland at the island\'s north-east corner. Big white letters stand on the hillside below it, spelling FOSS HILL, and a small pink, purple and blue flag waves beside the tower. Its beam sweeps slowly over the water, picking out every passing ship, and a weather vane creaks on the top. Far off to the north, a city skyline sits on the horizon.',
     scenery: [
       { id: 'rocks', names: ['rocks', 'rock', 'cliff', 'headland'], description: 'Dark rocks at the foot of the tower, wet with spray. There are cracks you could slip a hand into.' },
+      { id: 'foss-hill', names: ['foss hill', 'hill', 'hillside', 'letters', 'sign'], description: 'FOSS HILL, in letters taller than you, standing in a row on the slope below the lighthouse and facing the island. You can read them from most of the island.' },
+      { id: 'flag', names: ['flag', 'small flag', 'pole', 'flagpole'], description: 'A small pink, purple and blue flag on a short pole, waving in the sea wind.' },
       { id: 'beam', names: ['beam', 'light', 'lamp'], description: 'The beam passes over you, then over 11,000 ships, one at a time. It notes which ones are flying the right flag.' },
       { id: 'vane', names: ['vane', 'weather vane', 'weathervane'], description: 'The weather vane points wherever the wind says. Today, out to sea.' },
       { id: 'skyline', names: ['skyline', 'city', 'skyscrapers', 'horizon'], description: "Far across the water to the north there's a city, or two cities that have run into each other. From the west: a big wheel, a clock tower, a glass shard and a building shaped like a bullet; then a slim pyramid, a tall rounded tower and a crowd of glass blocks. After dark their windows light up one by one." },
@@ -1203,6 +1205,10 @@ const geography: WorldInput['geography'] = {
     // Tower Bridge, level with the quay at the bus's end and straight out to Little London.
     { from: { x: 30.2, z: 17.2 }, to: { x: 46.4, z: 17.2 }, width: 3.4, deck: 0.76, style: 'tower' },
   ],
+  // FOSS HILL in big letters on the slope below the lighthouse, facing the island (and the camera, from the south),
+  // with a gap between the words where the lost word in the rocks peeks through; and a small flag on the hilltop.
+  signs: [{ id: 'foss-hill', name: 'Foss Hill', text: 'FOSS HILL', place: 'privacy-research', at: { x: 20.6, z: -10 }, faces: 0, height: 1.6 }],
+  flags: [{ at: { x: 23, z: -15.5 } }],
   spawn: { x: 0, z: 7.5 },
 };
 

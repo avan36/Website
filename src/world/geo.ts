@@ -547,6 +547,14 @@ export function createGeo(world: World) {
   // The platform stands on level ground at the height of the rails.
   if (station && rw) pads.push({ x: station.x, z: station.z, r: 2.4, blend: 2, h: rw.bed });
 
+  // ---------- Signs and flags ----------
+  /** Big standing letters on the hills, each laid out along its line. */
+  const signs = (g.signs ?? []).map((s) => ({ ...s, letters: signLetters(s) }));
+  const letterSegs: Segment[] = signs.flatMap((s) => s.letters.map((l) => ({ ax: l.x - l.ax * l.width / 2, az: l.z - l.az * l.width / 2, bx: l.x + l.ax * l.width / 2, bz: l.z + l.az * l.width / 2 })));
+  /** Distance to the nearest sign letter's footing (Infinity with none). */
+  const signDist = (x: number, z: number) => (letterSegs.length ? segDist(letterSegs, x, z) : Infinity);
+  const flags = (g.flags ?? []).map((f) => ({ x: f.at.x, z: f.at.z }));
+
   /** Compass bearing from one point to another: 0 = north, π/2 = east. */
   const bearing = (a: Vec2, b: Vec2) => Math.atan2(b.x - a.x, -(b.z - a.z));
 
@@ -576,6 +584,9 @@ export function createGeo(world: World) {
     quay,
     quayDist,
     plots,
+    signs,
+    signDist,
+    flags,
     spawn: g.spawn,
     place: (id: string) => byId.get(id),
     coastRadius,
@@ -666,6 +677,36 @@ export function railLoop(r: RailSpec) {
       return { x: p.x, z: p.z, yaw, out };
     },
   };
+}
+
+/** How wide each big letter on a sign is, as a share of its height (the rest are LETTER_W). */
+const LETTER_WIDTHS: Record<string, number> = { I: 0.24, J: 0.5, M: 0.84, W: 0.9, ' ': 0.42 };
+const LETTER_W = 0.62;
+/** The gap between letters, as a share of their height. */
+const LETTER_GAP = 0.2;
+
+/**
+ * Lay out a sign's letters along its line: each letter's middle (x, z), its
+ * width, and the way the line runs (ax, az: left to right for someone in
+ * front of it, reading it). The spaces between words take up room but are
+ * left out.
+ */
+export function signLetters(sign: { text: string; at: Vec2; faces: number; height: number }) {
+  const h = sign.height;
+  const chars = [...sign.text];
+  const widths = chars.map((c) => (LETTER_WIDTHS[c] ?? LETTER_W) * h);
+  const total = widths.reduce((a, b) => a + b, 0) + LETTER_GAP * h * (chars.length - 1);
+  // A sign facing `faces` has its front toward (sin, cos); its line runs along (cos, -sin).
+  const ax = Math.cos(sign.faces);
+  const az = -Math.sin(sign.faces);
+  let s = -total / 2;
+  const out: { ch: string; x: number; z: number; width: number; height: number; ax: number; az: number; yaw: number }[] = [];
+  chars.forEach((ch, i) => {
+    const mid = s + widths[i] / 2;
+    s += widths[i] + LETTER_GAP * h;
+    if (ch !== ' ') out.push({ ch, x: sign.at.x + ax * mid, z: sign.at.z + az * mid, width: widths[i], height: h, ax, az, yaw: sign.faces });
+  });
+  return out;
 }
 
 /** Eight-point compass name for a bearing (0 = north, clockwise). */

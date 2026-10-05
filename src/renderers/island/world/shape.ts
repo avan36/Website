@@ -61,7 +61,10 @@ const METRICS: Record<PlaceKind, { labelY: number; hitR: number; hitH: number; r
 const world = readWorld();
 const geo = readGeo();
 
-export const { coastRadius, rockiness, heightAt, groundAt, isWalkable, pathDist, isOpenGround, depthAt, swimRoom, isSwimmable, islandOf, owner, nextStop, swimEdge, clearOfBridges, landing } = geo;
+export const { coastRadius, rockiness, heightAt, groundAt, isWalkable, pathDist, isOpenGround, depthAt, swimRoom, isSwimmable, islandOf, owner, nextStop, swimEdge, clearOfBridges, landing, signDist } = geo;
+/** Big standing letters on the hills (FOSS HILL), each laid out, and the small flags. */
+export const SIGNS = geo.signs;
+export const FLAGS = geo.flags;
 /** The main island (0) and the islets off it, and the footbridges out to them. */
 export const ISLANDS = geo.islands;
 export const BRIDGES = geo.bridges;

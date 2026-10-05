@@ -33,6 +33,9 @@ const GLYPHS: Record<string, string[]> = {
   Z: ['###', '..#', '.#.', '#..', '###'],
 };
 
+/** A capital's rows of pixels ('#' lit, '.' not), or null if the font hasn't got it. */
+export const glyph = (ch: string): string[] | null => GLYPHS[ch] ?? null;
+
 /** How tall a line of it is, in pixels. */
 export const FONT_H = 5;
 const SPACE = 2;

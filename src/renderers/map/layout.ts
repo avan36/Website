@@ -207,6 +207,9 @@ export function scatterProps(world: World, geo: Geo, places: MapPlace[], seed = 
       if (Math.hypot(x - m.door.x, z - m.door.z) < 2) return true;
     }
     if (fishing.some((f) => Math.hypot(x - f.x, z - f.z) < 2.5)) return true;
+    // Foss Hill's letters and the flag: nothing grows through them or stands in front of the letters.
+    if (geo.signDist(x, z) < 1.4 || geo.flags.some((f) => Math.hypot(x - f.x, z - f.z) < 1.4)) return true;
+    if (geo.signs.some((s) => s.letters.some((l) => hidden(l, 1.2)))) return true;
     if (Math.hypot(x - geo.hub.at.x, z - geo.hub.at.z) < 5.5) return true;
     return hidden(spawn, 2) || Math.hypot(x - spawn.x, z - spawn.z) < 2.5;
   };

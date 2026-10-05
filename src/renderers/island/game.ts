@@ -48,6 +48,7 @@ import { Ripples } from './world/ripples';
 import { buildBuoys } from './world/buoys';
 import { buildBridges } from './world/bridges';
 import { buildLondon } from './world/london';
+import { buildFossHill } from './landmarks/fossHill';
 import { ROWBOAT } from './landmarks/builders';
 import { ACTIVITIES, groundAt, heightAt, HUB, isSwimmable, isWalkable, LAND, LAND_OUTLINE, nextStop, PIER, PLACES, placeOf, PLAZA, SPAWN, swimRoom, WORDS } from './world/shape';
 import { fitScale, frameRoom } from './interior/frame';
@@ -282,6 +283,9 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
   // Little London's street furniture, on the way from the bridge to the mall.
   const london = buildLondon();
   island.add(london.group);
+  // FOSS HILL in big letters below the lighthouse, and the small flag on the hilltop.
+  const fossHill = buildFossHill();
+  island.add(fossHill.group);
   const skyline = buildSkyline();
   scene.add(skyline.group);
 
@@ -297,6 +301,7 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     ...commute.colliders,
     ...bridges.colliders,
     ...london.colliders,
+    ...fossHill.colliders,
   ];
 
   const player = new Explorer(puffs, ripples);
@@ -1817,6 +1822,7 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     portal?.update(time, night.amount);
     games.update(time);
     ambient.update(time);
+    fossHill.update(o.reducedMotion ? 0 : time);
 
     // Night falls (or lifts). After the last word it waits for the card to close.
     if (nightHold && !words.picking && !dialog?.open) nightHold = false;
