@@ -147,6 +147,33 @@ describe('mini-game scores', () => {
     expect(s.progress.games).toEqual({ crates: { best: 14, plays: 1 } });
   });
 
+  it('opens a gate for a passing score at its game, once, and keeps it open', () => {
+    const fail = reduce(w, emptyState(), { type: 'score', game: 'jargon', score: 1 });
+    expect(fail.events.map((e) => e.type)).toEqual(['scored']);
+    expect(fail.state.progress.gates).toEqual([]);
+    const pass = reduce(w, fail.state, { type: 'score', game: 'jargon', score: 2 });
+    expect(pass.events.map((e) => e.type)).toEqual(['scored', 'gate']);
+    expect(pass.events[1]).toEqual({ type: 'gate', id: 'badge-gate' });
+    expect(pass.state.progress.gates).toEqual(['badge-gate']);
+    // A worse go later doesn't shut it, and a better one doesn't open it twice.
+    const again = reduce(w, reduce(w, pass.state, { type: 'score', game: 'jargon', score: 0 }).state, { type: 'score', game: 'jargon', score: 3 });
+    expect(again.events.map((e) => e.type)).toEqual(['scored']);
+    expect(again.state.progress.gates).toEqual(['badge-gate']);
+    // Forgetting the words keeps the gate open, and other games never open it.
+    expect(reduce(w, again.state, { type: 'reset' }).state.progress.gates).toEqual(['badge-gate']);
+    expect(reduce(w, emptyState(), { type: 'score', game: 'crates', score: 40 }).state.progress.gates).toEqual([]);
+  });
+
+  it('remembers open gates in the saved progress, and forgets ones the world no longer has', () => {
+    const local = memory();
+    const store = createStore(w, { local, session: memory() });
+    expect(store.open('badge-gate')).toBe(false);
+    store.dispatch({ type: 'score', game: 'jargon', score: 3 });
+    expect(createStore(w, { local, session: memory() }).open('badge-gate')).toBe(true);
+    expect(sanitize(w, { progress: { gates: ['badge-gate', 'badge-gate', 'moat', 7] } }).progress.gates).toEqual(['badge-gate']);
+    expect(sanitize(w, { progress: { found: [] } }).progress.gates).toEqual([]);
+  });
+
   it('sanitizes saved scores: known games only, whole and in range', () => {
     const s = sanitize(w, {
       progress: { found: [], games: { stones: { best: 21.7, plays: 3 }, crabs: { best: -5, plays: 'x' }, crates: { best: 1e12 }, darts: { best: 99, plays: 1 }, junk: 4 } },
@@ -186,7 +213,7 @@ describe('pickCatch', () => {
 describe('sanitize', () => {
   it('drops progress for words and posts that no longer exist', () => {
     const s = sanitize(w, { progress: { found: ['attercop', 'gone', 'attercop', 7], caught: ['first', 'deleted'], night: true }, presence: { at: 'nowhere', pos: { x: 'a' } } });
-    expect(s.progress).toEqual({ found: ['attercop'], caught: ['first'], night: false, bestLap: null, games: {}, wardrobe: [], worn: {} });
+    expect(s.progress).toEqual({ found: ['attercop'], caught: ['first'], night: false, bestLap: null, games: {}, wardrobe: [], worn: {}, gates: [] });
     expect(s.presence).toEqual({ at: null, pos: null, inside: null });
   });
 

@@ -63,6 +63,31 @@ export type Bridge = {
 };
 
 /**
+ * A gate across a bridge: a turnstile where the deck first leaves the land at
+ * its `a` end, shut until the visitor passes its game. `beyond` is the islands
+ * you can only reach through it.
+ */
+export type Gate = {
+  id: string;
+  name: string;
+  game: string;
+  pass: number;
+  /** The bridge it stands on. */
+  bridge: number;
+  /** Where it stands (the middle of the deck), how far along the bridge from its `a` end, and which way through it is (u). */
+  x: number;
+  z: number;
+  along: number;
+  ux: number;
+  uz: number;
+  /** Half the deck's width: the turnstile spans it. */
+  half: number;
+  /** The island you stand on to play its game, and the islands behind it. */
+  side: number;
+  beyond: number[];
+};
+
+/**
  * Height by how far out from an island's middle you are, as a share of its
  * coast's radius there: a grassy plateau, a sandy bank, a gentle beach, then
  * the shelf dropping away to the open sea.
@@ -306,20 +331,40 @@ export function createGeo(world: World) {
   const landing = (b: Bridge, end: 0 | 1): Vec2 =>
     end === 0 ? { x: b.ax - b.ux * LANDING, z: b.az - b.uz * LANDING } : { x: b.bx + b.ux * LANDING, z: b.bz + b.uz * LANDING };
 
-  /** How many bridges it takes to walk from one island to another (Infinity if you can't). */
-  function hops(from: number, to: number) {
+  /** How many bridges it takes to walk from one island to another (Infinity if you can't), optionally not over one bridge. */
+  function hops(from: number, to: number, skip = -1) {
     const seen = new Map([[from, 0]]);
     const queue = [from];
     while (queue.length) {
       const at = queue.shift()!;
       if (at === to) return seen.get(at)!;
       for (const b of bridges) {
+        if (b.i === skip) continue;
         const next = b.joins[0] === at ? b.joins[1] : b.joins[1] === at ? b.joins[0] : null;
         if (next !== null && next >= 0 && !seen.has(next)) (seen.set(next, seen.get(at)! + 1), queue.push(next));
       }
     }
     return Infinity;
   }
+
+  // ---------- Gates ----------
+  // Each stands a step past where its bridge's deck first leaves the land at the `a` end, so there's sea either side of it.
+  const gates: Gate[] = (g.bridges ?? []).flatMap((spec, i) => {
+    if (!spec.gate) return [];
+    const b = bridges[i];
+    let along = Math.min(1.2, b.length / 2);
+    for (let s = 0; s < b.length / 2; s += 0.1) {
+      if (rawHeight(b.ax + b.ux * s, b.az + b.uz * s) < 0) {
+        along = Math.min(s + 1, b.length / 2);
+        break;
+      }
+    }
+    const side = b.joins[0];
+    const beyond = islands.filter((s) => s.i !== side && hops(side, s.i) < Infinity && hops(side, s.i, b.i) === Infinity).map((s) => s.i);
+    return [{ ...spec.gate, bridge: i, x: b.ax + b.ux * along, z: b.az + b.uz * along, along, ux: b.ux, uz: b.uz, half: b.width / 2, side, beyond }];
+  });
+  /** The gates you'd have to pass to walk from one island to another (an island behind a gate is behind it from either side). */
+  const gatesBetween = (from: number, to: number) => gates.filter((t) => t.beyond.includes(to) !== t.beyond.includes(from));
 
   /** The buildings (and the old tree) a walk has to go round: every place but the hub, the pier and the bottle. */
   const solids = world.places.filter((p) => p !== hub && p.archetype !== 'pier' && p.archetype !== 'bottle').map((p) => ({ x: p.at.x, z: p.at.z, r: p.footprint + 0.6 }));
@@ -573,6 +618,9 @@ export function createGeo(world: World) {
     owner: (x: number, z: number) => (islets.length ? owner(x, z).i : 0),
     landing,
     hops,
+    /** The gates across the bridges, and which ones stand between two islands. */
+    gates,
+    gatesBetween,
     nextStop,
     reach,
     swimEdge,

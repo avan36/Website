@@ -50,7 +50,7 @@ describe('the authored world', () => {
 
   it('puts each mini-game on dry land, off the paths, clear of every door and the pier', () => {
     const games = w.activities.filter((a) => a.kind === 'minigame');
-    expect(games.map((a) => a.game).sort()).toEqual(['bartender', 'crabs', 'crates', 'etymology', 'evolution', 'patterns', 'stones']);
+    expect(games.map((a) => a.game).sort()).toEqual(['bartender', 'crabs', 'crates', 'etymology', 'evolution', 'jargon', 'patterns', 'stones']);
     for (const a of games) {
       expect(geo.heightAt(a.at.x, a.at.z), a.id).toBeGreaterThan(0.3);
       expect(geo.isOpenGround(a.at.x, a.at.z), a.id).toBe(true);
@@ -315,7 +315,7 @@ describe('inside the buildings', () => {
   };
 
   it('gives every building a room, and nothing else one', () => {
-    expect(inside.map((p) => p.archetype).sort()).toEqual(['cabin', 'depot', 'library', 'lighthouse', 'mall', 'schoolhouse', 'taproom']);
+    expect(inside.map((p) => p.archetype).sort()).toEqual(['cabin', 'depot', 'library', 'lighthouse', 'mall', 'schoolhouse', 'skyscraper', 'taproom']);
     for (const id of ['blog', 'contact', 'map-of-evolution', 'plaza']) expect(w.places.find((p) => p.id === id)!.interior, id).toBeUndefined();
   });
 
@@ -333,8 +333,9 @@ describe('inside the buildings', () => {
     }
   });
 
-  it('points every room back at the page it stands for (a memory has none)', () => {
-    for (const p of inside.filter((x) => x.kind !== 'memory')) {
+  it('points every room back at the page it stands for (a memory or a folly has none)', () => {
+    for (const p of inside.filter((x) => x.kind !== 'memory' && x.kind !== 'folly')) {
+      expect(p.href, p.id).toBeTruthy();
       const links = [...p.interior!.things.map((t) => t.link), ...p.interior!.people.flatMap((c) => c.topics.map((t) => t.link))];
       expect(links.some((l) => l?.href === p.href), p.id).toBe(true);
     }
@@ -365,5 +366,16 @@ describe('inside the buildings', () => {
     const text = checkWorld(bad).map((i) => i.message).join('\n');
     expect(text).toMatch(/"blog" is a pier, not a building/);
     expect(text).toMatch(/"etymon" is a library: give it an interior/);
+  });
+
+  it('keeps a folly pageless, with a room to walk into instead', () => {
+    const bad = clone(w);
+    const tower = bad.places.find((p) => p.id === 'synergy-tower')!;
+    expect(tower.kind).toBe('folly');
+    tower.href = '/work/synergy';
+    delete tower.interior;
+    const text = checkWorld(bad).map((i) => i.message).join('\n');
+    expect(text).toMatch(/"synergy-tower" is a folly: it opens no page, so leave out its href/);
+    expect(text).toMatch(/"synergy-tower" is a folly, with no page to open: give it a room to walk into instead/);
   });
 });

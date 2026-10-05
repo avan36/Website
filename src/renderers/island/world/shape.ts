@@ -9,10 +9,10 @@ import type { Archetype } from '../../../world/schema';
 export type PlaceKind = Exclude<Archetype, 'plaza'>;
 
 export interface Place {
-  /** Place id: a project slug, or 'blog' / 'contact' / 'workshop' / 'westfield'. */
+  /** Place id: a project slug, or 'blog' / 'contact' / 'workshop' / 'westfield' / 'synergy-tower'. */
   id: string;
   kind: PlaceKind;
-  /** The page it opens (null for a memory, which has a room and no page). */
+  /** The page it opens (null for a memory or a folly, which has a room and no page). */
   href: string | null;
   color: string;
   name: string;
@@ -51,6 +51,8 @@ const METRICS: Record<PlaceKind, { labelY: number; hitR: number; hitH: number; r
   taproom: { labelY: 3.7, hitR: 3.2, hitH: 4.6, eaves: 2.75 },
   depot: { labelY: 3.1, hitR: 3.2, hitH: 4.0, eaves: 2.5 },
   mall: { labelY: 4.5, hitR: 3.9, hitH: 4.3, eaves: 2.45 },
+  // Very tall: the label floats over the lobby, and the whole tower lifts off when you go in.
+  skyscraper: { labelY: 4.2, hitR: 3.4, hitH: 20, eaves: 2.55 },
   workshop: { labelY: 4.0, hitR: 2.9, hitH: 5.0 },
   library: { labelY: 5.4, hitR: 3.2, hitH: 7.4, eaves: 2.86 },
   lighthouse: { labelY: 8.2, hitR: 2.4, hitH: 10, eaves: 0.6 },
@@ -68,6 +70,8 @@ export const FLAGS = geo.flags;
 /** The main island (0) and the islets off it, and the footbridges out to them. */
 export const ISLANDS = geo.islands;
 export const BRIDGES = geo.bridges;
+/** The gates across the bridges (shut until their games are passed). */
+export const GATES = geo.gates;
 
 /** The outline of all the land: every island's coast, a point every few degrees, and the end of the pier. */
 export const LAND_OUTLINE = (() => {

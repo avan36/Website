@@ -3,6 +3,7 @@
 // loop is paused and stepped with tick(), so the physics don't depend on how
 // fast this machine draws.
 import { expect, test, type Page } from '@playwright/test';
+import { LINES } from '../src/renderers/games/rules/jargon';
 import { homeReady, phone, seed, watchErrors, wordIds, type DebugWindow } from './helpers';
 
 const me = (page: Page) => page.evaluate(() => (window as DebugWindow).__island!.debug.player());
@@ -155,6 +156,62 @@ test.describe('3D island', () => {
     await expect(card).toContainText('I spent a lot of time here growing up, with my dad.');
     await expect(card.locator('.w-talk__cta')).toHaveCount(0);
     await expect(card.locator('[data-talk="thing:five-guys"]')).toBeVisible();
+    expect(errors).toEqual([]);
+  });
+
+  test('the badge gate stops you on the long bridge until you speak corporate, then lets you through to the glass tower', async ({ page }) => {
+    const errors = await openIsland(page);
+    /** Click-to-walk to the glass tower's door, half a second at a time: how far it got, and whether it got wet. */
+    const toTower = () =>
+      page.evaluate(() => {
+        const d = (window as DebugWindow).__island!.debug;
+        const t = d.places().find((x) => x.id === 'synergy-tower')!;
+        d.walkTo(t.stand.x, t.stand.z);
+        let wet = 0;
+        for (let i = 0; i < 160; i++) {
+          d.tick(0.5);
+          const p = d.player();
+          if (p.water !== 'dry') wet++;
+          if (Math.hypot(p.x - t.stand.x, p.z - t.stand.z) < 0.6) break;
+        }
+        const p = d.player();
+        const gate = d.gates()[0];
+        return { wet, left: Math.hypot(p.x - t.stand.x, p.z - t.stand.z), past: (p.x - gate.x) * -0.62 + (p.z - gate.z) * 0.78, gate, near: d.near(), prompt: d.games().find((g) => g.id === 'jargon')!.open };
+      });
+    // Shut: over the footbridge to Boardwalk Isle, and no further than the turnstile.
+    const stopped = await toTower();
+    expect(stopped.wet, 'half-seconds spent in the water').toBe(0);
+    expect(stopped.gate.open).toBe(false);
+    expect(stopped.past, 'still on the near side of the gate').toBeLessThan(0);
+    expect(stopped.left, 'a long way from the tower').toBeGreaterThan(15);
+    expect(stopped.prompt, 'the badge desk asks you to speak corporate').toBe(true);
+
+    // Enter plays it: three plain things, and the corporate way to say each.
+    await page.keyboard.press('Enter');
+    const card = page.locator('#w-dialog[open] .w-game');
+    await expect(card).toBeVisible();
+    await expect(card.locator('.w-kicker')).toContainText('Boardwalk Isle');
+    await card.locator('.w-game__go').click();
+    for (let round = 0; round < 3; round++) {
+      const plain = (await card.locator('.jg__plain').textContent())!.replace(/[“”]/g, '');
+      const corporate = LINES.find((l) => l.plain === plain)!.corporate;
+      await card.locator('.jg__opt', { hasText: corporate }).click();
+      await expect(card.locator('.jg__opt.is-right')).toContainText(corporate);
+      await card.locator('.jg__next').click();
+    }
+    await expect(card.locator('.w-game__big')).toHaveText('3');
+    await expect(card.locator('.w-game__summary')).toContainText('turns green');
+    await card.locator('.w-game__end button[value="close"]').click();
+    await expect(page.locator('#w-dialog[open]')).toHaveCount(0);
+
+    // Open, for good: the flaps swing back and the way is clear all the way to the tower's door.
+    await page.evaluate(() => (window as DebugWindow).__island!.pause());
+    const through = await toTower();
+    expect(through.gate.open).toBe(true);
+    expect(through.wet, 'half-seconds spent in the water').toBe(0);
+    expect(through.left, 'how far from the door it stopped').toBeLessThan(0.6);
+    expect(through.near, 'at its door').toBe('synergy-tower');
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('world:progress:v1')!).gates)).toEqual(['badge-gate']);
     expect(errors).toEqual([]);
   });
 

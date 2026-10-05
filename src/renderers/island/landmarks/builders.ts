@@ -32,6 +32,7 @@ import { Kit, litMaterial, type V3 } from '../world/kit';
 import type { Puffs } from '../world/particles';
 import { PIER } from '../world/shape';
 import { damp, easeOutBack, Spring } from '../util/math';
+import { buildSkyscraper } from './skyscraper';
 
 export interface LandmarkCtx {
   t: number;
@@ -1800,6 +1801,7 @@ export const BUILDERS = {
   schoolhouse: buildSchoolhouse,
   depot: buildDepot,
   mall: buildMall,
+  skyscraper: buildSkyscraper,
   workshop: buildWorkshop,
   pier: buildPier,
   bottle: buildBottle,
