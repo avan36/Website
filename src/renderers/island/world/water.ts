@@ -1,7 +1,7 @@
 // The sea: faceted vertex waves, turquoise shallows over the sand, deep blue
-// further out, and animated foam that laps at the shoreline. At night (uNight
-// → 1) it turns ink blue, the moon lays a glittering path across it and the
-// stars show in the calm water further out.
+// further out, sun glints that twinkle, and animated foam that laps at the
+// shoreline. At night (uNight → 1) it turns ink blue, the moon lays a
+// glittering path across it and the stars show in the calm water further out.
 
 import {
   BufferAttribute,
@@ -151,6 +151,10 @@ export function buildWater(height: { tex: DataTexture; extent: number }, sunDir:
         // By night: a glittering path of moonlight (tight highlights on the facets) and a faint sheen.
         float spec = mix(pow(rl, 90.0) * 0.55, pow(rl, 400.0) * 0.95 + pow(rl, 40.0) * 0.08, uNight);
         col += mix(vec3(1.0, 0.95, 0.85), vec3(0.8, 0.88, 1.0), uNight) * spec;
+        // By day: glints of sun that twinkle on single facets, bright enough to catch the bloom (fx/post.ts).
+        vec2 gcell = floor(vWorld.xz * 1.6);
+        float glint = pow(rl, 260.0) * step(0.55, hash(gcell)) * (0.5 + 0.5 * sin(uTime * 3.1 + hash(gcell + 7.3) * 30.0));
+        col += vec3(1.0, 0.94, 0.8) * glint * 2.2 * (1.0 - uNight);
         float fres = pow(1.0 - max(dot(n, v), 0.0), 4.0);
         col = mix(col, mix(vec3(0.85, 0.93, 1.0), vec3(0.22, 0.3, 0.55), uNight), fres * 0.25);
         if (uNight > 0.0) {

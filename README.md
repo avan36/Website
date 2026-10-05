@@ -160,6 +160,12 @@ The island keeps the clock of where it was made: Pacific time. Its light comes f
 
 Visit at any hour you like: `?time=22:00` sets the island's clock to ten tonight and lets it run from there, and `?commute=on` or `?commute=off` makes the train run or rest.
 
+### The look
+
+The 3D island gets a little polish over the picture. The top and bottom of the view soften, like looking at a model on a table. Bright things glow: sun glints on the sea by day, and windows, lamps and fireflies after dark. The colours follow the hour, warm by day and cool by night, with soft dark corners. Inside a building the blur eases off.
+
+It's tuned to the device. Computers get all of it, phones get a lighter version, and with reduced motion it's off. If the island starts to stutter for a few seconds, it quietly steps down a level, and then down to none. To pick for yourself, add `?fx=high`, `?fx=lite` or `?fx=off`, or name the effects you want, like `?fx=bloom,grade` (the others are `tilt`).
+
 ### Little London
 
 Down on the stone quay past the taproom, a red London double-decker is parked facing Tower Bridge: two towers in the water, walkways high between them, and chains swooping down to either end. Cross it to Little London, an islet with a red phone box, a pillar box, street lamps, and Westfield, a shopping centre whose glass roof lifts off whole when you go in. Inside there's Five Guys, an escalator and a row of shopfronts. It isn't a project. I spent a lot of time there growing up, with my dad.
@@ -263,7 +269,7 @@ Renderers are loaded with `import()` only when chosen, so someone reading the li
 
 | View | Folder | What it is |
 | --- | --- | --- |
-| Island | `src/renderers/island` | three.js, procedural low-poly, instanced vegetation, shader water; the bridges (Tower Bridge too) in `world/bridges.ts`, the gates on them in `play/gate.ts`, the islet games' props in `play/isletProps.ts`, the glass tower in `landmarks/skyscraper.ts`, people out walking in `play/wanderers.ts` (one kit mesh each) |
+| Island | `src/renderers/island` | three.js, procedural low-poly, instanced vegetation, shader water; the bridges (Tower Bridge too) in `world/bridges.ts`, the gates on them in `play/gate.ts`, the islet games' props in `play/isletProps.ts`, the glass tower in `landmarks/skyscraper.ts`, people out walking in `play/wanderers.ts` (one kit mesh each); the effects over the picture in `fx/` (`post.ts` draws them with the `postprocessing` library, and its `FX` object holds every value worth tuning by eye; `quality.ts` picks the level and steps it down when frames run slow) |
 | Map | `src/renderers/map` | Canvas 2D pixel art drawn from the same height field; a shut gate is stamped across its deck (`map/gate.ts`); people out walking in `wanderers.ts` |
 | Text | `src/renderers/text` | A pure parser/engine with tests, and a terminal UI |
 | List | `src/components/island/ListView.astro` | Server-rendered HTML: the no-JS, reduced-motion and search-engine view |

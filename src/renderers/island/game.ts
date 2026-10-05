@@ -58,6 +58,8 @@ import { buildInterior, type Interior } from './interior/room';
 import { buildHeightTexture, buildTerrain, pressGround, TERRAIN_SIZE } from './world/terrain';
 import { buildSky, HORIZON } from './world/sky';
 import { buildWater, waveHeight } from './world/water';
+import { createPost } from './fx/post';
+import { FrameWatch, pickQuality, stepDown, type Effect, type Level } from './fx/quality';
 import { holdable } from '../hold';
 import { clamp, damp, easeInCubic, easeInOutCubic, easeOutBack, easeOutCubic, lerp, wrapAngle } from './util/math';
 
@@ -148,6 +150,9 @@ export interface GameHandle {
     games: () => { id: GameId; x: number; z: number; stand: { x: number; z: number }; open: boolean }[];
     gates: () => { id: string; x: number; z: number; open: boolean; swing: number }[];
     play: (id: GameId) => void;
+    /** The polish over the picture (see fx/): its level and effects, and changing them as ?fx= would. */
+    fx: () => { level: Level; effects: readonly Effect[] };
+    setFx: (level: Level, effects?: Effect[]) => void;
     /** People out walking: where each is, whether they're walking, whether their prompt is up, and how many lines they've said. */
     wanderers: () => { id: string; x: number; z: number; moving: boolean; open: boolean; visible: boolean; said: number }[];
     /** Talk to someone out walking (walking over first if need be), as a tap on them would. */
@@ -523,6 +528,11 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
   const zoomBy = (k: number) => {
     rig.zoom = clamp(rig.zoom * k, ZOOM_MIN, ZOOM_MAX);
   };
+  // The polish over the picture: picked for the device (or ?fx=), and stepped
+  // down a level whenever frames run slow for a few seconds (see fx/quality.ts).
+  let quality = pickQuality({ search: location.search, mobile, reducedMotion: o.reducedMotion });
+  const post = createPost(renderer, scene, camera, quality);
+  const frameWatch = new FrameWatch();
   let viewW = 1;
   let viewH = 1;
   let baseDist = 24;
@@ -532,6 +542,7 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     viewW = Math.max(1, Math.round(r.width));
     viewH = Math.max(1, Math.round(r.height));
     renderer.setSize(viewW, viewH, false);
+    post.setSize(viewW, viewH);
     const aspect = viewW / viewH;
     camera.aspect = aspect;
     camera.fov = aspect < 0.8 ? 50 : aspect < 1.2 ? 40 : 32;
@@ -2000,7 +2011,13 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
       pointerMoved = false;
     }
     simulate(dt, raw);
+    post.update({ dark: night.dark, inside: !!room || state === 'door', portrait: viewW < viewH }, dt);
     present(now);
+    // Only judged while the island is out and moving: the intro and the doors have their own hitches.
+    if (!quality.forced && post.level !== 'off' && (state === 'play' || state === 'boat') && frameWatch.add(raw)) {
+      quality = stepDown(quality);
+      post.set(quality.level, quality.effects);
+    }
 
     if (revealT >= 0) {
       if (revealT === 0) startReveal();
@@ -2059,7 +2076,7 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
       },
     });
 
-    renderer.render(scene, camera);
+    post.render();
   };
 
   // Inside a building in another view: already in here, with the house open round you.
@@ -2077,13 +2094,16 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
   }
   later.forEach((x) => (x.visible = false));
   warmed = !!room;
-  renderer.render(scene, camera);
+  // Drawn through the effects too, so their shaders compile now rather than on the first frame you see.
+  post.update({ dark: night.dark, inside: !!room, portrait: viewW < viewH }, 1);
+  post.render();
   o.onReady(arriving ? toScreen(portal!.middle) : undefined);
 
   const start = () => {
     if (running) return;
     running = true;
     last = performance.now();
+    frameWatch.reset();
     raf = requestAnimationFrame(frame);
   };
   const stop = () => {
@@ -2146,6 +2166,7 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     player.dispose();
     height.tex.dispose();
     resetSharedMaterials();
+    post.dispose();
     renderer.dispose();
     renderer.forceContextLoss();
     canvas.remove();
@@ -2220,6 +2241,11 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
       fishing: () => fishing?.phase ?? null,
       fish: () => void fishAction(),
       night: () => night.amount,
+      fx: () => ({ level: post.level, effects: post.effects }),
+      setFx: (level, effects) => {
+        quality = { level, effects: level === 'off' ? [] : effects ?? ['bloom', 'tilt', 'grade'], forced: true };
+        post.set(quality.level, quality.effects);
+      },
       inside: () => (room && roomId && state === 'inside' ? { at: roomId, x: room.at.x, z: room.at.z, within: room.within?.id ?? null, busy: o.ui.room.busy } : null),
       approach: (id: string) => room?.go(id) ?? false,
       roomScreen: (x: number, z: number) => room?.screen(x, z) ?? null,

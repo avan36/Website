@@ -133,6 +133,8 @@ export type IslandDebug = {
   talk(id: string): void;
   boat: { board(): void; leave(): void; info(): { phase: string; pad: { throttle: number; steer: number } } } | null;
   gates(): { id: string; x: number; z: number; open: boolean; swing: number }[];
+  fx(): { level: string; effects: string[] };
+  setFx(level: string, effects?: string[]): void;
 };
 export type WorldHandle = {
   world: { activities: { kind: string; at: { x: number; z: number } }[]; places: { id: string; interior?: unknown }[] };
