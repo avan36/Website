@@ -152,10 +152,10 @@ export function buildBridges() {
     built.rotation.y = b.yaw;
     group.add(built);
 
-    // An arch over the main island's end, with the name of the islet it leads to.
+    // An arch over the main island's end (or, between two islets, the `a` end), with the name of the islet it leads to.
     const [from, to] = b.joins;
-    const home = from === 0 ? 0 : to === 0 ? 1 : -1;
-    const isle = ISLANDS[from === 0 ? to : from];
+    const home = from === 0 ? 0 : to === 0 ? 1 : 0;
+    const isle = ISLANDS[home === 0 ? to : from];
     if (home < 0 || !isle) continue;
     const arch = new Group();
     const ak = new Kit(950 + b.i);

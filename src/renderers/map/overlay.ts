@@ -11,6 +11,7 @@ const CSS = /* css */ `
 .map-canvas {
   position: absolute; inset: 0; width: 100%; height: 100%; display: block;
   touch-action: none; image-rendering: pixelated; cursor: default;
+  -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent;
   opacity: 0; transition: opacity 500ms var(--ease-out);
 }
 html.isl-ready .map-canvas { opacity: 1; }

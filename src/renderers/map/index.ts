@@ -20,6 +20,10 @@ import { Fishing } from './fishing';
 import { createBoatCard } from './boat';
 import { boatOf } from '../boat';
 import { createMapGames } from './minigames';
+import { createMapWanderers } from './wanderers';
+import { layoutFossHill } from './fossHill';
+import { createMapGates } from './gate';
+import { isGame } from '../games/catalog';
 import { BODY_R, HALF_WIDTH, layoutPlaces, layoutStreet, scatterProps, type MapPlace } from './layout';
 import { createOverlay, type FishPrompt } from './overlay';
 import { HEX } from './palette';
@@ -35,6 +39,7 @@ import { paintRoom, type MapRoom } from './room';
 import { bus, drawTrain, shelter } from './commute';
 import { daylight, pageClock } from '../../world/clock';
 import { createTrain } from '../../world/train';
+import { holdable } from '../hold';
 
 /** World units per second. */
 const SPEED = 4.6;
@@ -172,12 +177,41 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
   const speedAt = speedboat ? { x: speedboat.at.x, z: speedboat.at.z + 1.3 } : null;
   if (speedAt) stampBox(speedAt.x - 0.7, speedAt.z - 2.6, speedAt.x + 0.7, speedAt.z);
   // The mini-games: a sprite and a tag at each spot; the games open in the shared games card.
+  // The gates across the bridges: shut ones are stamped across their decks until they open.
+  const gates = createMapGates(geo, (id) => store.open(id));
+  const gateCells = new Map<string, [number, number][]>();
+  for (const g of gates.shut()) {
+    const saved: [number, number][] = [];
+    for (const p of gates.cells(g)) {
+      const i = ti(p.x);
+      const j = tj(p.z);
+      if (i < 0 || j < 0 || i >= W || j >= H) continue;
+      saved.push([j * W + i, blocked[j * W + i]]);
+      blocked[j * W + i] = 1;
+    }
+    gateCells.set(g.id, saved);
+  }
   const games = createMapGames(ctx, root, {
     walk: (x, z) => (walkTo(x, z) ? path : null),
     route: () => path,
     halt: () => ((path = null), clearKeys(), (facing = 'up')),
+    // Up at a shut gate: the game that opens it.
+    gate: (x, z) => {
+      const g = gates.near(x, z);
+      return g && isGame(g.game) ? g.game : null;
+    },
   });
   for (const b of games.blocks) stampCircle(b.x, b.z, b.r + BODY_R);
+  // People out walking: they stop for you, and say hello.
+  const walkers = createMapWanderers(ctx, root, {
+    walk: (x, z) => (walkTo(x, z) ? path : null),
+    route: () => path,
+    halt: (face) => ((path = null), clearKeys(), (facing = face)),
+    night: () => night,
+  });
+  // FOSS HILL's letters below the lighthouse, and the small flag on the hilltop.
+  const fossHill = layoutFossHill(geo);
+  for (const b of fossHill.blocks) stampCircle(b.x, b.z, b.r + BODY_R * 0.5);
   // The bus on the quay and the station's shelter stand in the way too.
   const quay = geo.quay;
   const busAt = quay ? { x: quay.bus.x, z: quay.bus.z + 0.5 } : null;
@@ -214,13 +248,16 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
   // a walk round the shore wins unless the swim is a lot shorter.
   const cells = (W / CELL) * (H / CELL);
   const grid: Grid = { w: W / CELL, h: H / CELL, blocked: new Uint8Array(cells), cost: new Uint8Array(cells) };
-  for (let cj = 0; cj < grid.h; cj++) {
-    for (let ci = 0; ci < grid.w; ci++) {
-      const k = (cj * CELL + CELL / 2) * W + ci * CELL + CELL / 2;
-      grid.blocked[cj * grid.w + ci] = blocked[k] === 0 ? 0 : 1;
-      grid.cost![cj * grid.w + ci] = terrain.water[k] === 2 ? 3 : 1;
+  const fillGrid = () => {
+    for (let cj = 0; cj < grid.h; cj++) {
+      for (let ci = 0; ci < grid.w; ci++) {
+        const k = (cj * CELL + CELL / 2) * W + ci * CELL + CELL / 2;
+        grid.blocked[cj * grid.w + ci] = blocked[k] === 0 ? 0 : 1;
+        grid.cost![cj * grid.w + ci] = terrain.water[k] === 2 ? 3 : 1;
+      }
     }
-  }
+  };
+  fillGrid();
   const cellOf = (x: number, z: number): Pt => ({ x: Math.floor(((x - RECT.x0) * TEX) / CELL), y: Math.floor(((z - RECT.z0) * TEX) / CELL) });
   const cellCentre = (c: Pt) => ({ x: RECT.x0 + ((c.x + 0.5) * CELL) / TEX, z: RECT.z0 + ((c.y + 0.5) * CELL) / TEX });
   const clearWalk = (ax: number, az: number, bx: number, bz: number) => {
@@ -293,7 +330,9 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
     });
   }
   things.push({ x: lampAt.x, z: lampAt.z, sprite: lampPost() });
-  things.push(...games.things);
+  for (const l of fossHill.letters) things.push(l);
+  for (const f of fossHill.flags) things.push({ x: f.x, z: f.z, sprite: null, after: (c, sx, sy) => drawSprite(c, fossHill.flagArt[motion ? Math.floor(time * 3) % 2 : 0], sx, sy) });
+  things.push(...games.things, ...gates.things);
   if (busAt) things.push({ x: busAt.x, z: busAt.z, sprite: bus() });
   if (shelterAt) things.push({ x: shelterAt.x, z: shelterAt.z, sprite: shelter() });
   if (bottlePlace) things.push({ x: bottlePlace.base.x + 1.3, z: bottlePlace.base.z + 0.9, sprite: shells() });
@@ -707,6 +746,11 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
       e.preventDefault();
       return games.play(games.open);
     }
+    // Someone out walking has stopped for you: E or Enter says hello, and then chats.
+    if ((e.code === 'KeyE' || e.key === 'Enter') && !onControl && walkers.open && fishing.phase === 'idle') {
+      e.preventDefault();
+      return walkers.talk(walkers.open);
+    }
     if (e.code === 'KeyE' || ((e.key === 'Enter' || e.key === ' ') && fishing.phase !== 'idle')) {
       if (atFishing() || fishing.phase !== 'idle') {
         e.preventDefault();
@@ -791,6 +835,7 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
     if (hitHero(w.x, w.z)) return tryJump();
     if (hitPortal(w.x, w.z)) return activatePortal();
     if (games.hit(w.x, w.z)) return;
+    if (walkers.hit(w.x, w.z)) return;
     const m = hitLandmark(w.x, w.z);
     if (m) return activate(m);
     if (fishSpot && Math.hypot(w.x - fishSpot.at.x, w.z - fishSpot.at.z) < 0.9) {
@@ -828,6 +873,8 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
   };
 
   canvas.addEventListener('pointerdown', onPointerDown);
+  // Presses are read from pointer events, so a thumb held to steer never selects text on a phone.
+  const unhold = holdable(canvas, { touch: true });
   window.addEventListener('pointermove', onPointerMove);
   window.addEventListener('pointerup', onPointerUp);
   window.addEventListener('pointercancel', onPointerUp);
@@ -1033,6 +1080,11 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
   let nightGoal = nightK;
   const unsub = store.subscribe((_state, events) => {
     nightGoal = darkness();
+    // A gate opened: lift it off the deck, and let the paths through.
+    if (events.some((e) => e.type === 'gate')) {
+      for (const g of gates.sync()) for (const [k, was] of (gateCells.get(g.id) ?? []).reverse()) blocked[k] = was;
+      fillGrid();
+    }
     if (events.some((e) => e.type === 'dressed') && wornNow().map((o) => o.id).join() !== wornKey) {
       wornKey = wornNow().map((o) => o.id).join();
       hero = paintExplorer(wornNow());
@@ -1350,7 +1402,10 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
       const d = Math.min(Math.hypot(pos.x - m.door.x, pos.z - m.door.z), Math.hypot(pos.x - m.worldDoor.x, pos.z - m.worldDoor.z) + 0.3);
       if (d < DOOR_RANGE && d < bestD) (best = m), (bestD = d);
     }
+    // Right beside someone out walking, they have your attention rather than a door.
+    if (best && walkers.claims(pos.x, pos.z)) best = null;
     games.update(pos, mode === 'play' && !best && !jump.air && wet === 0);
+    walkers.update(pos, dt, mode === 'play' && !best && !games.open && !insideOf && !jump.air && wet === 0);
     let atPortal = false;
     if (portal && !jump.air && wet === 0) {
       const d = Math.hypot(pos.x - portal.at.x, pos.z - portal.at.z - 0.75);
@@ -1865,6 +1920,7 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
     if (!insideOf) dynShown.push(heroThing);
     if (bottlePlace) dynShown.push(crabThing);
     for (let i = 0; i < words.length; i++) if (words[i].here) dynShown.push(wordThings[i]);
+    dynShown.push(...walkers.things);
     // Insertion sort: a handful of items, no allocation.
     for (let i = 1; i < dynShown.length; i++) {
       const v = dynShown[i];
@@ -2048,6 +2104,7 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
       overlay.fish(fp, p.x, p.y);
     } else overlay.fish(null);
     games.render((x, z) => toScreen(x, z, scratch), mode === 'play' && !tagFor && !tagPortal);
+    walkers.render((x, z) => toScreen(x, z, scratch), mode === 'play' && !tagFor && !tagPortal && !games.open && !insideOf);
   }
 
   /**
@@ -2168,7 +2225,11 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
       },
       fishing: () => fishing.phase,
       games: () => games.debug(),
+      gates: () => gates.debug(),
       play: (id: Parameters<typeof games.play>[0]) => games.play(id),
+      /** People out walking: where each is, and talking to one (walking over first if need be). */
+      wanderers: () => walkers.debug(),
+      talk: (id: string) => walkers.talk(id),
       frames: () => frames,
       /** How long the ground took to paint, and how big it is, in map pixels. */
       paint: () => ({ ms: Math.round(paintMs), w: W, h: H }),
@@ -2230,6 +2291,7 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
       unsub();
       ro.disconnect();
       canvas.removeEventListener('pointerdown', onPointerDown);
+      unhold();
       window.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerup', onPointerUp);
       window.removeEventListener('pointercancel', onPointerUp);
@@ -2239,6 +2301,7 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
       overlay.destroy();
       boatCard.destroy();
       games.destroy();
+      walkers.destroy();
       root.remove();
       if (debug) delete (window as unknown as { __map?: unknown }).__map;
     },

@@ -48,7 +48,7 @@ export class MiniGames {
 
   constructor(
     host: HTMLElement,
-    private o: { reducedMotion: boolean; best: (id: GameId) => number; onPress: (id: GameId) => void },
+    private o: { reducedMotion: boolean; best: (id: GameId) => number; onPress: (id: GameId) => void; gate?: (x: number, z: number) => GameId | null },
   ) {
     this.group.name = 'minigames';
     for (const a of ACTIVITIES) {
@@ -163,6 +163,8 @@ export class MiniGames {
         const d = Math.min(Math.hypot(x - s.x, z - s.z), Math.hypot(x - s.stand.x, z - s.stand.z));
         if (d < bestD) (best = s.id), (bestD = d);
       }
+      // Up at a shut gate: the game that opens it.
+      best ??= this.o.gate?.(x, z) ?? null;
     }
     const opened = best !== null && best !== this.open;
     this.open = best;

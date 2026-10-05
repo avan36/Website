@@ -5,6 +5,7 @@
 // the page sets, and best scores are a mirror of the store's.
 
 import type { Place, World } from '../../world/schema';
+import { gatesOf } from '../../world/store';
 import { GAME_INFO, isGame, isletAt, playableIn, scoreText, type GameId } from '../games/catalog';
 import { MAX_STREAK_BONUS, STONES } from '../games/stones';
 import type { EngineState, Result } from './engine';
@@ -32,6 +33,7 @@ const NAMES: Partial<Record<GameId, string[]>> = {
   stones: ['stones', 'stone', 'skipping', 'skipping stones', 'skip', 'skimming', 'skim', 'pebbles', 'ducks and drakes'],
   crabs: ['crabs', 'crab', 'crab boop', 'boop', 'whack', 'whack a crab', 'holes'],
   crates: ['crates', 'crate', 'crate stack', 'stack', 'stacking', 'tower', 'crane', 'boxes'],
+  jargon: ['jargon', 'corporate', 'speak corporate', 'corporate speak', 'badge desk', 'badge', 'gate', 'badge gate', 'turnstile', 'greeter'],
 };
 /** The games out on the islets, which only the 3D island plays so far: asked for by name, the adventure says where they are. */
 const ELSEWHERE: Partial<Record<GameId, string[]>> = {
@@ -44,6 +46,7 @@ const ELSEWHERE: Partial<Record<GameId, string[]>> = {
 const named = (table: Partial<Record<GameId, string[]>>, noun: string) => (Object.keys(table) as GameId[]).find((id) => table[id]!.includes(noun)) ?? null;
 export const gameNamed = (noun: string): GameId | null => named(NAMES, noun);
 
+const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 const NUMBERS = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
 const plips = (n: number) => Array(Math.min(n, 6)).fill('plip').join(', ');
 
@@ -57,7 +60,9 @@ export function createTextGames(o: {
   const { world, random } = o;
   // Only the games words can play (or open the card for): the islets' are for the 3D island.
   const spots = world.activities.flatMap((a) => (a.kind === 'minigame' && a.game && isGame(a.game) && playableIn(a.game, 'text') ? [{ id: a.game, activity: a, place: world.places.find((x) => x.id === a.place)! }] : []));
-  const here = (at: string) => spots.find((g) => g.place.id === at) ?? null;
+  // A gate's game is played at its desk, on the way to its place, not at the place itself.
+  const gateGame = (id: GameId) => gatesOf(world).some((g) => g.game === id);
+  const here = (at: string) => spots.find((g) => g.place.id === at && !gateGame(g.id)) ?? null;
   const spotOf = (id: GameId) => spots.find((g) => g.id === id) ?? null;
   const bestOf = (s: State, id: GameId) => s.bests[id] ?? 0;
   const res = (state: State, out: Block[] = [], effects: Effect[] = []): Result => ({ state, out, effects });
@@ -81,7 +86,7 @@ export function createTextGames(o: {
   /** Every game on the island, with your best and where it is. */
   function list(s: State): Block[] {
     return [
-      say('Three little games are tucked around the island:'),
+      say(`${cap(NUMBERS[spots.length] ?? String(spots.length))} little games are tucked around the island:`),
       {
         kind: 'list',
         items: spots.map((g) => {
@@ -104,6 +109,15 @@ export function createTextGames(o: {
     }
     const g = spotOf(named);
     if (!g) return res(s, [say('That game isn’t on this island.')]);
+    if (gateGame(named)) {
+      // The badge desk is by the gate, on the way: no need to walk anywhere first.
+      const best = bestOf(s, named);
+      return res(
+        s,
+        [p(`You head for the badge desk by the turnstile. The greeter slides a laminated card across: three plain things to say the corporate way. A little window opens onto the desk.`), dim(best ? `Your best: ${scoreText(named, best)}.` : GAME_INFO[named].tagline)],
+        [{ type: 'game', id: named }],
+      );
+    }
     if (s.at !== g.place.id) {
       const there = o.walk(s, g.place.id);
       return res(there.state, [...there.out, p(...md(`The ${GAME_INFO[named].name.toLowerCase()} are right here. [PLAY ${named.toUpperCase()}]?`))], there.effects);

@@ -26,6 +26,8 @@ const PREFERRED: Record<Archetype, string> = {
   schoolhouse: 'S',
   depot: 'D',
   mall: 'F',
+  townhouse: 'N',
+  skyscraper: 'G',
   workshop: 'M',
   pier: 'W',
   bottle: 'B',
@@ -67,8 +69,9 @@ export type IslandMap = {
 
 export function drawIsland(world: World, geo: Geo, cols = MAP_COLS, rowsN = MAP_ROWS): IslandMap {
   // The main island only: the islets are open sea here. Most are over bridges
-  // words can't cross yet; one with a place on it (the mall over Tower Bridge)
-  // gets its bridge, run out toward the edge, and its letter at the end.
+  // words can't cross yet; one with places on it (the mall and the townhouse
+  // over Tower Bridge) gets its bridge, run out toward the edge, and their
+  // letters at the end.
   const heightAt = (x: number, z: number) => (geo.owner(x, z) === 0 ? geo.heightAt(x, z) : -6);
   const away = world.places.filter((p) => geo.islandOf(p.at.x, p.at.z));
   // Frame everything that isn't open sea, plus a little water all round.
@@ -140,11 +143,13 @@ export function drawIsland(world: World, geo: Geo, cols = MAP_COLS, rowsN = MAP_
     const { c, r } = toCell(p.at.x, p.at.z);
     rows[r][c] = glyph.get(p.id)!;
   }
-  // The way out to a place on an islet: its bridge as far as the map goes (stopping short of the edge, which is
-  // always sea), and the place's letter where it ends.
-  for (const p of away) {
-    const isle = geo.islandOf(p.at.x, p.at.z)!;
-    const b = geo.bridges.find((x) => x.joins.includes(isle) && x.joins.includes(0));
+  // The way out to the places on an islet: its bridge as far as the map goes (stopping short of the edge, which is
+  // always sea), and their letters where it ends, the first at the end and the rest stacked by it. An islet further
+  // out (past another) gets the first bridge on the way.
+  for (const isle of new Set(away.map((p) => geo.islandOf(p.at.x, p.at.z)!))) {
+    const here = away.filter((p) => geo.islandOf(p.at.x, p.at.z) === isle);
+    const other = (x: (typeof geo.bridges)[number]) => (x.joins[0] === 0 ? x.joins[1] : x.joins[0]);
+    const b = geo.bridges.find((x) => x.joins.includes(isle) && x.joins.includes(0)) ?? geo.bridges.find((x) => x.joins.includes(0) && geo.hops(other(x), isle) < geo.hops(0, isle));
     if (!b) continue;
     const [ax, az, dx, dz] = b.joins[0] === 0 ? [b.ax, b.az, b.ux, b.uz] : [b.bx, b.bz, -b.ux, -b.uz];
     let end: { c: number; r: number } | null = null;
@@ -157,7 +162,9 @@ export function drawIsland(world: World, geo: Geo, cols = MAP_COLS, rowsN = MAP_
       if (rows[r][c] === GROUND.sea || rows[r][c] === ' ' || rows[r][c] === GROUND.sand) rows[r][c] = GROUND.pier;
       end = { c, r };
     }
-    if (end) rows[end.r][end.c] = glyph.get(p.id)!;
+    if (!end) continue;
+    const spots = [end, { c: end.c, r: end.r + 1 }, { c: end.c, r: end.r - 1 }, { c: end.c, r: end.r + 2 }].filter((x) => x.r > 0 && x.r < rowsN - 1);
+    here.forEach((p, i) => spots[i] && (rows[spots[i].r][spots[i].c] = glyph.get(p.id)!));
   }
   return { rows, glyph, toWorld, toCell };
 }

@@ -186,7 +186,7 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
   /** The engine's state, with progress fresh from the store (another view, or the hoard card, may have changed it). */
   function sync(): EngineState {
     const p = progress();
-    state = { ...state, found: p.found, caught: p.caught, night: p.night, bestLap: p.bestLap, bests: Object.fromEntries(Object.entries(p.games).map(([id, g]) => [id, g.best])), wardrobe: p.wardrobe, worn: p.worn };
+    state = { ...state, found: p.found, caught: p.caught, night: p.night, bestLap: p.bestLap, bests: Object.fromEntries(Object.entries(p.games).map(([id, g]) => [id, g.best])), wardrobe: p.wardrobe, worn: p.worn, gates: p.gates };
     return state;
   }
 
@@ -289,6 +289,13 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
   // ---------- Night ----------
   const unsubscribe = store.subscribe((_, events) => {
     if (events.some((e) => e.type === 'night')) paintNight();
+    // A gate opened (by its game, in the card): the greeter waves you through.
+    for (const e of events) {
+      if (e.type !== 'gate') continue;
+      const r = engine.opened(sync(), e.id);
+      state = r.state;
+      show(null, r.out);
+    }
   });
 
   // ---------- Go ----------

@@ -109,6 +109,18 @@ export const GAME_INFO: Record<GameId, GameInfo> = {
     touch: 'Drag a card onto its branch, or tap the card, then the branch.',
     views: ['island'],
   },
+  // The badge desk at the gate out to Synergy Isle: pass it and the gate stays open. Words, so every view can play it.
+  jargon: {
+    id: 'jargon',
+    name: 'Speak corporate',
+    unit: ['answer', 'answers'],
+    color: '#b8508a',
+    tagline: 'Say it the corporate way and the turnstile lets you through.',
+    pitch: 'The greeter at the badge desk reads out three plain things. Pick the most corporate way to say each one. Get two and the turnstile turns green.',
+    keys: 'Keys 1 to 4 answer. Enter for the next one.',
+    touch: 'Tap an answer.',
+    views: EVERYWHERE,
+  },
 };
 
 export const GAME_IDS = Object.keys(GAME_INFO) as GameId[];

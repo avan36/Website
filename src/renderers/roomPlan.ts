@@ -36,6 +36,11 @@ export const FOOT: Record<Prop, { hw: number; hd: number; hang?: boolean; wall?:
   sacks: { hw: 0.6, hd: 0.45 },
   escalator: { hw: 0.75, hd: 1.5, wall: true },
   shopfront: { hw: 2.4, hd: 0.25, hang: true, wall: true },
+  armchairs: { hw: 1.6, hd: 0.55 },
+  sidetable: { hw: 0.35, hd: 0.35 },
+  clock: { hw: 0.35, hd: 0.3 },
+  plant: { hw: 0.4, hd: 0.4 },
+  pingpong: { hw: 1.3, hd: 0.75 },
 };
 /** The schoolhouse's desks are a little classroom of them. */
 const SCHOOL_DESKS = { hw: 1.4, hd: 0.85 };

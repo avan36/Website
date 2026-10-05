@@ -6,7 +6,11 @@
 
 const CSS = /* css */ `
 html.isl-boating .isl-card, html.isl-boating .isl-hint, html.isl-boating .isl-hoard-fab, html.isl-boating .isl-sound-fab { display: none !important; }
-.isl-boat { position: absolute; inset: 0; z-index: 6; pointer-events: none; font-family: var(--font-ui); color: var(--ink); }
+.isl-boat {
+  position: absolute; inset: 0; z-index: 6; pointer-events: none; font-family: var(--font-ui); color: var(--ink);
+  /* A thumb held on a button mustn't select the words round it or open the callout menu. */
+  -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent;
+}
 .isl-boat[hidden] { display: none; }
 .isl-boat button { pointer-events: auto; font: inherit; cursor: pointer; }
 .isl-boat__top {
@@ -30,7 +34,7 @@ html.isl-boating .isl-card, html.isl-boating .isl-hint, html.isl-boating .isl-ho
 .isl-boat__btn {
   display: inline-flex; align-items: center; gap: 8px; height: 44px; padding: 0 16px; border: 0; border-radius: var(--r-pill);
   background: rgba(255, 255, 255, 0.86); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
-  box-shadow: var(--shadow-1); color: var(--ink); font-size: 15px; font-weight: 700; white-space: nowrap;
+  box-shadow: var(--shadow-1); color: var(--ink); font-size: 15px; font-weight: 700; white-space: nowrap; touch-action: manipulation;
   transition: transform var(--dur-2) var(--ease-spring), background var(--dur-2);
 }
 .isl-boat__btn:hover { transform: translateY(-2px); background: #fff; }
@@ -90,14 +94,15 @@ html.isl-touch .isl-boat__keys { display: none; }
 html.isl-touch .isl-boat__pad {
   display: flex; justify-content: space-between; align-items: flex-end; gap: 12px;
   position: absolute; left: max(14px, env(safe-area-inset-left)); right: max(14px, env(safe-area-inset-right));
-  bottom: max(18px, env(safe-area-inset-bottom));
+  bottom: max(18px, env(safe-area-inset-bottom)); touch-action: none;
 }
 .isl-boat__pad > div { display: flex; gap: 10px; align-items: flex-end; }
 .isl-boat__key {
   width: 66px; height: 66px; display: grid; place-items: center; border: 0; border-radius: 50%;
   background: rgba(255, 255, 255, 0.8); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
-  box-shadow: var(--shadow-1); color: var(--ink); touch-action: none; -webkit-user-select: none; user-select: none;
+  box-shadow: var(--shadow-1); color: var(--ink); touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
 }
+.isl-boat__key svg { pointer-events: none; }
 .isl-boat__key.is-gas { width: 80px; height: 80px; background: rgba(229, 72, 77, 0.92); color: #fff; }
 .isl-boat__key.is-held { transform: scale(0.92); filter: brightness(0.92); }
 .isl-boat__stick {
@@ -115,6 +120,8 @@ html.isl-touch .isl-boat__pad {
   .isl-boat__big.is-pop, .isl-boat__card.is-pop { animation: none; }
 }
 `;
+
+import { holdable, Holds, padInput, type PadKey } from '../../hold';
 
 const ARROW = (d: string) => `<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${d}"/></svg>`;
 
@@ -136,7 +143,8 @@ export class BoatHud {
   private knob: HTMLElement;
   private flashTimer = 0;
   private shownTime = '';
-  private held = new Map<number, string>();
+  private held = new Holds<PadKey>();
+  private unhold: () => void;
 
   constructor(
     host: HTMLElement,
@@ -210,12 +218,16 @@ export class BoatHud {
       if ((e.target as HTMLElement).closest('button')) e.stopPropagation();
     });
 
-    // The pad: hold a button, with any number of fingers at once.
+    // The pad: hold a button, with any number of fingers at once. Each finger
+    // is captured by its button, so it lets go where it lifts, wherever that is.
+    const keyEl = (k: PadKey) => r.querySelector(`[data-key="${k}"]`);
     const press = (e: PointerEvent) => {
       const b = (e.target as HTMLElement).closest<HTMLElement>('[data-key]');
-      if (!b) return;
+      if (!b || e.button > 0) return;
       e.preventDefault();
-      this.held.set(e.pointerId, b.dataset.key!);
+      const k = b.dataset.key as PadKey;
+      const was = this.held.press(e.pointerId, k);
+      if (was) keyEl(was)?.classList.remove('is-held');
       b.classList.add('is-held');
       try {
         b.setPointerCapture(e.pointerId);
@@ -225,32 +237,39 @@ export class BoatHud {
       this.readPad();
     };
     const release = (e: PointerEvent) => {
-      const k = this.held.get(e.pointerId);
-      if (!k) return;
-      this.held.delete(e.pointerId);
-      if (![...this.held.values()].includes(k)) r.querySelector(`[data-key="${k}"]`)?.classList.remove('is-held');
+      const k = this.held.release(e.pointerId);
+      if (k) keyEl(k)?.classList.remove('is-held');
       this.readPad();
     };
     const pad = q('.isl-boat__pad');
     pad.addEventListener('pointerdown', press);
     pad.addEventListener('pointerup', release);
     pad.addEventListener('pointercancel', release);
-    pad.addEventListener('contextmenu', (e) => e.preventDefault());
+    pad.addEventListener('lostpointercapture', release);
+    // The pad reads pointers only, so the touches themselves can be cancelled:
+    // no text selection, magnifier, callout or double-tap zoom under a thumb.
+    const offPad = holdable(pad, { touch: true });
+    // The rest (the timer, Race a lap, Get out) keeps its clicks, but no menus.
+    const offRoot = holdable(r);
+    this.unhold = () => (offPad(), offRoot());
   }
 
   private readPad() {
-    const k = [...this.held.values()];
-    this.pad.throttle = (k.includes('gas') ? 1 : 0) - (k.includes('brake') ? 1 : 0);
-    this.pad.steer = (k.includes('right') ? 1 : 0) - (k.includes('left') ? 1 : 0);
+    Object.assign(this.pad, padInput(this.held));
+  }
+
+  /** Let go of every button on the pad (the window lost focus, say). */
+  releasePad() {
+    this.held.clear();
+    this.readPad();
+    this.root.querySelectorAll('.is-held').forEach((x) => x.classList.remove('is-held'));
   }
 
   show(on: boolean) {
     this.root.hidden = !on;
     document.documentElement.classList.toggle('isl-boating', on);
     if (!on) {
-      this.held.clear();
-      this.readPad();
-      this.root.querySelectorAll('.is-held').forEach((x) => x.classList.remove('is-held'));
+      this.releasePad();
       this.stickOff();
       this.hideCard();
       this.count('');
@@ -342,6 +361,7 @@ export class BoatHud {
 
   dispose() {
     clearTimeout(this.flashTimer);
+    this.unhold();
     document.documentElement.classList.remove('isl-boating');
     this.root.remove();
     this.style.remove();

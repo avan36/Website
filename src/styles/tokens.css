@@ -34,6 +34,11 @@
   --c-quizmate: #6c5ce7;
   --c-eqoscan: #20a464;
 
+  /* The small flag on Foss Hill, top to bottom (stripes 2:1:2) */
+  --flag-pink: #d60270;
+  --flag-purple: #9b4f96;
+  --flag-blue: #0038a8;
+
   /* Type */
   --font-display: 'Bricolage Grotesque Variable', ui-rounded, system-ui, sans-serif;
   --font-ui: 'Bricolage Grotesque Variable', system-ui, -apple-system, sans-serif;

@@ -9,7 +9,8 @@
 // pages are buttons and words (a Panel, built into the card), loaded the first
 // time one is opened. A game with no score skips the start and score cards.
 
-import type { WorldStore } from '../../world/store';
+import { holdable } from '../hold';
+import { gatesOf, type WorldEvent, type WorldStore } from '../../world/store';
 import type { SoundName } from '../types';
 import { GAME_INFO, gamesRow, isletAt, isScored, nudge, scoreText, type GameId } from './catalog';
 import { startCrabs } from './crabs';
@@ -23,6 +24,7 @@ const PANELS: Partial<Record<GameId, () => Promise<StartPanel>>> = {
   patterns: () => import('./patterns').then((m) => m.startPatterns),
   etymology: () => import('./etymology').then((m) => m.startEtymology),
   evolution: () => import('./evolution').then((m) => m.startEvolution),
+  jargon: () => import('./jargon').then((m) => m.startJargon),
 };
 
 export interface PlayOptions {
@@ -35,6 +37,7 @@ export interface PlayOptions {
   onClose?(): void;
 }
 
+const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 
 const CLOSE =
@@ -51,7 +54,7 @@ const CSS = /* css */ `
 .w-game__stage {
   position: relative; margin: 14px -28px 0; aspect-ratio: 4 / 3; max-height: 62dvh;
   background: #2b8fb8; overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none;
-  -webkit-tap-highlight-color: transparent; outline: none;
+  -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; outline: none;
 }
 .w-game__stage:focus-visible { box-shadow: inset 0 0 0 3px var(--c); }
 .w-game__stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
@@ -206,6 +209,14 @@ export function playGame(id: GameId, o: PlayOptions): () => void {
   const c = canvas?.getContext('2d') ?? null;
   const fc = fx.getContext('2d')!;
 
+  /** A game that's the key to a gate says whether it opened, or what it takes. */
+  const gate = gatesOf(world).find((g) => g.game === id);
+  const gateNote = (events: WorldEvent[]) => {
+    if (!gate) return '';
+    if (events.some((e) => e.type === 'gate' && e.id === gate.id)) return `${cap(gate.name)} turns green: you're through.`;
+    if (store.open(gate.id)) return `${cap(gate.name)} is open for you already.`;
+    return `${cap(gate.name)} needs ${gate.pass}. Have another go?`;
+  };
   const paintRow = () => (row.innerHTML = gamesRow(world, (g) => store.state.progress.games[g], id));
   $<HTMLElement>('.w-game__best').textContent = bestText();
   paintRow();
@@ -307,7 +318,7 @@ export function playGame(id: GameId, o: PlayOptions): () => void {
     $<HTMLElement>('.w-game__big').textContent = String(score);
     $<HTMLElement>('.w-game__unit').textContent = unit[score === 1 ? 0 : 1];
     $<HTMLElement>('.w-game__nudge').textContent = nudge(id, score, best, record, previous);
-    $<HTMLElement>('.w-game__summary').textContent = panel?.summary?.() ?? '';
+    $<HTMLElement>('.w-game__summary').textContent = [panel?.summary?.() ?? '', gateNote(events)].filter(Boolean).join(' ');
     reviewBtn.hidden = !panel?.review;
     reviewBtn.textContent = panel?.review?.label ?? '';
     $<HTMLElement>('.w-game__best').textContent = bestText();
@@ -374,7 +385,10 @@ export function playGame(id: GameId, o: PlayOptions): () => void {
   stage.addEventListener('pointerdown', onDown);
   stage.addEventListener('pointerup', onUp);
   stage.addEventListener('pointercancel', onUp);
-  if (!load) stage.addEventListener('contextmenu', (e) => e.preventDefault());
+  // A game of taps and holds: a finger held on the stage never selects text or
+  // opens a menu, and once it's playing, its touches are read as pointers only.
+  // Its buttons keep their clicks, and a game of buttons and words is left alone.
+  if (!load) holdable(stage, { touch: (e) => mode === 'play' && !(e.target as HTMLElement).closest('button, a, input') });
   goBtn.addEventListener('click', begin);
   againBtn.addEventListener('click', begin);
   reviewBtn.addEventListener('click', review);

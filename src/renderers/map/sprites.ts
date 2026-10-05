@@ -679,6 +679,188 @@ function mall(accent: string, doorDx: number): Landmark {
   return { sprite: finish(p, ax, base, { rx: hw + 3, ry: 4, dy: 2 }, undefined, lights), door: { dx: doorDx, dy: -7 }, top: 4, roof: top };
 }
 
+/**
+ * A narrow London townhouse in brick: a slate roof and a chimney, white sash
+ * windows on two floors, a green door under a fanlight, a little brass plate
+ * by it, a window box of lavender, and two steps between black railings.
+ */
+function townhouse(accent: string, doorDx: number): Landmark {
+  const hw = Math.round(HALF_WIDTH.townhouse * 8);
+  const W = hw * 2 + 6;
+  const ax = W >> 1;
+  const base = 54;
+  const p = new Pix(W, base + 4);
+  const L = ax - hw;
+  const R = ax + hw - 1;
+  const BRICK = col('#b8674b');
+  const BRICK_DARK = col('#9c543c');
+  const BRICK_LIGHT = col('#c97a5c');
+  const MORTAR = col('#d8c3ad');
+  const SLATE = col('#5b6470');
+  const SLATE_LIGHT = col('#737d8a');
+  const SLATE_DARK = col('#47505b');
+  const DOOR = col(accent);
+  const DOOR_DARK = col(shade(accent, -0.12));
+  const RAIL = col('#2b2f33');
+  const STEP = col('#d8d1c4');
+  // The chimney, then the roof: a slate mansard, its ridge at the top.
+  p.rect(R - 9, 2, 6, 10, BRICK);
+  p.hline(R - 10, R - 2, 2, STONE_LIGHT);
+  p.vline(R - 7, 0, 1, col('#c96f4a'));
+  p.vline(R - 5, 0, 1, col('#c96f4a'));
+  const roofTop = 6;
+  const wallTop = 16;
+  for (let y = roofTop; y < wallTop; y++) {
+    const inset = Math.max(0, 3 - (y - roofTop));
+    p.hline(L + inset, R - inset, y, (y - roofTop) % 3 === 0 ? SLATE_LIGHT : (y - roofTop) % 3 === 1 ? SLATE : SLATE_DARK);
+  }
+  // A dormer window in the roof.
+  p.rect(ax - 4, roofTop + 1, 8, 8, SLATE_DARK);
+  windowAt(p, ax - 3, roofTop + 2, 6, 6);
+  p.hline(L - 1, R + 1, wallTop, STONE_LIGHT);
+  // Brick, with the courses showing.
+  for (let y = wallTop + 1; y < base; y++) {
+    for (let x = L; x <= R; x++) {
+      const course = (y - wallTop) % 3 === 0;
+      const joint = (x + ((Math.floor((y - wallTop) / 3) % 2) * 3)) % 6 === 0;
+      p.px(x, y, course || joint ? MORTAR : (x * 7 + y * 3) % 11 === 0 ? BRICK_LIGHT : (x + y * 5) % 13 === 0 ? BRICK_DARK : BRICK);
+    }
+  }
+  // A white band between the floors.
+  p.hline(L, R, 32, TRIM);
+  p.hline(L, R, 33, STONE_LIGHT);
+  // The door, on its side of the front, with a half-moon fanlight over it.
+  const dX = Math.min(R - 9, Math.max(L + 2, ax + doorDx - 4));
+  p.rect(dX - 1, base - 18, 10, 18, TRIM);
+  p.rect(dX + 1, base - 17, 6, 3, GLASS);
+  p.px(dX + 1, base - 17, TRIM);
+  p.px(dX + 6, base - 17, TRIM);
+  p.px(dX + 3, base - 16, GLASS_SHINE);
+  p.rect(dX, base - 13, 8, 13, DOOR);
+  p.rect(dX + 1, base - 12, 2, 5, DOOR_DARK);
+  p.rect(dX + 5, base - 12, 2, 5, DOOR_DARK);
+  p.rect(dX + 1, base - 5, 2, 4, DOOR_DARK);
+  p.rect(dX + 5, base - 5, 2, 4, DOOR_DARK);
+  p.px(dX + 4, base - 8, GOLD); // the knocker
+  // The brass plate by the door.
+  const plateX = dX > ax - 4 ? dX - 4 : dX + 10;
+  p.rect(plateX, base - 10, 3, 2, GOLD);
+  // Sash windows: two upstairs, one downstairs beside the door, with a window box of lavender.
+  const sash = (x: number, y: number) => {
+    p.rect(x, y, 7, 10, TRIM);
+    p.rect(x + 1, y + 1, 5, 8, GLASS);
+    p.hline(x + 1, x + 5, y + 4, TRIM);
+    p.px(x + 1, y + 1, GLASS_SHINE);
+    p.px(x + 2, y + 1, GLASS_SHINE);
+    p.hline(x - 1, x + 7, y + 10, STONE_LIGHT);
+  };
+  sash(L + 4, wallTop + 4);
+  sash(R - 10, wallTop + 4);
+  const lowX = dX > ax - 4 ? L + 3 : R - 10;
+  sash(lowX, base - 16);
+  p.hline(lowX - 1, lowX + 7, base - 5, WOOD_DARK);
+  p.hline(lowX - 1, lowX + 7, base - 4, WOOD_DEEP);
+  for (let i = 0; i < 4; i++) p.px(lowX + i * 2, base - 6, col(i % 2 ? '#9b87d6' : '#b9a4e8'));
+  // Two steps up to the door, and black railings either side.
+  p.hline(dX - 1, dX + 8, base, STEP);
+  p.hline(dX - 2, dX + 9, base + 1, STONE_DARK);
+  for (const x of [dX - 3, dX + 10]) {
+    p.vline(x, base - 5, base + 1, RAIL);
+    p.px(x, base - 6, GOLD);
+  }
+  p.hline(L - 1, R + 1, base + 2, STONE_LIGHT);
+  return { sprite: finish(p, ax, base, { rx: hw + 2, ry: 3, dy: 2 }), door: { dx: doorDx, dy: -6 }, top: 0, roof: wallTop };
+}
+
+/**
+ * The glass tower on Synergy Isle: very tall, tapering, banded floor by floor
+ * (every floor lit after dark), with a rounded crown and a little cloud of its
+ * own, on a glass lobby between two shorter office blocks.
+ */
+function skyscraper(accent: string): Landmark {
+  const W = 60;
+  const ax = W >> 1;
+  const base = 150;
+  const p = new Pix(W, base + 4);
+  const R = ramp(accent);
+  const SPANDREL = col('#6f8fae');
+  const SPANDREL_D = col('#5a7896');
+  const FIN = col('#eef3f6');
+  const STONE_P = col('#e3ddd2');
+  const STONE_PD = col('#c4bcae');
+  const CLOUD = col('#f7f8fa');
+  const CLOUD_D = col('#dfe4ea');
+  const lobbyTop = base - 16;
+
+  // Two shorter glass office blocks either side, set back a little.
+  const block = (x0: number, x1: number, top: number) => {
+    for (let y = top; y < base - 2; y++) {
+      const floor = (y - top) % 5;
+      p.hline(x0, x1, y, floor === 0 ? SPANDREL : floor === 4 ? SPANDREL_D : GLASS);
+      p.px(x1, y, floor ? SPANDREL_D : SPANDREL);
+    }
+    for (let x = x0 + 3; x < x1; x += 4) p.vline(x, top, base - 3, FIN);
+    p.hline(x0, x1, top, FIN);
+  };
+  block(1, 15, 92);
+  block(45, 58, 108);
+
+  // The tower: floor upon floor of glass, tapering as it rises, shaded on the right.
+  const t0 = 16;
+  for (let y = t0; y < lobbyTop; y++) {
+    const t = (lobbyTop - y) / (lobbyTop - t0);
+    const hw = Math.round(14 - t * 5);
+    const floor = (y - t0) % 4;
+    const glass = floor === 0 ? SPANDREL : GLASS;
+    p.hline(ax - hw, ax + hw - 1, y, glass);
+    p.hline(ax + Math.floor(hw / 2), ax + hw - 1, y, floor === 0 ? SPANDREL_D : glass);
+    p.px(ax - hw, y, FIN);
+    p.px(ax + hw - 1, y, SPANDREL_D);
+    // Fins up the face, catching the light.
+    for (let x = ax - hw + 4; x < ax + hw - 2; x += 5) p.px(x, y, FIN);
+  }
+  // A shine running up the left of the glass.
+  for (let y = t0 + 2; y < lobbyTop - 2; y += 4) p.px(ax - 10 + Math.round(((y - t0) / (lobbyTop - t0)) * 4), y + 1, GLASS_SHINE);
+
+  // The crown: an open, rounded top of fins over a lit lantern.
+  for (let y = 4; y < t0; y++) {
+    const k = (t0 - y) / (t0 - 4);
+    const hw = Math.max(1, Math.round(9 * Math.cos(k * 1.35)));
+    p.hline(ax - hw, ax + hw - 1, y, y % 3 ? LAMP : LAMP_CORE);
+    p.px(ax - hw, y, FIN);
+    p.px(ax + hw - 1, y, FIN);
+    for (let x = ax - hw + 3; x < ax + hw - 2; x += 3) p.px(x, y, FIN);
+  }
+  p.hline(ax - 9, ax + 8, t0, FIN);
+  p.vline(ax, 1, 4, FIN);
+
+  // The lobby: glass between fins, a canopy in the tower's color and a revolving door.
+  p.rect(ax - 18, lobbyTop, 36, base - lobbyTop, GLASS);
+  for (let x = ax - 18; x <= ax + 17; x += 4) p.vline(x, lobbyTop, base - 1, FIN);
+  p.hline(ax - 19, ax + 18, lobbyTop, FIN);
+  p.hline(ax - 19, ax + 18, lobbyTop + 1, STONE_PD);
+  p.rect(ax - 7, base - 13, 14, 2, R[2]);
+  p.hline(ax - 7, ax + 6, base - 13, R[0]);
+  p.rect(ax - 4, base - 10, 8, 10, col('#2f3a44'));
+  p.rect(ax - 3, base - 9, 6, 9, GLASS_SHINE);
+  p.vline(ax, base - 9, base - 1, FIN);
+  // The plaza out front.
+  p.hline(1, W - 2, base, STONE_P);
+  p.hline(1, W - 2, base + 1, STONE_PD);
+  // Planters by the door.
+  for (const x of [ax - 12, ax + 10]) {
+    p.rect(x, base - 4, 4, 4, STONE_DARK);
+    p.ellipse(x + 2, base - 5, 2.5, 2, LEAF);
+  }
+
+  // Its own weather: a little cloud drifting by the crown.
+  p.ellipse(ax + 17, 9, 6, 3, CLOUD);
+  p.ellipse(ax + 13, 8, 4, 3, CLOUD);
+  p.ellipse(ax + 21, 10, 4, 2, CLOUD_D);
+  const lights = new Map<Color, Color>([...LIGHTS, [SPANDREL, SPANDREL], [CLOUD, col('#c9cfdc')], [CLOUD_D, col('#aeb6c6')]]);
+  return { sprite: finish(p, ax, base, { rx: 24, ry: 4, dy: 1 }, undefined, lights), door: { dx: 0, dy: -5 }, top: 0, roof: lobbyTop };
+}
+
 /** Where the workshop's big window goes, given its door: on the other side of the front. */
 function workshopWindow(doorDx: number) {
   const ax = 30;
@@ -833,6 +1015,10 @@ export function paintLandmark(kind: LandmarkKind, accent: string, doorDx: number
       return depot(accent, doorDx);
     case 'mall':
       return mall(accent, doorDx);
+    case 'townhouse':
+      return townhouse(accent, doorDx);
+    case 'skyscraper':
+      return skyscraper(accent);
     case 'workshop':
       return workshop(accent, doorDx);
     case 'postbox':
