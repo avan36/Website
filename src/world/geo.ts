@@ -222,7 +222,7 @@ export function createGeo(world: World) {
 
   // ---------- The quay ----------
   const qy = g.quay;
-  const quay = qy ? { x0: Math.min(qy.x0, qy.x1), x1: Math.max(qy.x0, qy.x1), z0: Math.min(qy.z0, qy.z1), z1: Math.max(qy.z0, qy.z1), deck: qy.deck, bus: qy.bus, faces: qy.faces } : null;
+  const quay = qy ? { x0: Math.min(qy.x0, qy.x1), x1: Math.max(qy.x0, qy.x1), z0: Math.min(qy.z0, qy.z1), z1: Math.max(qy.z0, qy.z1), deck: qy.deck } : null;
   /** How far outside the quay's deck a point is (negative inside). */
   function quayDist(x: number, z: number) {
     if (!quay) return Infinity;
@@ -231,6 +231,31 @@ export function createGeo(world: World) {
     if (dx === 0 && dz === 0) return -Math.min(x - quay.x0, quay.x1 - x, z - quay.z0, quay.z1 - z);
     return Math.hypot(dx, dz);
   }
+
+  // ---------- The bus's road ----------
+  const rd = g.busRoute;
+  const road = rd ? railLoop(rd) : null;
+  const roadSegs: Segment[] = road ? road.points.map((p, i) => { const q = road.points[(i + 1) % road.points.length]; return { ax: p.x, az: p.z, bx: q.x, bz: q.z }; }) : [];
+  /** Distance to the middle of the bus's road (Infinity if there isn't one). */
+  function roadDist(x: number, z: number) {
+    if (!road) return Infinity;
+    if (Math.abs(x - rd!.center.x) > rd!.rx + 6 || Math.abs(z - rd!.center.z) > rd!.rz + 6) return 6;
+    return segDist(roadSegs, x, z);
+  }
+  /**
+   * The bus stop: how far round the road the bus stands at it (s), where that
+   * is, which way the bus faces there (yaw), and where the sign and shelter
+   * stand on the kerb, outside the loop (the bus's left, as it drives on the left).
+   */
+  const busStop = road && rd ? (() => {
+    const s = rd.stop * road.length;
+    const p = road.at(s);
+    const nx = Math.cos(p.yaw) * p.out;
+    const nz = -Math.sin(p.yaw) * p.out;
+    return { s, x: p.x, z: p.z, yaw: p.yaw, out: p.out, shelter: { x: p.x + nx * STOP_OUT, z: p.z + nz * STOP_OUT } };
+  })() : null;
+  // The shelter stands on a little level kerb at the height of the road.
+  if (busStop && rd) pads.push({ x: busStop.shelter.x, z: busStop.shelter.z, r: 1.2, blend: 1.4, h: rd.bed });
 
   // ---------- The bridges ----------
   const bridges: Bridge[] = (g.bridges ?? []).map((b, i) => {
@@ -269,6 +294,11 @@ export function createGeo(world: World) {
     if (rail) {
       const d = railDist(x, z);
       if (d < RAIL_BED + RAIL_BLEND) h = lerp(h, rw!.bed, 1 - smoothstep(RAIL_BED, RAIL_BLEND + RAIL_BED, d));
+    }
+    // So does the bus's road.
+    if (road) {
+      const d = roadDist(x, z);
+      if (d < ROAD_BED + ROAD_BLEND) h = lerp(h, rd!.bed, 1 - smoothstep(ROAD_BED, ROAD_BED + ROAD_BLEND, d));
     }
     // The quay is a stone deck with a short, steep wall down to the sea.
     if (quay) {
@@ -565,6 +595,8 @@ export function createGeo(world: World) {
     if (Math.abs(x - pier.x) < 2.2 && z > pier.start - 2) return false;
     if (railDist(x, z) < 1.6 + margin) return false;
     if (quayDist(x, z) < 0.8 + margin) return false;
+    if (roadDist(x, z) < ROAD_HALF + 0.7 + margin) return false;
+    if (busStop && Math.hypot(x - busStop.shelter.x, z - busStop.shelter.z) < 2.6 + margin) return false;
     // Nothing grows on a bridge or its landings.
     if (clearBridges && !clearOfBridges(x, z, margin)) return false;
     // A plot keeps a little more than its clearing free, so no canopy hangs over it.
@@ -641,6 +673,10 @@ export function createGeo(world: World) {
     station,
     quay,
     quayDist,
+    /** The bus's road round an islet (null if there's none): sample it with at(s), like the railway. */
+    road,
+    roadDist,
+    busStop,
     plots,
     signs,
     signDist,
@@ -650,6 +686,8 @@ export function createGeo(world: World) {
     coastRadius,
     rockiness,
     heightAt,
+    /** The ground before anything is levelled (no clearings, beds or quay): is there really land here? */
+    rawHeight,
     groundAt,
     isWalkable,
     depthAt,
@@ -669,6 +707,12 @@ export function createGeo(world: World) {
 /** Half-width of the railway's level bed, and how far it blends into the land. */
 const RAIL_BED = 1.5;
 const RAIL_BLEND = 2.2;
+/** Half the width of the bus's road (the tarmac), its level bed, and how far that blends into the land. */
+export const ROAD_HALF = 1.0;
+const ROAD_BED = 1.3;
+const ROAD_BLEND = 1.6;
+/** How far out from the middle of the road the bus stop's sign and shelter stand. */
+export const STOP_OUT = 2.05;
 
 function segDist(segs: Segment[], x: number, z: number) {
   let best = Infinity;
@@ -694,7 +738,7 @@ function intersect(a: Segment, b: Segment): Vec2 | null {
 type RailSpec = { center: Vec2; rx: number; rz: number; square: number };
 
 /**
- * A railway loop as a closed polyline, evenly spaced, plus at(s): the point
+ * A railway loop (or the bus's road) as a closed polyline, evenly spaced, plus at(s): the point
  * s units along it (wrapping), the way it heads there (yaw: 0 = south, π/2 =
  * east, like a place's `faces`) and which side is outside the loop (out: ±1
  * along the yaw's right-hand normal). It runs clockwise seen from above.

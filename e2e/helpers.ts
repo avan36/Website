@@ -133,7 +133,10 @@ export type IslandDebug = {
   talk(id: string): void;
   boat: { board(): void; leave(): void; info(): { phase: string; pad: { throttle: number; steer: number } } } | null;
   gates(): { id: string; x: number; z: number; open: boolean; swing: number }[];
+  /** The red bus on Little London. */
+  bus(): BusState | null;
 };
+export type BusState = { s: number; v: number; dwell: number; atStop: boolean; held: boolean; x: number; z: number; yaw: number };
 export type WorldHandle = {
   world: { activities: { kind: string; at: { x: number; z: number } }[]; places: { id: string; interior?: unknown }[] };
   geo: { coastRadius(theta: number): number };

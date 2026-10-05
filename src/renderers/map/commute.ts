@@ -1,10 +1,12 @@
-// The commute, in pixels: the railway, the station platform and the quay are
-// painted into the ground once (paintCommute); the station shelter and the
-// red double-decker are sprites like any other; and the train is drawn fresh
-// each frame, pixel by pixel along the track, wherever src/world/train.ts
-// says its cars are.
+// The commute, in pixels: the railway, the station platform, the quay and the
+// bus's road round Little London (with its zebra crossing and the yellow box
+// at the stop) are painted into the ground once (paintCommute); the station
+// shelter and the bus stop are sprites like any other; and the train and the
+// red double-decker are drawn fresh each frame, pixel by pixel, wherever
+// src/world/train.ts and src/world/bus.ts say they are.
 
-import type { Geo } from '../../world/geo';
+import { BUS_LEN, BUS_W } from '../../world/bus';
+import { ROAD_HALF, type Geo } from '../../world/geo';
 import type { CarKind } from '../../world/train';
 import { CAR_LEN } from '../../world/train';
 import { col, nightColor, nightData, Pix, toHex, type Color } from './pixels';
@@ -28,6 +30,12 @@ const KERB = col('#ece6da');
 const BOLLARD = col('#3d3a36');
 const PLATFORM = col('#d3c7b1');
 const PLATFORM_EDGE = col('#f2d24a');
+const TARMAC = col('#5d5852');
+const TARMAC_DARK = col('#55504b');
+const TARMAC_LIGHT = col('#66615b');
+const ROAD_KERB = col('#d8d0c2');
+const ROAD_LINE = col('#f2eee4');
+const BOX_YELLOW = col('#f2c14e');
 
 /** Glass and lamps that glow after dark, here and on the sprites below. */
 const GLASS = col('#3d4f63');
@@ -41,7 +49,9 @@ const LIGHTS = new Map<Color, Color>([
 
 /**
  * Paint the railway (ballast, sleepers, rails, and boards where a path
- * crosses), the station platform and the stone quay into the ground.
+ * crosses), the station platform, the stone quay and the bus's road (tarmac
+ * with a kerb, dashed white edges, a zebra crossing where a path crosses it,
+ * and a yellow box at the stop) into the ground.
  * `codes` are the ground kinds to mark those pixels with.
  */
 export function paintCommute(
@@ -49,7 +59,7 @@ export function paintCommute(
   pix: Pix,
   ground: Uint8Array,
   rect: { x0: number; z0: number; tex: number },
-  codes: { rail: number; quay: number },
+  codes: { rail: number; quay: number; road: number },
 ) {
   const { W, H } = { W: pix.w, H: pix.h };
   const wx = (i: number) => rect.x0 + (i + 0.5) / rect.tex;
@@ -161,6 +171,78 @@ export function paintCommute(
       }
     }
   }
+
+  const road = geo.road;
+  if (road) {
+    const pts = road.points;
+    const n = pts.length;
+    const step = road.length / n;
+    const stop = geo.busStop;
+    let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+    for (const p of pts) (x0 = Math.min(x0, p.x)), (x1 = Math.max(x1, p.x)), (z0 = Math.min(z0, p.z)), (z1 = Math.max(z1, p.z));
+    const edge = ROAD_HALF + 0.16;
+    // Where a painted path crosses the road, a zebra crossing: how far round the road, or none.
+    const zebras: number[] = [];
+    for (let j = Math.max(0, toJ(z0 - 1.5)); j <= Math.min(H - 1, toJ(z1 + 1.5)); j++) {
+      for (let i = Math.max(0, toI(x0 - 1.5)); i <= Math.min(W - 1, toI(x1 + 1.5)); i++) {
+        const x = wx(i);
+        const z = wz(j);
+        // Nearest segment: how far along the loop, and how far to one side.
+        let best = Infinity;
+        let along = 0;
+        let side = 0;
+        for (let k = 0; k < n; k++) {
+          const a = pts[k];
+          const b = pts[(k + 1) % n];
+          const dx = b.x - a.x;
+          const dz = b.z - a.z;
+          const L2 = dx * dx + dz * dz;
+          const t = Math.max(0, Math.min(1, ((x - a.x) * dx + (z - a.z) * dz) / L2));
+          const px = a.x + dx * t - x;
+          const pz = a.z + dz * t - z;
+          const d2 = px * px + pz * pz;
+          if (d2 < best) {
+            best = d2;
+            along = (k + t) * step;
+            side = (dx * (z - a.z) - dz * (x - a.x)) / Math.sqrt(L2);
+          }
+        }
+        const d = Math.abs(side);
+        if (d > edge) continue;
+        const k = j * W + i;
+        if (d < ROAD_HALF && ground[k] === codes.road && !zebras.some((s) => Math.abs(s - along) < 3)) zebras.push(along);
+        ground[k] = codes.road;
+        const e = hash2(i, j, 71);
+        let c = d > ROAD_HALF ? ROAD_KERB : e < 0.16 ? TARMAC_DARK : e > 0.92 ? TARMAC_LIGHT : TARMAC;
+        if (Math.abs(d - (ROAD_HALF - 0.16)) < 0.06 && (along / 1.2) % 1 < 0.66) c = ROAD_LINE;
+        // The yellow box where the bus pulls in, along the kerb at the stop.
+        if (stop) {
+          const a = Math.abs(((along - stop.s + road.length / 2) % road.length + road.length) % road.length - road.length / 2);
+          const outside = side * stop.out < 0 ? 1 : -1; // side is + to the left of the way the road runs, and the stop is on the kerb outside
+          const inBox = outside > 0 && d < ROAD_HALF - 0.1 && d > ROAD_HALF - 1.25;
+          if (inBox && (Math.abs(a - (BUS_LEN / 2 + 0.3)) < 0.07 || (a < BUS_LEN / 2 + 0.3 && Math.abs(d - (ROAD_HALF - 1.2)) < 0.06))) c = BOX_YELLOW;
+        }
+        pix.data[k] = c;
+      }
+    }
+    // The zebra crossings: stripes along the road, side by side from kerb to kerb.
+    for (const s0 of zebras) {
+      const c = road.at(s0);
+      const ux = Math.sin(c.yaw);
+      const uz = Math.cos(c.yaw);
+      for (let j = toJ(c.z - 2); j <= toJ(c.z + 2); j++) {
+        for (let i = toI(c.x - 2); i <= toI(c.x + 2); i++) {
+          if (i < 0 || j < 0 || i >= W || j >= H) continue;
+          const dx = wx(i) - c.x;
+          const dz = wz(j) - c.z;
+          const a = dx * ux + dz * uz; // along the road
+          const b = dx * uz - dz * ux; // across it
+          if (Math.abs(a) > 0.65 || Math.abs(b) > ROAD_HALF - 0.08) continue;
+          if (((b + ROAD_HALF) / 0.42) % 1 < 0.52) pix.data[j * W + i] = ROAD_LINE;
+        }
+      }
+    }
+  }
 }
 
 // ---------- Sprites ----------
@@ -172,55 +254,83 @@ function finish(p: Pix, ax: number, ay: number): Sprite {
 
 const BUS_RED = col('#d0232c');
 const BUS_RED_DARK = col('#a3161f');
-const BUS_RED_LIGHT = col('#ef4a4f');
 const CREAM = col('#efe4c8');
-const TYRE = col('#26262a');
-const HUB = col('#b9bcc2');
 
-/** The red double-decker, side on, nose to the east. Anchored on the middle of its kerbside wheels. */
-export function bus(): Sprite {
-  const L = 34;
-  const p = new Pix(L + 2, 26);
-  // Roof (seen a little from above), body, cream band between the decks, skirt.
-  p.rect(2, 1, L - 3, 4, BUS_RED_LIGHT);
-  p.rect(1, 4, L - 1, 17, BUS_RED);
-  p.hline(1, L - 1, 12, CREAM);
-  p.rect(1, 19, L - 1, 2, BUS_RED_DARK);
-  // Upper deck windows.
-  for (let x = 3; x < L - 3; x += 5) {
-    p.rect(x, 6, 4, 4, GLASS);
-    p.px(x, 6, GLASS_SHINE);
-  }
-  // Lower deck windows, then the open platform at the back (west end).
-  for (let x = 7; x < L - 6; x += 5) {
-    p.rect(x, 14, 4, 4, GLASS);
-    p.px(x, 14, GLASS_SHINE);
-  }
-  p.rect(1, 13, 4, 7, col('#3a2e2a'));
-  p.vline(4, 13, 19, CREAM);
-  // Cab window and a headlamp at the front.
-  p.rect(L - 4, 14, 3, 4, GLASS);
-  p.px(L - 1, 19, HEADLAMP);
-  p.px(L - 1, 18, HEADLAMP);
-  // A destination blind above the cab, blank but lit.
-  p.rect(L - 6, 10, 5, 1, HEADLAMP);
-  // Wheels.
-  for (const cx of [7, L - 7]) {
-    p.ellipse(cx, 21.5, 3, 3, TYRE);
-    p.rect(cx - 1, 21, 2, 2, HUB);
-  }
-  const s = finish(p, Math.round(L / 2), 24);
-  // A soft shadow under it (painted after the outline, so it stays soft).
-  return withShadow(s, 17, 3);
+/** The bus stop: a red roundel on a pole beside a little shelter with a red roof and a bench. Small and low, so the bus pulled in behind it still shows. Anchored at the shelter's middle. */
+export function busStop(): Sprite {
+  const p = new Pix(18, 17);
+  // The shelter: a red roof on two posts, glass behind, a bench.
+  p.rect(1, 5, 11, 2, BUS_RED);
+  p.hline(1, 11, 7, BUS_RED_DARK);
+  for (const x of [2, 10]) p.vline(x, 8, 15, STEEL);
+  p.rect(3, 8, 7, 5, GLASS);
+  p.px(4, 9, GLASS_SHINE);
+  p.rect(3, 13, 7, 1, BENCH);
+  // The sign on its pole, out by the road: red ring, white bar.
+  p.vline(15, 4, 15, STEEL);
+  p.ellipse(15, 3, 2, 2, BUS_RED);
+  p.hline(13, 17, 3, col('#ffffff'));
+  return finish(p, 6, 15);
 }
 
-function withShadow(s: Sprite, rx: number, ry: number): Sprite {
-  const p = new Pix(s.w, s.h + 2);
-  p.ellipse(s.ax + 0.5, s.ay, rx, ry, SHADOW);
-  const src = new Pix(s.w, s.h);
-  src.data.set(s.data);
-  p.stamp(src, 0, 0);
-  return { ...s, h: p.h, day: p.canvas(), night: p.canvas(nightData(p.data, LIGHTS)), data: p.data };
+const BUS_ROOF_LIGHT = col('#e8454b');
+
+type BusPalette = { roof: string; light: string; dark: string; glass: string; cream: string; ink: string; shadow: string; lamp: string };
+const busDay: BusPalette = { roof: toHex(BUS_RED), light: toHex(BUS_ROOF_LIGHT), dark: toHex(BUS_RED_DARK), glass: toHex(GLASS), cream: toHex(CREAM), ink: toHex(INK), shadow: 'rgba(42,29,16,0.2)', lamp: toHex(HEADLAMP) };
+const busNight: BusPalette = {
+  roof: toHex(nightColor(BUS_RED)),
+  light: toHex(nightColor(BUS_ROOF_LIGHT)),
+  dark: toHex(nightColor(BUS_RED_DARK)),
+  glass: toHex(LIGHTS.get(GLASS)!),
+  cream: toHex(nightColor(CREAM)),
+  ink: toHex(nightColor(INK)),
+  shadow: 'rgba(0,0,10,0.25)',
+  lamp: toHex(LIGHTS.get(HEADLAMP)!),
+};
+
+/**
+ * Draw the red double-decker from above, wherever src/world/bus.ts says it
+ * is: a red roof with a lighter middle, a row of upper-deck windows down each
+ * side, a cream band round the edge of the roof, the windscreen at the front
+ * and two headlamps. `bx`/`by` turn world units into this buffer's pixels.
+ */
+export function drawBus(
+  c: CanvasRenderingContext2D,
+  bus: { x: number; z: number; yaw: number },
+  bx: (x: number) => number,
+  by: (z: number) => number,
+  tex: number,
+  isNight: boolean,
+) {
+  const pal = isNight ? busNight : busDay;
+  const halfL = (BUS_LEN * tex) / 2;
+  const halfW = (BUS_W * tex) / 2;
+  const ux = Math.sin(bus.yaw);
+  const uz = Math.cos(bus.yaw);
+  for (const pass of ['shadow', 'bus'] as const) {
+    // A double-decker is tall: its shadow falls further off than the train's.
+    const ox = bx(bus.x) + (pass === 'shadow' ? 2 : 0);
+    const oy = by(bus.z) + (pass === 'shadow' ? 3 : 0);
+    const step = pass === 'shadow' ? 1 : 0.5;
+    for (let a = -halfL; a <= halfL; a += step) {
+      for (let b = -halfW; b <= halfW; b += step) {
+        let fill: string;
+        if (pass === 'shadow') fill = pal.shadow;
+        else {
+          const edge = Math.abs(b) > halfW - 0.75 || Math.abs(a) > halfL - 0.75;
+          if (edge) fill = a > halfL - 0.75 && Math.abs(b) > halfW - 2.5 && Math.abs(b) < halfW - 0.75 ? pal.lamp : pal.ink;
+          else if (a > halfL - 3.5) fill = pal.glass; // the windscreen, upstairs at the front
+          else if (Math.abs(b) > halfW - 1.75) fill = Math.floor(a + halfL) % 5 < 4 && a > -halfL + 2 ? pal.glass : pal.dark;
+          else if (Math.abs(b) > halfW - 2.5 || Math.abs(a) > halfL - 4.5) fill = pal.cream;
+          else fill = Math.abs(b) < 1 ? pal.light : pal.roof;
+        }
+        c.fillStyle = fill;
+        const px = Math.round(ox + a * ux + b * uz);
+        const py = Math.round(oy + a * uz - b * ux);
+        c.fillRect(px, py, 1, 1);
+      }
+    }
+  }
 }
 
 const STEEL = col('#5c6168');

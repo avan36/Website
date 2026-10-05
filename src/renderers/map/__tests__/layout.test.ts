@@ -88,6 +88,14 @@ describe('layoutStreet', () => {
     expect(street.things.map((t) => t.kind).sort()).toEqual(['bench', 'lamp', 'lamp', 'phone-box', 'pillar-box']);
   });
 
+  it("keeps all of it off the bus's road, its stop and the paths people walk", () => {
+    for (const t of street.things) {
+      expect(geo.roadDist(t.x, t.z), t.kind).toBeGreaterThan(1.5 + t.r);
+      expect(Math.hypot(t.x - geo.busStop!.shelter.x, t.z - geo.busStop!.shelter.z), t.kind).toBeGreaterThan(2);
+      expect(geo.walkDist(t.x, t.z), t.kind).toBeGreaterThan(1 + t.r);
+    }
+  });
+
   it('runs its path from where the bridge comes ashore to the mall door, clear of the building', () => {
     expect(Math.hypot(street.walk[0].x - land.x, street.walk[0].z - land.z)).toBeLessThan(0.01);
     const end = street.walk[street.walk.length - 1];
