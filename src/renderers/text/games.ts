@@ -33,7 +33,7 @@ const NAMES: Partial<Record<GameId, string[]>> = {
   crabs: ['crabs', 'crab', 'crab boop', 'boop', 'whack', 'whack a crab', 'holes'],
   crates: ['crates', 'crate', 'crate stack', 'stack', 'stacking', 'tower', 'crane', 'boxes'],
 };
-/** The games out on the islets, which only the 3D island can reach so far: asked for by name, the adventure says where they are. */
+/** The games out on the islets, which only the 3D island plays so far: asked for by name, the adventure says where they are. */
 const ELSEWHERE: Partial<Record<GameId, string[]>> = {
   bartender: ['ask the bartender', 'bartender game', 'vibes'],
   patterns: ['spot the dark pattern', 'dark pattern', 'dark patterns', 'patterns'],
@@ -68,7 +68,7 @@ export function createTextGames(o: {
     const a = id && world.activities.find((x) => x.game === id);
     if (!id || !a) return null;
     const isle = isletAt(world, a.at);
-    return `${GAME_INFO[id].name} is out on ${isle?.name ?? 'an islet'}, over a bridge that only the 3D island has so far.`;
+    return `${GAME_INFO[id].name} is out on ${isle?.name ?? 'an islet'}, over a bridge. Only the 3D island plays it so far.`;
   }
 
   /** One line for a place's description: what game is played here, and how to start. */
