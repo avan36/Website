@@ -1,9 +1,12 @@
 // The commuter train's timetable and driving, shared by every view that shows
 // it. Pure: it reads the railway from geo.ts and is told each frame how much
-// time passed, whether it's rush hour (src/world/clock.ts) and where the
-// explorer is. While the train runs it laps the loop, stopping at the
-// platform each time round; otherwise it comes round to the platform and
-// waits there. It brakes for anyone standing on the line ahead.
+// time passed, whether it's in service (src/world/clock.ts: all day, resting
+// only in the small hours) and where the explorer is. While the train runs it
+// laps the loop, stopping at the platform for a few seconds each time round;
+// otherwise it comes round to the platform and waits there. It brakes for
+// anyone standing on the line ahead. Every car sits on the track: its bogies
+// are two points on the loop and it faces from the back one to the front one,
+// so the cars bend round the curves one after another.
 
 import type { Geo } from './geo';
 
