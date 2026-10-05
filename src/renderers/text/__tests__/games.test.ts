@@ -68,7 +68,7 @@ describe('the games, in words', () => {
       expect(say(at, 'look'), at).not.toMatch(/PLAY (BARTENDER|PATTERNS|ETYMOLOGY|EVOLUTION)/);
       expect(engine.suggest(engine.initial(at)).map((c) => c.cmd).filter((c) => /^play (bartender|patterns|etymology|evolution)/.test(c)), at).toEqual([]);
     }
-    expect(say('plaza', 'play etymology race')).toMatch(/Etymology race is out on Root Isle, over a bridge that only the 3D island has so far/);
+    expect(say('plaza', 'play etymology race')).toMatch(/Etymology race is out on Root Isle, over a bridge\. Only the 3D island plays it so far/);
     expect(effects(play('plaza', 'play dark patterns').last, 'game')).toEqual([]);
   });
 

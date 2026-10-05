@@ -44,7 +44,7 @@ const colors: Record<string, string> = Object.fromEntries(world.places.map((p) =
   </script>
   <WorldData />
   <main id="main">
-    <IslandStage />
+    <IslandStage words={world.lostWords.length} outfits={world.outfits.length} />
     <ListView wanderers={world.wanderers} islands={Object.fromEntries(world.geography.islets.map((s) => [s.id, s.name]))} />
   </main>
   <WorldUI />

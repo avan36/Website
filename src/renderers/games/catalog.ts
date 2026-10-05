@@ -24,7 +24,7 @@ export interface GameInfo {
   /** How to play, for keys and for touch. */
   keys: string;
   touch: string;
-  /** Where it can be played. The islets' games are only on the 3D island, the one view with bridges out to them so far. */
+  /** Where it can be played. The islets' games are only on the 3D island so far: the map walks out to the islets but doesn't play their games yet, and the text adventure doesn't go there. */
   views: GameView[];
 }
 

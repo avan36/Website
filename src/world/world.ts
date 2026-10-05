@@ -1425,7 +1425,7 @@ const wanderers: WorldInput['wanderers'] = [
     lines: [
       'Hello! Nice day for a walk round the island.',
       "The recycling depot's just there. The belt never stops.",
-      'If you see a silver train, it runs round the east end at rush hour, island time.',
+      'If you see a silver train, it goes round the east end all day, island time.',
       'Mind the crates by the depot. People will try to stack anything.',
     ],
   },

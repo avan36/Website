@@ -1,4 +1,4 @@
-// Skipping stones, off the east beach. Five stones a round. Hold to wind up:
+// Skipping stones, on the north beach along from the lighthouse. Five stones a round. Hold to wind up:
 // a meter swings up and down, and letting go inside its bright band is a
 // perfect throw. Perfect throws in a row skip further (and the meter gets
 // quicker and the band narrower, so a streak is worth protecting). The score
