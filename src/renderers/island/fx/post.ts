@@ -22,12 +22,12 @@ export const FX = {
   },
   tilt: {
     /** The band in focus, as a share of the screen's height, and how gently it gives way to blur. */
-    focus: 0.56,
+    focus: 0.6,
     feather: 0.36,
     /** Phones in portrait see more of the island top to bottom, so keep more of it sharp. */
-    focusPortrait: 0.62,
+    focusPortrait: 0.66,
     /** Strength: 0 is none, 1 full. Inside a building there's no table-top look. */
-    strength: 0.75,
+    strength: 0.55,
   },
   grade: {
     /** Saturation and a gentle S-curve, by day and by night. */
