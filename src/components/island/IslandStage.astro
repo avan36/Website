@@ -6,6 +6,13 @@
 import { person } from '../../data/projects';
 import ViewIcon from './ViewIcon.astro';
 
+/** How many lost words and wardrobe pieces the world holds, for the counts before the shell fills them in. */
+interface Props {
+  words: number;
+  outfits: number;
+}
+const { words, outfits } = Astro.props;
+
 const VIEWS = [
   { id: 'island', name: 'Island', note: 'Walk around it in 3D' },
   { id: 'map', name: 'Map', note: 'A pixel-art map, top-down' },
@@ -58,11 +65,11 @@ const VIEWS = [
         </div>
         <button type="button" class="isl-chip isl-hoard-top" data-hoard-open aria-label="Word hoard">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H11v16H5.5A1.5 1.5 0 0 1 4 18.5Z" /><path d="M20 5.5A1.5 1.5 0 0 0 18.5 4H13v16h5.5a1.5 1.5 0 0 0 1.5-1.5Z" /></svg>
-          <span class="isl-hoard__count" data-hoard-count>0/8</span>
+          <span class="isl-hoard__count" data-hoard-count>0/{words}</span>
         </button>
         <button type="button" class="isl-chip isl-wardrobe-top" data-wardrobe-open aria-label="Wardrobe">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 7.5a2.5 2.5 0 1 1 3.4 2.3c-.6.3-.9.8-.9 1.4V12" /><path d="m12 12 8.6 5.4c1 .6.6 2.1-.6 2.1H4c-1.2 0-1.6-1.5-.6-2.1Z" /></svg>
-          <span class="isl-hoard__count" data-wardrobe-count>0/9</span>
+          <span class="isl-hoard__count" data-wardrobe-count>0/{outfits}</span>
         </button>
         <a class="isl-chip" href="/blog">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16Z" /><path d="M13.5 6.5l4 4" /></svg>
@@ -103,12 +110,12 @@ const VIEWS = [
 
     <button type="button" class="isl-chip isl-chip--icon isl-hoard-fab" data-hoard-open aria-label="Word hoard">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H11v16H5.5A1.5 1.5 0 0 1 4 18.5Z" /><path d="M20 5.5A1.5 1.5 0 0 0 18.5 4H13v16h5.5a1.5 1.5 0 0 0 1.5-1.5Z" /></svg>
-      <span class="isl-hoard__badge" data-hoard-count>0/8</span>
+      <span class="isl-hoard__badge" data-hoard-count>0/{words}</span>
     </button>
 
     <button type="button" class="isl-chip isl-chip--icon isl-wardrobe-fab" data-wardrobe-open aria-label="Wardrobe">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 7.5a2.5 2.5 0 1 1 3.4 2.3c-.6.3-.9.8-.9 1.4V12" /><path d="m12 12 8.6 5.4c1 .6.6 2.1-.6 2.1H4c-1.2 0-1.6-1.5-.6-2.1Z" /></svg>
-      <span class="isl-hoard__badge" data-wardrobe-count>0/9</span>
+      <span class="isl-hoard__badge" data-wardrobe-count>0/{outfits}</span>
     </button>
 
     <p class="isl-hint" aria-hidden="true">
