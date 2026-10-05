@@ -9,7 +9,6 @@
 // pages are buttons and words (a Panel, built into the card), loaded the first
 // time one is opened. A game with no score skips the start and score cards.
 
-import type { WorldStore } from '../../world/store';
 import { holdable } from '../hold';
 import { gatesOf, type WorldEvent, type WorldStore } from '../../world/store';
 import type { SoundName } from '../types';
