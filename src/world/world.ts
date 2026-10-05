@@ -748,11 +748,6 @@ const tower: InteriorInput = {
           names: ['the kombucha', 'kombucha', 'drinks', 'q3'],
           reply: "The kombucha is a big part of our culture. Q3 is our most forward-looking flavour. I'd love to circle back with tasting notes once we have bandwidth.",
         },
-        {
-          id: 'ping-pong',
-          names: ['the ping-pong table', 'ping-pong', 'ping pong', 'table'],
-          reply: "We're super proud of the ping-pong table. Nobody has played on it yet, but it really moves the needle on optics. Let's take a game offline sometime.",
-        },
       ],
       farewell: "Amazing. Let's touch base soon. Mind the revolving door, it's very agile.",
     },

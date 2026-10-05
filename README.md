@@ -200,7 +200,7 @@ Your progress is saved in this browser: the words you've found, the posts you've
 
 - **Writing** (`/blog`): static, quiet reading, grouped by year, with an RSS feed at `/rss.xml`. Posts are Markdown in `posts/`, edited through Sveltia CMS at `/admin`.
 - **About** (`/about`): my name told the way Etymon tells a word's story, what I care about, and where I've been.
-- **Contact** (`/contact`): a bottle bobbing on the waves and a form that posts to a Cloudflare Worker (`contact-worker/`), which emails me. When you send, the page folds into a paper plane and flies off. There's a guestbook in a bottle too: leave a one-line note, and once I've approved it by hand, it can wash up for someone else (three at random per visit).
+- **Contact** (`/contact`): a bottle bobbing on the waves and a form that posts to a Cloudflare Worker (`contact-worker/`), which emails me, with links to my GitHub and LinkedIn beside it. When you send, the page folds into a paper plane and flies off. There's a guestbook in a bottle too: leave a one-line note, and once I've approved it by hand, it can wash up for someone else (three at random per visit).
 - **The blueprint** (`/blueprint`): the world data laid out on a drafting table. Click anything on the plan for its card and its JSON, browse tabs for every part of the world, and turn over the lost words' flip cards.
 - **The colophon** (`/colophon`): how the site works, in more detail.
 - **The 404** page: lost at sea, with a sailboat bobbing under a question mark.
