@@ -40,6 +40,7 @@ export const FOOT: Record<Prop, { hw: number; hd: number; hang?: boolean; wall?:
   sidetable: { hw: 0.35, hd: 0.35 },
   clock: { hw: 0.35, hd: 0.3 },
   plant: { hw: 0.4, hd: 0.4 },
+  pingpong: { hw: 1.3, hd: 0.75 },
 };
 /** The schoolhouse's desks are a little classroom of them. */
 const SCHOOL_DESKS = { hw: 1.4, hd: 0.85 };

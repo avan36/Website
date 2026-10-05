@@ -75,6 +75,8 @@ const STYLES: Record<string, { wall: string; trim: string; floor: string; floor2
   mall: { wall: '#f5f2ed', trim: '#c8102e', floor: '#eeebe5', floor2: '#dedad2', tiles: 1.5 },
   // Soft and quiet: pale sage walls, the door's green along the skirting, a warm wooden floor.
   townhouse: { wall: '#e3e6d6', trim: '#6f8f7a', floor: '#bf9468', floor2: '#ad845b' },
+  // A lobby: pale stone, polished floor, the tower's blue along the skirting.
+  skyscraper: { wall: '#eceeee', trim: '#4f7ea8', floor: '#e4e2dd', floor2: '#d3d1cb', tiles: 1.5 },
 };
 
 /** The window glass: sky by day, the night outside after dark. */

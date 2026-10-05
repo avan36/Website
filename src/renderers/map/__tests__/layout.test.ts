@@ -27,7 +27,8 @@ describe('layoutPlaces', () => {
 
   it('draws doors along the front wall, on the side the shared door is', () => {
     for (const m of places) {
-      if (!m.boxes.length || m.kind === 'lighthouse') continue;
+      // The lighthouse and the glass tower have one door, in the middle of the front.
+      if (!m.boxes.length || m.kind === 'lighthouse' || m.kind === 'skyscraper') continue;
       const side = Math.sign(m.worldDoor.x - m.place.at.x);
       if (Math.abs(m.worldDoor.x - m.place.at.x) > 0.5) expect(Math.sign(m.doorDx), m.place.id).toBe(side);
       expect(m.door.z).toBeGreaterThan(m.base.z);
@@ -49,6 +50,15 @@ describe('scatterProps', () => {
   it('grows the same island every time', () => {
     expect(scatterProps(w, geo, places)).toEqual(props);
     expect(props.length).toBeGreaterThan(40);
+  });
+
+  it('keeps clear of Foss Hill: nothing through the letters or the flag, nothing in front of the letters', () => {
+    expect(geo.signs.length).toBeGreaterThan(0);
+    for (const p of props) {
+      expect(geo.signDist(p.x, p.z), `${p.kind} at ${p.x}, ${p.z}`).toBeGreaterThan(1.4);
+      for (const f of geo.flags) expect(Math.hypot(p.x - f.x, p.z - f.z)).toBeGreaterThan(1.4);
+      for (const l of geo.signs[0].letters) expect(Math.abs(p.x - l.x) < 1.2 && p.z - l.z > -1 && p.z - l.z < 1.5, `${p.kind} in front of ${l.ch}`).toBe(false);
+    }
   });
 
   it('only plants on dry, open ground', () => {

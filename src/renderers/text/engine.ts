@@ -59,6 +59,8 @@ export type EngineState = {
   /** Outfit pieces unlocked, and what's being worn (also mirrors of the store). */
   wardrobe: string[];
   worn: Partial<Record<OutfitSlot, string>>;
+  /** Gates across the bridges that are open for you (a mirror of the store too). */
+  gates: string[];
   /** Scenery you've examined once that hides a word ("place/scenery"): look again and you find it. */
   noticed: string[];
   /** The last thing you looked at, for "search it". */
@@ -201,11 +203,32 @@ export function createEngine(world: World, geo: Geo, { random = Math.random, now
 
   // ---------- Moving ----------
 
-  /** The bridge out to the islet a place stands on (null on the main island), by the name you'd know it by. */
-  const bridgeTo = (pl: Place) => {
+  /** The bridges out to the islet a place stands on, in order from the main island (none on the main island). */
+  const bridgesTo = (pl: Place) => {
     const isle = geo.islandOf(pl.at.x, pl.at.z);
-    const b = isle ? geo.bridges.find((x) => x.joins.includes(isle) && x.joins.includes(0)) : undefined;
-    return b ? (b.style === 'tower' ? 'Tower Bridge' : 'the footbridge') : null;
+    if (!isle) return [];
+    const seen = new Map<number, Geo['bridges']>([[0, []]]);
+    const queue = [0];
+    while (queue.length) {
+      const at = queue.shift()!;
+      for (const b of geo.bridges) {
+        const next = b.joins[0] === at ? b.joins[1] : b.joins[1] === at ? b.joins[0] : -1;
+        if (next >= 0 && !seen.has(next)) (seen.set(next, [...seen.get(at)!, b]), queue.push(next));
+      }
+    }
+    return seen.get(isle) ?? [];
+  };
+  /** The way out to the islet a place stands on (null on the main island), by the names you'd know its bridges by. */
+  const bridgeTo = (pl: Place, back = false) => {
+    const names = bridgesTo(pl).map((b) => (b.style === 'tower' ? 'Tower Bridge' : b.joins.includes(0) ? 'the footbridge' : 'the long bridge'));
+    return names.length ? andList(back ? names.reverse() : names) : null;
+  };
+  /** A gate between you and a place that isn't open for you yet. */
+  const shut = (s: EngineState, to: Place) => {
+    const here = place(s.at);
+    const from = geo.islandOf(here.at.x, here.at.z) ?? 0;
+    const there = geo.islandOf(to.at.x, to.at.z) ?? 0;
+    return geo.gatesBetween(from, there).find((g) => !s.gates.includes(g.id)) ?? null;
   };
 
   function narrate(legs: Leg[]): Span[] {
@@ -223,7 +246,7 @@ export function createEngine(world: World, geo: Geo, { random = Math.random, now
       return `${how}${dir} ${arrive}`;
     });
     const from = place(legs[0].from);
-    const back = bridgeTo(from);
+    const back = bridgeTo(from, true);
     const leave = from.archetype === 'pier' ? 'You walk back along the pier, then ' : back ? `You walk back over ${back}, then ` : 'You ';
     const body = parts.length === 1 ? parts[0] : `${parts.slice(0, -1).join(', ')}, then ${parts[parts.length - 1]}`;
     return [cap(`${leave}${body}.`)];
@@ -238,6 +261,8 @@ export function createEngine(world: World, geo: Geo, { random = Math.random, now
     }
     const legs = travel.route(s.at, toId);
     if (!legs) return result(s, [say(`There's no way to ${ref(to)} from here.`)]);
+    const gate = shut(s, to);
+    if (gate) return atTheGate(s, gate, to);
     const out: Block[] = [];
     if (s.fishing) out.push(dim('You reel in your line and leave the pier.'));
     if (s.inside) out.push(dim(`You say goodbye and head back out of ${ref(place(s.at))}.`));
@@ -254,6 +279,30 @@ export function createEngine(world: World, geo: Geo, { random = Math.random, now
       return result(r.state, [...out, ...gifted, ...r.out], [...effects, ...r.effects]);
     }
     return result(next, [...out, ...describe(next, to), ...gifted], effects);
+  }
+
+  /** Turned back at a gate that's still shut: the greeter at its desk, and how to get through. */
+  function atTheGate(s: EngineState, gate: Geo['gates'][number], to: Place): Result {
+    const desk = world.activities.find((a) => a.game === gate.game);
+    const isle = geo.islands[gate.side];
+    const over = bridgeTo(to)?.split(' and ')[0] ?? 'the bridge';
+    const play = `play ${gate.game}`;
+    return result(s, [
+      p(`You head over ${over} to ${isle?.name ?? 'the islet'}, as far as ${gate.name}. A turnstile stands across the long bridge, and it isn't turning for you yet.`),
+      p(`The greeter at the security desk beams at you. “Love the energy! Before I can badge you through, let's align on vocabulary.”`, ' ', ...md(`[Speak corporate](${play}) to get through.`)),
+      dim(`${desk?.description ?? ''} You wander back the way you came while you think it over.`.trim()),
+    ]);
+  }
+
+  /** A gate just opened (the page says when): say so, and point the way through. */
+  function opened(s: EngineState, id: string): Result {
+    const gate = geo.gates.find((g) => g.id === id);
+    const past = gate ? world.places.find((pl) => gate.beyond.includes(geo.islandOf(pl.at.x, pl.at.z) ?? -1)) : undefined;
+    if (!gate) return result(s);
+    const gates = s.gates.includes(id) ? s.gates : [...s.gates, id];
+    return result({ ...s, gates }, [
+      { kind: 'p', spans: [`The turnstile beeps and blinks green. You're badged through ${gate.name}, for good. `, ...(past ? [placeSpan(past, cap(ref(past))), ' is waiting at the end of the long bridge.'] : [])], tone: 'alert' },
+    ]);
   }
 
   function goDir(s: EngineState, d: Dir, enterAfter = false): Result {
@@ -1189,6 +1238,7 @@ export function createEngine(world: World, geo: Geo, { random = Math.random, now
       games?: Record<string, { best: number }>;
       wardrobe?: string[];
       worn?: Partial<Record<OutfitSlot, string>>;
+      gates?: string[];
     } = {},
     opts: { inside?: boolean } = {},
   ): EngineState {
@@ -1205,6 +1255,7 @@ export function createEngine(world: World, geo: Geo, { random = Math.random, now
       bestLap: progress.bestLap ?? null,
       wardrobe: progress.wardrobe ?? [],
       worn: progress.worn ?? {},
+      gates: progress.gates ?? [],
       noticed: [],
       it: null,
       fishing: null,
@@ -1300,7 +1351,7 @@ export function createEngine(world: World, geo: Geo, { random = Math.random, now
     return out.map((w) => head + w);
   }
 
-  return { initial, start, run, signal, landed, suggest, complete, describe: (s: EngineState) => (s.inside ? describeRoom(s, place(s.at)) : describe(s, place(s.at))), map: mapBlock };
+  return { initial, start, run, signal, landed, suggest, complete, opened, describe: (s: EngineState) => (s.inside ? describeRoom(s, place(s.at)) : describe(s, place(s.at))), map: mapBlock };
 }
 
 export type Engine = ReturnType<typeof createEngine>;

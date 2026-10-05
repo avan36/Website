@@ -28,8 +28,8 @@ export function buildAmbient() {
     g.scale.setScalar(s);
     group.add(g);
     // Near clouds float above the play camera (they sail past during the intro
-    // and cast drifting shadows); far ones ring the horizon.
-    clouds.push({ g, r: i < 4 ? 12 + rand() * 18 : 50 + rand() * 40, a: rand() * Math.PI * 2, s: 0.012 + rand() * 0.012, y: i < 4 ? 40 + rand() * 6 : 14 + rand() * 10 });
+    // and cast drifting shadows); far ones ring the horizon, out past the furthest islet.
+    clouds.push({ g, r: i < 4 ? 12 + rand() * 18 : 88 + rand() * 40, a: rand() * Math.PI * 2, s: 0.012 + rand() * 0.012, y: i < 4 ? 40 + rand() * 6 : 14 + rand() * 10 });
   }
 
   // Gulls: a body and two wings that flap.

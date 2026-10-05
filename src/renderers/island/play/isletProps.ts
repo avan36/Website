@@ -304,7 +304,42 @@ function sapling(color: string): IsletProp {
   return { root, solid: [{ x: tx, z: tz, r: 0.3 }, { x: 1.55, z: 0.35, r: 0.34 }], glows: { halos: [[tx + 0.2, 0.84, tz + 0.18, 1.0]], pools: [[tx + 0.2, 0.03, tz + 0.4, 1.3]] } };
 }
 
-const PROPS: Partial<Record<GameId, (color: string) => IsletProp>> = { bartender: bar, patterns: billboard, etymology: lectern, evolution: sapling };
+/** Speak corporate: the badge desk by the gate, a curved desk in pale stone with a screen, a VISITORS sign and the greeter behind it, headset on. */
+function badgeDesk(color: string): IsletProp {
+  const root = new Group();
+  const k = new Kit(733);
+  const PALE = '#f1eee8';
+  // The desk, curving round in three pieces, with a band in the game's color.
+  for (const [x, z, ry] of [[0.25, 0.05, 0.35], [0.95, -0.12, 0], [1.65, 0.05, -0.35]] as const) {
+    k.rbox(0.75, 0.9, 0.42, 0.04, PALE, { p: [x, 0.45, z], r: [0, ry, 0] });
+    k.box(0.72, 0.06, 0.44, '#dcd8d0', { p: [x, 0.93, z], r: [0, ry, 0] });
+    k.box(0.7, 0.08, 0.02, color, { p: [x + Math.sin(ry) * 0.21, 0.3, z + Math.cos(ry) * 0.21], r: [0, ry, 0], jitter: 0 });
+  }
+  // A screen on the desk, a little stack of lanyards, a pen on a chain.
+  k.box(0.42, 0.28, 0.03, '#2c3036', { p: [0.75, 1.15, -0.2], r: [-0.15, 0.1, 0] });
+  k.box(0.06, 0.18, 0.06, '#8b9198', { p: [0.75, 1.0, -0.24] });
+  for (let i = 0; i < 3; i++) k.box(0.18, 0.02, 0.22, ['#b8508a', '#f2c14e', '#4f7ea8'][i], { p: [1.45, 0.97 + i * 0.022, 0.0], r: [0, 0.3 + i * 0.2, 0], jitter: 0 });
+  // The greeter: a little islander behind the desk, in a fleece vest, with a headset.
+  k.cyl(0.2, 0.24, 0.62, '#6b7684', { p: [1.0, 0.95, -0.55] }, 10);
+  k.sphere(0.2, '#f2d3a2', { p: [1.0, 1.45, -0.55] }, 12, 8);
+  k.box(0.04, 0.05, 0.22, '#2c3036', { p: [1.0, 1.62, -0.55] });
+  for (const s of [-1, 1]) k.sphere(0.05, '#2c3036', { p: [1.0 + s * 0.19, 1.48, -0.55] }, 6, 4);
+  k.box(0.02, 0.02, 0.14, '#2c3036', { p: [0.88, 1.4, -0.43], r: [0, 0.6, 0] });
+  // A sign on a stand: VISITORS, and a stanchion with a little rope, for a queue of one.
+  k.cyl(0.03, 0.03, 1.1, '#8b9198', { p: [2.45, 0.55, 0.35] }, 6);
+  k.cyl(0.14, 0.16, 0.04, '#8b9198', { p: [2.45, 0.02, 0.35] }, 10);
+  k.rbox(0.5, 0.26, 0.03, 0.02, color, { p: [2.45, 1.12, 0.36] });
+  k.box(0.38, 0.05, 0.02, '#fbf6ec', { p: [2.45, 1.12, 0.38], jitter: 0 });
+  for (const x of [-0.45, 0.3]) {
+    k.cyl(0.03, 0.03, 0.8, '#c9a227', { p: [x, 0.4, 0.75] }, 6);
+    k.sphere(0.05, '#c9a227', { p: [x, 0.82, 0.75] }, 6, 4);
+  }
+  k.beam([-0.45, 0.72, 0.75], [0.3, 0.72, 0.75], 0.04, 0.04, color, 0);
+  root.add(k.build());
+  return { root, solid: [{ x: 0.95, z: -0.15, r: 0.85 }, { x: 2.45, z: 0.35, r: 0.15 }] };
+}
+
+const PROPS: Partial<Record<GameId, (color: string) => IsletProp>> = { bartender: bar, patterns: billboard, etymology: lectern, evolution: sapling, jargon: badgeDesk };
 
 /** The prop for an islet game (null for the main island's own three). */
 export function isletProp(id: GameId, color: string): IsletProp | null {

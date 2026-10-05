@@ -34,7 +34,7 @@ import { Prompt, type PromptText } from './play/prompt';
 import { LostWords } from './play/words';
 import { Portal } from './play/portal';
 import { createBoating, type Boating } from './play/boating';
-import type { GameId } from '../games/catalog';
+import { isGame, type GameId } from '../games/catalog';
 import { PORTAL_NEXT } from '../portal';
 import { buildAmbient } from './world/ambient';
 import { buildCommute } from './world/commute';
@@ -47,15 +47,18 @@ import { Puffs } from './world/particles';
 import { Ripples } from './world/ripples';
 import { buildBuoys } from './world/buoys';
 import { buildBridges } from './world/bridges';
+import { Gates } from './play/gate';
 import { buildLondon } from './world/london';
+import { buildFossHill } from './landmarks/fossHill';
 import { ROWBOAT } from './landmarks/builders';
-import { ACTIVITIES, groundAt, heightAt, HUB, isSwimmable, isWalkable, LAND, LAND_OUTLINE, nextStop, PIER, PLACES, placeOf, PLAZA, SPAWN, swimRoom, WANDERERS, WORDS } from './world/shape';
+import { ACTIVITIES, GATES, groundAt, heightAt, HUB, isSwimmable, isWalkable, LAND, LAND_OUTLINE, nextStop, PIER, PLACES, placeOf, PLAZA, SPAWN, swimRoom, WANDERERS, WORDS } from './world/shape';
 import { Wanderers } from './play/wanderers';
 import { fitScale, frameRoom } from './interior/frame';
 import { buildInterior, type Interior } from './interior/room';
-import { buildHeightTexture, buildTerrain, pressGround } from './world/terrain';
+import { buildHeightTexture, buildTerrain, pressGround, TERRAIN_SIZE } from './world/terrain';
 import { buildSky, HORIZON } from './world/sky';
 import { buildWater, waveHeight } from './world/water';
+import { holdable } from '../hold';
 import { clamp, damp, easeInCubic, easeInOutCubic, easeOutBack, easeOutCubic, lerp, wrapAngle } from './util/math';
 
 export interface GameOptions {
@@ -143,6 +146,7 @@ export interface GameHandle {
     boat: Boating['debug'] | null;
     /** The mini-games: each spot, whether its prompt is up, and playing one (walking over first if need be). */
     games: () => { id: GameId; x: number; z: number; stand: { x: number; z: number }; open: boolean }[];
+    gates: () => { id: string; x: number; z: number; open: boolean; swing: number }[];
     play: (id: GameId) => void;
     /** People out walking: where each is, whether they're walking, whether their prompt is up, and how many lines they've said. */
     wanderers: () => { id: string; x: number; z: number; moving: boolean; open: boolean; visible: boolean; said: number }[];
@@ -266,7 +270,8 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
   island.add(terrain);
   const nature = buildNature(uniforms, mobile);
   island.add(nature.group);
-  const height = buildHeightTexture();
+  // The seabed's texture reaches a little past the land, so the shallows round the furthest islets are baked in too.
+  const height = buildHeightTexture(380, TERRAIN_SIZE * 1.26);
   const water = buildWater(height, sunDir);
   scene.add(water.mesh);
   const ambient = buildAmbient();
@@ -283,9 +288,15 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
   // The bridges out to the islets (Tower Bridge lands on the quay, whose bollards stand aside for it).
   const bridges = buildBridges();
   island.add(bridges.group);
+  // The badge gate on the long bridge out to Synergy Isle: shut until you speak corporate.
+  const gates = new Gates(GATES, (id) => o.store.open(id));
+  island.add(gates.group);
   // Little London's street furniture, on the way from the bridge to the mall.
   const london = buildLondon();
   island.add(london.group);
+  // FOSS HILL in big letters below the lighthouse, and the small flag on the hilltop.
+  const fossHill = buildFossHill();
+  island.add(fossHill.group);
   const skyline = buildSkyline();
   scene.add(skyline.group);
 
@@ -301,6 +312,8 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     ...commute.colliders,
     ...bridges.colliders,
     ...london.colliders,
+    ...fossHill.colliders,
+    ...gates.colliders,
   ];
 
   const player = new Explorer(puffs, ripples);
@@ -424,7 +437,16 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
   // The mini-games: a prop and a prompt at each spot; the games run in the shared games card.
   // (Loaded on the side, games card and all, to keep the island's own bundle lean.)
   const { MiniGames, playGame } = await import('./play/minigames');
-  const games = new MiniGames(o.labelsHost, { reducedMotion: o.reducedMotion, best: (id) => store.best(id), onPress: (id) => playAt(id) });
+  const games = new MiniGames(o.labelsHost, {
+    reducedMotion: o.reducedMotion,
+    best: (id) => store.best(id),
+    onPress: (id) => playAt(id),
+    // Walk up to a shut gate and its game's prompt opens there too.
+    gate: (x, z) => {
+      const g = gates.near(x, z);
+      return g && isGame(g.game) ? g.game : null;
+    },
+  });
   island.add(games.group);
   colliders.push(...games.colliders);
   /** Walking over to a game to play it (cancelled if you head somewhere else). */
@@ -443,7 +465,7 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
   /** Walking over to talk to someone (following them as they go; cancelled if you head somewhere else). */
   let pendingTalk: { id: string; target: Vector2 } | null = null;
 
-  const night = buildNight({ scene, hemi, sun, sky, water: water.material, ambient, landmarks: [...landmarks, commute, bridges, london, games], extras: [skyline], mobile });
+  const night = buildNight({ scene, hemi, sun, sky, water: water.material, ambient, landmarks: [...landmarks, commute, bridges, london, games, gates], extras: [skyline], mobile });
   scene.add(night.group);
   let nightWant = store.state.progress.night;
   /** Night waits for the last word's card to close, so you see it fall. */
@@ -464,6 +486,8 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
   const unsubscribe = store.subscribe((_, events) => {
     words.sync(store.has);
     dressUp();
+    // A gate opened: its flaps swing back and it stands aside for good.
+    if (events.some((e) => e.type === 'gate')) for (const c of gates.sync(store.open)) colliders.splice(colliders.indexOf(c) >>> 0, 1);
     for (const e of events) {
       if (e.type === 'hoard-complete') nightHold = true;
       if (e.type === 'night') nightWant = e.on;
@@ -1027,6 +1051,10 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
   stage.addEventListener('gesturechange', onGestureChange);
   stage.addEventListener('gestureend', onGestureEnd);
   canvas.addEventListener('contextmenu', onContextMenu);
+  // Everything on the canvas is read from pointer events, so its touches can be
+  // cancelled: a thumb held on the water (the boat's stick, a long jump) never
+  // selects text or brings up the magnifier on a phone.
+  const unhold = holdable(canvas, { touch: true });
   window.addEventListener('keydown', onKeyDown);
   window.addEventListener('keyup', onKeyUp);
   window.addEventListener('blur', onBlur);
@@ -1881,7 +1909,9 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     // Out walking: they stop for you on the island, and keep out of a building's room while it's open.
     const openRoom = roomId ? byId.get(roomId)?.place : null;
     walkers.update(dt, state === 'play' ? { x: player.pos.x, z: player.pos.z } : null, openRoom ? { x: openRoom.x, z: openRoom.z, r: 11 } : null);
+    gates.update(dt, o.reducedMotion);
     ambient.update(time);
+    fossHill.update(o.reducedMotion ? 0 : time);
 
     // Night falls (or lifts). After the last word it waits for the card to close.
     if (nightHold && !words.picking && !dialog?.open) nightHold = false;
@@ -1890,7 +1920,8 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     const now = performance.now();
     if (now - clockAt > 1000) (clockAt = now), tickClock();
     night.update(time, dt, o.reducedMotion);
-    commute.update(state === 'intro' ? 0 : dt, commuting, player.pos);
+    // The train keeps going behind the intro too, so it's already on its way round when you look.
+    commute.update(dt, commuting, player.pos);
 
     // Click marker
     if (markerT < 1) {
@@ -2083,6 +2114,7 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     stage.removeEventListener('gesturechange', onGestureChange);
     stage.removeEventListener('gestureend', onGestureEnd);
     canvas.removeEventListener('contextmenu', onContextMenu);
+    unhold();
     window.removeEventListener('keydown', onKeyDown);
     window.removeEventListener('keyup', onKeyUp);
     window.removeEventListener('blur', onBlur);
@@ -2095,6 +2127,7 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     prompt?.dispose();
     games.dispose();
     walkers.dispose();
+    gates.dispose();
     bridges.dispose();
     portal?.dispose();
     words.dispose();
@@ -2197,6 +2230,7 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
       },
       boat: boating?.debug ?? null,
       games: () => games.list(),
+      gates: () => gates.list(),
       play: (id: GameId) => playAt(id),
       wanderers: () => walkers.list(),
       talk: (id: string) => talkTo(id),

@@ -85,10 +85,10 @@ export const ScenerySchema = z
   })
   .strict();
 
-export const ARCHETYPES = ['plaza', 'cabin', 'taproom', 'tree', 'library', 'lighthouse', 'schoolhouse', 'depot', 'mall', 'townhouse', 'workshop', 'pier', 'bottle'] as const;
+export const ARCHETYPES = ['plaza', 'cabin', 'taproom', 'tree', 'library', 'lighthouse', 'schoolhouse', 'depot', 'mall', 'townhouse', 'skyscraper', 'workshop', 'pier', 'bottle'] as const;
 
 /** The archetypes that are buildings you can walk into. */
-export const BUILDINGS = ['cabin', 'taproom', 'library', 'lighthouse', 'schoolhouse', 'depot', 'mall', 'townhouse'] as const;
+export const BUILDINGS = ['cabin', 'taproom', 'library', 'lighthouse', 'schoolhouse', 'depot', 'mall', 'townhouse', 'skyscraper'] as const;
 
 // ---------- Inside ----------
 // A building's room. Coordinates are in room units (about a metre, like the
@@ -100,7 +100,7 @@ export const BUILDINGS = ['cabin', 'taproom', 'library', 'lighthouse', 'schoolho
 /** A page a line or a thing points at: on this site, or the real thing elsewhere. */
 export const PointerSchema = z.object({ label: z.string(), href: z.string() }).strict();
 
-export const PROPS = ['desk', 'hearth', 'frame', 'board', 'counter', 'bookshelf', 'cabinet', 'lens', 'cat', 'globe', 'scanner', 'crates', 'grill', 'sacks', 'escalator', 'shopfront', 'armchairs', 'sidetable', 'clock', 'plant'] as const;
+export const PROPS = ['desk', 'hearth', 'frame', 'board', 'counter', 'bookshelf', 'cabinet', 'lens', 'cat', 'globe', 'scanner', 'crates', 'grill', 'sacks', 'escalator', 'shopfront', 'pingpong', 'armchairs', 'sidetable', 'clock', 'plant'] as const;
 
 /** Something inside you can look at. */
 export const ThingSchema = z
@@ -168,8 +168,10 @@ export const PlaceSchema = z
      *  colophon: opens the page about how the site itself was made. memory:
      *  somewhere from Ambrose's own life, a building with no page to open:
      *  you go in and look round. quiet: somewhere to sit a while, a building
-     *  with no page to open either, and nothing to show: just a room. */
-    kind: z.enum(['hub', 'project', 'writing', 'contact', 'colophon', 'memory', 'quiet']),
+     *  with no page to open either, and nothing to show: just a room. folly:
+     *  somewhere made up just for fun, a building with no page to open either
+     *  (the glass tower on Synergy Isle). */
+    kind: z.enum(['hub', 'project', 'writing', 'contact', 'colophon', 'memory', 'quiet', 'folly']),
     /** What it physically is. Each renderer maps archetypes to its own art. */
     archetype: z.enum(ARCHETYPES),
     /** The thing it stands for, e.g. "busy beer". */
@@ -238,7 +240,7 @@ export const LostWordSchema = z
   .strict();
 
 /** The island's mini-games. Each renderer that can play one knows it by this id. */
-export const GAMES = ['stones', 'crabs', 'crates', 'bartender', 'patterns', 'etymology', 'evolution'] as const;
+export const GAMES = ['stones', 'crabs', 'crates', 'bartender', 'patterns', 'etymology', 'evolution', 'jargon'] as const;
 
 export const ActivitySchema = z
   .object({
@@ -374,10 +376,47 @@ export const GeographySchema = z
      *  land (or the quay, which is the main island's) straight to another on a
      *  different island. A footbridge is plain planks; a tower bridge stands two
      *  towers in the water, with walkways high between them and chains
-     *  swooping down to either end, like Tower Bridge. Either way you walk the deck. */
+     *  swooping down to either end, like Tower Bridge. Either way you walk the deck.
+     *  A bridge may have a gate: a turnstile where its deck first leaves the
+     *  land at its `from` end, shut until you score `pass` or more at its
+     *  `game` (played at a desk on that side). Once open, it stays open. */
     bridges: z
-      .array(z.object({ from: Vec2, to: Vec2, width: z.number().min(1.6).max(4), deck: z.number(), style: z.enum(['footbridge', 'tower']).default('footbridge') }).strict())
+      .array(
+        z
+          .object({
+            from: Vec2,
+            to: Vec2,
+            width: z.number().min(1.6).max(4),
+            deck: z.number(),
+            style: z.enum(['footbridge', 'tower']).default('footbridge'),
+            gate: z.object({ id: Id, name: z.string(), game: z.enum(GAMES), pass: z.number().int().positive() }).strict().optional(),
+          })
+          .strict(),
+      )
       .default([]),
+    /** Big standing letters on a hillside, like the Hollywood sign: `text` in
+     *  capitals (A to Z and spaces), `height` tall, the line's middle at `at`,
+     *  read by someone standing in front, facing `faces` (0 = south, π/2 =
+     *  east). `name` is what the hill is called in words; `place` is the place
+     *  it stands by. Each letter stands on the ground beneath it. */
+    signs: z
+      .array(
+        z
+          .object({
+            id: Id,
+            name: z.string(),
+            text: z.string().regex(/^[A-Z]+( [A-Z]+)*$/, 'sign text is capital letters A to Z, a single space between words'),
+            place: Id,
+            at: Vec2,
+            faces: z.number(),
+            height: z.number().min(0.5).max(4),
+          })
+          .strict(),
+      )
+      .default([]),
+    /** Small striped flags on short poles, waving in the wind. Their stripes
+     *  are the --flag-* colors in tokens.css. */
+    flags: z.array(z.object({ at: Vec2 }).strict()).default([]),
     /** Where a new visitor appears. */
     spawn: Vec2,
   })
@@ -446,13 +485,13 @@ export function checkWorld(w: z.infer<typeof WorldSchema> | World): Issue[] {
     places.set(p.id, p);
   });
 
-  // Every place that opens a page says which one, and hubs and memories don't.
+  // Every place that opens a page says which one, and hubs, memories and follies don't.
   w.places.forEach((p, i) => {
+    const pageless = p.kind === 'memory' || p.kind === 'quiet' || p.kind === 'folly';
     if (p.kind === 'hub' && p.href) add(`Hub "${p.id}" shouldn't open a page.`, ['places', i, 'href']);
-    const roomOnly = p.kind === 'memory' || p.kind === 'quiet';
-    if (roomOnly && p.href) add(`"${p.id}" is a ${p.kind} place: it opens no page, so leave out its href.`, ['places', i, 'href']);
-    if (roomOnly && !p.interior) add(`"${p.id}" is a ${p.kind} place, with no page to open: give it a room to walk into instead.`, ['places', i]);
-    if (p.kind !== 'hub' && !roomOnly && !p.href) add(`"${p.id}" needs an href.`, ['places', i, 'href']);
+    if (pageless && p.href) add(`"${p.id}" is a ${p.kind}: it opens no page, so leave out its href.`, ['places', i, 'href']);
+    if (pageless && !p.interior) add(`"${p.id}" is a ${p.kind}, with no page to open: give it a room to walk into instead.`, ['places', i]);
+    if (p.kind !== 'hub' && !pageless && !p.href) add(`"${p.id}" needs an href.`, ['places', i, 'href']);
     if (p.kind === 'project' && !p.project) add(`Project place "${p.id}" needs a project slug.`, ['places', i, 'project']);
   });
   if (w.places.filter((p) => p.kind === 'hub').length !== 1) add('The world needs exactly one hub (where paths meet).', ['places']);
@@ -579,6 +618,12 @@ export function checkWorld(w: z.infer<typeof WorldSchema> | World): Issue[] {
   w.geography.hills.forEach((h, i) => {
     if (!places.has(h.at)) add(`Hill ${i} is at unknown place "${h.at}".`, ['geography', 'hills', i]);
   });
+  const signIds = new Set<string>();
+  (w.geography.signs ?? []).forEach((s, i) => {
+    if (signIds.has(s.id)) add(`Two signs share the id "${s.id}".`, ['geography', 'signs', i, 'id']);
+    signIds.add(s.id);
+    if (!places.has(s.place)) add(`Sign "${s.id}" stands by unknown place "${s.place}".`, ['geography', 'signs', i, 'place']);
+  });
 
   // The ground itself can only be worked out once the places it hangs off are sound.
   const sound =
@@ -633,6 +678,22 @@ function checkGround(w: World): Issue[] {
   geo.islands.forEach((s, i) => {
     if (i && geo.hops(0, i) === Infinity) add(`Islet "${s.id}" can't be reached on foot: add a bridge out to it.`, ['geography', 'islets', i - 1]);
   });
+  // A gate opens with a game you play on its near side, close by, and guards an islet you can't get round it to.
+  const gateIds = new Set<string>();
+  for (const t of geo.gates) {
+    const path = ['geography', 'bridges', t.bridge, 'gate'];
+    if (gateIds.has(t.id)) add(`Two gates share the id "${t.id}".`, [...path, 'id']);
+    gateIds.add(t.id);
+    const desk = w.activities.find((a) => a.kind === 'minigame' && a.game === t.game);
+    if (!desk) add(`Gate "${t.id}" opens with "${t.game}", which isn't played anywhere: add a mini-game for it by the gate.`, [...path, 'game']);
+    else {
+      const isle = geo.islandOf(desk.at.x, desk.at.z);
+      const d = Math.hypot(desk.at.x - t.x, desk.at.z - t.z);
+      if (isle !== null && isle !== t.side) add(`The game that opens gate "${t.id}" is on the far side of it: put "${desk.id}" where you stand before the gate.`, ['activities', w.activities.indexOf(desk), 'at']);
+      else if (d > 8) add(`"${desk.id}" is ${d.toFixed(1)} from gate "${t.id}": keep the game that opens it within 8.`, ['activities', w.activities.indexOf(desk), 'at']);
+    }
+    if (!t.beyond.length) add(`Gate "${t.id}" guards nothing: there's another way round to everything past it.`, path);
+  }
   // Where you can walk to from the plaza: the main island, every islet a bridge
   // reaches, and the decks in between (the pier's and the bridges', walkable but not land).
   const home = geo.islandOf(geo.hub.at.x, geo.hub.at.z) ?? 0;
@@ -652,18 +713,44 @@ function checkGround(w: World): Issue[] {
     else if (!reachable(a.at)) add(`Activity "${a.id}" is on an islet you can't walk to: add a bridge out to it.`, ['activities', i, 'at']);
     else if (a.kind === 'minigame' && geo.bridgeDist(a.at.x, a.at.z) < 2.5) add(`Mini-game "${a.id}" is in the way of a bridge: keep it 2.5 clear.`, ['activities', i, 'at']);
   });
+  // A sign's letters stand on dry land, off every path and clear of places,
+  // doors, bridges and the railway, and never on top of a lost word or a game.
+  const spots = [...w.lostWords.map((l) => ({ what: `the lost word "${l.id}"`, at: l.at })), ...w.activities.map((a) => ({ what: `activity "${a.id}"`, at: a.at }))];
+  const crowds = (x: number, z: number, r: number) => spots.find((s) => Math.hypot(s.at.x - x, s.at.z - z) < r);
+  geo.signs.forEach((s, i) => {
+    const path = ['geography', 'signs', i, 'at'];
+    for (const l of s.letters) {
+      const feet = [-0.5, 0, 0.5].map((k) => ({ x: l.x + l.ax * l.width * k, z: l.z + l.az * l.width * k }));
+      if (feet.some((p) => !geo.isWalkable(p.x, p.z))) add(`Sign "${s.id}"'s ${l.ch} at ${at(l)} is in the sea: move the sign onto land.`, path);
+      else if (feet.some((p) => !geo.isOpenGround(p.x, p.z))) add(`Sign "${s.id}"'s ${l.ch} at ${at(l)} is in the way of a path, a place or a bridge: move the sign to open ground.`, path);
+      const near = feet.map((p) => crowds(p.x, p.z, 1.5)).find(Boolean);
+      if (near) add(`Sign "${s.id}"'s ${l.ch} at ${at(l)} stands on ${near.what}: keep it 1.5 clear.`, path);
+      // The camera looks from the south: a letter just south of a lost word would hide it.
+      const hid = w.lostWords.find((x) => Math.abs(x.at.x - l.x) < l.width / 2 + 0.5 && l.z > x.at.z && l.z - x.at.z < 4);
+      if (hid) add(`Sign "${s.id}"'s ${l.ch} at ${at(l)} hides the lost word "${hid.id}" from the camera: move the sign, or leave a gap in front of the word.`, path);
+    }
+  });
+  geo.flags.forEach((f, i) => {
+    const path = ['geography', 'flags', i, 'at'];
+    if (!geo.isWalkable(f.x, f.z)) add(`Flag ${i} at ${at(f)} is in the sea: move it onto land.`, path);
+    else if (!geo.isOpenGround(f.x, f.z)) add(`Flag ${i} at ${at(f)} is in the way of a path, a place or a bridge: move it to open ground.`, path);
+    else if (geo.signDist(f.x, f.z) < 1) add(`Flag ${i} at ${at(f)} is in a sign's letters: keep it 1 clear.`, path);
+    const near = crowds(f.x, f.z, 1.5);
+    if (near) add(`Flag ${i} at ${at(f)} stands on ${near.what}: keep it 1.5 clear.`, path);
+  });
   issues.push(...checkWalks(w, geo));
   return issues;
 }
 
-/** How far a walk keeps from a building's footprint, a game, the railway and the station. */
-const WALK_CLEAR = { building: 0.8, game: 1.8, rail: 2, station: 3.2, quay: 0.6 };
+/** How far a walk keeps from a building's footprint, a game, the railway, the station, the quay and a sign or a flag. */
+const WALK_CLEAR = { building: 0.8, game: 1.8, rail: 2, station: 3.2, quay: 0.6, sign: 1.2 };
 
 /**
  * Everyone out walking stays on their own island's dry land, waypoint to
  * waypoint and round again: never into the sea or onto a bridge, through a
- * building or a game, across the railway, past the end of a bridge or out
- * onto the quay.
+ * building or a game, across the railway, past the end of a bridge (and its
+ * gate, if it has one), through a sign's letters or a flag, or out onto the
+ * quay.
  */
 function checkWalks(w: World, geo: ReturnType<typeof createGeo>): Issue[] {
   const issues: Issue[] = [];
@@ -695,6 +782,8 @@ function checkWalks(w: World, geo: ReturnType<typeof createGeo>): Issue[] {
         else if (geo.station && Math.hypot(p.x - geo.station.x, p.z - geo.station.z) < WALK_CLEAR.station) problem = `goes over the station at ${at(p)}`;
         else if (geo.quayDist(p.x, p.z) < WALK_CLEAR.quay) problem = `goes out onto the quay at ${at(p)}`;
         else if (!geo.clearOfBridges(p.x, p.z)) problem = `goes across the end of a bridge at ${at(p)}`;
+        else if (geo.signDist(p.x, p.z) < WALK_CLEAR.sign) problem = `goes through a sign's letters at ${at(p)}`;
+        else if (geo.flags.some((f) => Math.hypot(p.x - f.x, p.z - f.z) < WALK_CLEAR.sign)) problem = `goes through a flag at ${at(p)}`;
       }
       if (problem) issues.push({ message: `${v.name}'s walk from waypoint ${j} to ${(j + 1) % n} ${problem}: move a waypoint.`, path: ['wanderers', i, 'walk', j] });
     }

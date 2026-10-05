@@ -1,7 +1,7 @@
 // The commute: a little railway looping round the new land in the east, with
 // a station and a Caltrain in silver and red, and a red London double-decker
-// bus parked on the quay. Both wear their names, painted on. The train keeps island time: it runs on weekday
-// mornings and evenings and waits at the platform the rest of the day (see
+// bus parked on the quay. Both wear their names, painted on. The train keeps island time: it laps the loop all day
+// and into the night, and sleeps at the platform in the small hours (see
 // src/world/clock.ts). At night the windows, the station lamp and the bus's
 // lights glow like the rest of the island.
 //
@@ -384,7 +384,7 @@ export function buildCommute() {
       glass.color.lerpColors(DAY_GLASS, NIGHT_GLASS, smoothstep(0.15, 0.7, n));
     },
     /**
-     * Move the train. `running` is rush hour (it laps, stopping at the
+     * Move the train. `running` is its hours of service (it laps, stopping at the
      * platform); otherwise it comes round to the platform and waits there.
      * It brakes for anyone standing on the line ahead.
      */

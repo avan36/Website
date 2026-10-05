@@ -70,6 +70,22 @@ function paint(id: GameId): Sprite {
     }
     return sprite(p, holes, 15, 17);
   }
+  if (id === 'jargon') {
+    // The badge desk: a curved desk in pale stone with a band of the game's color, a screen, and the greeter behind it, headset on.
+    const p = new Pix(30, 24);
+    sign(p, 3, 23, color);
+    p.rect(13, 3, 7, 7, col('#f2d3a2'));
+    p.hline(13, 19, 3, col('#2c3036'));
+    p.px(12, 6, col('#2c3036'));
+    p.px(20, 6, col('#2c3036'));
+    p.rect(12, 10, 9, 6, col('#6b7684'));
+    p.rect(9, 14, 18, 8, col('#f1eee8'));
+    p.hline(9, 26, 14, col('#ffffff'));
+    p.hline(9, 26, 19, col(color));
+    p.rect(22, 11, 4, 3, col('#2c3036'));
+    p.px(23, 12, col('#9cd2e8'));
+    return sprite(p, null, 15, 23);
+  }
   const p = new Pix(24, 26);
   sign(p, 3, 25, color);
   const crate = (x: number, y: number, c: string) => {
@@ -115,6 +131,8 @@ export function createMapGames(
     route: () => unknown;
     /** Stand still and face the game. */
     halt: () => void;
+    /** The game that opens a shut gate you're standing at, if any (its tag pops up there too). */
+    gate?: (x: number, z: number) => GameId | null;
   },
 ): MapGames {
   const style = document.createElement('style');
@@ -193,7 +211,7 @@ export function createMapGames(
   function play(id: GameId) {
     if (playing || (document.getElementById('w-dialog') as HTMLDialogElement | null)?.open) return;
     const s = spots.find((x) => x.id === id)!;
-    if (Math.hypot(pos.x - s.stand.x, pos.z - s.stand.z) > RANGE) {
+    if (Math.hypot(pos.x - s.stand.x, pos.z - s.stand.z) > RANGE && o.gate?.(pos.x, pos.z) !== id) {
       const r = o.walk(s.stand.x, s.stand.z);
       pending = r ? { id, route: o.route() } : null;
       if (r) ctx.sound.play('tap');
@@ -254,6 +272,7 @@ export function createMapGames(
           const d = Math.min(Math.hypot(pos.x - s.x, pos.z - s.z), Math.hypot(pos.x - s.stand.x, pos.z - s.stand.z));
           if (d < bestD) (best = s.id), (bestD = d);
         }
+        best ??= o.gate?.(pos.x, pos.z) ?? null;
       }
       if (best && best !== open) {
         ctx.sound.play('pop');
@@ -281,7 +300,9 @@ export function createMapGames(
         tag.classList.add('is-pop');
       }
       const s = spots.find((x) => x.id === id)!;
-      const at = toScreen(s.x, s.z - (s.art.ay + 2) / TEX);
+      // At a gate, the tag sits over you rather than over the desk.
+      const gated = Math.hypot(pos.x - s.x, pos.z - s.z) > RANGE * 2 && o.gate?.(pos.x, pos.z) === id;
+      const at = gated ? toScreen(pos.x, pos.z - 2) : toScreen(s.x, s.z - (s.art.ay + 2) / TEX);
       const vw = root.clientWidth;
       const x = Math.round(Math.min(vw - 12 - size.w / 2, Math.max(12 + size.w / 2, at.x)) - size.w / 2);
       const y = Math.round(Math.max(84 + size.h, at.y - 10) - size.h);

@@ -25,7 +25,7 @@ describe('the content pack', () => {
     expect(pack.play.lostWords.map((x) => x.word)).toEqual(w.lostWords.map((x) => x.word));
     const people = w.places.flatMap((p) => p.interior?.people ?? []);
     expect(pack.play.islanders.map((c) => c.id)).toEqual(people.map((c) => c.id));
-    expect(pack.play.games.map((g) => g.id)).toEqual(['stones', 'crabs', 'crates', 'bartender', 'patterns', 'etymology', 'evolution']);
+    expect(pack.play.games.map((g) => g.id)).toEqual(['stones', 'crabs', 'crates', 'bartender', 'patterns', 'etymology', 'evolution', 'jargon']);
     // A game with no score says so by having no unit.
     expect(pack.play.games.find((g) => g.id === 'bartender')).not.toHaveProperty('unit');
   });

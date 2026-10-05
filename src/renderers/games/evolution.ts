@@ -8,6 +8,7 @@ import { makeRng, randomSeed } from './rules/rng';
 import { ROUND_SIZE, dealRound, feedback, isDone, place, startSort, tally, verdict, type SortState } from './rules/evolutionSorter';
 import { BRANCHES, SPECIES, type BranchId, type Species } from './rules/evolutionSorterData';
 import { el, styleOnce, type GameEnv, type Panel } from './round';
+import { holdable } from '../hold';
 
 /** Pixels of movement before a press becomes a drag. */
 const DRAG_START = 6;
@@ -21,7 +22,7 @@ const STYLE = /* css */ `
   display: grid; justify-items: center; align-content: center; gap: 4px; min-height: 88px; padding: 10px 8px;
   border: 0; border-radius: 14px; background: var(--bg-raised); box-shadow: var(--shadow-1), inset 0 0 0 1px var(--line-strong);
   color: var(--ink); font: inherit; font-weight: 650; text-align: center; cursor: grab;
-  touch-action: none; user-select: none; -webkit-user-select: none;
+  touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent;
   transition: box-shadow var(--dur-2), transform var(--dur-2) var(--ease-spring), opacity var(--dur-2);
 }
 .es__card .e { font-size: 1.9rem; line-height: 1; }
@@ -262,6 +263,8 @@ export function startEvolution(host: HTMLElement, env: GameEnv): Panel {
     t?.classList.add('is-over');
     if (drag) drag.over = t;
   };
+  // A card held to drag doesn't open a menu or select its name (a tap still clicks).
+  holdable(tray);
   tray.addEventListener('pointerdown', (e) => {
     const c = (e.target as HTMLElement).closest<HTMLElement>('.es__card');
     if (!c || e.button !== 0 || drag || over) return;

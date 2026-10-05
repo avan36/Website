@@ -16,8 +16,8 @@ import { heightAt, ISLANDS, pathDist, rockiness } from './shape';
 import { fbm, noise2 } from '../util/noise';
 import { clamp, rng, smoothstep } from '../util/math';
 
-/** The square the land is built over: the main island, the islets off its west coast, and their shelves. */
-export const TERRAIN_SIZE = 112;
+/** The square the land is built over: the main island, the islets off it (Synergy Isle, far out to the south-west, too), and their shelves. */
+export const TERRAIN_SIZE = 140;
 /** How far east the land goes on past that square: out over Little London and its shelf. */
 const EAST = Math.max(TERRAIN_SIZE / 2, ...ISLANDS.map((s) => s.x + s.outer * 1.35));
 
@@ -37,7 +37,7 @@ const C = {
 };
 
 export function buildTerrain() {
-  const N = 154; // about 0.73 a cell
+  const N = 192; // about 0.73 a cell
   const size = TERRAIN_SIZE;
   const cell = size / N;
   // Wider than it is deep when an islet lies off the east end, at the same size of cell.

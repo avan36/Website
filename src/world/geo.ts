@@ -63,6 +63,31 @@ export type Bridge = {
 };
 
 /**
+ * A gate across a bridge: a turnstile where the deck first leaves the land at
+ * its `a` end, shut until the visitor passes its game. `beyond` is the islands
+ * you can only reach through it.
+ */
+export type Gate = {
+  id: string;
+  name: string;
+  game: string;
+  pass: number;
+  /** The bridge it stands on. */
+  bridge: number;
+  /** Where it stands (the middle of the deck), how far along the bridge from its `a` end, and which way through it is (u). */
+  x: number;
+  z: number;
+  along: number;
+  ux: number;
+  uz: number;
+  /** Half the deck's width: the turnstile spans it. */
+  half: number;
+  /** The island you stand on to play its game, and the islands behind it. */
+  side: number;
+  beyond: number[];
+};
+
+/**
  * Height by how far out from an island's middle you are, as a share of its
  * coast's radius there: a grassy plateau, a sandy bank, a gentle beach, then
  * the shelf dropping away to the open sea.
@@ -306,20 +331,40 @@ export function createGeo(world: World) {
   const landing = (b: Bridge, end: 0 | 1): Vec2 =>
     end === 0 ? { x: b.ax - b.ux * LANDING, z: b.az - b.uz * LANDING } : { x: b.bx + b.ux * LANDING, z: b.bz + b.uz * LANDING };
 
-  /** How many bridges it takes to walk from one island to another (Infinity if you can't). */
-  function hops(from: number, to: number) {
+  /** How many bridges it takes to walk from one island to another (Infinity if you can't), optionally not over one bridge. */
+  function hops(from: number, to: number, skip = -1) {
     const seen = new Map([[from, 0]]);
     const queue = [from];
     while (queue.length) {
       const at = queue.shift()!;
       if (at === to) return seen.get(at)!;
       for (const b of bridges) {
+        if (b.i === skip) continue;
         const next = b.joins[0] === at ? b.joins[1] : b.joins[1] === at ? b.joins[0] : null;
         if (next !== null && next >= 0 && !seen.has(next)) (seen.set(next, seen.get(at)! + 1), queue.push(next));
       }
     }
     return Infinity;
   }
+
+  // ---------- Gates ----------
+  // Each stands a step past where its bridge's deck first leaves the land at the `a` end, so there's sea either side of it.
+  const gates: Gate[] = (g.bridges ?? []).flatMap((spec, i) => {
+    if (!spec.gate) return [];
+    const b = bridges[i];
+    let along = Math.min(1.2, b.length / 2);
+    for (let s = 0; s < b.length / 2; s += 0.1) {
+      if (rawHeight(b.ax + b.ux * s, b.az + b.uz * s) < 0) {
+        along = Math.min(s + 1, b.length / 2);
+        break;
+      }
+    }
+    const side = b.joins[0];
+    const beyond = islands.filter((s) => s.i !== side && hops(side, s.i) < Infinity && hops(side, s.i, b.i) === Infinity).map((s) => s.i);
+    return [{ ...spec.gate, bridge: i, x: b.ax + b.ux * along, z: b.az + b.uz * along, along, ux: b.ux, uz: b.uz, half: b.width / 2, side, beyond }];
+  });
+  /** The gates you'd have to pass to walk from one island to another (an island behind a gate is behind it from either side). */
+  const gatesBetween = (from: number, to: number) => gates.filter((t) => t.beyond.includes(to) !== t.beyond.includes(from));
 
   /** The buildings (and the old tree) a walk has to go round: every place but the hub, the pier and the bottle. */
   const solids = world.places.filter((p) => p !== hub && p.archetype !== 'pier' && p.archetype !== 'bottle').map((p) => ({ x: p.at.x, z: p.at.z, r: p.footprint + 0.6 }));
@@ -557,6 +602,13 @@ export function createGeo(world: World) {
   );
   /** Distance to the nearest walk anyone takes (Infinity with nobody out walking). */
   const walkDist = (x: number, z: number) => (walkSegs.length ? segDist(walkSegs, x, z) : Infinity);
+  // ---------- Signs and flags ----------
+  /** Big standing letters on the hills, each laid out along its line. */
+  const signs = (g.signs ?? []).map((s) => ({ ...s, letters: signLetters(s) }));
+  const letterSegs: Segment[] = signs.flatMap((s) => s.letters.map((l) => ({ ax: l.x - l.ax * l.width / 2, az: l.z - l.az * l.width / 2, bx: l.x + l.ax * l.width / 2, bz: l.z + l.az * l.width / 2 })));
+  /** Distance to the nearest sign letter's footing (Infinity with none). */
+  const signDist = (x: number, z: number) => (letterSegs.length ? segDist(letterSegs, x, z) : Infinity);
+  const flags = (g.flags ?? []).map((f) => ({ x: f.at.x, z: f.at.z }));
 
   /** Compass bearing from one point to another: 0 = north, π/2 = east. */
   const bearing = (a: Vec2, b: Vec2) => Math.atan2(b.x - a.x, -(b.z - a.z));
@@ -576,6 +628,9 @@ export function createGeo(world: World) {
     owner: (x: number, z: number) => (islets.length ? owner(x, z).i : 0),
     landing,
     hops,
+    /** The gates across the bridges, and which ones stand between two islands. */
+    gates,
+    gatesBetween,
     nextStop,
     reach,
     swimEdge,
@@ -587,6 +642,9 @@ export function createGeo(world: World) {
     quay,
     quayDist,
     plots,
+    signs,
+    signDist,
+    flags,
     spawn: g.spawn,
     place: (id: string) => byId.get(id),
     coastRadius,
@@ -678,6 +736,36 @@ export function railLoop(r: RailSpec) {
       return { x: p.x, z: p.z, yaw, out };
     },
   };
+}
+
+/** How wide each big letter on a sign is, as a share of its height (the rest are LETTER_W). */
+const LETTER_WIDTHS: Record<string, number> = { I: 0.24, J: 0.5, M: 0.84, W: 0.9, ' ': 0.42 };
+const LETTER_W = 0.62;
+/** The gap between letters, as a share of their height. */
+const LETTER_GAP = 0.2;
+
+/**
+ * Lay out a sign's letters along its line: each letter's middle (x, z), its
+ * width, and the way the line runs (ax, az: left to right for someone in
+ * front of it, reading it). The spaces between words take up room but are
+ * left out.
+ */
+export function signLetters(sign: { text: string; at: Vec2; faces: number; height: number }) {
+  const h = sign.height;
+  const chars = [...sign.text];
+  const widths = chars.map((c) => (LETTER_WIDTHS[c] ?? LETTER_W) * h);
+  const total = widths.reduce((a, b) => a + b, 0) + LETTER_GAP * h * (chars.length - 1);
+  // A sign facing `faces` has its front toward (sin, cos); its line runs along (cos, -sin).
+  const ax = Math.cos(sign.faces);
+  const az = -Math.sin(sign.faces);
+  let s = -total / 2;
+  const out: { ch: string; x: number; z: number; width: number; height: number; ax: number; az: number; yaw: number }[] = [];
+  chars.forEach((ch, i) => {
+    const mid = s + widths[i] / 2;
+    s += widths[i] + LETTER_GAP * h;
+    if (ch !== ' ') out.push({ ch, x: sign.at.x + ax * mid, z: sign.at.z + az * mid, width: widths[i], height: h, ax, az, yaw: sign.faces });
+  });
+  return out;
 }
 
 /** Eight-point compass name for a bearing (0 = north, clockwise). */

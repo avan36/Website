@@ -772,6 +772,95 @@ function townhouse(accent: string, doorDx: number): Landmark {
   return { sprite: finish(p, ax, base, { rx: hw + 2, ry: 3, dy: 2 }), door: { dx: doorDx, dy: -6 }, top: 0, roof: wallTop };
 }
 
+/**
+ * The glass tower on Synergy Isle: very tall, tapering, banded floor by floor
+ * (every floor lit after dark), with a rounded crown and a little cloud of its
+ * own, on a glass lobby between two shorter office blocks.
+ */
+function skyscraper(accent: string): Landmark {
+  const W = 60;
+  const ax = W >> 1;
+  const base = 150;
+  const p = new Pix(W, base + 4);
+  const R = ramp(accent);
+  const SPANDREL = col('#6f8fae');
+  const SPANDREL_D = col('#5a7896');
+  const FIN = col('#eef3f6');
+  const STONE_P = col('#e3ddd2');
+  const STONE_PD = col('#c4bcae');
+  const CLOUD = col('#f7f8fa');
+  const CLOUD_D = col('#dfe4ea');
+  const lobbyTop = base - 16;
+
+  // Two shorter glass office blocks either side, set back a little.
+  const block = (x0: number, x1: number, top: number) => {
+    for (let y = top; y < base - 2; y++) {
+      const floor = (y - top) % 5;
+      p.hline(x0, x1, y, floor === 0 ? SPANDREL : floor === 4 ? SPANDREL_D : GLASS);
+      p.px(x1, y, floor ? SPANDREL_D : SPANDREL);
+    }
+    for (let x = x0 + 3; x < x1; x += 4) p.vline(x, top, base - 3, FIN);
+    p.hline(x0, x1, top, FIN);
+  };
+  block(1, 15, 92);
+  block(45, 58, 108);
+
+  // The tower: floor upon floor of glass, tapering as it rises, shaded on the right.
+  const t0 = 16;
+  for (let y = t0; y < lobbyTop; y++) {
+    const t = (lobbyTop - y) / (lobbyTop - t0);
+    const hw = Math.round(14 - t * 5);
+    const floor = (y - t0) % 4;
+    const glass = floor === 0 ? SPANDREL : GLASS;
+    p.hline(ax - hw, ax + hw - 1, y, glass);
+    p.hline(ax + Math.floor(hw / 2), ax + hw - 1, y, floor === 0 ? SPANDREL_D : glass);
+    p.px(ax - hw, y, FIN);
+    p.px(ax + hw - 1, y, SPANDREL_D);
+    // Fins up the face, catching the light.
+    for (let x = ax - hw + 4; x < ax + hw - 2; x += 5) p.px(x, y, FIN);
+  }
+  // A shine running up the left of the glass.
+  for (let y = t0 + 2; y < lobbyTop - 2; y += 4) p.px(ax - 10 + Math.round(((y - t0) / (lobbyTop - t0)) * 4), y + 1, GLASS_SHINE);
+
+  // The crown: an open, rounded top of fins over a lit lantern.
+  for (let y = 4; y < t0; y++) {
+    const k = (t0 - y) / (t0 - 4);
+    const hw = Math.max(1, Math.round(9 * Math.cos(k * 1.35)));
+    p.hline(ax - hw, ax + hw - 1, y, y % 3 ? LAMP : LAMP_CORE);
+    p.px(ax - hw, y, FIN);
+    p.px(ax + hw - 1, y, FIN);
+    for (let x = ax - hw + 3; x < ax + hw - 2; x += 3) p.px(x, y, FIN);
+  }
+  p.hline(ax - 9, ax + 8, t0, FIN);
+  p.vline(ax, 1, 4, FIN);
+
+  // The lobby: glass between fins, a canopy in the tower's color and a revolving door.
+  p.rect(ax - 18, lobbyTop, 36, base - lobbyTop, GLASS);
+  for (let x = ax - 18; x <= ax + 17; x += 4) p.vline(x, lobbyTop, base - 1, FIN);
+  p.hline(ax - 19, ax + 18, lobbyTop, FIN);
+  p.hline(ax - 19, ax + 18, lobbyTop + 1, STONE_PD);
+  p.rect(ax - 7, base - 13, 14, 2, R[2]);
+  p.hline(ax - 7, ax + 6, base - 13, R[0]);
+  p.rect(ax - 4, base - 10, 8, 10, col('#2f3a44'));
+  p.rect(ax - 3, base - 9, 6, 9, GLASS_SHINE);
+  p.vline(ax, base - 9, base - 1, FIN);
+  // The plaza out front.
+  p.hline(1, W - 2, base, STONE_P);
+  p.hline(1, W - 2, base + 1, STONE_PD);
+  // Planters by the door.
+  for (const x of [ax - 12, ax + 10]) {
+    p.rect(x, base - 4, 4, 4, STONE_DARK);
+    p.ellipse(x + 2, base - 5, 2.5, 2, LEAF);
+  }
+
+  // Its own weather: a little cloud drifting by the crown.
+  p.ellipse(ax + 17, 9, 6, 3, CLOUD);
+  p.ellipse(ax + 13, 8, 4, 3, CLOUD);
+  p.ellipse(ax + 21, 10, 4, 2, CLOUD_D);
+  const lights = new Map<Color, Color>([...LIGHTS, [SPANDREL, SPANDREL], [CLOUD, col('#c9cfdc')], [CLOUD_D, col('#aeb6c6')]]);
+  return { sprite: finish(p, ax, base, { rx: 24, ry: 4, dy: 1 }, undefined, lights), door: { dx: 0, dy: -5 }, top: 0, roof: lobbyTop };
+}
+
 /** Where the workshop's big window goes, given its door: on the other side of the front. */
 function workshopWindow(doorDx: number) {
   const ax = 30;
@@ -928,6 +1017,8 @@ export function paintLandmark(kind: LandmarkKind, accent: string, doorDx: number
       return mall(accent, doorDx);
     case 'townhouse':
       return townhouse(accent, doorDx);
+    case 'skyscraper':
+      return skyscraper(accent);
     case 'workshop':
       return workshop(accent, doorDx);
     case 'postbox':

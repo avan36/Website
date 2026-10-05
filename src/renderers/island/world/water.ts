@@ -72,7 +72,7 @@ export function buildWater(height: { tex: DataTexture; extent: number }, sunDir:
         uExtent: { value: height.extent },
         // Where the baked seabed hands over to the open sea: past the furthest
         // anyone can swim, and inside the texture's square (half of the extent).
-        uFar: { value: new Vector2(height.extent * 0.39, height.extent * 0.48) },
+        uFar: { value: new Vector2(height.extent * 0.42, height.extent * 0.49) },
         uShallow: { value: new Color('#5fe0d0') },
         uMid: { value: new Color('#2fa6c9') },
         uSea: { value: new Color('#2b8fb8') },

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { atIslandTime, commuteHours, dayPart, daylight, formatIslandTime, islandTime, pageClock, parseIslandTime, sunElevation, timeLine } from '../clock';
+import { atIslandTime, dayPart, daylight, formatIslandTime, islandTime, pageClock, parseIslandTime, sunElevation, timeLine, trainHours } from '../clock';
 
 // Instants are written in UTC; the island runs 8 hours behind in winter and 7 in summer.
 const utc = (s: string) => new Date(`${s}Z`);
@@ -83,26 +83,22 @@ describe('daylight', () => {
   });
 });
 
-describe('commute hours', () => {
-  const on = (h: number, m: number, base: string) => commuteHours(atIslandTime(h, m, utc(base)));
-  const weekday = '2026-10-07T19:00:00'; // a Wednesday
-  const saturday = '2026-10-10T19:00:00';
+describe('train hours', () => {
+  const on = (h: number, m: number, base: string) => trainHours(atIslandTime(h, m, utc(base)));
+  const days = ['2026-10-07T19:00:00', '2026-10-10T19:00:00', '2026-10-11T19:00:00']; // a Wednesday, a Saturday, a Sunday
 
-  it('runs on weekday mornings and evenings', () => {
-    expect(on(6, 30, weekday)).toBe(true);
-    expect(on(8, 15, weekday)).toBe(true);
-    expect(on(17, 45, weekday)).toBe(true);
-    expect(on(19, 29, weekday)).toBe(true);
+  it('goes round all day and into the night, every day of the week', () => {
+    for (const day of days) {
+      for (const [h, m] of [[5, 0], [6, 30], [8, 15], [12, 0], [14, 30], [17, 45], [21, 0], [23, 59], [0, 30], [0, 59]]) {
+        expect(on(h, m, day), `${day} ${h}:${m}`).toBe(true);
+      }
+    }
   });
 
-  it('rests in the middle of the day, at night and at weekends', () => {
-    expect(on(6, 29, weekday)).toBe(false);
-    expect(on(9, 30, weekday)).toBe(false);
-    expect(on(12, 0, weekday)).toBe(false);
-    expect(on(19, 30, weekday)).toBe(false);
-    expect(on(23, 0, weekday)).toBe(false);
-    expect(on(8, 0, saturday)).toBe(false);
-    expect(on(17, 0, '2026-10-11T19:00:00')).toBe(false); // Sunday
+  it('sleeps at the platform in the small hours', () => {
+    for (const day of days) {
+      for (const [h, m] of [[1, 0], [2, 30], [3, 0], [4, 59]]) expect(on(h, m, day), `${day} ${h}:${m}`).toBe(false);
+    }
   });
 });
 
@@ -125,9 +121,10 @@ describe('the page clock', () => {
     expect(islandTime(c.date()).minute).toBe(30);
   });
 
-  it('runs the train at rush hour, or as ?commute= says', () => {
+  it('runs the train except in the small hours, or as ?commute= says', () => {
     expect(pageClock('?time=08:00', now).commute(pageClock('?time=08:00', now).date())).toBe(true);
-    expect(pageClock('?time=12:00', now).commute(pageClock('?time=12:00', now).date())).toBe(false);
+    expect(pageClock('?time=12:00', now).commute(pageClock('?time=12:00', now).date())).toBe(true);
+    expect(pageClock('?time=03:00', now).commute(pageClock('?time=03:00', now).date())).toBe(false);
     const forced = pageClock('?time=12:00&commute=on', now);
     expect(forced.commute(forced.date())).toBe(true);
     const off = pageClock('?time=08:00&commute=off', now);
@@ -148,12 +145,12 @@ describe('the time line on the home page', () => {
     expect(dayPart(utc('2026-07-15T01:00:00'))).toBe('evening');
   });
 
-  it('says the time, the sky, and whether the train is running', () => {
-    const night = timeLine(utc('2026-01-16T06:26:00'), { commute: false, night: false });
+  it('says the time, the sky, and when the train is resting', () => {
+    const night = timeLine(utc('2026-01-16T06:26:00'), { commute: true, night: false });
     expect(night.part).toBe('night');
     expect(night.text).toBe("It's 10:26 pm on the island, Pacific time. Night has fallen: the lanterns are lit and the windows glow.");
-    const rush = timeLine(utc('2026-01-15T16:30:00'), { commute: true, night: false });
-    expect(rush.text).toMatch(/^It's 8:30 am on the island, Pacific time\. .* The Caltrain is running\.$/);
+    const late = timeLine(utc('2026-01-15T11:00:00'), { commute: false, night: false });
+    expect(late.text).toMatch(/^It's 3:00 am on the island, Pacific time\. .* The Caltrain is resting at the platform\.$/);
   });
 
   it('owns up when a full word hoard made it night in the daytime', () => {
@@ -165,6 +162,6 @@ describe('the time line on the home page', () => {
   });
 
   it('never uses an em dash', () => {
-    for (const h of [1, 7, 9, 14, 17, 19, 22]) expect(timeLine(atIslandTime(h, 0, utc('2026-04-01T12:00:00')), { commute: true, night: false }).text).not.toContain('—');
+    for (const commute of [true, false]) for (const h of [1, 7, 9, 14, 17, 19, 22]) expect(timeLine(atIslandTime(h, 0, utc('2026-04-01T12:00:00')), { commute, night: false }).text).not.toContain('—');
   });
 });

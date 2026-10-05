@@ -11,7 +11,7 @@ describe('the islets', () => {
   const islets = geo.islands.slice(1);
 
   it('stand out at sea off the main island, with water all round them', () => {
-    expect(islets.map((s) => s.id).sort()).toEqual(['boardwalk-isle', 'little-london', 'root-isle']);
+    expect(islets.map((s) => s.id).sort()).toEqual(['boardwalk-isle', 'little-london', 'root-isle', 'synergy-isle']);
     for (const s of islets) {
       expect(geo.islandOf(s.x, s.z), s.id).toBe(s.i);
       expect(geo.heightAt(s.x, s.z), s.id).toBeGreaterThan(0.8);
@@ -82,9 +82,14 @@ describe('the bridges', () => {
   const w = world();
   const geo = createGeo(w);
 
-  it('each join the main island to an islet, over the sea', () => {
-    expect(geo.bridges).toHaveLength(3);
-    expect(geo.bridges.map((b) => b.joins.join('-')).sort()).toEqual(['0-1', '0-2', '0-3']);
+  it('each join two islands over the sea: the main island to three islets, and Boardwalk Isle on out to Synergy Isle', () => {
+    expect(geo.bridges).toHaveLength(4);
+    expect(geo.bridges.map((b) => b.joins.map((i) => geo.islands[i].id).join(' to ')).sort()).toEqual([
+      'boardwalk-isle to synergy-isle',
+      'main to boardwalk-isle',
+      'main to little-london',
+      'main to root-isle',
+    ]);
     for (const b of geo.bridges) {
       const middle = { x: (b.ax + b.bx) / 2, z: (b.az + b.bz) / 2 };
       expect(geo.heightAt(middle.x, middle.z), `bridge ${b.i}`).toBeLessThan(0);
@@ -156,7 +161,7 @@ describe('walking between islands', () => {
 
   it('goes over the bridges to every game on an islet, and back, without getting wet', () => {
     const games = w.activities.filter((a) => a.kind === 'minigame' && geo.islandOf(a.at.x, a.at.z)! > 0);
-    expect(games).toHaveLength(4);
+    expect(games).toHaveLength(5);
     for (const g of games) {
       const there = walk(geo.hub.at, g.at);
       expect(there, g.id).toEqual({ arrived: true, wet: 0 });
@@ -185,6 +190,43 @@ describe('walking between islands', () => {
   });
 });
 
+describe('the badge gate', () => {
+  const w = world();
+  const geo = createGeo(w);
+  const isle = (id: string) => geo.islands.findIndex((s) => s.id === id);
+  const [gate] = geo.gates;
+
+  it('stands across the long bridge where it leaves Boardwalk Isle, with the sea either side', () => {
+    expect(geo.gates).toHaveLength(1);
+    expect(gate).toMatchObject({ id: 'badge-gate', game: 'jargon', side: isle('boardwalk-isle'), beyond: [isle('synergy-isle')] });
+    const b = geo.bridges[gate.bridge];
+    expect(geo.deckAt(gate.x, gate.z)).toBe(b.i);
+    for (const s of [-1, 1]) expect(geo.heightAt(gate.x + b.uz * s * (b.width / 2 + 0.3), gate.z - b.ux * s * (b.width / 2 + 0.3)), `side ${s}`).toBeLessThan(0);
+  });
+
+  it('stands between Synergy Isle and everywhere else, and nowhere else', () => {
+    expect(geo.gatesBetween(0, isle('synergy-isle')).map((g) => g.id)).toEqual(['badge-gate']);
+    expect(geo.gatesBetween(isle('synergy-isle'), isle('root-isle')).map((g) => g.id)).toEqual(['badge-gate']);
+    expect(geo.gatesBetween(0, isle('boardwalk-isle'))).toEqual([]);
+    expect(geo.gatesBetween(isle('little-london'), isle('root-isle'))).toEqual([]);
+  });
+
+  it('can only be got round by walking through it: nobody can swim from Boardwalk Isle to Synergy Isle', () => {
+    const b = geo.bridges[gate.bridge];
+    let dry = 0;
+    for (let s = 0; s <= b.length; s += 0.25) if (geo.swimRoom(b.ax + b.ux * s, b.az + b.uz * s) < 0) dry += 0.25;
+    // A stretch of open sea under the bridge that no swimmer can cross, with the current turning them back.
+    expect(dry).toBeGreaterThan(3);
+  });
+
+  it('has its game, the badge desk, on Boardwalk Isle a few steps from it', () => {
+    const desk = w.activities.find((a) => a.game === gate.game)!;
+    expect(desk.id).toBe('badge-desk');
+    expect(geo.islandOf(desk.at.x, desk.at.z)).toBe(gate.side);
+    expect(Math.hypot(desk.at.x - gate.x, desk.at.z - gate.z)).toBeLessThan(8);
+  });
+});
+
 describe('the ground holds together (validation)', () => {
   const base = world();
   const text = (w: typeof base) => checkWorld(w).map((i) => i.message).join('\n');
@@ -204,6 +246,26 @@ describe('the ground holds together (validation)', () => {
     const t = text(w);
     expect(t).toMatch(/Islet "root-isle" can't be reached on foot: add a bridge out to it/);
     expect(t).toMatch(/Activity "etymology-race" is on an islet you can't walk to/);
+  });
+
+  it('catches a gate with no game to open it, or its game past it', () => {
+    const w = clone(base);
+    w.activities = w.activities.filter((a) => a.id !== 'badge-desk');
+    expect(text(w)).toMatch(/Gate "badge-gate" opens with "jargon", which isn't played anywhere/);
+    const far = clone(base);
+    far.activities.find((a) => a.id === 'badge-desk')!.at = { x: -55, z: 45 };
+    expect(text(far)).toMatch(/The game that opens gate "badge-gate" is on the far side of it: put "badge-desk" where you stand before the gate/);
+    const away = clone(base);
+    away.activities.find((a) => a.id === 'badge-desk')!.at = { x: -30, z: 10 };
+    expect(text(away)).toMatch(/"badge-desk" is \d+\.\d from gate "badge-gate": keep the game that opens it within 8/);
+  });
+
+  it('catches a gate that guards nothing, because there is another way round it', () => {
+    const w = clone(base);
+    // A second footbridge out to Root Isle, and a gate on the first: you'd just take the other one.
+    w.geography.bridges.push({ ...w.geography.bridges[0], gate: undefined });
+    w.geography.bridges[0].gate = { id: 'pointless', name: 'a pointless gate', game: 'etymology', pass: 1 };
+    expect(text(w)).toMatch(/Gate "pointless" guards nothing: there's another way round to everything past it/);
   });
 
   it('catches an islet that runs into the main island, and a game left in the sea', () => {

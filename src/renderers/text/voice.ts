@@ -22,6 +22,7 @@ export const WAY_IN: Record<Archetype, string> = {
   depot: 'duck under the conveyor and into the depot',
   mall: 'step through the sliding doors into a warm gust of air, and fries',
   townhouse: 'go up the two steps, and the green door opens gently onto a quiet room',
+  skyscraper: 'push through the revolving door, which is very agile, and into the lobby',
   workshop: 'step over the sawdust and into the workshop, where the notes are pinned up',
   pier: 'open the post box and pull out the letters',
   bottle: 'pull out the cork and unroll the note',
@@ -39,6 +40,7 @@ export const INVITE: Record<Archetype, string> = {
   depot: 'look around the depot',
   mall: 'go in',
   townhouse: 'go in and sit for a while',
+  skyscraper: 'step into the lobby',
   workshop: 'read how the island was built',
   pier: "read everything I've posted from here, or [READ] to list it",
   bottle: 'write me a message',
@@ -53,6 +55,7 @@ export const ARRIVE: Partial<Record<Archetype, string>> = {
   workshop: 'across the tracks to the workshop inside the railway loop',
   mall: 'down to the quay, past the bus and over Tower Bridge to the mall',
   townhouse: 'along from the mall to the townhouse with the green door',
+  skyscraper: 'over to Boardwalk Isle, through the badge gate and all the way along the long bridge to the glass tower',
 };
 
 /** One extra line for each place after dark. */
@@ -67,6 +70,7 @@ export const NIGHT: Record<Archetype, string> = {
   depot: 'The conveyor has stopped for the night. Even recycling sleeps.',
   mall: 'The mall is lit up like a ship, and Tower Bridge has its lights on too, a string of them along the walkways.',
   townhouse: 'One lamp is on in the townhouse window, low and warm. The street is very quiet.',
+  skyscraper: 'After dark the tower is a column of lit windows, every floor still on. Somebody up there is always circling back.',
   workshop: 'The workshop is dark except for the monitor, glowing through the window. The cursor is still blinking.',
   pier: 'The sea is black and full of stars, and the fish have come up to look at them.',
   bottle: 'The bottle catches the moonlight. The crab has gone to bed.',

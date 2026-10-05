@@ -18,7 +18,7 @@ import {
 } from 'three';
 import { Kit } from './kit';
 import { LONDON_SPOTS, LONDON_WALK } from './london';
-import { ACTIVITIES, clearOfBridges, heightAt, isOpenGround, ISLANDS, owner, rockiness, PLAZA, PLACES, walkDist, WORDS } from './shape';
+import { ACTIVITIES, clearOfBridges, FLAGS, heightAt, isOpenGround, ISLANDS, owner, rockiness, PLAZA, PLACES, SIGNS, signDist, walkDist, WORDS } from './shape';
 import { rng } from '../util/math';
 
 export interface SharedUniforms {
@@ -365,6 +365,16 @@ export function buildNature(uniforms: SharedUniforms, lite = false) {
   rocks = rocks.filter(offBridges(0));
   tufts = tufts.filter(offBridges(-0.7));
   flowers = flowers.filter(offBridges(-0.5));
+  // Nothing grows through Foss Hill's letters or the flag, and nothing tall stands in front of the letters.
+  const offSigns = (m: number, tall = false) => (p: Spot) =>
+    signDist(p.x, p.z) > m && FLAGS.every((f) => Math.hypot(p.x - f.x, p.z - f.z) > m) && !(tall && SIGNS.some((s) => s.letters.some((l) => p.z > l.z - 0.5 && p.z - l.z < 7 && Math.abs(p.x - l.x) < 1.6)));
+  palms = palms.filter(offSigns(1.8, true));
+  trees = trees.filter(offSigns(2.2, true));
+  pines = pines.filter(offSigns(1.8, true));
+  bushes = bushes.filter(offSigns(0.9));
+  rocks = rocks.filter(offSigns(0.7));
+  tufts = tufts.filter(offSigns(0.3));
+  flowers = flowers.filter(offSigns(0.3));
 
   // (Which trees take which of the two shapes stays as it was, too.)
   const half = Math.ceil(trees.length / 2);
