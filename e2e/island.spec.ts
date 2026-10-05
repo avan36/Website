@@ -3,7 +3,7 @@
 // loop is paused and stepped with tick(), so the physics don't depend on how
 // fast this machine draws.
 import { expect, test, type Page } from '@playwright/test';
-import { homeReady, seed, watchErrors, wordIds, type DebugWindow } from './helpers';
+import { homeReady, phone, seed, watchErrors, wordIds, type DebugWindow } from './helpers';
 
 const me = (page: Page) => page.evaluate(() => (window as DebugWindow).__island!.debug.player());
 const tick = (page: Page, s: number) => page.evaluate((s) => (window as DebugWindow).__island!.debug.tick(s), s);
@@ -177,5 +177,76 @@ test.describe('3D island', () => {
     await homeReady(page);
     expect(await page.evaluate(() => document.documentElement.dataset.view)).toBe('map');
     expect(errors).toEqual([]);
+  });
+
+  test.describe('on a phone', () => {
+    test.use(phone(390));
+
+    test("the boat's buttons hold under a thumb without selecting text or opening a menu", async ({ page }) => {
+      const errors = await openIsland(page);
+      await expect(page.locator('html')).toHaveClass(/\bisl-touch\b/);
+      await page.evaluate(() => (window as DebugWindow).__island!.debug.boat!.board());
+      await tick(page, 0.2);
+      const gas = page.locator('.isl-boat__key[data-key="gas"]');
+      await expect(gas).toBeVisible();
+      await expect(gas).toHaveAccessibleName('Go');
+
+      // Nothing on the HUD or the water can be selected, and the pad and the water take every touch themselves.
+      const css = await page.evaluate(() => {
+        const cs = (s: string) => getComputedStyle(document.querySelector(s)!);
+        const canvas = '.view-host[data-view="island"] canvas';
+        return {
+          keys: [...document.querySelectorAll('.isl-boat__key')].map((k) => [getComputedStyle(k).userSelect, getComputedStyle(k).touchAction]),
+          btn: [cs('.isl-boat__btn').userSelect, cs('.isl-boat__btn').touchAction],
+          time: cs('.isl-boat__time').userSelect,
+          canvas: [cs(canvas).userSelect, cs(canvas).touchAction],
+        };
+      });
+      expect(css.keys).toEqual(Array(4).fill(['none', 'none']));
+      expect(css.btn).toEqual(['none', 'manipulation']);
+      expect(css.time).toBe('none');
+      expect(css.canvas).toEqual(['none', 'none']);
+
+      // A real touch held on Go: the boat is asked to go, the touch is the game's, and nothing gets selected.
+      type Seen = Window & { __touches?: boolean[]; __menus?: boolean[] };
+      await page.evaluate(() => {
+        const w = window as Seen;
+        w.__touches = [];
+        w.__menus = [];
+        document.addEventListener('touchstart', (e) => w.__touches!.push(e.defaultPrevented));
+        document.addEventListener('contextmenu', (e) => w.__menus!.push(e.defaultPrevented));
+      });
+      const b = (await gas.boundingBox())!;
+      const point = { x: b.x + b.width / 2, y: b.y + b.height / 2, id: 1 };
+      const cdp = await page.context().newCDPSession(page);
+      const pad = () => page.evaluate(() => (window as DebugWindow).__island!.debug.boat!.info().pad);
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [point] });
+      await expect.poll(pad).toEqual({ throttle: 1, steer: 0 });
+      await expect(gas).toHaveClass(/\bis-held\b/);
+      // Held a while, and nudged a little, as a thumb does.
+      await gas.dispatchEvent('contextmenu');
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ ...point, x: point.x + 3 }] });
+      await tick(page, 0.6);
+      expect(await pad()).toEqual({ throttle: 1, steer: 0 });
+      expect(await page.evaluate(() => (window as Seen).__touches)).toEqual([true]);
+      expect(await page.evaluate(() => (window as Seen).__menus)).toEqual([true]);
+      expect(await page.evaluate(() => window.getSelection()?.toString() ?? '')).toBe('');
+
+      // Lifted: it lets go cleanly.
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+      await expect.poll(pad).toEqual({ throttle: 0, steer: 0 });
+      await expect(gas).not.toHaveClass(/\bis-held\b/);
+
+      // Two thumbs: go and steer at once, and a cancelled touch lets go too.
+      const left = (await page.locator('.isl-boat__key[data-key="left"]').boundingBox())!;
+      const l = { x: left.x + left.width / 2, y: left.y + left.height / 2, id: 2 };
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [point] });
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [point, l] });
+      await expect.poll(pad).toEqual({ throttle: 1, steer: -1 });
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] });
+      await expect.poll(pad).toEqual({ throttle: 0, steer: 0 });
+      await expect(page.locator('.isl-boat .is-held')).toHaveCount(0);
+      expect(errors).toEqual([]);
+    });
   });
 });

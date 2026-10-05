@@ -35,6 +35,7 @@ import { paintRoom, type MapRoom } from './room';
 import { bus, drawTrain, shelter } from './commute';
 import { daylight, pageClock } from '../../world/clock';
 import { createTrain } from '../../world/train';
+import { holdable } from '../hold';
 
 /** World units per second. */
 const SPEED = 4.6;
@@ -828,6 +829,8 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
   };
 
   canvas.addEventListener('pointerdown', onPointerDown);
+  // Presses are read from pointer events, so a thumb held to steer never selects text on a phone.
+  const unhold = holdable(canvas, { touch: true });
   window.addEventListener('pointermove', onPointerMove);
   window.addEventListener('pointerup', onPointerUp);
   window.addEventListener('pointercancel', onPointerUp);
@@ -2230,6 +2233,7 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
       unsub();
       ro.disconnect();
       canvas.removeEventListener('pointerdown', onPointerDown);
+      unhold();
       window.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerup', onPointerUp);
       window.removeEventListener('pointercancel', onPointerUp);

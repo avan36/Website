@@ -10,6 +10,7 @@
 // time one is opened. A game with no score skips the start and score cards.
 
 import type { WorldStore } from '../../world/store';
+import { holdable } from '../hold';
 import type { SoundName } from '../types';
 import { GAME_INFO, gamesRow, isletAt, isScored, nudge, scoreText, type GameId } from './catalog';
 import { startCrabs } from './crabs';
@@ -51,7 +52,7 @@ const CSS = /* css */ `
 .w-game__stage {
   position: relative; margin: 14px -28px 0; aspect-ratio: 4 / 3; max-height: 62dvh;
   background: #2b8fb8; overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none;
-  -webkit-tap-highlight-color: transparent; outline: none;
+  -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; outline: none;
 }
 .w-game__stage:focus-visible { box-shadow: inset 0 0 0 3px var(--c); }
 .w-game__stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
@@ -374,7 +375,10 @@ export function playGame(id: GameId, o: PlayOptions): () => void {
   stage.addEventListener('pointerdown', onDown);
   stage.addEventListener('pointerup', onUp);
   stage.addEventListener('pointercancel', onUp);
-  if (!load) stage.addEventListener('contextmenu', (e) => e.preventDefault());
+  // A game of taps and holds: a finger held on the stage never selects text or
+  // opens a menu, and once it's playing, its touches are read as pointers only.
+  // Its buttons keep their clicks, and a game of buttons and words is left alone.
+  if (!load) holdable(stage, { touch: (e) => mode === 'play' && !(e.target as HTMLElement).closest('button, a, input') });
   goBtn.addEventListener('click', begin);
   againBtn.addEventListener('click', begin);
   reviewBtn.addEventListener('click', review);

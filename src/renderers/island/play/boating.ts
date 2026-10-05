@@ -408,6 +408,7 @@ export function createBoating(o: BoatingOptions) {
 
   function onBlur() {
     keys.clear();
+    hud.releasePad();
     stick = null;
     hud.stickOff();
   }
@@ -652,6 +653,7 @@ export function createBoating(o: BoatingOptions) {
         ghost: !!ghost,
         ghostShown: ghostMesh.visible,
         cardOpen: hud.cardOpen,
+        pad: { ...hud.pad },
         prompt: promptState,
         player: { x: player.root.position.x, y: player.root.position.y, z: player.root.position.z },
       }),

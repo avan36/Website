@@ -55,6 +55,7 @@ import { buildInterior, type Interior } from './interior/room';
 import { buildHeightTexture, buildTerrain, pressGround } from './world/terrain';
 import { buildSky, HORIZON } from './world/sky';
 import { buildWater, waveHeight } from './world/water';
+import { holdable } from '../hold';
 import { clamp, damp, easeInCubic, easeInOutCubic, easeOutBack, easeOutCubic, lerp, wrapAngle } from './util/math';
 
 export interface GameOptions {
@@ -1001,6 +1002,10 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
   stage.addEventListener('gesturechange', onGestureChange);
   stage.addEventListener('gestureend', onGestureEnd);
   canvas.addEventListener('contextmenu', onContextMenu);
+  // Everything on the canvas is read from pointer events, so its touches can be
+  // cancelled: a thumb held on the water (the boat's stick, a long jump) never
+  // selects text or brings up the magnifier on a phone.
+  const unhold = holdable(canvas, { touch: true });
   window.addEventListener('keydown', onKeyDown);
   window.addEventListener('keyup', onKeyUp);
   window.addEventListener('blur', onBlur);
@@ -2012,6 +2017,7 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     stage.removeEventListener('gesturechange', onGestureChange);
     stage.removeEventListener('gestureend', onGestureEnd);
     canvas.removeEventListener('contextmenu', onContextMenu);
+    unhold();
     window.removeEventListener('keydown', onKeyDown);
     window.removeEventListener('keyup', onKeyUp);
     window.removeEventListener('blur', onBlur);
