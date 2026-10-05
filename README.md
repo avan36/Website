@@ -74,7 +74,7 @@ Everywhere has scenery to look at: in the text adventure you `EXAMINE` it, and i
 
 Nine buildings have a room. In both spatial views the camera eases in, the roof lifts off and the walls sink, and the room appears where the building stood, with the island still round it.
 
-Each room has a few things to look at, some of them linked to the real project, and one or two islanders. Walk up to someone and press E, or tap them. They greet you, offer two to four topics (pick with the arrow keys), and say goodbye when you press Escape. The islanders are made up, and what they say about a project is only what its own page says. In the text adventure it's `ENTER`, `TALK TO JUNIPER`, `ASK OTTO ABOUT THE SCANNER`, `BYE` and `LEAVE`.
+Each room has a few things to look at, some of them linked to the real project, and one or two islanders. Walk up to someone and press E, or tap them. They greet you, offer two to four topics (pick with the arrow keys), and say goodbye when you press Escape, or when you walk off: a step, or a tap on the floor or on someone else, ends the conversation and takes you there. The islanders are made up, and what they say about a project is only what its own page says. In the text adventure it's `ENTER`, `TALK TO JUNIPER`, `ASK OTTO ABOUT THE SCANNER`, `BYE` and `LEAVE`.
 
 ### People out walking
 
@@ -270,7 +270,7 @@ Renderers are loaded with `import()` only when chosen, so someone reading the li
 
 `/?view=map` (or `island`, `text`, `list`) opens a view directly. Add `?debug` to get the world and the island on `window` for poking at.
 
-Inside a building, the spatial views share more: `renderers/roomPlan.ts` is the room as geometry (where you can stand, what's within reach, a path round the furniture), and `renderers/room.ts` is the room's bar, the "Talk to" nudge and the one conversation box (E or Enter to talk, arrows between choices, Escape to close it or leave). In both spatial views the building opens up where it stands: the camera eases in, the roof lifts off and the room appears in its place, with the island still round it. On the map the room is painted by `map/room.ts`, and walking about in it is `map/inside.ts`, a self-contained piece that draws into any 2D canvas at any position and scale. On the island it's `island/interior/`, a Group any three.js scene can mount. The text adventure has `ENTER`, `TALK TO`, `ASK … ABOUT`, `LEAVE`. The store remembers which building you're in, so switching views keeps you inside.
+Inside a building, the spatial views share more: `renderers/roomPlan.ts` is the room as geometry (where you can stand, what's within reach, a path round the furniture), and `renderers/room.ts` is the room's bar, the "Talk to" nudge and the one conversation box (E or Enter to talk, arrows between choices, Escape to close it or leave). The box never holds you: walking off or tapping the room says goodbye, and the renderers call `hush()` before they act on a tap. In both spatial views the building opens up where it stands: the camera eases in, the roof lifts off and the room appears in its place, with the island still round it. On the map the room is painted by `map/room.ts`, and walking about in it is `map/inside.ts`, a self-contained piece that draws into any 2D canvas at any position and scale. On the island it's `island/interior/`, a Group any three.js scene can mount. The text adventure has `ENTER`, `TALK TO`, `ASK … ABOUT`, `LEAVE`. The store remembers which building you're in, so switching views keeps you inside.
 
 ### Shared state
 

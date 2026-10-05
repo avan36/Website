@@ -119,6 +119,50 @@ test.describe('map', () => {
     expect(errors).toEqual([]);
   });
 
+  test('talking to someone in a room never traps you: a tap on the floor or a step says goodbye and walks', async ({ page }) => {
+    const errors = await openMap(page);
+    await closeDialog(page);
+    const room = await page.evaluate(() => {
+      const p = ((window as DebugWindow).__world!.world.places as { id: string; interior?: { people: { id: string; name: string; at: { x: number; z: number } }[] } }[]).find(
+        (x) => x.interior?.people.length,
+      )!;
+      return { id: p.id, person: p.interior!.people[0] };
+    });
+    const inside = () => page.evaluate(() => (window as DebugWindow).__map!.inside());
+    const away = (from: { x: number; z: number }) => async () => {
+      const p = (await inside())!;
+      return Math.hypot(p.x - from.x, p.z - from.z);
+    };
+    const box = page.locator('#w-talk');
+    const talking = `Talking to ${room.person.name}`;
+    expect(await page.evaluate((id) => (window as DebugWindow).__map!.enter(id), room.id)).toBe(true);
+    await page.waitForFunction(() => (window as DebugWindow).__map!.mode() === 'inside', null, { timeout: 20_000 });
+
+    const talk = async () => {
+      expect(await page.evaluate((id) => (window as DebugWindow).__map!.approach(id), room.person.id)).toBe(true);
+      await expect.poll(async () => (await inside())?.busy, { timeout: 20_000 }).toBe(true);
+      await expect(box).toHaveAttribute('aria-label', talking);
+    };
+    await talk();
+
+    // A click on the floor across the room: the conversation closes and you walk there.
+    const from = (await inside())!;
+    const at = await page.evaluate(({ x, z }) => (window as DebugWindow).__map!.roomScreen(x, z), { x: -room.person.at.x * 0.6, z: room.person.at.z + 1.2 });
+    const canvas = (await page.locator('.view-host[data-view="map"] canvas').first().boundingBox())!;
+    await page.mouse.click(canvas.x + at!.x, canvas.y + at!.y);
+    await expect(box).not.toHaveAttribute('aria-label', talking);
+    await expect.poll(away(from), { timeout: 10_000 }).toBeGreaterThan(0.5);
+
+    // And with the keys: talk again, then a step (D) says goodbye and moves you.
+    await talk();
+    const still = (await inside())!;
+    await page.keyboard.down('KeyD');
+    await expect.poll(away(still), { timeout: 10_000 }).toBeGreaterThan(0.3);
+    await page.keyboard.up('KeyD');
+    expect((await inside())!.busy, 'the conversation is closed').toBe(false);
+    expect(errors).toEqual([]);
+  });
+
   test('crosses Tower Bridge from the quay to the mall, dry all the way', async ({ page }) => {
     const errors = await openMap(page);
     await closeDialog(page);

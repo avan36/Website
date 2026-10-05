@@ -86,6 +86,54 @@ test.describe('3D island', () => {
     expect(errors).toEqual([]);
   });
 
+  test('talking to someone in a room never traps you: a tap on the floor or a step says goodbye and walks', async ({ page }) => {
+    const errors = await openIsland(page);
+    const room = await page.evaluate(() => {
+      const p = ((window as DebugWindow).__world!.world.places as { id: string; interior?: { people: { id: string; name: string; at: { x: number; z: number } }[] } }[]).find(
+        (x) => x.interior?.people.length,
+      )!;
+      return { id: p.id, person: p.interior!.people[0] };
+    });
+    const inside = () => page.evaluate(() => (window as DebugWindow).__island!.debug.inside());
+    const box = page.locator('#w-talk');
+    const talking = `Talking to ${room.person.name}`;
+
+    await page.evaluate((id) => (window as DebugWindow).__island!.debug.enter(id), room.id);
+    await expect.poll(async () => (await tick(page, 0.2), (await inside())?.at ?? null), { timeout: 60_000 }).toBe(room.id);
+
+    /** Walk up to the islander, and wait for the conversation to open. */
+    const talk = async () => {
+      expect(await page.evaluate((id) => (window as DebugWindow).__island!.debug.approach(id), room.person.id)).toBe(true);
+      await expect.poll(async () => (await tick(page, 0.2), (await inside())?.busy), { timeout: 30_000 }).toBe(true);
+      await expect(box).toHaveAttribute('aria-label', talking);
+    };
+    await talk();
+
+    // A click on the floor across the room: the conversation closes and you walk there.
+    const from = (await inside())!;
+    const to = { x: -room.person.at.x * 0.6, z: room.person.at.z + 1.2 };
+    await tick(page, 0.1);
+    const at = await page.evaluate(({ x, z }) => (window as DebugWindow).__island!.debug.roomScreen(x, z), to);
+    const canvas = (await page.locator('.view-host[data-view="island"] canvas').first().boundingBox())!;
+    await page.mouse.click(canvas.x + at!.x, canvas.y + at!.y);
+    expect((await inside())!.busy, 'the conversation is closed').toBe(false);
+    await expect(box).not.toHaveAttribute('aria-label', talking);
+    await tick(page, 1.5);
+    const after = (await inside())!;
+    expect(Math.hypot(after.x - from.x, after.z - from.z), 'how far you walked').toBeGreaterThan(0.5);
+
+    // And with the keys: talk again, then a step (D) says goodbye and moves you.
+    await talk();
+    const still = (await inside())!;
+    await page.keyboard.down('KeyD');
+    await tick(page, 0.6);
+    await page.keyboard.up('KeyD');
+    expect((await inside())!.busy, 'the conversation is closed').toBe(false);
+    const moved = (await inside())!;
+    expect(Math.hypot(moved.x - still.x, moved.z - still.z), 'how far the step went').toBeGreaterThan(0.3);
+    expect(errors).toEqual([]);
+  });
+
   test('a footbridge takes you out to an islet, dry, and its game plays in the card', async ({ page }) => {
     const errors = await openIsland(page);
     // Click-to-walk from the plaza to the etymology race on Root Isle: the way goes over a bridge, never through the sea.
