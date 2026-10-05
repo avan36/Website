@@ -53,7 +53,7 @@ export const ARRIVE: Partial<Record<Archetype, string>> = {
   lighthouse: 'out along the rocky headland to the lighthouse',
   tree: 'up the gentle rise to the ancient tree',
   workshop: 'across the tracks to the workshop inside the railway loop',
-  mall: 'down to the quay, past the bus and over Tower Bridge to the mall',
+  mall: 'down to the quay, over Tower Bridge and across the road to the mall',
   townhouse: 'along from the mall to the townhouse with the green door',
   skyscraper: 'over to Boardwalk Isle, through the badge gate and all the way along the long bridge to the glass tower',
 };

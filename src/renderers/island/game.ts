@@ -37,6 +37,7 @@ import { createBoating, type Boating } from './play/boating';
 import { isGame, type GameId } from '../games/catalog';
 import { PORTAL_NEXT } from '../portal';
 import { buildAmbient } from './world/ambient';
+import { buildLondonBus } from './world/bus';
 import { buildCommute } from './world/commute';
 import { buildSkyline } from './world/skyline';
 import { daylight, pageClock } from '../../world/clock';
@@ -159,6 +160,8 @@ export interface GameHandle {
     talk: (id: string) => void;
     /** Island time: how dark the clock and reward make it, and what the train is doing. */
     clock: () => { dark: number; commuting: boolean; train: { s: number; v: number; dwell: number; atStation: boolean } };
+    /** The red bus on Little London: where it is, how fast it's going, and whether it's at the stop or waiting for you. */
+    bus: () => { s: number; v: number; dwell: number; atStop: boolean; held: boolean; x: number; z: number; yaw: number } | null;
   };
 }
 
@@ -171,7 +174,7 @@ type State = 'intro' | 'play' | 'entering' | 'portal' | 'inside' | 'door' | 'boa
 
 const INTRO = 3.0;
 /** How far the view can be zoomed in and out, as a share of the usual distance, and how far Q and E turn it. */
-const ZOOM_MIN = 0.55;
+const ZOOM_MIN = 0.4;
 const ZOOM_MAX = 1.45;
 const TURN_STEP = Math.PI / 4;
 /** How long being drawn into the portal takes, and stepping back out of one. */
@@ -287,7 +290,7 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
   scene.add(ripples.mesh);
   const buoys = buildBuoys();
   scene.add(buoys.group);
-  // The railway, the train, the quay and its bus; and the city across the water.
+  // The railway, the train and the quay; and the city across the water.
   const commute = buildCommute();
   island.add(commute.group);
   // The bridges out to the islets (Tower Bridge lands on the quay, whose bollards stand aside for it).
@@ -299,6 +302,9 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
   // Little London's street furniture, on the way from the bridge to the mall.
   const london = buildLondon();
   island.add(london.group);
+  // And the red bus going round it, its road, its stop and the zebra crossing.
+  const londonBus = buildLondonBus();
+  island.add(londonBus.group);
   // FOSS HILL in big letters below the lighthouse, and the small flag on the hilltop.
   const fossHill = buildFossHill();
   island.add(fossHill.group);
@@ -317,6 +323,8 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     ...commute.colliders,
     ...bridges.colliders,
     ...london.colliders,
+    ...londonBus.colliders,
+    ...londonBus.body,
     ...fossHill.colliders,
     ...gates.colliders,
   ];
@@ -470,7 +478,7 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
   /** Walking over to talk to someone (following them as they go; cancelled if you head somewhere else). */
   let pendingTalk: { id: string; target: Vector2 } | null = null;
 
-  const night = buildNight({ scene, hemi, sun, sky, water: water.material, ambient, landmarks: [...landmarks, commute, bridges, london, games, gates], extras: [skyline], mobile });
+  const night = buildNight({ scene, hemi, sun, sky, water: water.material, ambient, landmarks: [...landmarks, commute, bridges, london, londonBus, games, gates], extras: [skyline], mobile });
   scene.add(night.group);
   let nightWant = store.state.progress.night;
   /** Night waits for the last word's card to close, so you see it fall. */
@@ -556,6 +564,9 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     room?.view(camera, viewW, viewH);
   };
   resize();
+  // Start leaned in close enough to see the explorer and the place ahead; a
+  // narrow portrait view starts a little further out so it still shows the way.
+  rig.zoom = viewW / viewH < 0.8 ? 0.8 : 0.68;
   const ro = new ResizeObserver(resize);
   ro.observe(stage);
 
@@ -657,11 +668,11 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     else if (resume) player.place(resume.x, resume.z, 0, o.reducedMotion ? 0 : 2.4);
     else player.place(SPAWN.x, SPAWN.z, 0);
     rig.target.set(player.pos.x, player.pos.y + 0.8, player.pos.z);
-    rig.dist = baseDist;
+    rig.dist = baseDist * rig.zoom;
     rig.pitch = basePitch;
     if (resume && !arriving && !o.reducedMotion) {
       // A short settle instead of the long swoop: start a little high and drift down.
-      rig.dist = baseDist * 1.3;
+      rig.dist = baseDist * rig.zoom * 1.3;
       rig.pitch = basePitch + 0.12;
     }
     if (p) {
@@ -844,6 +855,8 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
       // In a room: no turning or zooming, just walking over to things.
       if (!e.isPrimary || e.button > 0 || state !== 'inside' || !room) return;
       setNdc(e);
+      // A tap on the room while someone's talking says goodbye, then goes where it was meant to.
+      if (o.ui.room.busy) o.ui.room.hush();
       room.tap(ndc);
       return;
     }
@@ -1663,7 +1676,7 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     const k = easeInOutCubic(clamp(t / (INTRO - 0.1)));
     const tgt = camGoal.set(lerp(0, player.pos.x, k), lerp(0.5, player.pos.y + 0.8, k), lerp(-2, player.pos.z, k));
     rig.target.copy(tgt);
-    rig.dist = lerp(110, baseDist, k);
+    rig.dist = lerp(110, baseDist * rig.zoom, k);
     rig.pitch = lerp(1.0, basePitch, k);
     rig.yaw = lerp(-0.85, 0, k);
     if (t >= INTRO) {
@@ -1933,6 +1946,7 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     night.update(time, dt, o.reducedMotion);
     // The train keeps going behind the intro too, so it's already on its way round when you look.
     commute.update(dt, commuting, player.pos);
+    londonBus.update(dt, player.pos);
 
     // Click marker
     if (markerT < 1) {
@@ -2261,6 +2275,7 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
       wanderers: () => walkers.list(),
       talk: (id: string) => talkTo(id),
       clock: () => ({ dark: night.dark, commuting, train: commute.state() }),
+      bus: () => londonBus.state(),
       screen: (id: string) => {
         const l = byId.get(id);
         if (!l) return null;

@@ -15,7 +15,7 @@
 // `import type`, so none of this ships to the browser.
 
 import { z } from 'astro/zod';
-import { createGeo } from './geo';
+import { createGeo, ROAD_HALF } from './geo';
 
 const Id = z.string().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, 'ids are lowercase-kebab-case');
 const Hex = z.string().regex(/^#[0-9a-f]{6}$/i, 'colors are #rrggbb');
@@ -359,10 +359,23 @@ export const GeographySchema = z
       })
       .strict()
       .optional(),
-    /** A stone quay at the water's edge (a level deck between two corners), and
-     *  where on it the bus is parked, facing `faces` (0 = south, π/2 = east). */
-    quay: z
-      .object({ x0: z.number(), z0: z.number(), x1: z.number(), z1: z.number(), deck: z.number(), bus: Vec2, faces: z.number() })
+    /** A stone quay at the water's edge: a level deck between two corners. */
+    quay: z.object({ x0: z.number(), z0: z.number(), x1: z.number(), z1: z.number(), deck: z.number() }).strict().optional(),
+    /** A road round an islet for the red bus: a rounded loop like the
+     *  railway's (a superellipse round `center`), laid on a level bed at height
+     *  `bed`. The bus drives it clockwise seen from above, on the left like in
+     *  London, and stops at the stop each time round. `stop` is where the stop
+     *  stands, as a fraction of the way round from due east, turning toward the
+     *  south; its sign and shelter stand on the kerb outside the loop. */
+    busRoute: z
+      .object({
+        center: Vec2,
+        rx: z.number().positive(),
+        rz: z.number().positive(),
+        square: z.number().min(2).max(8).default(3),
+        bed: z.number(),
+        stop: z.number().min(0).max(1),
+      })
       .strict()
       .optional(),
     /** Level, empty building plots kept for places still to come: nothing grows
@@ -739,18 +752,71 @@ function checkGround(w: World): Issue[] {
     if (near) add(`Flag ${i} at ${at(f)} stands on ${near.what}: keep it 1.5 clear.`, path);
   });
   issues.push(...checkWalks(w, geo));
+  issues.push(...checkRoad(w, geo));
   return issues;
 }
 
-/** How far a walk keeps from a building's footprint, a game, the railway, the station, the quay and a sign or a flag. */
-const WALK_CLEAR = { building: 0.8, game: 1.8, rail: 2, station: 3.2, quay: 0.6, sign: 1.2 };
+/** How far the middle of the bus's road keeps from a building's footprint, a door, a bridge, a game or a lost word. */
+const ROAD_CLEAR = { building: 2.1, door: 2, bridge: 0.4, spot: 2.4 };
+
+/**
+ * The bus's road goes round one islet on real dry land, with a verge of land
+ * either side, clear of every building, door, bridge end, game and lost word.
+ * Its stop's sign and shelter stand on that islet too, clear of the same.
+ * (Nobody out walking crosses it: see checkWalks.)
+ */
+function checkRoad(w: World, geo: ReturnType<typeof createGeo>): Issue[] {
+  const issues: Issue[] = [];
+  const road = geo.road;
+  if (!road) return issues;
+  const path = ['geography', 'busRoute'];
+  const at = (p: { x: number; z: number }) => `(${+p.x.toFixed(1)}, ${+p.z.toFixed(1)})`;
+  const solids = w.places.filter((p) => p !== geo.hub && p.archetype !== 'pier' && p.archetype !== 'bottle');
+  const spots = [...w.activities.filter((a) => a.kind !== 'boat').map((a) => ({ what: `"${a.id}"`, at: a.at })), ...w.lostWords.map((l) => ({ what: `the lost word "${l.id}"`, at: l.at }))];
+  /** What's wrong with a spot `r` round (x, z), or '' if nothing. */
+  const problem = (x: number, z: number, r: number) => {
+    const solid = solids.find((s) => Math.hypot(x - s.at.x, z - s.at.z) < s.footprint + r + ROAD_CLEAR.building - ROAD_HALF);
+    if (solid) return `too close to "${solid.id}"`;
+    const door = w.places.find((p) => p !== geo.hub && Math.hypot(x - geo.door(p).x, z - geo.door(p).z) < r + ROAD_CLEAR.door - ROAD_HALF);
+    if (door) return `too close to "${door.id}"'s door`;
+    if (!geo.clearOfBridges(x, z, r + ROAD_CLEAR.bridge - ROAD_HALF)) return 'too close to the end of a bridge';
+    const spot = spots.find((s) => Math.hypot(x - s.at.x, z - s.at.z) < r + ROAD_CLEAR.spot - ROAD_HALF);
+    if (spot) return `too close to ${spot.what}`;
+    return '';
+  };
+  const first = road.at(0);
+  const isle = geo.owner(first.x, first.z);
+  const where = isle ? `islet "${geo.islands[isle].id}"` : 'the main island';
+  let reported = 0;
+  for (let s = 0; s < road.length && reported < 3; s += 0.4) {
+    const p = road.at(s);
+    const nx = Math.cos(p.yaw);
+    const nz = -Math.sin(p.yaw);
+    // Real land under the middle and both verges, before the road's bed levels it.
+    const verge = ROAD_HALF + 0.6;
+    const dry = [0, verge, -verge].every((k) => geo.rawHeight(p.x + nx * k, p.z + nz * k) > 0.3 && geo.owner(p.x + nx * k, p.z + nz * k) === isle);
+    const why = !dry ? `leaves the dry land of ${where}` : problem(p.x, p.z, ROAD_HALF);
+    if (why) (issues.push({ message: `The bus's road ${dry ? 'goes ' : ''}${why} at ${at(p)}: move or resize the loop.`, path }), reported++);
+  }
+  const stop = geo.busStop!;
+  const sh = stop.shelter;
+  if (geo.rawHeight(sh.x, sh.z) <= 0.3 || geo.owner(sh.x, sh.z) !== isle) issues.push({ message: `The bus stop at ${at(sh)} is off the dry land of ${where}: move it round the loop.`, path: [...path, 'stop'] });
+  else {
+    const why = problem(sh.x, sh.z, 0.9);
+    if (why) issues.push({ message: `The bus stop at ${at(sh)} is ${why}: move it round the loop.`, path: [...path, 'stop'] });
+  }
+  return issues;
+}
+
+/** How far a walk keeps from a building's footprint, a game, the railway, the station, the quay, a sign or a flag, the bus's road and its stop. */
+const WALK_CLEAR = { building: 0.8, game: 1.8, rail: 2, station: 3.2, quay: 0.6, sign: 1.2, road: 1.7, stop: 1.8 };
 
 /**
  * Everyone out walking stays on their own island's dry land, waypoint to
  * waypoint and round again: never into the sea or onto a bridge, through a
  * building or a game, across the railway, past the end of a bridge (and its
- * gate, if it has one), through a sign's letters or a flag, or out onto the
- * quay.
+ * gate, if it has one), through a sign's letters or a flag, out onto the
+ * quay, or across the bus's road or through its stop.
  */
 function checkWalks(w: World, geo: ReturnType<typeof createGeo>): Issue[] {
   const issues: Issue[] = [];
@@ -781,6 +847,8 @@ function checkWalks(w: World, geo: ReturnType<typeof createGeo>): Issue[] {
         else if (geo.railDist(p.x, p.z) < WALK_CLEAR.rail) problem = `crosses the railway at ${at(p)}`;
         else if (geo.station && Math.hypot(p.x - geo.station.x, p.z - geo.station.z) < WALK_CLEAR.station) problem = `goes over the station at ${at(p)}`;
         else if (geo.quayDist(p.x, p.z) < WALK_CLEAR.quay) problem = `goes out onto the quay at ${at(p)}`;
+        else if (geo.roadDist(p.x, p.z) < WALK_CLEAR.road) problem = `crosses the bus's road at ${at(p)}`;
+        else if (geo.busStop && Math.hypot(p.x - geo.busStop.shelter.x, p.z - geo.busStop.shelter.z) < WALK_CLEAR.stop) problem = `goes through the bus stop at ${at(p)}`;
         else if (!geo.clearOfBridges(p.x, p.z)) problem = `goes across the end of a bridge at ${at(p)}`;
         else if (geo.signDist(p.x, p.z) < WALK_CLEAR.sign) problem = `goes through a sign's letters at ${at(p)}`;
         else if (geo.flags.some((f) => Math.hypot(p.x - f.x, p.z - f.z) < WALK_CLEAR.sign)) problem = `goes through a flag at ${at(p)}`;

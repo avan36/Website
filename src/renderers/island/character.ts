@@ -43,8 +43,8 @@ const GRAVITY = 32;
 /** Takeoff speed of a full jump (about 1.3 high), and of a gentler one for reduced motion. */
 const JUMP = 9.2;
 const JUMP_LOW = 6;
-/** The second jump, in mid-air, takes off a little slower than the first (about 0.95 high). */
-const AIR_JUMP = 0.85;
+/** The second jump, in mid-air, kicks off a little harder than the first (about 1.45 high). */
+const AIR_JUMP = 1.05;
 /** How long the double jump's somersault takes. */
 const FLIP = 0.42;
 /** A press this soon before landing still jumps, on landing. */
