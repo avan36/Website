@@ -373,8 +373,8 @@ export async function buildTerrain(geo: Geo, spurs: Vec2[][]): Promise<Terrain> 
     }
   }
 
-  // ---------- The railway, the station platform and the quay ----------
-  paintCommute(geo, pix, ground, { x0: RECT.x0, z0: RECT.z0, tex: TEX }, { rail: G.rail, quay: G.quay });
+  // ---------- The railway, the station platform, the quay and the bus's road ----------
+  paintCommute(geo, pix, ground, { x0: RECT.x0, z0: RECT.z0, tex: TEX }, { rail: G.rail, quay: G.quay, road: G.path });
   // Tower Bridge: a road with pavements and railings, carried a step onto the quay at its end.
   for (const b of geo.bridges) if (b.style === 'tower') paintTowerDeck(planTowerBridge(b), pix, ground, deck, RECT, { water: G.water, pier: G.pier });
   await breathe();

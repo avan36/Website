@@ -6,7 +6,7 @@
 // walk through. Then it scatters the scenery: palms on the sand, groves of
 // trees on the grass, rocks on the headland, all from a fixed seed.
 
-import type { Geo, Vec2 } from '../../world/geo';
+import { ROAD_HALF, type Geo, type Vec2 } from '../../world/geo';
 import { fbm } from '../../world/noise';
 import type { Place, World } from '../../world/schema';
 import { mulberry32 } from './rng';
@@ -128,8 +128,8 @@ export interface Street {
  * lamps by the path and the door, a red telephone box by the path (if the
  * place has one among its scenery), and a pillar box and a bench out front.
  * Laid out from the landing and the door; anything that would land in the
- * sea, on the path, by the door or the landing, or against the building is
- * left out. Null if there's no such bridge or building.
+ * sea, on the bus's road, on the path, by the door or the landing, or
+ * against the building is left out. Null if there's no such bridge or building.
  */
 export function layoutStreet(geo: Geo, places: MapPlace[]): Street | null {
   const bridge = geo.bridges.find((b) => b.style === 'tower');
@@ -148,21 +148,23 @@ export function layoutStreet(geo: Geo, places: MapPlace[]): Street | null {
     walk.push({ x: u * u * a.x + 2 * u * t * c.x + t * t * d.x, z: u * u * a.z + 2 * u * t * c.z + t * t * d.z });
   }
   const at = (p: Vec2, dx: number, dz: number) => ({ x: p.x + dx, z: p.z + dz });
+  // The same spots as the 3D island's (LONDON_SPOTS): one lamp by the landing, outside the bus's road, the rest on the forecourt.
   const wants: [StreetKind, Vec2][] = [
     ['lamp', at(d, 1.9, 0.5)],
-    ['lamp', at(d, -4.3, 0.9)],
-    ['pillar-box', at(d, 5.4, 0.9)],
-    ['bench', at(d, 3.4, 2.1)],
+    ['lamp', at(d, -6.4, -2.1)],
+    ['pillar-box', at(d, 3.2, 1.5)],
+    ['bench', at(d, 1.5, 3.4)],
   ];
-  if (m.place.scenery.some((s) => s.id === 'phone-box')) wants.push(['phone-box', at(d, -2.4, 1.9)]);
+  if (m.place.scenery.some((s) => s.id === 'phone-box')) wants.push(['phone-box', at(d, -0.6, 2.6)]);
   const R: Record<StreetKind, number> = { lamp: 0.18, 'phone-box': 0.55, 'pillar-box': 0.3, bench: 0.75 };
   const things: StreetThing[] = [];
   for (const [kind, p] of wants) {
     const r = R[kind];
     const dry = geo.heightAt(p.x, p.z) > 0.3;
+    const offRoad = geo.roadDist(p.x, p.z) > ROAD_HALF + 0.6 + r;
     const clear = polylineDist(walk, p.x, p.z) > 1.2 + r && Math.hypot(p.x - d.x, p.z - d.z) > 1.4 + r && Math.hypot(p.x - a.x, p.z - a.z) > 1.4 + r;
     const offBuilding = m.boxes.every((b) => p.x < b.x0 - r - BODY_R || p.x > b.x1 + r + BODY_R || p.z < b.z0 - r - BODY_R || p.z > b.z1 + r + BODY_R);
-    if (dry && clear && offBuilding) things.push({ kind, ...p, r });
+    if (dry && offRoad && clear && offBuilding) things.push({ kind, ...p, r });
   }
   return { walk, things };
 }
@@ -247,6 +249,6 @@ export function scatterProps(world: World, geo: Geo, places: MapPlace[], seed = 
   grow(-44, -30, -30, 30, mulberry32(seed + 1));
   // Little London, east of it, from another: clear of its street (the path, the lamps, the telephone box).
   const street = layoutStreet(geo, places);
-  grow(44, 74, 0, 32, mulberry32(seed + 2), (x, z) => !street || (polylineDist(street.walk, x, z) > 1.6 && street.things.every((t) => Math.hypot(x - t.x, z - t.z) > t.r + 1.2)));
+  grow(44, 78, 0, 32, mulberry32(seed + 2), (x, z) => !street || (polylineDist(street.walk, x, z) > 1.6 && street.things.every((t) => Math.hypot(x - t.x, z - t.z) > t.r + 1.2)));
   return props;
 }

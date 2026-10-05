@@ -1,9 +1,10 @@
 // The commute: a little railway looping round the new land in the east, with
-// a station and a Caltrain in silver and red, and a red London double-decker
-// bus parked on the quay. Both wear their names, painted on. The train keeps island time: it laps the loop all day
-// and into the night, and sleeps at the platform in the small hours (see
-// src/world/clock.ts). At night the windows, the station lamp and the bus's
-// lights glow like the rest of the island.
+// a station and a Caltrain in silver and red wearing its name, painted on, and
+// the stone quay below it where Tower Bridge sets off (the red bus that used
+// to wait there drives round Little London now: see bus.ts). The train keeps
+// island time: it laps the loop all day and into the night, and sleeps at the
+// platform in the small hours (see src/world/clock.ts). At night the windows
+// and the station lamp glow like the rest of the island.
 //
 // Everything stands where src/world/geo.ts says: the track's loop, the
 // station, the level crossings where paths cross the line, and the quay.
@@ -39,13 +40,12 @@ const SILVER_DARK = '#9aa1aa';
 const RED = '#d7262e';
 const GLASS = '#26313b';
 const BUS_RED = '#cf1f2a';
-const CREAM = '#efe4c8';
 
 const DAY_GLASS = new Color('#5a6d7d');
 const NIGHT_GLASS = new Color('#ffd27e');
 
-/** A flat strip of ballast under the track: a ribbon round the loop. */
-function ballast(points: { x: number; z: number }[], y: number, half: number) {
+/** A flat strip round a loop (ballast under the track, or tarmac): a ribbon `half` wide either side of the line, at height y. */
+export function ribbon(points: { x: number; z: number }[], y: number, half: number) {
   const n = points.length;
   const pos: number[] = [];
   const side = (i: number) => {
@@ -83,7 +83,7 @@ function ballast(points: { x: number; z: number }[], y: number, half: number) {
  * ground it takes the light like the paint around it; on a `ground` (a lit
  * blind) it glows.
  */
-function lettering(text: string, w: number, h: number, ink: string, ground?: string) {
+export function lettering(text: string, w: number, h: number, ink: string, ground?: string) {
   const c = document.createElement('canvas');
   c.width = 512;
   c.height = Math.max(32, Math.round((512 * h) / w));
@@ -105,7 +105,7 @@ function lettering(text: string, w: number, h: number, ink: string, ground?: str
 }
 
 /** The same lettering down both sides of something built along +z, `half` out from its middle. */
-function bothSides(text: string, w: number, h: number, ink: string, half: number, y: number, z = 0) {
+export function bothSides(text: string, w: number, h: number, ink: string, half: number, y: number, z = 0) {
   const g = new Group();
   for (const side of [1, -1]) {
     const m = lettering(text, w, h, ink);
@@ -161,43 +161,6 @@ function buildCar(kind: CarKind, glass: MeshBasicMaterial, seed: number) {
   return g;
 }
 
-/** The red double-decker, built along +z (its front), wheels on y = 0. */
-function buildBus(glass: MeshBasicMaterial) {
-  const k = new Kit(733);
-  const L = 4.4;
-  const W = 1.35;
-  const H = 2.25;
-  const base = 0.28;
-  for (const wz of [-L / 2 + 0.75, L / 2 - 0.85]) for (const wx of [-1, 1]) {
-    k.cyl(0.3, 0.3, 0.22, '#222326', { p: [wx * (W / 2 - 0.08), 0.3, wz], r: [0, 0, Math.PI / 2] }, 12);
-    k.cyl(0.14, 0.14, 0.24, '#b9bcc2', { p: [wx * (W / 2 - 0.07), 0.3, wz], r: [0, 0, Math.PI / 2] }, 8);
-  }
-  // Body, with a rounded roof, a cream band between decks, and a black skirt.
-  k.rbox(W, H, L, 0.22, BUS_RED, { p: [0, base + H / 2, 0], jitter: 0.02 });
-  k.box(W + 0.03, 0.12, L - 0.1, CREAM, { p: [0, base + H * 0.5, 0], jitter: 0 });
-  k.box(W + 0.02, 0.16, L - 0.3, '#2b2b2e', { p: [0, base + 0.1, 0], jitter: 0 });
-  // Windows on both decks, the lower ones stopping short of the open rear platform.
-  k.addGlow(new ThreeBox(W + 0.03, 0.46, L - 1.5), '#ffffff', { p: [0, base + 0.82, 0.35] });
-  k.addGlow(new ThreeBox(W + 0.03, 0.46, L - 0.7), '#ffffff', { p: [0, base + 1.66, 0] });
-  // Front: the cab window, a destination blind, a grille and headlamps.
-  const zf = L / 2;
-  k.addGlow(new ThreeBox(W * 0.8, 0.42, 0.04), '#ffffff', { p: [0, base + 1.66, zf + 0.01] });
-  k.addGlow(new ThreeBox(0.62, 0.42, 0.04), '#ffffff', { p: [-0.25, base + 0.85, zf + 0.01] });
-  k.addGlow(new ThreeBox(W * 0.62, 0.14, 0.04), '#ffe9a8', { p: [0, base + 1.3, zf + 0.012] });
-  k.box(0.5, 0.36, 0.08, '#c9c3b4', { p: [0.25, base + 0.42, zf + 0.02], jitter: 0 });
-  for (const hx of [-0.45, 0.45]) k.addGlow(new ThreeBox(0.16, 0.16, 0.05), '#fff6d8', { p: [hx, base + 0.32, zf + 0.03] });
-  // The open platform at the back, with its pole.
-  k.box(0.6, 0.9, 0.04, '#2b2b2e', { p: [W / 2 - 0.32, base + 0.85, -L / 2 + 0.02], jitter: 0 });
-  k.cyl(0.03, 0.03, 1.1, '#e8e2d4', { p: [W / 2 - 0.12, base + 0.82, -L / 2 + 0.25] }, 6);
-  const bus = k.build({ castShadow: true, receiveShadow: true, glowMaterial: glass });
-  // Where it's from: in gold along both sides, and on the lit blind over the cab.
-  bus.add(bothSides('LONDON', 2.6, 0.38, '#ffd35a', W / 2 + 0.03, base + 0.38, 0.3));
-  const blind = lettering('LONDON', W * 0.62, 0.14, '#ffc94a', '#1d1a16');
-  blind.position.set(0, base + 1.3, zf + 0.035);
-  bus.add(blind);
-  return bus;
-}
-
 export function buildCommute() {
   const group = new Group();
   group.name = 'commute';
@@ -207,7 +170,7 @@ export function buildCommute() {
   const pools: Glow[] = [];
   const colliders: { x: number; z: number; r: number }[] = [];
 
-  // Window glass shared by every car and the bus: dark by day, warm after dark.
+  // Window glass shared by every car: dark by day, warm after dark.
   const glass = new MeshBasicMaterial({ vertexColors: true, color: DAY_GLASS.clone() });
 
   let cars: Object3D[] = [];
@@ -216,7 +179,7 @@ export function buildCommute() {
   if (rail) {
     // ---------- Track ----------
     const tk = new Kit(611);
-    tk.add(ballast(rail.points, bedY + 0.03, 0.95), '#a59a8a', { jitter: 0.05 });
+    tk.add(ribbon(rail.points, bedY + 0.03, 0.95), '#a59a8a', { jitter: 0.05 });
     const n = rail.points.length;
     // Sleepers every 0.55 units, then two rails on top.
     const sleepers = Math.round(rail.length / 0.55);
@@ -306,7 +269,7 @@ export function buildCommute() {
     cars[CARS.indexOf('cab')].children.forEach((m) => (m.rotation.y = Math.PI));
   }
 
-  // ---------- Quay and bus ----------
+  // ---------- Quay ----------
   const q = geo.quay;
   if (q) {
     const qk = new Kit(640);
@@ -321,7 +284,7 @@ export function buildCommute() {
     // Along the east edge, none where a bridge lands (Tower Bridge goes out from here).
     const landing = (x: number, z: number) => geo.bridgeDist(x, z) < 2; // Tower Bridge's deck is 3.4 wide
     for (let z = q.z0 + 1.2; z < q.z1; z += 1.6) if (!landing(q.x1 - 0.45, z)) qk.cyl(0.13, 0.16, 0.42, '#3d3a36', { p: [q.x1 - 0.45, q.deck + 0.23, z] }, 8);
-    // A bus stop sign, and crates waiting to go somewhere.
+    // A bus stop sign (the bus moved over to Little London), and crates waiting to go somewhere.
     qk.cyl(0.04, 0.04, 2.0, '#5c6168', { p: [q.x0 + 1.2, q.deck + 1.0, q.z0 + 1.0] }, 6);
     qk.cyl(0.26, 0.26, 0.05, BUS_RED, { p: [q.x0 + 1.2, q.deck + 1.95, q.z0 + 1.0], r: [Math.PI / 2, 0, 0] }, 14);
     qk.box(0.36, 0.08, 0.06, '#ffffff', { p: [q.x0 + 1.2, q.deck + 1.95, q.z0 + 1.0], jitter: 0 });
@@ -334,18 +297,6 @@ export function buildCommute() {
     halos.push([q.x0 + 0.6, q.deck + 2.7, q.z1 - 0.6, 3.2]);
     pools.push([q.x0 + 0.6, q.deck + 0.05, q.z1 - 0.6, 2.4]);
     colliders.push({ x: q.x1 - 1.35, z: q.z0 + 0.9, r: 0.6 });
-
-    const bus = buildBus(glass);
-    bus.position.set(q.bus.x, q.deck, q.bus.z);
-    bus.rotation.y = q.faces;
-    group.add(bus);
-    const fx = Math.sin(q.faces);
-    const fz = Math.cos(q.faces);
-    for (const t of [-1.4, 0, 1.4]) colliders.push({ x: q.bus.x + fx * t, z: q.bus.z + fz * t, r: 0.8 });
-    // Headlamps glow after dark.
-    for (const side of [-0.45, 0.45]) {
-      halos.push([q.bus.x + fx * 2.25 + fz * side, q.deck + 0.6, q.bus.z + fz * 2.25 - fx * side, 1.1]);
-    }
   }
 
   // ---------- Spare plots ----------
@@ -377,7 +328,7 @@ export function buildCommute() {
   return {
     group,
     colliders,
-    /** Lamps on the platform and the quay, and the bus's headlamps (for the night's halos). */
+    /** Lamps on the platform and the quay (for the night's halos). */
     glows: () => ({ halos, pools }),
     /** Darkness, 0 (day) to 1 (night): the windows warm up. */
     night(n: number) {

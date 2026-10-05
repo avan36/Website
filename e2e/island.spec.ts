@@ -170,7 +170,7 @@ test.describe('3D island', () => {
 
   test('Tower Bridge takes you out to Westfield, dry, and the mall opens up round you with no page to open', async ({ page }) => {
     const errors = await openIsland(page);
-    // Click-to-walk from the plaza to the mall's door on Little London: past the bus, along the quay and over the bridge.
+    // Click-to-walk from the plaza to the mall's door on Little London: along the quay, over the bridge and across the road.
     const walk = await page.evaluate(() => {
       const d = (window as DebugWindow).__island!.debug;
       const m = d.places().find((x) => x.id === 'westfield')!;
@@ -232,12 +232,64 @@ test.describe('3D island', () => {
     await expect(prompt).toContainText(lines[1]);
     expect((await andrew()).said).toBe(2);
     // Walk away and he carries on.
-    await page.evaluate(() => (window as DebugWindow).__island!.debug.teleport(58, 12.4));
+    await page.evaluate(() => (window as DebugWindow).__island!.debug.teleport(57.6, 22));
     await tick(page, 1);
     const later = await andrew();
     expect(later.open).toBe(false);
     await tick(page, 6);
     expect(Math.hypot((await andrew()).x - later.x, (await andrew()).z - later.z), 'walked on').toBeGreaterThan(0.5);
+    expect(errors).toEqual([]);
+  });
+
+  test('the red bus on Little London goes round, pulls in at the stop, and waits for you in the road', async ({ page }) => {
+    const errors = await openIsland(page);
+    const laps = await page.evaluate(() => {
+      const d = (window as DebugWindow).__island!.debug;
+      // Out of its way, in the middle of the loop.
+      d.teleport(60.4, 16);
+      const start = d.bus()!;
+      let stops = 0;
+      let moved = 0;
+      let was = start.atStop && start.v === 0;
+      let last = start;
+      for (let i = 0; i < 160; i++) {
+        d.tick(0.5);
+        const b = d.bus()!;
+        moved += Math.hypot(b.x - last.x, b.z - last.z);
+        last = b;
+        const waiting = b.atStop && b.v === 0;
+        if (waiting && !was) stops++;
+        was = waiting;
+      }
+      return { stops, moved };
+    });
+    // Eighty seconds: well over two laps of a road about 63 round, with a stop each time.
+    expect(laps.moved, 'how far it drove').toBeGreaterThan(120);
+    expect(laps.stops, 'times it pulled in at the stop').toBeGreaterThanOrEqual(2);
+
+    // Step into the road just ahead of it as it drives: it stops short and waits, and you're not stuck.
+    const held = await page.evaluate(() => {
+      const d = (window as DebugWindow).__island!.debug;
+      let b = d.bus()!;
+      for (let i = 0; i < 200 && !(b.v > 2.5); i++) (d.tick(0.1), (b = d.bus()!));
+      d.teleport(b.x + Math.sin(b.yaw) * 4.2, b.z + Math.cos(b.yaw) * 4.2);
+      for (let i = 0; i < 30; i++) d.tick(0.1);
+      const p = d.player();
+      b = d.bus()!;
+      return { held: b.held, v: b.v, gap: Math.hypot(p.x - b.x, p.z - b.z) };
+    });
+    expect(held.held, 'waiting for you').toBe(true);
+    expect(held.v).toBe(0);
+    expect(held.gap, 'stopped short of you').toBeGreaterThan(2.4);
+    // Step back off the road and it goes on.
+    const after = await page.evaluate(() => {
+      const d = (window as DebugWindow).__island!.debug;
+      d.teleport(60.4, 16);
+      for (let i = 0; i < 30; i++) d.tick(0.1);
+      return d.bus()!;
+    });
+    expect(after.held).toBe(false);
+    expect(after.v).toBeGreaterThan(0);
     expect(errors).toEqual([]);
   });
 

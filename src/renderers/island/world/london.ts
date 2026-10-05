@@ -1,9 +1,9 @@
 // Little London's street furniture, along the way from the end of Tower
-// Bridge up to the mall's doors: a red telephone box by the path, a pillar
-// box, a bench, and a pair of Victorian lamp posts that light up after dark.
-// Everything stands to one side of the walk, and is solid. Where it stands is
-// worked out from the bridge's landing and the mall's door (LONDON_SPOTS), so
-// the nature scatter can keep its trees out of the way too.
+// Bridge up to the mall's doors: a red telephone box, a pillar box, a bench,
+// and a pair of Victorian lamp posts that light up after dark. Everything
+// stands off the walk and off the bus's road, and is solid. Where it stands
+// is worked out from the mall's door (LONDON_SPOTS), so the nature scatter
+// can keep its trees out of the way too.
 
 import { BoxGeometry, Color, CylinderGeometry, Group, Matrix4, MeshBasicMaterial, MeshStandardMaterial, Quaternion, SphereGeometry, Vector3 } from 'three';
 import type { Glow } from '../landmarks/builders';
@@ -14,16 +14,18 @@ import { BRIDGES, heightAt, landing, owner, PLACES } from './shape';
 type Kind = 'phone' | 'pillar' | 'bench' | 'lamp';
 
 /**
- * Each piece, by how far along the walk from the landing to the door it
- * stands and how far to one side (+ is to the right, heading for the door).
+ * Each piece, by where it stands from the mall's door (in world units, +x
+ * east, +z south): the same spots as the map's (layoutStreet). One lamp by the
+ * bridge's landing, outside the bus's road; the rest out on the forecourt,
+ * between the road and the doors.
  */
-const PIECES: { kind: Kind; along: number; side: number; r: number }[] = [
-  { kind: 'lamp', along: 0.9, side: -1.3, r: 0.25 },
-  { kind: 'phone', along: 2.4, side: 2.3, r: 0.58 },
-  { kind: 'bench', along: 2.6, side: -1.6, r: 0.55 },
-  { kind: 'pillar', along: 3.9, side: 1.5, r: 0.34 },
+const PIECES: { kind: Kind; dx: number; dz: number; r: number }[] = [
+  { kind: 'lamp', dx: -6.4, dz: -2.1, r: 0.25 },
+  { kind: 'phone', dx: -0.6, dz: 2.6, r: 0.58 },
+  { kind: 'bench', dx: 1.5, dz: 3.4, r: 0.55 },
+  { kind: 'pillar', dx: 3.2, dz: 1.5, r: 0.34 },
   // Out past the door to the side, not in front of the mall: nothing tall stands between the camera and its room when it opens.
-  { kind: 'lamp', along: 4.9, side: 1.95, r: 0.25 },
+  { kind: 'lamp', dx: 1.9, dz: 0.5, r: 0.25 },
 ];
 
 /** The walk from the tower bridge's landing on the mall's island to the mall's door (null if there's no such pair). */
@@ -37,17 +39,17 @@ const WALK = (() => {
   const from = landing(b, end);
   const to = mall.stand;
   const len = Math.hypot(to.x - from.x, to.z - from.z) || 1;
-  return { from, ux: (to.x - from.x) / len, uz: (to.z - from.z) / len, len };
+  return { from, to, ux: (to.x - from.x) / len, uz: (to.z - from.z) / len, len };
 })();
 
 /** Where each piece of street furniture stands, and how far round it is solid: for the scatter to keep clear of. */
 export const LONDON_SPOTS = WALK
   ? PIECES.map((p) => {
-      // On the map (+x east, +z south), the right of heading (ux, uz) is (-uz, ux).
-      const x = WALK.from.x + WALK.ux * p.along - WALK.uz * p.side;
-      const z = WALK.from.z + WALK.uz * p.along + WALK.ux * p.side;
-      // Turned to face the path: its front (+z in its own frame) toward the walk.
-      const yaw = Math.atan2(WALK.uz * Math.sign(p.side), -WALK.ux * Math.sign(p.side));
+      const x = WALK.to.x + p.dx;
+      const z = WALK.to.z + p.dz;
+      // Turned to face the walk: its front (+z in its own frame) toward the nearest point on it.
+      const t = Math.max(0, Math.min(WALK.len, (x - WALK.from.x) * WALK.ux + (z - WALK.from.z) * WALK.uz));
+      const yaw = Math.atan2(WALK.from.x + WALK.ux * t - x, WALK.from.z + WALK.uz * t - z);
       return { ...p, x, z, yaw };
     })
   : [];

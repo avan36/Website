@@ -171,7 +171,7 @@ test.describe('map', () => {
       const id = w.places.find((p) => p.archetype === 'mall')!.id;
       return (window as DebugWindow).__map!.places().find((p) => p.id === id)!;
     });
-    // On the quay, by the bus's nose, where the bridge starts.
+    // On the quay, where the bridge starts.
     await page.evaluate(() => (window as DebugWindow).__map!.teleport(29.4, 17.2));
     expect(await page.evaluate((d) => (window as DebugWindow).__map!.walkTo(d.x, d.z), mall.door), 'a way over').toBe(true);
     // Stop if it ever gets its feet wet: the deck is the only way over. The map walks in real time and slows with the

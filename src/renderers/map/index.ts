@@ -36,9 +36,10 @@ import { paintTowerBridge, planTowerBridge } from './towerBridge';
 import { bench, phoneBox, pillarBox, streetLamp } from './street';
 import { createInside, fitFrame, openRect, type Frame, type Inside } from './inside';
 import { paintRoom, type MapRoom } from './room';
-import { bus, drawTrain, shelter } from './commute';
+import { busStop, drawBus, drawTrain, shelter } from './commute';
 import { daylight, pageClock } from '../../world/clock';
 import { createTrain } from '../../world/train';
+import { createBus } from '../../world/bus';
 import { holdable } from '../hold';
 
 /** World units per second. */
@@ -212,10 +213,9 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
   // FOSS HILL's letters below the lighthouse, and the small flag on the hilltop.
   const fossHill = layoutFossHill(geo);
   for (const b of fossHill.blocks) stampCircle(b.x, b.z, b.r + BODY_R * 0.5);
-  // The bus on the quay and the station's shelter stand in the way too.
-  const quay = geo.quay;
-  const busAt = quay ? { x: quay.bus.x, z: quay.bus.z + 0.5 } : null;
-  if (quay) for (const t of [-1.5, 0, 1.5]) stampCircle(quay.bus.x + Math.sin(quay.faces) * t, quay.bus.z + Math.cos(quay.faces) * t, 0.65 + BODY_R);
+  // The station's shelter and the bus stop stand in the way too (the bus itself only waits for you, like the train).
+  const stopAt = geo.busStop?.shelter ?? null;
+  if (stopAt) stampCircle(stopAt.x, stopAt.z, 0.7 + BODY_R);
   const shelterAt = geo.station && geo.rail ? (() => {
     const at = geo.rail.at(geo.station.s);
     return { x: at.x + Math.cos(at.yaw) * at.out * 1.8, z: at.z - Math.sin(at.yaw) * at.out * 1.8 };
@@ -333,7 +333,7 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
   for (const l of fossHill.letters) things.push(l);
   for (const f of fossHill.flags) things.push({ x: f.x, z: f.z, sprite: null, after: (c, sx, sy) => drawSprite(c, fossHill.flagArt[motion ? Math.floor(time * 3) % 2 : 0], sx, sy) });
   things.push(...games.things, ...gates.things);
-  if (busAt) things.push({ x: busAt.x, z: busAt.z, sprite: bus() });
+  if (stopAt) things.push({ x: stopAt.x, z: stopAt.z, sprite: busStop() });
   if (shelterAt) things.push({ x: shelterAt.x, z: shelterAt.z, sprite: shelter() });
   if (bottlePlace) things.push({ x: bottlePlace.base.x + 1.3, z: bottlePlace.base.z + 0.9, sprite: shells() });
   // Tower Bridge: its towers, walkways and chains, each sorted where it stands, and its lamps.
@@ -1077,6 +1077,8 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
   let commuting = clock.commute(clock.date());
   let clockAt = 0;
   const train = createTrain(geo);
+  // The red bus round Little London: it laps its road, pulls in at the stop, and waits for you if you stand in the road.
+  const bus = createBus(geo);
   const darkness = () => Math.max(store.state.progress.night ? 1 : 0, clockDark);
   let nightK = darkness();
   let nightGoal = nightK;
@@ -1897,6 +1899,8 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
     drawDust(c);
     if (night) drawPools(c);
     if (train.exists) drawTrain(c, train.cars(), bx, by, TEX, night);
+    const busNow = bus.pose();
+    if (busNow) drawBus(c, busNow, bx, by, TEX, night);
 
     // The click marker: a ring that shrinks into the ground.
     if (marker.t < 1) {
@@ -2152,6 +2156,7 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
       nightGoal = darkness();
     }
     train.update(dt, commuting, pos);
+    bus.update(dt, pos);
     nightK = motion ? Math.max(0, Math.min(1, nightK + Math.max(-dt * 1.6, Math.min(dt * 1.6, nightGoal - nightK)))) : nightGoal; // eases to a goal that can be anywhere in 0..1 at dusk
     aimCamera();
     // With a room open the camera's on the room (see view()); `cam` keeps its place outside, for the way back.
@@ -2233,6 +2238,11 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
       wanderers: () => walkers.debug(),
       talk: (id: string) => walkers.talk(id),
       frames: () => frames,
+      /** The red bus on Little London: where it is, and whether it's at the stop or waiting for you. */
+      bus: () => {
+        const p = bus.pose();
+        return p ? { ...bus.state(), x: p.x, z: p.z, yaw: p.yaw } : null;
+      },
       /** How long the ground took to paint, and how big it is, in map pixels. */
       paint: () => ({ ms: Math.round(paintMs), w: W, h: H }),
       scale: () => ({ S, Z, dpr, bw, bh }),
