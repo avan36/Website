@@ -1,20 +1,26 @@
-# Allow real search engines to crawl and index the site. Each obeys its own
+# Allow real search engines to crawl and index the site, except the contact
+# page, which no robot gets. Each obeys its own
 # (most-specific) group, opting it out of the blanket "User-agent: * / Disallow: /"
 # block at the bottom.
 User-agent: Googlebot
 Allow: /
+Disallow: /contact
 
 User-agent: Googlebot-Image
 Allow: /
+Disallow: /contact
 
 User-agent: Bingbot
 Allow: /
+Disallow: /contact
 
 User-agent: DuckDuckBot
 Allow: /
+Disallow: /contact
 
 User-agent: Applebot
 Allow: /
+Disallow: /contact
 
 # AI answer engines: they retrieve a page to answer a question and link back,
 # so they get the blog (/blog and /blog/<post>) and nothing else.

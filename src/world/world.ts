@@ -748,6 +748,12 @@ const tower: InteriorInput = {
           names: ['the kombucha', 'kombucha', 'drinks', 'q3'],
           reply: "The kombucha is a big part of our culture. Q3 is our most forward-looking flavour. I'd love to circle back with tasting notes once we have bandwidth.",
         },
+        {
+          id: 'connect',
+          names: ['connecting', 'linkedin', 'networking', 'connect', 'ambrose'],
+          reply: "Love that you asked. If you want to connect with the person who made this island, he's on LinkedIn. It's the one place on earth that speaks my language.",
+          link: { label: 'Ambrose on LinkedIn', href: person.linkedin },
+        },
       ],
       farewell: "Amazing. Let's touch base soon. Mind the revolving door, it's very agile.",
     },
