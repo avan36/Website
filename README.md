@@ -206,6 +206,7 @@ Your progress is saved in this browser: the words you've found, the posts you've
 | QuizMate | Pop quiz: three questions, with confetti and a fact for a right answer and a hint for a wrong one |
 | eQoScan | Pack scan: scan a cereal box and see its packaging footprint |
 
+- **Adventure** (`/adventure`): a mode of its own, away from the island, where each chapter is a place from my life you can drive round. You get there from the views menu on the island or from the footer. Chapter 3 is Wesleyan: the campus in 3D, traced from the university's visitor map, with Usdan and Fayerweather's two turrets, Olin's columned porch and Exley's concrete tower. You race two laps by car through ten gates in order, down Wyllys, High, Church, Cross, Vine and Mount Vernon. A shortcut across campus just means going back for the gate you missed. Passing a landmark shows a card about it, and your best time is kept in your browser. Steer with the arrow keys or WASD, or with the pads on a phone. Each chapter card shows a flat map of the course, drawn from the same data, which is all you get without JavaScript or 3D. Chapters that aren't written yet are drafts and stay hidden.
 - **Writing** (`/blog`): static, quiet reading, grouped by year, with an RSS feed at `/rss.xml`. Posts are Markdown in `posts/`, edited through Sveltia CMS at `/admin`.
 - **About** (`/about`): my name told the way Etymon tells a word's story, what I care about, and where I've been.
 - **Contact** (`/contact`): a bottle bobbing on the waves and a form that posts to a Cloudflare Worker (`contact-worker/`), which emails me, with links to my GitHub and LinkedIn beside it. When you send, the page folds into a paper plane and flies off. There's a guestbook in a bottle too: leave a one-line note, and once I've approved it by hand, it can wash up for someone else (three at random per visit).
@@ -232,6 +233,10 @@ Your progress is saved in this browser: the words you've found, the posts you've
                      one contract: renderers/types.ts
                      one host: renderers/shell.ts (HUD, wipes, shared cards)
 ```
+
+### The adventure
+
+`src/adventure/` sits apart from the island's world and shares only the modelling kit. `levels.ts` lists the chapters, and drafts are filtered out. `wesleyan.ts` is the campus as data in the visitor map's own pixels (streets, the course, the gates, building footprints, Foss Hill and Andrus Field), so anything there can be checked against the map by eye. `campus.ts` turns that into world units. `track.ts` (the course, the gates, laps, bumping into buildings) and `car.ts` (arcade handling) are pure and tested, and `__tests__/drive.test.ts` has an autopilot drive two whole laps of the real campus. `wesleyan.test.ts` checks the layout the way `checkWorld` checks the island: no building in a street, the course all on the streets, every gate reachable and in order. `scene.ts` draws it, and `play.ts` runs the loop and the HUD. `src/components/adventure/CampusMap.astro` draws the flat map from the same data for the chapter card and the minimap.
 
 ### The world model
 

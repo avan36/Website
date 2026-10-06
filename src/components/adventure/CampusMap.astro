@@ -1,0 +1,60 @@
+---
+// Wesleyan as a flat map, drawn from the same data as the 3D campus. It is
+// the chapter's preview, the fallback without WebGL or JavaScript, and (with
+// `live`) the minimap in the corner while you drive.
+import { andrusField, buildings, course, fossHill, gates, landmarks, BOUNDS, ROAD_HALF, streets } from '../../adventure/wesleyan';
+
+interface Props {
+  live?: boolean;
+  color: string;
+  label?: string;
+}
+const { live = false, color, label = 'A map of Wesleyan University: the streets, the buildings, and the race course round campus.' } = Astro.props;
+const vb = `${BOUNDS.x0} ${BOUNDS.y0} ${BOUNDS.x1 - BOUNDS.x0} ${BOUNDS.y1 - BOUNDS.y0}`;
+const line = (pts: [number, number][]) => pts.map((p) => p.join(',')).join(' ');
+const names = Object.fromEntries(landmarks.map((l) => [l.id, l.name]));
+const short: Record<string, string> = { usdan: 'Usdan', olin: 'Olin', exley: 'Exley' };
+---
+<svg class:list={['adv-map', { 'adv-map--live': live }]} viewBox={vb} role="img" aria-label={label} preserveAspectRatio="xMidYMid meet">
+  <rect x={BOUNDS.x0} y={BOUNDS.y0} width={BOUNDS.x1 - BOUNDS.x0} height={BOUNDS.y1 - BOUNDS.y0} fill="#cfe0b5" />
+  <circle cx={fossHill.at[0]} cy={fossHill.at[1]} r={fossHill.r} fill="#b8d49a" />
+  <rect x={andrusField.at[0] - andrusField.w / 2} y={andrusField.at[1] - andrusField.d / 2} width={andrusField.w} height={andrusField.d} fill="#a9cf86" rx="6" />
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    {streets.map((s) => <polyline points={line(s.pts)} stroke="#e9dfcc" stroke-width={ROAD_HALF * 2 + 8} />)}
+    {streets.map((s) => <polyline points={line(s.pts)} stroke="#8c857c" stroke-width={ROAD_HALF * 2} />)}
+    <polygon points={line(course)} stroke={color} stroke-width="8" stroke-dasharray="26 18" opacity="0.9" />
+  </g>
+  {buildings.map((b) => (
+    <rect
+      x={b.at[0] - b.w / 2}
+      y={b.at[1] - b.d / 2}
+      width={b.w}
+      height={b.d}
+      rx="4"
+      transform={`rotate(${b.turn} ${b.at[0]} ${b.at[1]})`}
+      fill={b.landmark && short[b.landmark] ? color : '#b9aa95'}
+      opacity={b.landmark && short[b.landmark] ? 1 : 0.9}
+    >
+      {b.landmark && <title>{names[b.landmark]}</title>}
+    </rect>
+  ))}
+  {gates.map((g, i) => <circle cx={g.at[0]} cy={g.at[1]} r={i === 0 ? 16 : 10} fill="#fbf6ec" stroke={color} stroke-width="5" />)}
+  {!live && (
+    <g class="adv-map__labels" font-family="var(--font-ui)" font-weight="700" font-size="46" fill="#2a2520" text-anchor="middle">
+      {buildings.filter((b) => b.landmark && short[b.landmark]).map((b) => (
+        <text x={b.at[0]} y={b.landmark === 'exley' ? b.at[1] + 100 : b.at[1] - 50} paint-order="stroke" stroke="#fbf6ec" stroke-width="10">{short[b.landmark!]}</text>
+      ))}
+      <text x={fossHill.at[0]} y={fossHill.at[1] + 14} font-size="36" font-weight="600" fill="#4a5a3a">Foss Hill</text>
+    </g>
+  )}
+  {live && (
+    <g>
+      <circle data-adv-gate r="22" fill="none" stroke={color} stroke-width="8" />
+      <circle data-adv-car r="20" fill="#fbf6ec" stroke="#2a2520" stroke-width="7" />
+    </g>
+  )}
+</svg>
+
+<style>
+  .adv-map { display: block; width: 100%; height: auto; }
+</style>

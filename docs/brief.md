@@ -99,6 +99,7 @@ Things that worked here and could be borrowed, remixed or taken further:
 - **A toy on every project page:** a journal chat that types itself out, a five-axis taste match, a tree of life that grows, a word that morphs through its history, a lighthouse beam over 11,000 dots, a barcode scan, a pop quiz.
 - **A name card** told the way Etymon tells a word's story.
 - **A word jar** that counts up from the number a returning visitor last saw.
+- **An adventure away from the island.** `/adventure` holds chapters of my life you can drive. Chapter 3 is Wesleyan's campus, traced from the visitor map, with Usdan, Fayerweather, Olin and Exley modelled after the real buildings. You race two laps through gates in order, landmarks show a card as you pass, and a flat map drawn from the same data stands in without 3D.
 
 ### Sketch: a racing game from the pack
 
