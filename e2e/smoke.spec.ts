@@ -12,6 +12,7 @@ const PAGES = [
   '/blueprint',
   '/blog',
   '/contact',
+  '/adventure',
   '/work/middle-place',
   '/work/busy-beer',
   '/work/map-of-evolution',
