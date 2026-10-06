@@ -62,6 +62,14 @@ const interiors: Record<string, InteriorInput> = {
           'A framed picture of a phone screen: one long, continuous chat with a journal, picking up exactly where it left off. Someone has stitched a line underneath: never start the story over.',
         link: { label: 'Visit middleplace.app', href: 'https://middleplace.app' },
       },
+      {
+        id: 'notebooks',
+        names: ['notebooks', 'notebook', 'bookshelf', 'stack'],
+        prop: 'bookshelf',
+        at: { x: 2.1, z: -2.9 },
+        description:
+          'A shelf of filled notebooks, spines cracked, corners gone soft from handling. Hundreds of thousands of words, all told, written long before anyone thought to build a journal that could write back.',
+      },
     ],
     people: [
       {
@@ -82,9 +90,21 @@ const interiors: Record<string, InteriorInput> = {
           },
           {
             id: 'privacy',
-            names: ['privacy', 'secrets', 'data', 'icloud'],
-            reply: "Everything stays on your device and in your own iCloud. No accounts, no tracking, nothing sold. I keep my own secrets in the woodpile, but that's a different system.",
+            names: ['privacy', 'secrets', 'data', 'icloud', 'your own key', 'own key', 'api key', 'bring your own key'],
+            reply: "Everything stays on your device and in your own iCloud. No accounts, no tracking, nothing sold. You can bring your own API key if you'd rather: it's optional, and the choice is yours. I keep my own secrets in the woodpile, but that's a different system.",
             link: see('middle-place', 'Read more'),
+          },
+          {
+            id: 'common',
+            names: ['common ground', 'two people', 'sharing', 'together'],
+            reply: "Two people can see where their feelings overlap without either of them reading a word of the other's journal. It's called Common Ground. It's for the conversations that are hard to start.",
+            link: see('middle-place'),
+          },
+          {
+            id: 'friend',
+            names: ['a friend', 'friends', 'feelings', 'kind words'],
+            reply: "A friend who writes in it every day once said it gave them words for feelings they didn't have words for. I keep that one by the fire.",
+            link: see('middle-place'),
           },
           {
             id: 'get',
@@ -236,6 +256,12 @@ const interiors: Record<string, InteriorInput> = {
             reply: "If a word isn't on my shelves, it gets looked up live on Wiktionary, in about 50 languages, and sent off on the same journey. Very modern of us.",
             link: see('etymon'),
           },
+          {
+            id: 'maker',
+            names: ['who built this', 'the maker', 'maker', 'history and code'],
+            reply: 'Whoever built this island studied history and computer science side by side, which explains a library with both a card catalogue and a search bar.',
+            link: ABOUT,
+          },
         ],
         farewell: 'Come back any time. And return your words on time.',
       },
@@ -332,6 +358,12 @@ const interiors: Record<string, InteriorInput> = {
             reply: "Ambrose contributed to the Privacy Tech Lab's work on Global Privacy Control, research supported by the National Science Foundation. I just keep the lamp lit.",
             link: see('privacy-research', 'See the research'),
           },
+          {
+            id: 'court',
+            names: ['the Supreme Court', 'supreme court', 'court', 'amicus brief'],
+            reply: "The research was cited in an amicus brief filed with the Supreme Court. Quite a distance for one lamp's worth of light.",
+            link: see('privacy-research', 'See the research'),
+          },
         ],
         farewell: "Fair winds. Watch the third stair, it's always been a bit loose.",
       },
@@ -387,6 +419,12 @@ const interiors: Record<string, InteriorInput> = {
             id: 'feedback',
             names: ['feedback', 'the quiz', 'quiz', 'friday'],
             reply: "The moment you need it, not three weeks later. That's the whole idea.",
+            link: see('quizmate'),
+          },
+          {
+            id: 'crowd',
+            names: ['sign-ups', 'signups', 'how many', 'the crowd'],
+            reply: 'More than five hundred people signed up. For a one-room schoolhouse, that is a very full room.',
             link: see('quizmate'),
           },
           {
@@ -591,6 +629,16 @@ const westfield: InteriorInput = {
           reply: 'Tower Bridge! The middle of it lifts to let tall ships through. The real one has been doing that since 1894, and it still stops the traffic every time.',
         },
         {
+          id: 'otherbridge',
+          names: ['the other bridge', 'other bridge', 'red bridge', 'golden gate', 'fog'],
+          reply: "I hear there's another bridge on the far side of the world, big and red and mostly in fog. Somebody from round here went to have a look. It doesn't lift, but I'm told it's very good at being looked at.",
+        },
+        {
+          id: 'train',
+          names: ['the train', 'train', 'commute', 'trains'],
+          reply: "Same train every morning, and I still only get a seat half the time. Everyone's reading. I'm pretending to.",
+        },
+        {
           id: 'time',
           names: ['the time', 'time', 'afternoon', 'clock'],
           reply: "Time does something funny in here. You come in after lunch, and somehow it's dark when you leave.",
@@ -646,6 +694,13 @@ const quietRoom: InteriorInput = {
       at: { x: 3.4, z: -2.3 },
       description: 'A leafy plant in a clay pot, turned now and then so it grows straight. It is doing well. Most things do, given time and a bit of light.',
     },
+    {
+      id: 'key',
+      names: ['key', 'brass hook', 'hook', 'tag'],
+      prop: 'frame',
+      at: { x: -0.4, z: -2.9 },
+      description: 'A single key on a brass hook on the wall, with a small tag that says HOME in careful handwriting. It looks like the most ordinary key in the world. It was not ordinary to get.',
+    },
   ],
   people: [
     {
@@ -677,6 +732,11 @@ const quietRoom: InteriorInput = {
           id: 'tissues',
           names: ['the tissues', 'tissues', 'crying'],
           reply: "They're there for anyone. Nobody has ever needed to say sorry for using one.",
+        },
+        {
+          id: 'home',
+          names: ['a place of my own', 'home', 'my own place', 'the key'],
+          reply: "A place of your own is a quiet kind of win. It doesn't have to be big. It only has to be yours, with a door that closes behind you.",
         },
       ],
       farewell: 'We can stop here for today. Be gentle with yourself on the way out.',

@@ -74,7 +74,7 @@ Everywhere has scenery to look at: in the text adventure you `EXAMINE` it, and i
 
 Nine buildings have a room. In both spatial views the camera eases in, the roof lifts off and the walls sink, and the room appears where the building stood, with the island still round it.
 
-Each room has a few things to look at, some of them linked to the real project, and one or two islanders. Walk up to someone and press E, or tap them. They greet you, offer two to four topics (pick with the arrow keys), and say goodbye when you press Escape, or when you walk off: a step, or a tap on the floor or on someone else, ends the conversation and takes you there. The islanders are made up, and what they say about a project is only what its own page says. In the text adventure it's `ENTER`, `TALK TO JUNIPER`, `ASK OTTO ABOUT THE SCANNER`, `BYE` and `LEAVE`.
+Each room has a few things to look at, some of them linked to the real project, and one or two islanders. Walk up to someone and press E, or tap them. They greet you, offer two to six topics (pick with the arrow keys), and say goodbye when you press Escape, or when you walk off: a step, or a tap on the floor or on someone else, ends the conversation and takes you there. The islanders are made up, and what they say about a project is only what its own page says. In the text adventure it's `ENTER`, `TALK TO JUNIPER`, `ASK OTTO ABOUT THE SCANNER`, `BYE` and `LEAVE`.
 
 ### People out walking
 

@@ -327,7 +327,7 @@ describe('inside the buildings', () => {
       expect(room.things.length, p.id).toBeGreaterThanOrEqual(2);
       for (const c of room.people) {
         expect(c.topics.length, c.name).toBeGreaterThanOrEqual(2);
-        expect(c.topics.length, c.name).toBeLessThanOrEqual(4);
+        expect(c.topics.length, c.name).toBeLessThanOrEqual(6);
         for (const t of c.topics) expect(t.reply.length, `${c.name} on ${t.id}`).toBeLessThan(260);
         expect(c.greeting.length, c.name).toBeLessThan(200);
       }
@@ -405,7 +405,7 @@ describe('the quiet room', () => {
   });
 
   it('has the two armchairs, the tissues, the clock, a plant and a calm painting', () => {
-    expect(room.things.map((t) => t.prop).sort()).toEqual(['armchairs', 'clock', 'frame', 'plant', 'sidetable']);
+    expect(room.things.map((t) => t.prop).sort()).toEqual(['armchairs', 'clock', 'frame', 'frame', 'plant', 'sidetable']);
     expect(room.people.map((c) => c.farewell)).toContain('We can stop here for today. Be gentle with yourself on the way out.');
     expect(room.people.flatMap((c) => c.topics.map((t) => t.reply)).join(' ')).toMatch(/Take your time\./);
   });

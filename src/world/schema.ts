@@ -142,7 +142,7 @@ export const CharacterSchema = z
     color: Hex,
     at: Vec2,
     greeting: z.string(),
-    topics: z.array(TopicSchema).min(2).max(4),
+    topics: z.array(TopicSchema).min(2).max(6),
     farewell: z.string(),
   })
   .strict();
@@ -153,7 +153,7 @@ export const InteriorSchema = z
     size: z.object({ w: z.number().min(6).max(14), d: z.number().min(5).max(10) }).strict(),
     /** Second-person prose for when you step in or look around. */
     description: z.string(),
-    things: z.array(ThingSchema).min(2).max(5),
+    things: z.array(ThingSchema).min(2).max(6),
     people: z.array(CharacterSchema).min(1).max(2),
   })
   .strict();

@@ -41,7 +41,8 @@ export const projects: Project[] = [
     landmarkName: 'The cabin',
     body: [
       'middle place is a journal that answers you. It remembers the people, the patterns, and where you left off, so you never start the story over.',
-      'Everything stays on your device and in your own iCloud. No accounts, no tracking, nothing sold.',
+      'Everything stays on your device and in your own iCloud. No accounts, no tracking, nothing sold. If you\'d rather, you can bring your own API key.',
+      "With Common Ground, two people can see where their feelings overlap without either of them reading a word of the other's journal.",
     ],
     tags: ['SwiftUI', 'SwiftData', 'Local-first'],
     links: [
@@ -140,7 +141,7 @@ export const projects: Project[] = [
     landmarkName: 'The lighthouse',
     body: [
       "I contributed to the Privacy Tech Lab's work on Global Privacy Control: OptMeowt, a browser extension that automatically tells sites not to sell your data, and a large-scale crawler that measured GPC compliance across 11,000+ websites.",
-      'The findings live in an interactive public dashboard.',
+      'The findings live in an interactive public dashboard, and the research was cited in an amicus brief filed with the Supreme Court.',
     ],
     tags: ['Browser extensions', 'Selenium', 'Research'],
     links: [
@@ -173,6 +174,7 @@ export const projects: Project[] = [
     icon: '/media/quizmate-icon.png',
     body: [
       'A learning app for the classroom. Teachers build lessons and quizzes in minutes; students practice, compete with classmates, and get feedback the moment they need it.',
+      'More than five hundred people signed up.',
     ],
     tags: ['SwiftUI', 'iOS', 'Firebase'],
     links: [
