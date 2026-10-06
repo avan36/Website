@@ -232,11 +232,18 @@ export function createEngine(world: World, geo: Geo, { random = Math.random, now
   };
 
   function narrate(legs: Leg[]): Span[] {
+    const isle = (pl: Place) => geo.islandOf(pl.at.x, pl.at.z) ?? 0;
+    const from = place(legs[0].from);
+    // Starting out on an islet and leaving it: back over its bridges first.
+    const back = isle(from) !== isle(place(legs[0].to)) ? bridgeTo(from, true) : null;
     const parts = legs.map((l, i) => {
       const to = place(l.to);
       const dir = DIR_NAMES[l.dir];
       const last = i === legs.length - 1;
-      const over = bridgeTo(to);
+      // A bridge only comes into it when the leg goes from one island to another (a walk along an islet stays on it).
+      const at = place(l.from);
+      const crosses = isle(at) !== isle(to) && !(i === 0 && back);
+      const over = crosses ? (isle(to) ? bridgeTo(to) : bridgeTo(at, true)) : null;
       const arrive = (last && ARRIVE[to.archetype]) || (over ? `over ${over} to ${ref(to)}` : `to ${ref(to)}`);
       // Out to an islet there's no grass to cut across: you head for the bridge.
       const way = (paved: boolean) => (over ? 'head' : paved ? 'follow the path' : 'cut across the grass');
@@ -245,8 +252,6 @@ export function createEngine(world: World, geo: Geo, { random = Math.random, now
       const how = over ? 'head ' : l.paved !== prev.paved ? (l.paved ? 'pick up the path ' : 'cut across the grass ') : l.dir === prev.dir ? 'carry on ' : '';
       return `${how}${dir} ${arrive}`;
     });
-    const from = place(legs[0].from);
-    const back = bridgeTo(from, true);
     const leave = from.archetype === 'pier' ? 'You walk back along the pier, then ' : back ? `You walk back over ${back}, then ` : 'You ';
     const body = parts.length === 1 ? parts[0] : `${parts.slice(0, -1).join(', ')}, then ${parts[parts.length - 1]}`;
     return [cap(`${leave}${body}.`)];

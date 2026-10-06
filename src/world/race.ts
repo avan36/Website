@@ -5,8 +5,8 @@
 //
 // The course is a ring out in the open sea, past the furthest anyone can swim
 // (geo's SWIM_REACH, where the buoys float), following the coast's general
-// shape but smoothed, so it swings wide round the lighthouse's headland and
-// the islets off the west coast instead of copying every ripple of the shore. It runs clockwise on the map
+// shape but smoothed, so it swings wide round the islets
+// off every coast instead of copying every ripple of the shore. It runs clockwise on the map
 // (south, then west, north and east), starting and finishing off the pier.
 
 import { SWIM_REACH, type Geo, type Vec2 } from './geo';

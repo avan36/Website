@@ -18,7 +18,7 @@ import { fbm, noise2 } from '../util/noise';
 import { clamp, rng, smoothstep } from '../util/math';
 
 /** The square the land is built over: the main island, the islets off it (Synergy Isle, far out to the south-west, too), and their shelves. */
-export const TERRAIN_SIZE = 140;
+export const TERRAIN_SIZE = 150;
 /** How far east the land goes on past that square: out over Little London and its shelf. */
 const EAST = Math.max(TERRAIN_SIZE / 2, ...ISLANDS.map((s) => s.x + s.outer * 1.35));
 
@@ -38,7 +38,7 @@ const C = {
 };
 
 /** Cells across the square: 0.55 of a unit each, or 0.63 on a phone (it began at 0.73). */
-export const TERRAIN_CELLS = { full: 256, phone: 224 };
+export const TERRAIN_CELLS = { full: 272, phone: 238 };
 
 export function buildTerrain(mobile = false) {
   const N = mobile ? TERRAIN_CELLS.phone : TERRAIN_CELLS.full;

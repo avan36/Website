@@ -136,6 +136,16 @@ export function createGeo(world: World) {
   for (let k = 0; k < 360; k++) mainOuter = Math.max(mainOuter, coastRadius((k / 360) * TAU));
   const islands: Island[] = [{ i: 0, id: 'main', name: hub.name, x: 0, z: 0, coast: coastRadius, outer: mainOuter }, ...islets];
 
+  /** The gentle rises, on whichever island they stand: each one lifts the ground round its place. */
+  function hillAt(x: number, z: number) {
+    let h = 0;
+    for (const m of hills) {
+      const d2 = (x - m.x) ** 2 + (z - m.z) ** 2;
+      h += m.height * Math.exp(-d2 / (2 * m.spread * m.spread));
+    }
+    return h;
+  }
+
   /** An islet's own ground, or -Infinity well past its shelf (where the sea floor is everyone's). */
   function isletHeight(s: Island, x: number, z: number) {
     const dx = x - s.x;
@@ -146,7 +156,7 @@ export function createGeo(world: World) {
     const t = Math.sqrt(d2) / s.coast(Math.atan2(dz, dx));
     const land = 1 - smoothstep(0.62, 0.86, t);
     // Gentler bumps than the main island's: a small islet with big ones looks lumpy.
-    return shelf(t) + (fbm(x * 0.075 + 3, z * 0.075 - 2, 3, 4) - 0.5) * 1.1 * land + 0.12 * (noise2(x * 0.5, z * 0.5, 9) - 0.5) * (1 - land);
+    return shelf(t) + (fbm(x * 0.075 + 3, z * 0.075 - 2, 3, 4) - 0.5) * 1.1 * land + 0.12 * (noise2(x * 0.5, z * 0.5, 9) - 0.5) * (1 - land) + hillAt(x, z);
   }
 
   /** 0..1, how much of a rocky headland we're on. */
@@ -177,11 +187,7 @@ export function createGeo(world: World) {
     const land = 1 - smoothstep(0.62, 0.86, t);
     h += (fbm(x * 0.075 + 3, z * 0.075 - 2, 3, 4) - 0.5) * 1.7 * land;
     h += 0.12 * (noise2(x * 0.5, z * 0.5, 9) - 0.5) * (1 - land); // ripples in the sand
-    for (const m of hills) {
-      const d2 = (x - m.x) ** 2 + (z - m.z) ** 2;
-      h += m.height * Math.exp(-d2 / (2 * m.spread * m.spread));
-    }
-    return h;
+    return h + hillAt(x, z);
   }
 
   /** Whose ground this is: the island whose own height is highest here (land or sea floor), and that height. */

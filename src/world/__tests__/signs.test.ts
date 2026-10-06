@@ -84,7 +84,7 @@ describe('signs and flags hold together (validation)', () => {
 
   it('catches a sign in the sea, on a path, or by a place that is not there', () => {
     const a = clone(base);
-    a.geography.signs[0].at = { x: 22, z: -30 };
+    a.geography.signs[0].at = { x: 40, z: -25 };
     expect(text(a)).toMatch(/Sign "foss-hill"'s F at .* is in the sea: move the sign onto land/);
     const b = clone(base);
     b.geography.signs[0].at = { x: 0, z: 4.5 };
@@ -107,7 +107,9 @@ describe('signs and flags hold together (validation)', () => {
 
   it('catches a sign that hides a lost word from the camera', () => {
     const a = clone(base);
-    Object.assign(a.geography.signs[0], { at: { x: 22, z: -10 }, faces: -0.1, height: 1.8 });
+    // Straight in front of the word, with the first S just south of it.
+    const word = a.lostWords.find((l) => l.id === 'uhtcearu')!;
+    Object.assign(a.geography.signs[0], { at: { x: word.at.x + 2.4, z: word.at.z + 2 }, faces: -0.1, height: 1.8 });
     expect(text(a)).toMatch(/Sign "foss-hill"'s S at .* hides the lost word "uhtcearu" from the camera/);
   });
 
@@ -121,8 +123,8 @@ describe('signs and flags hold together (validation)', () => {
 
   it('catches a flag in the sea or in the letters', () => {
     const a = clone(base);
-    a.geography.flags[0].at = { x: 23, z: -30 };
-    expect(text(a)).toMatch(/Flag 0 at \(23, -30\) is in the sea/);
+    a.geography.flags[0].at = { x: 40, z: -25 };
+    expect(text(a)).toMatch(/Flag 0 at \(40, -25\) is in the sea/);
     const b = clone(base);
     const l = geoOf(b).signs[0].letters[3];
     b.geography.flags[0].at = { x: l.x, z: l.z };

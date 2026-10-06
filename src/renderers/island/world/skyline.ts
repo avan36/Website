@@ -18,8 +18,8 @@ import { rng } from '../util/math';
 /** Built around z = 0, then shrunk and set down this far north: a miniature
  *  of a far-off city, small enough to fit in the top of the view. */
 const Z = 0;
-const AT_Z = -41;
-const SCALE = 0.62;
+const AT_Z = -68;
+const SCALE = 0.8;
 
 const DAY = new Color('#9fb0c4');
 const NIGHT = new Color('#1d2648');

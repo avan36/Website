@@ -482,6 +482,8 @@ describe('people out walking', () => {
   it('catch a walk through the letters of a sign', () => {
     const bad = clone(w);
     const l = createGeo(bad).signs[0].letters[2];
+    // The sign is out on Wesleyan Isle, so this walk is too.
+    bad.wanderers[0].roams = 'wesleyan-isle';
     bad.wanderers[0].walk = [{ x: l.x - 2.5 * l.az, z: l.z + 2.5 * l.ax }, { x: l.x + 2.5 * l.az, z: l.z - 2.5 * l.ax }];
     const text = checkWorld(bad).map((i) => i.message).join('\n');
     expect(text).toMatch(/Pushkar's walk from waypoint [01] to [01] goes through a sign's letters/);

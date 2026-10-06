@@ -251,7 +251,7 @@ test.describe('3D island', () => {
     await expect(prompt).toContainText(lines[1]);
     expect((await andrew()).said).toBe(2);
     // Walk away and he carries on.
-    await page.evaluate(() => (window as DebugWindow).__island!.debug.teleport(57.6, 22));
+    await page.evaluate(() => (window as DebugWindow).__island!.debug.teleport(65.1, 22.3));
     await tick(page, 1);
     const later = await andrew();
     expect(later.open).toBe(false);
@@ -265,7 +265,7 @@ test.describe('3D island', () => {
     const laps = await page.evaluate(() => {
       const d = (window as DebugWindow).__island!.debug;
       // Out of its way, in the middle of the loop.
-      d.teleport(60.4, 16);
+      d.teleport(67.9, 16.3);
       const start = d.bus()!;
       let stops = 0;
       let moved = 0;
@@ -303,7 +303,7 @@ test.describe('3D island', () => {
     // Step back off the road and it goes on.
     const after = await page.evaluate(() => {
       const d = (window as DebugWindow).__island!.debug;
-      d.teleport(60.4, 16);
+      d.teleport(67.9, 16.3);
       for (let i = 0; i < 30; i++) d.tick(0.1);
       return d.bus()!;
     });

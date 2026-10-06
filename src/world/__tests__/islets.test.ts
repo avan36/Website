@@ -11,7 +11,7 @@ describe('the islets', () => {
   const islets = geo.islands.slice(1);
 
   it('stand out at sea off the main island, with water all round them', () => {
-    expect(islets.map((s) => s.id).sort()).toEqual(['boardwalk-isle', 'little-london', 'root-isle', 'synergy-isle']);
+    expect(islets.map((s) => s.id).sort()).toEqual(['boardwalk-isle', 'little-london', 'root-isle', 'synergy-isle', 'wesleyan-isle']);
     for (const s of islets) {
       expect(geo.islandOf(s.x, s.z), s.id).toBe(s.i);
       expect(geo.heightAt(s.x, s.z), s.id).toBeGreaterThan(0.8);
@@ -82,13 +82,14 @@ describe('the bridges', () => {
   const w = world();
   const geo = createGeo(w);
 
-  it('each join two islands over the sea: the main island to three islets, and Boardwalk Isle on out to Synergy Isle', () => {
-    expect(geo.bridges).toHaveLength(4);
+  it('each join two islands over the sea: the main island to four islets, and Boardwalk Isle on out to Synergy Isle', () => {
+    expect(geo.bridges).toHaveLength(5);
     expect(geo.bridges.map((b) => b.joins.map((i) => geo.islands[i].id).join(' to ')).sort()).toEqual([
       'boardwalk-isle to synergy-isle',
       'main to boardwalk-isle',
       'main to little-london',
       'main to root-isle',
+      'main to wesleyan-isle',
     ]);
     for (const b of geo.bridges) {
       const middle = { x: (b.ax + b.bx) / 2, z: (b.az + b.bz) / 2 };
@@ -161,7 +162,7 @@ describe('walking between islands', () => {
 
   it('goes over the bridges to every game on an islet, and back, without getting wet', () => {
     const games = w.activities.filter((a) => a.kind === 'minigame' && geo.islandOf(a.at.x, a.at.z)! > 0);
-    expect(games).toHaveLength(5);
+    expect(games).toHaveLength(7);
     for (const g of games) {
       const there = walk(geo.hub.at, g.at);
       expect(there, g.id).toEqual({ arrived: true, wet: 0 });
@@ -233,10 +234,10 @@ describe('the ground holds together (validation)', () => {
 
   it('catches a bridge that starts in the sea, or goes nowhere new', () => {
     const w = clone(base);
-    w.geography.bridges[0].from = { x: -22, z: -11 };
-    w.geography.bridges[1].to = { x: -14, z: 9 };
+    w.geography.bridges[0].from = { x: -27, z: -13 };
+    w.geography.bridges[1].to = { x: -16.8, z: 10.8 };
     const t = text(w);
-    expect(t).toMatch(/Bridge 0 starts in the sea at \(-22, -11\): start it on land/);
+    expect(t).toMatch(/Bridge 0 starts in the sea at \(-27, -13\): start it on land/);
     expect(t).toMatch(/Bridge 1 starts and ends on the main island/);
   });
 
@@ -270,10 +271,10 @@ describe('the ground holds together (validation)', () => {
 
   it('catches an islet that runs into the main island, and a game left in the sea', () => {
     const w = clone(base);
-    w.geography.islets[0].at = { x: -24, z: -10 };
-    w.activities.find((a) => a.id === 'ask-the-bartender')!.at = { x: -40.5, z: 13 };
+    w.geography.islets[0].at = { x: -29, z: -12 };
+    w.activities.find((a) => a.id === 'ask-the-bartender')!.at = { x: -46.5, z: 15.2 };
     const t = text(w);
     expect(t).toMatch(/Islet "root-isle" runs into the main island/);
-    expect(t).toMatch(/Activity "ask-the-bartender" is in the sea at \(-40.5, 13\)/);
+    expect(t).toMatch(/Activity "ask-the-bartender" is in the sea at \(-46.5, 15.2\)/);
   });
 });
