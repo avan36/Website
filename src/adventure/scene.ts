@@ -14,6 +14,7 @@ import {
   HemisphereLight,
   Matrix4,
   Mesh,
+  MeshBasicMaterial,
   MeshStandardMaterial,
   PlaneGeometry,
   PMREMGenerator,
@@ -22,6 +23,7 @@ import {
   SphereGeometry,
   type WebGLRenderer,
 } from 'three';
+import { clouds } from './effects';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { Kit } from '../renderers/island/world/kit';
 import { rng } from '../renderers/island/util/math';
@@ -98,7 +100,7 @@ function sky(): Mesh {
     side: BackSide,
     depthWrite: false,
     fog: false,
-    uniforms: { top: { value: new Color('#6fa8d6') }, mid: { value: new Color('#bfdbea') }, bottom: { value: new Color('#e9e2cf') } },
+    uniforms: { top: { value: new Color('#5d9bd0') }, mid: { value: new Color('#cfe2ea') }, bottom: { value: new Color('#f2e2c8') } },
     vertexShader: 'varying vec3 vP; void main(){ vP = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
     fragmentShader:
       'uniform vec3 top; uniform vec3 mid; uniform vec3 bottom; varying vec3 vP; void main(){ float h = vP.y; vec3 c = h > 0.0 ? mix(mid, top, pow(clamp(h * 1.6, 0.0, 1.0), 0.8)) : mix(mid, bottom, clamp(-h * 6.0, 0.0, 1.0)); gl_FragColor = vec4(c, 1.0); }',
@@ -419,7 +421,7 @@ function gateMeshes(color: string): GateMesh[] {
 }
 
 /** The car: a small hatchback in cardinal red, nose along +z, with wheels that turn and steer. */
-export function carModel(color = '#b5283a'): { car: Group; wheels: Group[]; front: Group[] } {
+export function carModel(color = '#b5283a'): { car: Group; wheels: Group[]; front: Group[]; tail: MeshBasicMaterial } {
   const k = new Kit(7);
   k.rbox(2, 0.62, 3.9, 0.24, color, { p: [0, 0.72, 0] });
   k.rbox(1.72, 0.66, 2.1, 0.28, color, { p: [0, 1.38, -0.3] });
@@ -434,11 +436,17 @@ export function carModel(color = '#b5283a'): { car: Group; wheels: Group[]; fron
   k.box(1.96, 0.24, 0.16, '#3a3632', { p: [0, 0.45, -1.96] });
   k.box(1.1, 0.16, 0.06, '#2c2b33', { p: [0, 0.8, 1.96] });
   k.box(1.5, 0.06, 0.9, '#2c2b33', { p: [0, 1.73, -0.3] });
-  for (const x of [-0.72, 0.72]) {
-    k.addGlow(new PlaneGeometry(0.42, 0.2), '#fff4d6', { p: [x, 0.82, 1.97] });
-    k.addGlow(new PlaneGeometry(0.42, 0.2), '#e5484d', { p: [x, 0.82, -1.97], r: [0, Math.PI, 0] });
-  }
   const car = k.build();
+  const head = new MeshBasicMaterial({ color: new Color('#fff4d6').multiplyScalar(2.2) });
+  const tail = new MeshBasicMaterial({ color: new Color('#e5484d') });
+  for (const x of [-0.72, 0.72]) {
+    const h = new Mesh(new PlaneGeometry(0.42, 0.2), head);
+    h.position.set(x, 0.82, 1.975);
+    const t = new Mesh(new PlaneGeometry(0.42, 0.2), tail);
+    t.position.set(x, 0.82, -1.975);
+    t.rotation.y = Math.PI;
+    car.add(h, t);
+  }
   const wheels: Group[] = [];
   const front: Group[] = [];
   for (const x of [-0.95, 0.95]) {
@@ -456,7 +464,7 @@ export function carModel(color = '#b5283a'): { car: Group; wheels: Group[]; fron
       if (z > 0) front.push(hub);
     }
   }
-  return { car, wheels, front };
+  return { car, wheels, front, tail };
 }
 
 export type CampusScene = {
@@ -466,23 +474,26 @@ export type CampusScene = {
   car: Group;
   wheels: Group[];
   front: Group[];
+  /** The tail lights: brighter when you brake. */
+  tail: MeshBasicMaterial;
   dispose(): void;
 };
 
-export function buildScene(color: string, renderer: WebGLRenderer): CampusScene {
+export function buildScene(color: string, renderer: WebGLRenderer, shadowSize = 2048): CampusScene {
   const scene = new Scene();
-  scene.background = new Color('#bfdbea');
-  scene.fog = new Fog('#d5e3e4', 140, 420);
+  scene.background = new Color('#cfe0e6');
+  scene.fog = new Fog('#e2ddd0', 150, 460);
   // Soft light from a bright room all round, for gentle shading on every face.
   const pmrem = new PMREMGenerator(renderer);
   const env = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
   pmrem.dispose();
   scene.environment = env;
   scene.environmentIntensity = 0.35;
-  scene.add(new HemisphereLight('#e6f1f4', '#9c8a66', 1.1));
-  const sun = new DirectionalLight('#fff0d6', 2.6);
+  scene.add(new HemisphereLight('#dfeef4', '#9c8a66', 1.0));
+  // A late-afternoon sun: low and warm, for long shadows across the lawns.
+  const sun = new DirectionalLight('#ffe2b8', 3.1);
   sun.castShadow = true;
-  sun.shadow.mapSize.set(2048, 2048);
+  sun.shadow.mapSize.set(shadowSize, shadowSize);
   const sc = sun.shadow.camera;
   sc.left = -60; sc.right = 60; sc.top = 60; sc.bottom = -60; sc.near = 1; sc.far = 260;
   sun.shadow.bias = -0.0005;
@@ -502,12 +513,15 @@ export function buildScene(color: string, renderer: WebGLRenderer): CampusScene 
   const kt = new Kit(13);
   trees(kt);
   furniture(kt);
-  scene.add(kt.build());
+  // Lamp globes brighter than white, so the bloom catches them.
+  const glow = new MeshBasicMaterial({ vertexColors: true, color: new Color(2.4, 2.2, 1.9) });
+  scene.add(kt.build({ glowMaterial: glow }));
+  scene.add(clouds());
 
   const gm = gateMeshes(color);
   for (const g of gm) scene.add(g.group);
 
-  const { car, wheels, front } = carModel(color);
+  const { car, wheels, front, tail } = carModel(color);
   scene.add(car);
-  return { scene, sun, gates: gm, car, wheels, front, dispose: () => env.dispose() };
+  return { scene, sun, gates: gm, car, wheels, front, tail, dispose: () => env.dispose() };
 }
