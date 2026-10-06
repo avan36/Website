@@ -10,7 +10,7 @@
 import type { Vec } from './track';
 
 /** World units per map pixel. */
-export const SCALE = 0.2;
+export const SCALE = 0.28;
 /** The map pixel at the middle of the world. */
 const CX = 850;
 const CZ = 850;
@@ -21,8 +21,10 @@ export const toMap = (v: Vec): [number, number] => [v.x / SCALE + CX, v.z / SCAL
 /** The edge of the drivable world, in map pixels. */
 export const BOUNDS = { x0: 40, y0: 30, x1: 1660, y1: 1660 };
 
-/** Half a road's width, in map pixels (4 world units). */
-export const ROAD_HALF = 20;
+/** Half a road's width, in map pixels (about 4.5 world units). */
+export const ROAD_HALF = 16;
+/** Half a footpath's width, in map pixels: wide enough to drive, slowly. */
+export const PATH_HALF = 9;
 
 export type Street = { id: string; name: string; pts: [number, number][] };
 
@@ -43,6 +45,27 @@ export const streets: Street[] = [
   { id: 'lawn', name: 'Lawn Avenue', pts: [[640, 1265], [1000, 1200], [1290, 1140]] },
   { id: 'pine', name: 'Pine Street', pts: [[700, 985], [640, 1265], [590, 1660]] },
   { id: 'home', name: 'Home Avenue', pts: [[905, 1206], [910, 1660]] },
+  { id: 'branerd', name: 'Brainerd Avenue', pts: [[750, 1250], [755, 1660]] },
+  { id: 'fountain', name: 'Fountain Avenue', pts: [[555, 1120], [520, 1400]] },
+  { id: 'warren', name: 'Warren Street', pts: [[445, 1150], [400, 1400]] },
+];
+
+/** Campus footpaths: you can drive them, but they are narrow. Round Foss Hill, down past Andrus Field, and on to Church Street. */
+export const paths: Street[] = [
+  {
+    id: 'foss-loop',
+    name: 'the path round Foss Hill',
+    pts: Array.from({ length: 25 }, (_, i) => {
+      const a = (i / 24) * Math.PI * 2;
+      return [Math.round(690 + Math.cos(a) * 140), Math.round(660 + Math.sin(a) * 140)] as [number, number];
+    }),
+  },
+  { id: 'andrus-walk', name: 'the walk by Andrus Field', pts: [[830, 520], [848, 812], [1068, 812]] },
+  { id: 'hill-walk', name: 'the walk down to Church Street', pts: [[848, 812], [770, 985]] },
+  { id: 'track', name: 'the running track', pts: Array.from({ length: 33 }, (_, i) => {
+    const a = (i / 32) * Math.PI * 2;
+    return [Math.round(250 + Math.cos(a) * 130), Math.round(1555 + Math.sin(a) * 62)] as [number, number];
+  }) },
 ];
 
 /**
@@ -139,11 +162,29 @@ export const buildings: Building[] = [
   { at: [1180, 1270], w: 80, d: 60, turn: 0, h: 5, style: 'brick' },
   { at: [760, 1180], w: 60, d: 50, turn: 0, h: 4, style: 'white' },
   // The gym, down in the southwest corner.
-  { at: [310, 1330], w: 160, d: 150, turn: 0, h: 9, style: 'stone' },
+  { at: [290, 1330], w: 140, d: 150, turn: 0, h: 9, style: 'stone' },
+  // Further out: houses and halls toward the edges of the map.
+  { at: [1460, 180], w: 60, d: 50, turn: -4, h: 5, style: 'white' },
+  { at: [1500, 400], w: 50, d: 50, turn: -6, h: 5, style: 'brick' },
+  { at: [1450, 660], w: 60, d: 50, turn: -8, h: 5, style: 'white' },
+  { at: [1530, 650], w: 40, d: 40, turn: -8, h: 4, style: 'brownstone' },
+  { at: [1420, 1290], w: 60, d: 60, turn: 0, h: 5, style: 'white' },
+  { at: [1050, 1300], w: 60, d: 50, turn: -6, h: 5, style: 'white' },
+  { at: [1060, 1450], w: 70, d: 50, turn: 0, h: 5, style: 'brick' },
+  { at: [830, 1450], w: 50, d: 60, turn: 0, h: 4, style: 'white' },
+  { at: [670, 1430], w: 50, d: 50, turn: 0, h: 4, style: 'brownstone' },
+  { at: [1150, 1580], w: 80, d: 50, turn: 0, h: 6, style: 'stone' },
+  { at: [180, 880], w: 60, d: 60, turn: 0, h: 4, style: 'white' },
+  { at: [260, 520], w: 70, d: 50, turn: 0, h: 5, style: 'brick' },
+  { at: [700, 320], w: 50, d: 60, turn: 0, h: 5, style: 'brick' },
+  { at: [380, 230], w: 70, d: 50, turn: 0, h: 5, style: 'white' },
 ];
 
+/** The tennis courts by Vine Street, as the map draws them: green courts on the ground. */
+export const courts = { at: [450, 470] as [number, number], w: 90, d: 230, rows: 4 };
+
 /** Foss Hill: a round grassy hill, in map pixels, and its height in world units. */
-export const fossHill = { at: [690, 660] as [number, number], r: 110, h: 5 };
+export const fossHill = { at: [690, 660] as [number, number], r: 110, h: 7 };
 /** Andrus Field: the green, in map pixels. */
 export const andrusField = { at: [950, 700] as [number, number], w: 180, d: 190, turn: 0 };
 
