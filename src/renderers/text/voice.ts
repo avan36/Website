@@ -50,7 +50,7 @@ export const INVITE: Record<Archetype, string> = {
 export const ARRIVE: Partial<Record<Archetype, string>> = {
   pier: 'down to the shore and out along the pier',
   bottle: 'down to the quiet beach where the bottle lies',
-  lighthouse: 'out along the rocky headland to the lighthouse',
+  lighthouse: 'to the top of Foss Hill and the lighthouse',
   tree: 'up the gentle rise to the ancient tree',
   workshop: 'across the tracks to the workshop inside the railway loop',
   mall: 'down to the quay, over Tower Bridge and across the road to the mall',

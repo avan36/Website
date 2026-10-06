@@ -195,7 +195,7 @@ type Spot = { x: number; z: number; y: number; s: number; rot: number };
 
 /** Where a scatter throws its props: round the main island's middle, or an islet's. */
 type Around = { x: number; z: number; r: number; isle: number };
-const MAIN: Around = { x: 0, z: 0, r: 34, isle: 0 };
+const MAIN: Around = { x: 0, z: 0, r: 42, isle: 0 };
 
 function scatter(
   count: number,
@@ -317,31 +317,31 @@ export function buildNature(uniforms: SharedUniforms, lite = false) {
   const colliders: Collider[] = [];
   const all: Spot[] = [];
   // Keep a clear sight line in front of each landmark (the camera looks from +z).
-  const nearPlaza = (x: number, z: number) => Math.hypot(x - PLAZA.x, z - PLAZA.z) < 7;
+  const nearPlaza = (x: number, z: number) => Math.hypot(x - PLAZA.x, z - PLAZA.z) < 8.4;
   // Tall things stay out of the strip between each place and the camera.
   const blocksView = (x: number, z: number) =>
     PLACES.some((p) => z > p.z && z - p.z < 9 && Math.abs(x - p.x) < 4.5) ||
-    (Math.abs(x) < 6 && z > 0 && z < 16) ||
-    Math.hypot(x - PLACES.find((p) => p.kind === 'tree')!.x, z - PLACES.find((p) => p.kind === 'tree')!.z) < 8.5;
+    (Math.abs(x) < 7.2 && z > 0 && z < 19.2) ||
+    Math.hypot(x - PLACES.find((p) => p.kind === 'tree')!.x, z - PLACES.find((p) => p.kind === 'tree')!.z) < 9.5;
 
   // The main island's scatter leaves the bridges out (so it keeps the layout it
   // had before there were any) and clears them afterwards.
   const open = (x: number, z: number, m: number) => isOpenGround(x, z, m, false);
-  const palmOk: Accept = (x, z, h) => h > 0.42 && h < 1.05 && rockiness(x, z) < 0.25 && open(x, z, 0.6) && !(z > 10 && Math.abs(x - 2) < 7);
+  const palmOk: Accept = (x, z, h) => h > 0.42 && h < 1.05 && rockiness(x, z) < 0.25 && open(x, z, 0.6) && !(z > 12 && Math.abs(x - 2.4) < 8.4);
   const treeOk: Accept = (x, z, h) => h > 1.0 && rockiness(x, z) < 0.3 && open(x, z, 1.4) && !nearPlaza(x, z) && !blocksView(x, z);
   const pineOk: Accept = (x, z, h) => h > 1.0 && z < -2 && rockiness(x, z) < 0.5 && open(x, z, 1.2) && !blocksView(x, z);
   const bushOk: Accept = (x, z, h) => h > 0.75 && open(x, z, 0.4) && !nearPlaza(x, z);
   const rockOk: Accept = (x, z, h) => (h > 0.0 && h < 0.5 && open(x, z, 0)) || (rockiness(x, z) > 0.5 && h > 0.2 && open(x, z, -0.6));
-  let palms = scatter(17, rand, palmOk, 3.4, all, [0.85, 1.15]);
+  let palms = scatter(24, rand, palmOk, 3.4, all, [0.85, 1.15]);
   all.push(...palms);
-  let trees = scatter(16, rand, treeOk, 4.2, all);
+  let trees = scatter(22, rand, treeOk, 4.2, all);
   all.push(...trees);
-  let pines = scatter(9, rand, pineOk, 3, all, [0.9, 1.3]);
+  let pines = scatter(13, rand, pineOk, 3, all, [0.9, 1.3]);
   all.push(...pines);
-  let bushes = scatter(30, rand, bushOk, 1.8, all, [0.7, 1.3]);
-  let rocks = scatter(34, rand, rockOk, 1.5, all, [0.6, 1.5]);
-  let tufts = scatter(lite ? 120 : 230, rand, (x, z, h) => h > 0.7 && open(x, z, -0.7), 0.6, [], [0.8, 1.4]);
-  let flowers = scatter(lite ? 80 : 120, rand, (x, z, h) => h > 0.85 && open(x, z, -0.5) && rockiness(x, z) < 0.3, 0.45, [], [0.8, 1.25]);
+  let bushes = scatter(42, rand, bushOk, 1.8, all, [0.7, 1.3]);
+  let rocks = scatter(46, rand, rockOk, 1.5, all, [0.6, 1.5]);
+  let tufts = scatter(lite ? 170 : 330, rand, (x, z, h) => h > 0.7 && open(x, z, -0.7), 0.6, [], [0.8, 1.4]);
+  let flowers = scatter(lite ? 115 : 170, rand, (x, z, h) => h > 0.85 && open(x, z, -0.5) && rockiness(x, z) < 0.3, 0.45, [], [0.8, 1.25]);
   // Nothing may bury a lost word or the fishing spot, or hide it from the
   // camera. Settled after scattering, so the rest of the island keeps exactly
   // the layout it always had: a prop in the way steps aside if there's room.

@@ -172,7 +172,7 @@ test.describe('map', () => {
       return (window as DebugWindow).__map!.places().find((p) => p.id === id)!;
     });
     // On the quay, where the bridge starts.
-    await page.evaluate(() => (window as DebugWindow).__map!.teleport(29.4, 17.2));
+    await page.evaluate(() => (window as DebugWindow).__map!.teleport(36.9, 17.5));
     expect(await page.evaluate((d) => (window as DebugWindow).__map!.walkTo(d.x, d.z), mall.door), 'a way over').toBe(true);
     // Stop if it ever gets its feet wet: the deck is the only way over. The map walks in real time and slows with the
     // frame rate, so a long walk gets a long wait when the 3D tests share the machine (about 12 s on its own).
@@ -194,7 +194,7 @@ test.describe('map', () => {
       return page.evaluate(() => (window as DebugWindow).__map!.places().find((p) => p.id === 'synergy-tower')!);
     };
     // Shut: no way over from Boardwalk Isle, and the badge desk's tag pops up at the turnstile.
-    await seed(page, { found: await wordIds(page), at: { x: -34.5, z: 17.5 } });
+    await seed(page, { found: await wordIds(page), at: { x: -40.1, z: 19.9 } });
     const t = await tower();
     expect(await page.evaluate(() => (window as DebugWindow).__map!.gates())).toMatchObject([{ id: 'badge-gate', open: false }]);
     expect(await page.evaluate((d) => (window as DebugWindow).__map!.walkTo(d.x, d.z), t.door), 'no way past the gate').toBe(false);
@@ -207,7 +207,7 @@ test.describe('map', () => {
 
   test('once the badge gate is open, walks the long bridge to the glass tower, dry all the way', async ({ page }) => {
     const errors = watchErrors(page);
-    await seed(page, { found: await wordIds(page), at: { x: -34.5, z: 17.5 }, gates: ['badge-gate'] });
+    await seed(page, { found: await wordIds(page), at: { x: -40.1, z: 19.9 }, gates: ['badge-gate'] });
     await page.goto('/?view=map&debug');
     await homeReady(page, 'map');
     await page.waitForFunction(() => !!(window as DebugWindow).__map);

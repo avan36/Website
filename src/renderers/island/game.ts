@@ -205,7 +205,7 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
   // ---------- Scene ----------
   const scene = new Scene();
   scene.background = new Color(HORIZON);
-  scene.fog = new Fog(HORIZON, 75, 230);
+  scene.fog = new Fog(HORIZON, 85, 250);
   const sunDir = new Vector3(0.55, 0.78, 0.42).normalize();
 
   const hemi = new HemisphereLight('#cfe8ff', '#e8c48e', 1.05);
@@ -1676,7 +1676,7 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     const k = easeInOutCubic(clamp(t / (INTRO - 0.1)));
     const tgt = camGoal.set(lerp(0, player.pos.x, k), lerp(0.5, player.pos.y + 0.8, k), lerp(-2, player.pos.z, k));
     rig.target.copy(tgt);
-    rig.dist = lerp(110, baseDist * rig.zoom, k);
+    rig.dist = lerp(128, baseDist * rig.zoom, k);
     rig.pitch = lerp(1.0, basePitch, k);
     rig.yaw = lerp(-0.85, 0, k);
     if (t >= INTRO) {

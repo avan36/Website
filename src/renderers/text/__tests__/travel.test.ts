@@ -54,7 +54,7 @@ describe('exits', () => {
 
   it('shares a direction when the plaza has more paths than the compass has points', () => {
     const exits = travel.exits('plaza');
-    expect(exits).toHaveLength(10);
+    expect(exits).toHaveLength(8);
     const dirs = exits.map((e) => e.dir);
     expect(new Set(dirs).size).toBeLessThan(dirs.length);
   });
@@ -68,7 +68,11 @@ describe('route', () => {
   });
 
   it('goes through the plaza when that is the way', () => {
-    expect(travel.route('blog', 'privacy-research')!.map((l) => l.to)).toEqual(['plaza', 'privacy-research']);
+    expect(travel.route('blog', 'etymon')!.map((l) => l.to)).toEqual(['plaza', 'etymon']);
+  });
+
+  it('goes over to Wesleyan Isle by the depot, then up to the lighthouse', () => {
+    expect(travel.route('plaza', 'privacy-research')!.map((l) => l.to)).toEqual(['map-of-evolution', 'eqoscan', 'privacy-research']);
   });
 
   it('is empty for staying put', () => {

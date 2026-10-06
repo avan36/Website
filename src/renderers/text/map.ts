@@ -1,5 +1,5 @@
 // The island in characters. Samples the same height field the 3D island is
-// built from, so the coast, the beaches, the rocky headland and the paths are
+// built from, so the coast, the beaches and the paths are
 // where they are on every other view. A cell is about twice as tall as it is
 // wide in a monospace font, so each row covers twice the ground of a column
 // and the island comes out round, not squashed.
@@ -69,9 +69,9 @@ export type IslandMap = {
 
 export function drawIsland(world: World, geo: Geo, cols = MAP_COLS, rowsN = MAP_ROWS): IslandMap {
   // The main island only: the islets are open sea here. Most are over bridges
-  // words can't cross yet; one with places on it (the mall and the townhouse
-  // over Tower Bridge) gets its bridge, run out toward the edge, and their
-  // letters at the end.
+  // words can't cross yet; each one with places on it (the mall and the
+  // townhouse over Tower Bridge, the lighthouse and the depot on Wesleyan Isle)
+  // gets its bridge, run out toward the edge, and their letters at the end.
   const heightAt = (x: number, z: number) => (geo.owner(x, z) === 0 ? geo.heightAt(x, z) : -6);
   const away = world.places.filter((p) => geo.islandOf(p.at.x, p.at.z));
   // Frame everything that isn't open sea, plus a little water all round.

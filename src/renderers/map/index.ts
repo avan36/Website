@@ -170,7 +170,7 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
   const lampAt = { x: pier.x - pier.width / 2 + 0.25, z: pier.end - 3.4 };
   stampCircle(lampAt.x, lampAt.z, 0.15 + BODY_R * 0.5);
   // The rowboat moored by the pier, to swim round; the portal's ring and plinth, to walk round.
-  const boatAt = { x: pier.x + pier.width / 2 + 0.95, z: 22.4 };
+  const boatAt = { x: pier.x + pier.width / 2 + 0.95, z: pier.end - 5.6 };
   stampBox(boatAt.x - 0.7, boatAt.z - 2.6, boatAt.x + 0.7, boatAt.z);
   if (portal) stampBox(portal.at.x - 1.3, portal.at.z - 0.35, portal.at.x + 1.3, portal.at.z + 0.05);
   // The speedboat, tied up at the end of the pier (raced in 3D: see boat.ts).
