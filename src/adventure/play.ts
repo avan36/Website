@@ -2,7 +2,9 @@
 // with the camera and keeps the page's HUD up to date. The page (adventure.astro)
 // owns the markup; this finds its parts by data attributes and fills them in.
 
-import { PCFShadowMap, PerspectiveCamera, Vector3, WebGLRenderer, ACESFilmicToneMapping } from 'three';
+import { PCFShadowMap, PerspectiveCamera, SRGBColorSpace, Vector3, WebGLRenderer, ACESFilmicToneMapping } from 'three';
+import { createPost } from '../renderers/island/fx/post';
+import { FrameWatch, pickQuality, stepDown } from '../renderers/island/fx/quality';
 import { boxes, bounds, course, gates, onRoad } from './campus';
 import { bump, newCar, stepCar, type Car } from './car';
 import { buildScene } from './scene';
@@ -11,6 +13,8 @@ import { andrusField, buildings, fossHill, groundHeight, landmarks, toMap, toWor
 import type { Chapter } from './levels';
 
 const CAR_R = 1.3;
+// The stage: a held finger on a pad must never start a text selection or the long-press menu.
+const noSelect = (e: Event) => e.preventDefault();
 const LAPS = 2;
 
 export type Session = { destroy(): void };
@@ -32,16 +36,25 @@ export function play(stage: HTMLElement, chapter: Chapter, onExit: () => void): 
     raceBits: stage.querySelectorAll<HTMLElement>('[data-adv-race]'),
   };
 
+  const mobile = matchMedia('(pointer: coarse)').matches || Math.min(innerWidth, innerHeight) < 600;
   const renderer = new WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, mobile ? 1.75 : 2));
+  renderer.outputColorSpace = SRGBColorSpace;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = PCFShadowMap;
   renderer.toneMapping = ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.05;
   host.appendChild(renderer.domElement);
 
-  const world = buildScene(chapter.color);
-  const camera = new PerspectiveCamera(55, 1, 0.5, 600);
+  const world = buildScene(chapter.color, renderer);
+  const camera = new PerspectiveCamera(55, 1, 0.5, 900);
+  // The island's polish: bloom and a warm grade (no tilt-shift: this is a chase camera, not a model on a table).
+  // Phones start lighter, and anything that can't keep up steps itself down. ?fx= overrides, as on the island.
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let quality = pickQuality({ search: location.search, mobile, reducedMotion: reduced });
+  if (!quality.forced) quality = { ...quality, effects: quality.effects.filter((e) => e !== 'tilt') };
+  const post = createPost(renderer, world.scene, camera, quality);
+  const frameWatch = new FrameWatch();
 
   // Landmarks you pass get a card, once each drive.
   const spots = landmarks.map((l) => {
@@ -77,6 +90,8 @@ export function play(stage: HTMLElement, chapter: Chapter, onExit: () => void): 
     }
     if (k === 'escape' && e.type === 'keydown' && !ui.finish?.open) onExit();
   };
+  stage.addEventListener('selectstart', noSelect);
+  stage.addEventListener('contextmenu', noSelect);
   window.addEventListener('keydown', onKey);
   window.addEventListener('keyup', onKey);
   const padEls = stage.querySelectorAll<HTMLElement>('[data-pad]');
@@ -104,7 +119,7 @@ export function play(stage: HTMLElement, chapter: Chapter, onExit: () => void): 
   const look = new Vector3();
   const portrait = () => host.clientHeight > host.clientWidth;
   const camWant = () => {
-    const back = portrait() ? 17 : 13;
+    const back = portrait() ? 16 : 12.5;
     const up = portrait() ? 9.5 : 7;
     const fx = Math.sin(car.heading);
     const fz = Math.cos(car.heading);
@@ -124,7 +139,7 @@ export function play(stage: HTMLElement, chapter: Chapter, onExit: () => void): 
       look: new Vector3(car.x + fx * 6, y + 1.2, car.z + fz * 6),
     };
   };
-  const heights = buildings.map((b) => (b.landmark === 'exley' ? 32 : b.h + 4));
+  const heights = buildings.map((b) => (b.landmark === 'exley' ? 40 : b.h + 5));
   const blocked = (p: { x: number; z: number }, y: number) =>
     boxes.some((b, i) => y < heights[i] && distanceToBox(p, b) < 1);
   function snapCamera() {
@@ -188,6 +203,7 @@ export function play(stage: HTMLElement, chapter: Chapter, onExit: () => void): 
     const w = host.clientWidth || 1;
     const h = host.clientHeight || 1;
     renderer.setSize(w, h, false);
+    post.setSize(w, h);
     camera.aspect = w / h;
     camera.fov = w < h ? 68 : 55;
     camera.updateProjectionMatrix();
@@ -209,11 +225,18 @@ export function play(stage: HTMLElement, chapter: Chapter, onExit: () => void): 
   let running = true;
   const frame = (now: number) => {
     raf = requestAnimationFrame(frame);
-    const dt = Math.min(0.05, (now - last) / 1000);
+    // rAF times can sit a little before the last reset (the scene builds in between): never run time backwards.
+    const dt = Math.max(0, Math.min(0.05, (now - last) / 1000));
     last = now;
     if (!running) return;
     update(dt);
-    renderer.render(world.scene, camera);
+    post.update({ dark: 0, inside: false, portrait: host.clientHeight > host.clientWidth }, dt);
+    if (!quality.forced && post.level !== 'off' && frameWatch.add(dt)) {
+      quality = stepDown(quality);
+      post.set(quality.level, quality.effects);
+      frameWatch.reset();
+    }
+    post.render(dt);
   };
 
   function update(dt: number) {
@@ -252,6 +275,8 @@ export function play(stage: HTMLElement, chapter: Chapter, onExit: () => void): 
     world.car.rotation.set(0, car.heading, 0);
     world.car.rotateX(-Math.atan2(ahead - y, 1.8));
     world.car.rotateZ(-car.slip * 0.03);
+    for (const w of world.wheels) w.rotation.x += (car.speed * dt) / 0.42;
+    for (const f of world.front) f.rotation.y = drive.steer * 0.45;
 
     const w = camWant();
     const k = 1 - Math.exp(-dt * 4);
@@ -291,6 +316,7 @@ export function play(stage: HTMLElement, chapter: Chapter, onExit: () => void): 
   const onVis = () => {
     running = !document.hidden;
     last = performance.now();
+    frameWatch.reset();
   };
   document.addEventListener('visibilitychange', onVis);
   raf = requestAnimationFrame(frame);
@@ -300,6 +326,8 @@ export function play(stage: HTMLElement, chapter: Chapter, onExit: () => void): 
       cancelAnimationFrame(raf);
       clearTimeout(toastTimer);
       ro.disconnect();
+      stage.removeEventListener('selectstart', noSelect);
+      stage.removeEventListener('contextmenu', noSelect);
       window.removeEventListener('keydown', onKey);
       window.removeEventListener('keyup', onKey);
       document.removeEventListener('visibilitychange', onVis);
@@ -314,6 +342,8 @@ export function play(stage: HTMLElement, chapter: Chapter, onExit: () => void): 
         if (Array.isArray(m.material)) m.material.forEach((x) => x.dispose());
         else m.material?.dispose();
       });
+      post.dispose();
+      world.dispose();
       renderer.dispose();
       renderer.domElement.remove();
     },

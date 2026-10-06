@@ -2,7 +2,7 @@
 // Wesleyan as a flat map, drawn from the same data as the 3D campus. It is
 // the chapter's preview, the fallback without WebGL or JavaScript, and (with
 // `live`) the minimap in the corner while you drive.
-import { andrusField, buildings, course, fossHill, gates, landmarks, BOUNDS, ROAD_HALF, streets } from '../../adventure/wesleyan';
+import { andrusField, buildings, course, courts, fossHill, gates, landmarks, BOUNDS, PATH_HALF, paths, ROAD_HALF, streets } from '../../adventure/wesleyan';
 
 interface Props {
   live?: boolean;
@@ -19,7 +19,9 @@ const short: Record<string, string> = { usdan: 'Usdan', olin: 'Olin', exley: 'Ex
   <rect x={BOUNDS.x0} y={BOUNDS.y0} width={BOUNDS.x1 - BOUNDS.x0} height={BOUNDS.y1 - BOUNDS.y0} fill="#cfe0b5" />
   <circle cx={fossHill.at[0]} cy={fossHill.at[1]} r={fossHill.r} fill="#b8d49a" />
   <rect x={andrusField.at[0] - andrusField.w / 2} y={andrusField.at[1] - andrusField.d / 2} width={andrusField.w} height={andrusField.d} fill="#a9cf86" rx="6" />
+  <rect x={courts.at[0] - courts.w / 2} y={courts.at[1] - courts.d / 2} width={courts.w} height={courts.d} fill="#8fb894" rx="4" />
   <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    {paths.map((s) => <polyline points={line(s.pts)} stroke={s.id === 'track' ? '#c98a72' : '#e6d9bd'} stroke-width={PATH_HALF * 2} />)}
     {streets.map((s) => <polyline points={line(s.pts)} stroke="#e9dfcc" stroke-width={ROAD_HALF * 2 + 8} />)}
     {streets.map((s) => <polyline points={line(s.pts)} stroke="#8c857c" stroke-width={ROAD_HALF * 2} />)}
     <polygon points={line(course)} stroke={color} stroke-width="8" stroke-dasharray="26 18" opacity="0.9" />

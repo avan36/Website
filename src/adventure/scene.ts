@@ -5,8 +5,10 @@
 // flat-shaded look. Everything here is drawing: positions come from campus.ts.
 
 import {
+  BackSide,
   Color,
   DirectionalLight,
+  Float32BufferAttribute,
   Fog,
   Group,
   HemisphereLight,
@@ -14,22 +16,28 @@ import {
   Mesh,
   MeshStandardMaterial,
   PlaneGeometry,
+  PMREMGenerator,
   Scene,
-  type Object3D,
+  ShaderMaterial,
+  SphereGeometry,
+  type WebGLRenderer,
 } from 'three';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { Kit } from '../renderers/island/world/kit';
 import { rng } from '../renderers/island/util/math';
-import { boxes, bounds, course, gates, roadHalf, streetLines } from './campus';
+import { fbm } from '../world/noise';
+import { boxes, bounds, course, gates, laneClearance, lanes, roadHalf } from './campus';
 import { distanceToBox, type Gate } from './track';
-import { andrusField, buildings, groundHeight, SCALE, toWorld, type Style } from './wesleyan';
+import { andrusField, buildings, courts, groundHeight, SCALE, toWorld, type Style } from './wesleyan';
 
 const C = {
   grass: '#93bf6c',
   field: '#86bd5e',
   fieldStripe: '#94c96b',
   dirt: '#c49466',
-  road: '#6e6963',
+  road: '#6a6560',
   kerb: '#d8ccb5',
+  path: '#d9c9a8',
   line: '#f1e3c2',
   brick: '#a5503c',
   brownstone: '#7e5444',
@@ -40,6 +48,10 @@ const C = {
   trim: '#efe6d6',
   concrete: '#d2b39e',
   trunk: '#6b4a33',
+  hedge: '#4f7f3f',
+  lamp: '#2f3335',
+  court: '#5f9a6a',
+  track: '#b4553f',
 };
 const WALL: Record<Style, string> = { brick: C.brick, brownstone: C.brownstone, stone: C.stone, white: C.white };
 
@@ -47,40 +59,81 @@ const WALL: Record<Style, string> = { brick: C.brick, brownstone: C.brownstone, 
 const place = (x: number, z: number, angle: number, y = 0) =>
   new Matrix4().makeTranslation(x, y, z).multiply(new Matrix4().makeRotationY(-angle));
 
+/** The ground: grass in soft patches of light and shade, rising into Foss Hill. */
 function ground(): Mesh {
-  const w = bounds.x1 - bounds.x0 + 120;
-  const d = bounds.z1 - bounds.z0 + 120;
-  const g = new PlaneGeometry(w, d, 140, 140);
+  const w = bounds.x1 - bounds.x0 + 200;
+  const d = bounds.z1 - bounds.z0 + 200;
+  const g = new PlaneGeometry(w, d, 220, 220);
   g.rotateX(-Math.PI / 2);
   g.translate((bounds.x0 + bounds.x1) / 2, 0, (bounds.z0 + bounds.z1) / 2);
   const pos = g.getAttribute('position');
-  for (let i = 0; i < pos.count; i++) pos.setY(i, groundHeight(pos.getX(i), pos.getZ(i)) - 0.02);
+  const col: number[] = [];
+  const base = new Color(C.grass);
+  const dry = new Color('#b4c477');
+  const deep = new Color('#6f9f55');
+  const c = new Color();
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i);
+    const z = pos.getZ(i);
+    const y = groundHeight(x, z);
+    pos.setY(i, y - 0.02);
+    const n = fbm(x * 0.02, z * 0.02, 4, 5);
+    const m = fbm(x * 0.09, z * 0.09, 2, 9);
+    c.copy(base).lerp(n > 0.5 ? dry : deep, Math.min(1, Math.abs(n - 0.5) * 1.6)).multiplyScalar(0.94 + m * 0.12);
+    // Worn a little near the edges of the roads, where people walk.
+    const edge = laneClearance({ x, z });
+    if (edge < 1.6 && edge > 0) c.lerp(new Color('#a9a77a'), 0.25 * (1 - edge / 1.6));
+    col.push(c.r, c.g, c.b);
+  }
+  g.setAttribute('color', new Float32BufferAttribute(col, 3));
   g.computeVertexNormals();
-  const m = new Mesh(g, new MeshStandardMaterial({ color: C.grass, roughness: 0.95 }));
-  m.receiveShadow = true;
+  const mesh = new Mesh(g, new MeshStandardMaterial({ vertexColors: true, roughness: 0.96 }));
+  mesh.receiveShadow = true;
+  return mesh;
+}
+
+/** The sky: a dome, pale at the horizon and deeper blue overhead. */
+function sky(): Mesh {
+  const mat = new ShaderMaterial({
+    side: BackSide,
+    depthWrite: false,
+    fog: false,
+    uniforms: { top: { value: new Color('#6fa8d6') }, mid: { value: new Color('#bfdbea') }, bottom: { value: new Color('#e9e2cf') } },
+    vertexShader: 'varying vec3 vP; void main(){ vP = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    fragmentShader:
+      'uniform vec3 top; uniform vec3 mid; uniform vec3 bottom; varying vec3 vP; void main(){ float h = vP.y; vec3 c = h > 0.0 ? mix(mid, top, pow(clamp(h * 1.6, 0.0, 1.0), 0.8)) : mix(mid, bottom, clamp(-h * 6.0, 0.0, 1.0)); gl_FragColor = vec4(c, 1.0); }',
+  });
+  const m = new Mesh(new SphereGeometry(700, 32, 16), mat);
+  m.renderOrder = -1;
+  m.frustumCulled = false;
   return m;
 }
 
 function streets(k: Kit) {
   const flat = { jitter: 0 };
-  for (const line of streetLines) {
-    for (let i = 0; i < line.length; i++) {
-      const a = line[i];
-      k.cyl(roadHalf + 0.6, roadHalf + 0.6, 0.04, C.kerb, { ...flat, p: [a.x, 0.02, a.z] }, 20);
-      k.cyl(roadHalf, roadHalf, 0.06, C.road, { ...flat, p: [a.x, 0.04, a.z] }, 20);
-      if (i === line.length - 1) break;
-      const b = line[i + 1];
-      const len = Math.hypot(b.x - a.x, b.z - a.z);
-      const h = Math.atan2(b.x - a.x, b.z - a.z);
-      const mid: [number, number, number] = [(a.x + b.x) / 2, 0.02, (a.z + b.z) / 2];
-      k.box(roadHalf * 2 + 1.2, 0.04, len, C.kerb, { ...flat, p: mid, r: [0, h, 0] });
-      k.box(roadHalf * 2, 0.06, len, C.road, { ...flat, p: [mid[0], 0.04, mid[2]], r: [0, h, 0] });
+  // Paths first and lowest, then kerbs, then the roads over both.
+  const layer = (kind: 'road' | 'path', half: (h: number) => number, y: number, color: string, h = 0.06) => {
+    for (const l of lanes) {
+      if (l.kind !== kind) continue;
+      const r = half(l.half);
+      for (let i = 0; i < l.pts.length; i++) {
+        const a = l.pts[i];
+        k.cyl(r, r, h, color, { ...flat, p: [a.x, y, a.z] }, 20);
+        if (i === l.pts.length - 1) break;
+        const b = l.pts[i + 1];
+        const len = Math.hypot(b.x - a.x, b.z - a.z);
+        const hd = Math.atan2(b.x - a.x, b.z - a.z);
+        k.box(r * 2, h, len, color, { ...flat, p: [(a.x + b.x) / 2, y, (a.z + b.z) / 2], r: [0, hd, 0] });
+      }
     }
-  }
+  };
+  layer('path', (h) => h, 0.03, C.path);
+  layer('road', (h) => h + 0.9, 0.06, C.kerb, 0.14);
+  layer('road', (h) => h, 0.13, C.road);
   // Dashes down the middle of the course.
   for (let s = 0; s < course.length; s += 5) {
     const p = course.pointAt(s);
-    k.box(0.22, 0.02, 2, C.line, { ...flat, p: [p.x, 0.08, p.z], r: [0, p.heading, 0] });
+    k.box(0.22, 0.02, 2, C.line, { ...flat, p: [p.x, 0.17, p.z], r: [0, p.heading, 0] });
   }
   // A checkered start line.
   const g0 = gates[0];
@@ -91,7 +144,7 @@ function streets(k: Kit) {
       const v = (j - 0.5) * 1;
       const x = g0.x + Math.cos(g0.heading) * u + Math.sin(g0.heading) * v;
       const z = g0.z - Math.sin(g0.heading) * u + Math.cos(g0.heading) * v;
-      k.box((roadHalf * 2) / n, 0.02, 1, (i + j) % 2 ? '#3a3632' : C.line, { ...flat, p: [x, 0.085, z], r: [0, g0.heading, 0] });
+      k.box((roadHalf * 2) / n, 0.02, 1, (i + j) % 2 ? '#3a3632' : C.line, { ...flat, p: [x, 0.175, z], r: [0, g0.heading, 0] });
     }
   }
 }
@@ -100,33 +153,74 @@ function field(k: Kit) {
   const c = toWorld(andrusField.at);
   const w = andrusField.w * SCALE;
   const d = andrusField.d * SCALE;
-  const stripes = 9;
+  const stripes = 11;
   for (let i = 0; i < stripes; i++) {
     k.box(w / stripes, 0.03, d, i % 2 ? C.field : C.fieldStripe, { jitter: 0, p: [c.x - w / 2 + (i + 0.5) * (w / stripes), 0.015, c.z] });
   }
   // A baseball diamond in the southwest corner, as the map draws it.
-  k.box(9, 0.035, 9, C.dirt, { jitter: 0, p: [c.x - w / 4, 0.03, c.z + d / 6], r: [0, Math.PI / 4, 0] });
-  k.box(6, 0.04, 6, C.field, { jitter: 0, p: [c.x - w / 4, 0.035, c.z + d / 6], r: [0, Math.PI / 4, 0] });
+  const dx = c.x - w / 4;
+  const dz = c.z + d / 6;
+  k.box(12, 0.035, 12, C.dirt, { jitter: 0, p: [dx, 0.03, dz], r: [0, Math.PI / 4, 0] });
+  k.box(8.4, 0.04, 8.4, C.field, { jitter: 0, p: [dx, 0.035, dz], r: [0, Math.PI / 4, 0] });
+  k.cyl(0.9, 0.9, 0.05, C.dirt, { jitter: 0, p: [dx, 0.045, dz] }, 12);
+
+  // The tennis courts, each green with white lines and a net.
+  const t = toWorld(courts.at);
+  const tw = courts.w * SCALE;
+  const td = courts.d * SCALE;
+  k.box(tw + 2, 0.03, td + 2, '#6c8f78', { jitter: 0, p: [t.x, 0.02, t.z] });
+  const each = td / courts.rows;
+  for (let i = 0; i < courts.rows; i++) {
+    const z = t.z - td / 2 + (i + 0.5) * each;
+    k.box(tw - 1, 0.04, each - 1.4, C.court, { jitter: 0, p: [t.x, 0.03, z] });
+    k.box(tw - 3, 0.05, 0.12, C.trim, { jitter: 0, p: [t.x, 0.035, z - each / 2 + 1.3] });
+    k.box(tw - 3, 0.05, 0.12, C.trim, { jitter: 0, p: [t.x, 0.035, z + each / 2 - 1.3] });
+    k.box(0.06, 1, each - 2.6, '#2f3335', { jitter: 0, p: [t.x, 0.5, z] });
+  }
+  // Infield of the running track: grass with a field marked out.
+  k.box(46, 0.03, 18, C.fieldStripe, { jitter: 0, p: [toWorld([250, 1555]).x, 0.015, toWorld([250, 1555]).z] });
 }
 
-/** A plain campus building: walls, a band of windows on each floor, and a roof to suit its style. */
+/** Windows all the way along a wall of length `len`, at height y, set into the face at distance `out` along +z. */
+function windowRow(k: Kit, len: number, y: number, out: number, style: Style, tall = 1.5) {
+  const n = Math.max(1, Math.floor(len / 2));
+  const step = len / n;
+  const frame = style === 'brick' || style === 'brownstone' ? C.trim : '#b9ad99';
+  for (let i = 0; i < n; i++) {
+    const x = -len / 2 + (i + 0.5) * step;
+    k.box(0.95, tall, 0.12, C.glass, { p: [x, y, out], jitter: 0.04 });
+    k.box(1.15, 0.14, 0.2, frame, { p: [x, y - tall / 2 - 0.05, out + 0.03] });
+    k.box(0.08, tall, 0.16, frame, { p: [x, y, out + 0.02] });
+  }
+}
+
+/** A plain campus building: walls on a plinth, a row of real windows on every floor, a door, and a roof to suit its style. */
 function plain(k: Kit, w: number, d: number, h: number, style: Style) {
   const wall = WALL[style];
+  k.box(w + 0.3, 0.7, d + 0.3, style === 'white' ? '#b9ad99' : '#8a7a6a', { p: [0, 0.35, 0] });
   k.box(w, h, d, wall, { p: [0, h / 2, 0] });
-  const floors = Math.max(1, Math.floor(h / 3));
+  const floors = Math.max(1, Math.floor((h - 0.6) / 3));
   for (let f = 0; f < floors; f++) {
-    const y = 1.6 + f * 3;
+    const y = 1.9 + f * 3;
     if (y > h - 0.8) break;
-    k.box(w * 0.86, 1.1, d + 0.1, C.glass, { p: [0, y, 0], jitter: 0.02 });
-    k.box(w + 0.1, 1.1, d * 0.8, C.glass, { p: [0, y, 0], jitter: 0.02 });
+    for (const side of [-1, 1]) {
+      k.within(new Matrix4().makeRotationY(side > 0 ? 0 : Math.PI), () => windowRow(k, w - 1.2, y, d / 2, style));
+      k.within(new Matrix4().makeRotationY(side > 0 ? Math.PI / 2 : -Math.PI / 2), () => windowRow(k, d - 1.2, y, w / 2, style));
+    }
   }
+  // A door in the middle of the front, with a little step.
+  k.box(1.4, 2.2, 0.14, '#4a3a30', { p: [0, 1.1, d / 2 + 0.02] });
+  k.box(2.2, 0.25, 1, '#b9ad99', { p: [0, 0.12, d / 2 + 0.5] });
   if (style === 'stone') {
-    k.box(w + 0.4, 0.4, d + 0.4, '#b3a690', { p: [0, h + 0.2, 0] });
+    k.box(w + 0.4, 0.5, d + 0.4, '#b3a690', { p: [0, h + 0.25, 0] });
+    k.box(w * 0.3, 1.2, d * 0.3, '#a59a86', { p: [w * 0.15, h + 1.1, 0] });
   } else {
-    k.box(w + 0.3, 0.3, d + 0.3, style === 'brick' ? C.trim : '#d9cdb8', { p: [0, h + 0.15, 0] });
+    k.box(w + 0.35, 0.35, d + 0.35, style === 'brick' ? C.trim : '#d9cdb8', { p: [0, h + 0.17, 0] });
     const ridgeAlongZ = d >= w;
-    if (ridgeAlongZ) k.roof(w, Math.min(3, w * 0.4), d, h + 0.3, C.slate, { overhang: 0.3 });
-    else k.within(new Matrix4().makeRotationY(Math.PI / 2), () => k.roof(d, Math.min(3, d * 0.4), w, h + 0.3, C.slate, { overhang: 0.3 }));
+    if (ridgeAlongZ) k.roof(w, Math.min(3.2, w * 0.4), d, h + 0.35, C.slate, { overhang: 0.35 });
+    else k.within(new Matrix4().makeRotationY(Math.PI / 2), () => k.roof(d, Math.min(3.2, d * 0.4), w, h + 0.35, C.slate, { overhang: 0.35 }));
+    // A chimney or two.
+    k.box(0.8, 2.4, 0.8, style === 'white' ? '#9d5a45' : wall, { p: [w * 0.3, h + 1.8, d * 0.15] });
   }
 }
 
@@ -139,8 +233,8 @@ function exley(k: Kit, w: number, d: number) {
     k.box(0.6, base, 0.6, C.concrete, { p: [x, base / 2, d / 2 + 0.2] });
     k.box(0.6, base, 0.6, C.concrete, { p: [x, base / 2, -d / 2 - 0.2] });
   }
-  const s = 15;
-  const h = 26;
+  const s = 18;
+  const h = 30;
   const tz = -1;
   k.box(s - 1, h, s - 1, '#5b5550', { p: [0, base + h / 2, tz] });
   // The grid: fins all the way up, and a band at every floor.
@@ -233,38 +327,71 @@ function campus(k: Kit) {
 
 function trees(k: Kit) {
   const rand = rng(1831);
-  const leaves = ['#5f9a4c', '#6fa553', '#4f8a45', '#7aab50', '#d8913a', '#c9672f', '#e0b043', '#5f9a4c'];
+  const leaves = ['#5f9a4c', '#6fa553', '#4f8a45', '#7aab50', '#d8913a', '#c9672f', '#e0b043', '#5f9a4c', '#a7442c'];
   const fc = toWorld(andrusField.at);
   const fw = (andrusField.w * SCALE) / 2 + 2;
   const fd = (andrusField.d * SCALE) / 2 + 2;
+  const tc = toWorld(courts.at);
+  const tw = (courts.w * SCALE) / 2 + 2;
+  const td = (courts.d * SCALE) / 2 + 2;
   const keep = (x: number, z: number) => {
     if (Math.abs(x - fc.x) < fw && Math.abs(z - fc.z) < fd) return false;
-    for (const line of streetLines) {
-      for (let i = 0; i < line.length - 1; i++) {
-        const a = line[i];
-        const b = line[i + 1];
-        const dx = b.x - a.x;
-        const dz = b.z - a.z;
-        const t = Math.max(0, Math.min(1, ((x - a.x) * dx + (z - a.z) * dz) / (dx * dx + dz * dz)));
-        if (Math.hypot(x - a.x - dx * t, z - a.z - dz * t) < roadHalf + 2.2) return false;
-      }
-    }
-    for (const b of boxes) if (distanceToBox({ x, z }, b) < 2.5) return false;
+    if (Math.abs(x - tc.x) < tw && Math.abs(z - tc.z) < td) return false;
+    if (laneClearance({ x, z }) < 2.2) return false;
+    for (const b of boxes) if (distanceToBox({ x, z }, b) < 2.8) return false;
     return true;
   };
-  for (let x = bounds.x0; x < bounds.x1; x += 7) {
-    for (let z = bounds.z0; z < bounds.z1; z += 7) {
-      if (rand() < 0.45) continue;
-      const tx = x + (rand() - 0.5) * 6;
-      const tz = z + (rand() - 0.5) * 6;
+  for (let x = bounds.x0; x < bounds.x1; x += 8) {
+    for (let z = bounds.z0; z < bounds.z1; z += 8) {
+      if (rand() < 0.42) continue;
+      const tx = x + (rand() - 0.5) * 7;
+      const tz = z + (rand() - 0.5) * 7;
       if (!keep(tx, tz)) continue;
       const y = groundHeight(tx, tz);
-      const s = 0.8 + rand() * 0.7;
+      const s = 0.85 + rand() * 0.8;
       const leaf = leaves[Math.floor(rand() * leaves.length)];
-      k.cyl(0.25 * s, 0.35 * s, 2.4 * s, C.trunk, { p: [tx, y + 1.2 * s, tz] }, 5);
-      k.ico(1.7 * s, leaf, { p: [tx, y + 3.2 * s, tz], s: [1, 1.15, 1], jitter: 0.06 });
-      if (rand() < 0.5) k.ico(1.2 * s, leaf, { p: [tx + 0.6 * s, y + 4.3 * s, tz - 0.3 * s], jitter: 0.06 });
+      if (rand() < 0.18) {
+        // A conifer: stacked cones.
+        k.cyl(0.22 * s, 0.3 * s, 1.4 * s, C.trunk, { p: [tx, y + 0.7 * s, tz] }, 6);
+        for (let i = 0; i < 3; i++) k.cone((1.9 - i * 0.5) * s, 2.2 * s, '#3f6e42', { p: [tx, y + (1.9 + i * 1.3) * s, tz], jitter: 0.05 }, 7);
+        continue;
+      }
+      k.cyl(0.22 * s, 0.34 * s, 2.6 * s, C.trunk, { p: [tx, y + 1.3 * s, tz] }, 6);
+      k.ico(1.8 * s, leaf, { p: [tx, y + 3.4 * s, tz], s: [1, 1.1, 1], jitter: 0.07 }, 1);
+      k.ico(1.25 * s, leaf, { p: [tx + 0.8 * s, y + 4.4 * s, tz - 0.4 * s], jitter: 0.07 }, 1);
+      if (rand() < 0.5) k.ico(1.1 * s, leaf, { p: [tx - 0.9 * s, y + 3.9 * s, tz + 0.5 * s], jitter: 0.07 }, 1);
     }
+  }
+}
+
+/** Street lamps along both sides of the course, and low hedges along the fronts of the named buildings. */
+function furniture(k: Kit) {
+  for (let s = 0, side = 1; s < course.length; s += 22, side = -side) {
+    const p = course.pointAt(s);
+    const ox = Math.cos(p.heading) * (roadHalf + 1.3) * side;
+    const oz = -Math.sin(p.heading) * (roadHalf + 1.3) * side;
+    const x = p.x + ox;
+    const z = p.z + oz;
+    if (boxes.some((b) => distanceToBox({ x, z }, b) < 1)) continue;
+    k.cyl(0.32, 0.4, 0.4, C.lamp, { p: [x, 0.2, z] }, 8);
+    k.cyl(0.1, 0.13, 4.6, C.lamp, { p: [x, 2.5, z] }, 6);
+    k.cyl(0.3, 0.2, 0.7, C.lamp, { p: [x, 5, z] }, 6);
+    k.addGlow(new SphereGeometry(0.26, 10, 8), '#fff1cf', { p: [x, 5.05, z] });
+    k.cone(0.42, 0.4, C.lamp, { p: [x, 5.55, z] }, 6);
+  }
+  for (const [i, b] of buildings.entries()) {
+    if (!b.landmark) continue;
+    const box = boxes[i];
+    k.within(place(box.x, box.z, box.angle), () => {
+      for (const side of [-1, 1]) {
+        const n = Math.floor((box.hw * 2) / 1.4);
+        for (let j = 0; j < n; j++) {
+          const x = -box.hw + (j + 0.5) * ((box.hw * 2) / n);
+          if (Math.abs(x) < 3) continue;
+          k.ico(0.75, C.hedge, { p: [x, 0.55, side * (box.hd + 1.1)], s: [1.1, 0.8, 1], jitter: 0.08 });
+        }
+      }
+    });
   }
 }
 
@@ -291,69 +418,96 @@ function gateMeshes(color: string): GateMesh[] {
   });
 }
 
-/** The car: a small hatchback in cardinal red. Its nose points along +z. */
-export function carModel(color = '#b5283a'): Object3D {
+/** The car: a small hatchback in cardinal red, nose along +z, with wheels that turn and steer. */
+export function carModel(color = '#b5283a'): { car: Group; wheels: Group[]; front: Group[] } {
   const k = new Kit(7);
-  k.rbox(2, 0.75, 3.9, 0.25, color, { p: [0, 0.75, 0] });
-  k.rbox(1.7, 0.7, 2.1, 0.25, color, { p: [0, 1.45, -0.35] });
-  k.box(1.6, 0.5, 0.08, '#bfe4f1', { p: [0, 1.48, 0.72], r: [-0.5, 0, 0], jitter: 0 });
-  k.box(1.6, 0.45, 0.08, '#bfe4f1', { p: [0, 1.48, -1.42], r: [0.4, 0, 0], jitter: 0 });
-  for (const side of [-1, 1]) k.box(0.08, 0.42, 1.7, '#bfe4f1', { p: [side * 0.86, 1.5, -0.35], jitter: 0 });
+  k.rbox(2, 0.62, 3.9, 0.24, color, { p: [0, 0.72, 0] });
+  k.rbox(1.72, 0.66, 2.1, 0.28, color, { p: [0, 1.38, -0.3] });
+  k.box(1.56, 0.5, 0.06, '#9fc7d6', { p: [0, 1.42, 0.78], r: [-0.55, 0, 0], jitter: 0 });
+  k.box(1.56, 0.44, 0.06, '#9fc7d6', { p: [0, 1.42, -1.38], r: [0.45, 0, 0], jitter: 0 });
+  for (const side of [-1, 1]) {
+    k.box(0.06, 0.42, 1.8, '#9fc7d6', { p: [side * 0.87, 1.44, -0.3], jitter: 0 });
+    k.box(0.06, 0.08, 3.4, '#2c2b33', { p: [side * 1.01, 0.62, 0] });
+    k.box(0.12, 0.12, 0.26, color, { p: [side * 0.95, 1.18, 0.5] });
+  }
+  k.box(1.96, 0.24, 0.16, '#3a3632', { p: [0, 0.45, 1.96] });
+  k.box(1.96, 0.24, 0.16, '#3a3632', { p: [0, 0.45, -1.96] });
+  k.box(1.1, 0.16, 0.06, '#2c2b33', { p: [0, 0.8, 1.96] });
+  k.box(1.5, 0.06, 0.9, '#2c2b33', { p: [0, 1.73, -0.3] });
+  for (const x of [-0.72, 0.72]) {
+    k.addGlow(new PlaneGeometry(0.42, 0.2), '#fff4d6', { p: [x, 0.82, 1.97] });
+    k.addGlow(new PlaneGeometry(0.42, 0.2), '#e5484d', { p: [x, 0.82, -1.97], r: [0, Math.PI, 0] });
+  }
+  const car = k.build();
+  const wheels: Group[] = [];
+  const front: Group[] = [];
   for (const x of [-0.95, 0.95]) {
     for (const z of [-1.25, 1.25]) {
-      k.cyl(0.42, 0.42, 0.34, '#2c2b33', { p: [x, 0.42, z], r: [0, 0, Math.PI / 2] }, 12);
-      k.cyl(0.2, 0.2, 0.36, '#c9c3b8', { p: [x, 0.42, z], r: [0, 0, Math.PI / 2] }, 8);
+      const wk = new Kit(9);
+      wk.cyl(0.42, 0.42, 0.32, '#2c2b33', { r: [0, 0, Math.PI / 2] }, 14);
+      wk.cyl(0.22, 0.22, 0.34, '#c9c3b8', { r: [0, 0, Math.PI / 2] }, 8);
+      wk.box(0.35, 0.08, 0.36, '#9a948a', {});
+      const spin = wk.build();
+      const hub = new Group();
+      hub.position.set(x, 0.42, z);
+      hub.add(spin);
+      car.add(hub);
+      wheels.push(spin);
+      if (z > 0) front.push(hub);
     }
   }
-  k.box(1.9, 0.22, 0.12, '#3a3632', { p: [0, 0.48, 1.96] });
-  k.box(1.9, 0.22, 0.12, '#3a3632', { p: [0, 0.48, -1.96] });
-  for (const x of [-0.7, 0.7]) {
-    k.addGlow(new PlaneGeometry(0.4, 0.2), '#fff4d6', { p: [x, 0.85, 1.97] });
-    k.addGlow(new PlaneGeometry(0.4, 0.2), '#e5484d', { p: [x, 0.85, -1.97], r: [0, Math.PI, 0] });
-  }
-  const g = k.build();
-  return g;
+  return { car, wheels, front };
 }
 
 export type CampusScene = {
   scene: Scene;
   sun: DirectionalLight;
   gates: GateMesh[];
-  car: Object3D;
+  car: Group;
+  wheels: Group[];
+  front: Group[];
+  dispose(): void;
 };
 
-export function buildScene(color: string): CampusScene {
+export function buildScene(color: string, renderer: WebGLRenderer): CampusScene {
   const scene = new Scene();
-  scene.background = new Color('#bfdfe9');
-  scene.fog = new Fog('#d7e6e3', 110, 300);
-  scene.add(new HemisphereLight('#e6f1f4', '#9c8a66', 1.5));
-  const sun = new DirectionalLight('#fff0d6', 2.4);
+  scene.background = new Color('#bfdbea');
+  scene.fog = new Fog('#d5e3e4', 140, 420);
+  // Soft light from a bright room all round, for gentle shading on every face.
+  const pmrem = new PMREMGenerator(renderer);
+  const env = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+  pmrem.dispose();
+  scene.environment = env;
+  scene.environmentIntensity = 0.35;
+  scene.add(new HemisphereLight('#e6f1f4', '#9c8a66', 1.1));
+  const sun = new DirectionalLight('#fff0d6', 2.6);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
   const sc = sun.shadow.camera;
-  sc.left = -55; sc.right = 55; sc.top = 55; sc.bottom = -55; sc.near = 1; sc.far = 220;
-  sun.shadow.bias = -0.0006;
-  sun.shadow.normalBias = 0.04;
+  sc.left = -60; sc.right = 60; sc.top = 60; sc.bottom = -60; sc.near = 1; sc.far = 260;
+  sun.shadow.bias = -0.0005;
+  sun.shadow.normalBias = 0.05;
   scene.add(sun, sun.target);
 
+  scene.add(sky());
   scene.add(ground());
   const flat = new Kit(3);
   streets(flat);
   field(flat);
-  const lay = flat.build({ castShadow: false, receiveShadow: true });
-  scene.add(lay);
+  scene.add(flat.build({ castShadow: false, receiveShadow: true }));
 
   const kb = new Kit(11);
   campus(kb);
   scene.add(kb.build());
   const kt = new Kit(13);
   trees(kt);
+  furniture(kt);
   scene.add(kt.build());
 
   const gm = gateMeshes(color);
   for (const g of gm) scene.add(g.group);
 
-  const car = carModel(color);
+  const { car, wheels, front } = carModel(color);
   scene.add(car);
-  return { scene, sun, gates: gm, car };
+  return { scene, sun, gates: gm, car, wheels, front, dispose: () => env.dispose() };
 }

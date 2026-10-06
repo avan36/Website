@@ -168,10 +168,11 @@ const first = list[0];
     .adv-chapter { grid-template-columns: minmax(0, 1fr); padding: var(--space-4); gap: var(--space-4); }
   }
 
-  :global(html.adv-playing), :global(html.adv-playing body) { overflow: hidden; }
+  :global(html.adv-playing), :global(html.adv-playing body) { overflow: hidden; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
   .adv-stage {
     position: fixed; inset: 0; z-index: 50; background: #bfdfe9;
-    touch-action: none; overscroll-behavior: none; user-select: none; -webkit-user-select: none;
+    /* A thumb held on a pad mustn't select the words round it or open the callout menu. */
+    touch-action: none; overscroll-behavior: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent;
     font-family: var(--font-ui); color: var(--ink);
   }
   .adv-stage[hidden] { display: none; }
@@ -221,6 +222,7 @@ const first = list[0];
   .adv-pad {
     width: 76px; height: 76px; border-radius: 50%; border: 0; font: inherit; font-weight: 750; font-size: 18px;
     background: rgba(251, 246, 236, 0.82); color: var(--ink); box-shadow: var(--shadow-2); touch-action: none;
+    user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
     -webkit-tap-highlight-color: transparent;
   }
   .adv-pad--gas { background: rgba(76, 175, 106, 0.9); color: #14110d; width: 88px; height: 88px; }

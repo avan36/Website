@@ -1,15 +1,15 @@
 // Checks on the campus data, like checkWorld does for the island: if one of
 // these fails, the sentence says what to move in wesleyan.ts.
 import { describe, expect, it } from 'vitest';
-import { boxes, bounds, course, gates, onRoad, roadHalf, streetLines } from '../campus';
+import { boxes, bounds, course, gates, lanes, onRoad } from '../campus';
 import { chapters, playableChapters } from '../levels';
 import { distanceToBox, distanceToLine, GATE_RADIUS } from '../track';
 import { buildings, groundHeight, landmarks } from '../wesleyan';
 
 describe('Wesleyan', () => {
-  it('keeps every building off the streets', () => {
+  it('keeps every building off the streets and paths', () => {
     for (const [i, b] of boxes.entries()) {
-      for (const line of streetLines) {
+      for (const { pts: line, half, id } of lanes) {
         // Sample the street and check none of it runs through the building.
         for (let k = 0; k < line.length - 1; k++) {
           const a = line[k];
@@ -17,7 +17,7 @@ describe('Wesleyan', () => {
           for (let t = 0; t <= 1; t += 0.02) {
             const p = { x: a.x + (c.x - a.x) * t, z: a.z + (c.z - a.z) * t };
             const d = distanceToBox(p, b);
-            expect(d, `building ${i} at map ${buildings[i].at} is ${d.toFixed(1)} from a street: move it or shrink it`).toBeGreaterThan(roadHalf + 0.5);
+            expect(d, `building ${i} at map ${buildings[i].at} is ${d.toFixed(1)} from ${id}: move it or shrink it`).toBeGreaterThan(half + 0.5);
           }
         }
       }
@@ -41,8 +41,8 @@ describe('Wesleyan', () => {
     for (let i = 1; i < sorted.length; i++) expect(sorted[i] - sorted[i - 1]).toBeGreaterThan(GATE_RADIUS * 3);
   });
 
-  it('keeps Foss Hill off the streets', () => {
-    for (const line of streetLines) {
+  it('keeps Foss Hill off the streets and paths', () => {
+    for (const { pts: line } of lanes) {
       for (let k = 0; k < line.length - 1; k++) {
         for (let t = 0; t <= 1; t += 0.02) {
           const p = { x: line[k].x + (line[k + 1].x - line[k].x) * t, z: line[k].z + (line[k + 1].z - line[k].z) * t };
