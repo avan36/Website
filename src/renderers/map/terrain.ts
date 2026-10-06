@@ -20,12 +20,12 @@ import { paintTowerDeck, planTowerBridge } from './towerBridge';
 export const TEX = 8;
 /**
  * The world rectangle the map paints: the island (east end and all), the
- * islets off its west coast and their bridges, Little London off its east end
- * and Tower Bridge out to it, Synergy Isle far out past Boardwalk Isle, the
- * water you can swim in round all of them,
- * and the drop-off past it.
+ * islets off its west coast and their bridges, Wesleyan Isle off the north-east
+ * coast, Little London off its east end and Tower Bridge out to it, Synergy
+ * Isle far out past Boardwalk Isle, the water you can swim in round all of
+ * them, and the drop-off past it.
  */
-export const RECT = { x0: -72, z0: -37, x1: 81, z1: 61 };
+export const RECT = { x0: -78, z0: -58, x1: 90, z1: 64 };
 /** Deeper than this (world units) you swim; shallower, you wade. */
 export const SWIM_DEPTH = 0.45;
 

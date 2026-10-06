@@ -62,22 +62,23 @@ describe('the map', () => {
     expect(Math.abs(at - r)).toBeLessThanOrEqual(2);
   });
 
-  it('draws sea all round, and land, paths, rocks and the pier inside', () => {
+  it('draws sea all round, and land, paths and the pier inside', () => {
     const { rows } = drawIsland(world, geo);
     const edge = [...rows[0], ...rows[rows.length - 1], ...rows.map((r) => r[0]), ...rows.map((r) => r[r.length - 1])];
     expect(edge.every((c) => c === GROUND.sea || c === ' ')).toBe(true);
     const all = rows.flat().join('');
-    for (const g of [GROUND.sand, GROUND.grass, GROUND.rock, GROUND.path, GROUND.pier]) expect(all).toContain(g);
+    for (const g of [GROUND.sand, GROUND.grass, GROUND.path, GROUND.pier]) expect(all).toContain(g);
   });
 
-  it('puts the lighthouse on the rocks and the pier out at sea, like the island does', () => {
+  it('puts the pier out at sea, and the lighthouse and the depot out over their bridge, like the island does', () => {
     const { rows, glyph, toCell } = drawIsland(world, geo);
+    const all = rows.flat();
     const around = (id: string) => {
       const p = geo.place(id)!;
       const { c, r } = toCell(p.at.x, p.at.z);
       return [rows[r - 1]?.[c], rows[r + 1]?.[c], rows[r][c - 1], rows[r][c + 1]].join('');
     };
-    expect(around('privacy-research')).toContain(GROUND.rock);
+    for (const id of ['privacy-research', 'eqoscan']) expect(all, id).toContain(glyph.get(id));
     expect(around('blog')).toMatch(/[~=@ ]/);
     expect(glyph.get('blog')).toBeTruthy();
   });

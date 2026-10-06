@@ -186,7 +186,7 @@ describe('inside the buildings', () => {
     const text = inside('middle-place').text;
     expect(text).toMatch(/Inside the cabin/);
     expect(text).toMatch(/Juniper, the caretaker, is here/);
-    expect(text).toMatch(/You could examine the writing desk, the hearth or the picture/);
+    expect(text).toMatch(/You could examine the writing desk, the hearth, the picture or the notebooks/);
     expect(text).toMatch(/OPEN the page to see middle place properly, or LEAVE/);
     expect(inside('middle-place', 'look').text).toMatch(/Inside the cabin/);
   });
@@ -206,7 +206,7 @@ describe('inside the buildings', () => {
       const r = inside('etymon', said);
       expect(r.state.talking, said).toBe('mabel');
       expect(r.text, said).toMatch(/Voices low, please/);
-      expect(r.text, said).toMatch(/Ask about etymon, the river, lost words or missing words/);
+      expect(r.text, said).toMatch(/Ask about etymon, the river, lost words, missing words or who built this/);
     }
     expect(inside('etymon', 'ask mabel about the river').text).toMatch(/Fifteen hundred years of vocabulary/);
     expect(inside('etymon', 'ask the librarian about lost words').text).toMatch(/wanhope and overmorrow/);

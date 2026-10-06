@@ -52,8 +52,8 @@ describe('the course', () => {
     for (const p of course.line) expect(geo.swimRoom(p.x, p.z), `${p.x.toFixed(1)}, ${p.z.toFixed(1)}`).toBeLessThan(-(GATE_HALF + 2));
     // Round Synergy Isle too, out past Boardwalk Isle, so a little longer than it once was.
     expect(course.length).toBeGreaterThan(200);
-    // Little London grew and Synergy Isle is far out: the course goes round both.
-    expect(course.length).toBeLessThan(500);
+    // The island grew, Little London and Wesleyan Isle are well out, and Synergy Isle is further: the course goes round them all.
+    expect(course.length).toBeLessThan(650);
   });
 
   it('keeps every gate, posts and all, in deep water clear of the buoys', () => {

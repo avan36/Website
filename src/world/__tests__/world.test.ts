@@ -327,7 +327,7 @@ describe('inside the buildings', () => {
       expect(room.things.length, p.id).toBeGreaterThanOrEqual(2);
       for (const c of room.people) {
         expect(c.topics.length, c.name).toBeGreaterThanOrEqual(2);
-        expect(c.topics.length, c.name).toBeLessThanOrEqual(4);
+        expect(c.topics.length, c.name).toBeLessThanOrEqual(6);
         for (const t of c.topics) expect(t.reply.length, `${c.name} on ${t.id}`).toBeLessThan(260);
         expect(c.greeting.length, c.name).toBeLessThan(200);
       }
@@ -405,7 +405,7 @@ describe('the quiet room', () => {
   });
 
   it('has the two armchairs, the tissues, the clock, a plant and a calm painting', () => {
-    expect(room.things.map((t) => t.prop).sort()).toEqual(['armchairs', 'clock', 'frame', 'plant', 'sidetable']);
+    expect(room.things.map((t) => t.prop).sort()).toEqual(['armchairs', 'clock', 'frame', 'frame', 'plant', 'sidetable']);
     expect(room.people.map((c) => c.farewell)).toContain('We can stop here for today. Be gentle with yourself on the way out.');
     expect(room.people.flatMap((c) => c.topics.map((t) => t.reply)).join(' ')).toMatch(/Take your time\./);
   });
@@ -482,6 +482,8 @@ describe('people out walking', () => {
   it('catch a walk through the letters of a sign', () => {
     const bad = clone(w);
     const l = createGeo(bad).signs[0].letters[2];
+    // The sign is out on Wesleyan Isle, so this walk is too.
+    bad.wanderers[0].roams = 'wesleyan-isle';
     bad.wanderers[0].walk = [{ x: l.x - 2.5 * l.az, z: l.z + 2.5 * l.ax }, { x: l.x + 2.5 * l.az, z: l.z - 2.5 * l.ax }];
     const text = checkWorld(bad).map((i) => i.message).join('\n');
     expect(text).toMatch(/Pushkar's walk from waypoint [01] to [01] goes through a sign's letters/);
