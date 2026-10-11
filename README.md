@@ -182,7 +182,7 @@ Sound is off until you turn it on with the speaker in the top bar. Everything is
 
 ### What the island remembers
 
-Your progress is saved in this browser: the words you've found, the posts you've caught, your best at every game, your best lap and its ghost, your wardrobe and what you're wearing, the gates you've talked your way through, and whether night has fallen. Where you're standing, and which building you're in, last only as long as the tab, so a new visit starts at the plaza. "Forget what I found" clears the words, the catches and the night, and keeps your bests, your wardrobe and the open gates.
+Your progress is saved in this browser: the words you've found, the posts you've caught, your best at every game, your best lap and its ghost, your wardrobe and what you're wearing, the gates you've talked your way through, and whether night has fallen. Where you're standing, and which building you're in, are kept too, so coming back in the same browser puts you where you left off. "Forget what I found" clears the words, the catches and the night, and keeps your bests, your wardrobe and the open gates.
 
 ### For everyone
 

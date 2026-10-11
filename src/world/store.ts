@@ -281,8 +281,8 @@ export type Listener = (state: WorldState, events: WorldEvent[]) => void;
 export type WorldStore = ReturnType<typeof createStore>;
 
 /**
- * Progress lives in localStorage (it's yours to keep); presence lives in
- * sessionStorage (a new visit starts at the plaza). Pass your own storage in
+ * Progress and presence both live in localStorage, so coming back in the
+ * same browser picks up where you were standing. Pass your own storage in
  * tests.
  */
 export function createStore(
@@ -296,12 +296,12 @@ export function createStore(
       return null;
     }
   };
-  let state = sanitize(world, { progress: parse(storage.local.get(PROGRESS_KEY)), presence: parse(storage.session.get(PRESENCE_KEY)) });
+  let state = sanitize(world, { progress: parse(storage.local.get(PROGRESS_KEY)), presence: parse(storage.local.get(PRESENCE_KEY) ?? storage.session.get(PRESENCE_KEY)) });
   const listeners = new Set<Listener>();
 
   const save = () => {
     storage.local.set(PROGRESS_KEY, JSON.stringify(state.progress));
-    storage.session.set(PRESENCE_KEY, JSON.stringify(state.presence));
+    storage.local.set(PRESENCE_KEY, JSON.stringify(state.presence));
   };
 
   function dispatch(action: Action) {

@@ -34,6 +34,8 @@ const PAD_BLEND = 3;
 export const SWIM_REACH = 8;
 /** Ground higher than this is land you can stand on; lower, it's the sea. */
 const DRY = 0.14;
+/** The least radius an islet's underwater shelf is scaled by, so small islets' shores aren't cliffs. */
+const ISLET_SHELF = 14;
 /** Where you step on and off a bridge: this far past either end of its deck, on land. */
 const LANDING = 0.8;
 
@@ -151,12 +153,17 @@ export function createGeo(world: World) {
     const dx = x - s.x;
     const dz = z - s.z;
     const d2 = dx * dx + dz * dz;
-    const far = s.outer * 2.15;
+    const far = s.outer + 1.15 * ISLET_SHELF;
     if (d2 > far * far) return -Infinity;
-    const t = Math.sqrt(d2) / s.coast(Math.atan2(dz, dx));
+    const d = Math.sqrt(d2);
+    const r = s.coast(Math.atan2(dz, dx));
+    const t = d / r;
+    // Out past the waterline the shelf is measured in steps, not shares of a small
+    // radius, so it slopes as gently as the main island's and a swimmer can wade back up.
+    const ts = t <= 1 ? t : 1 + (d - r) / Math.max(r, ISLET_SHELF);
     const land = 1 - smoothstep(0.62, 0.86, t);
     // Gentler bumps than the main island's: a small islet with big ones looks lumpy.
-    return shelf(t) + (fbm(x * 0.075 + 3, z * 0.075 - 2, 3, 4) - 0.5) * 1.1 * land + 0.12 * (noise2(x * 0.5, z * 0.5, 9) - 0.5) * (1 - land) + hillAt(x, z);
+    return shelf(ts) + (fbm(x * 0.075 + 3, z * 0.075 - 2, 3, 4) - 0.5) * 1.1 * land + 0.12 * (noise2(x * 0.5, z * 0.5, 9) - 0.5) * (1 - land) + hillAt(x, z);
   }
 
   /** 0..1, how much of a rocky headland we're on. */
