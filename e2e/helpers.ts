@@ -6,7 +6,8 @@ export const phone = (width: number, height = 740) => ({ viewport: { width, heig
 /**
  * Collects page errors and console errors. Failures to load things from other
  * hosts (web fonts, analytics: the sandbox proxy blocks some) are ignored, and
- * so is the 404 status of a page that is meant to be missing.
+ * so is the 404 status of a page that is meant to be missing. Vercel's own
+ * analytics URLs are ignored too: they exist on Vercel, not in `dist/`.
  */
 export function watchErrors(page: Page, { allow404 = false } = {}) {
   const errors: string[] = [];
@@ -18,17 +19,18 @@ export function watchErrors(page: Page, { allow404 = false } = {}) {
     }
   };
   const external = (url: string) => !!url && /^https?:/.test(url) && !url.startsWith(origin());
+  const vercel = (url: string) => url.includes('/_vercel/');
   page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
   page.on('console', (m) => {
     if (m.type() !== 'error') return;
     const text = m.text();
     const url = m.location()?.url ?? '';
-    if (/Failed to load resource/.test(text) && (external(url) || (allow404 && /404/.test(text)))) return;
+    if (/Failed to load resource/.test(text) && (external(url) || vercel(url) || (allow404 && /404/.test(text)))) return;
     if (/net::ERR_|ERR_TUNNEL|ERR_PROXY/.test(text) && external(url)) return;
     errors.push(`console: ${text}${url ? ` (${url})` : ''}`);
   });
   page.on('response', (r) => {
-    if (r.status() < 400 || external(r.url())) return;
+    if (r.status() < 400 || external(r.url()) || vercel(r.url())) return;
     if (allow404 && r.status() === 404 && r.request().resourceType() === 'document') return;
     errors.push(`${r.status()} ${r.url()}`);
   });

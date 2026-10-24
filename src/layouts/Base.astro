@@ -52,5 +52,11 @@ const imageUrl = new URL(image, Astro.site);
   <body class={bodyClass}>
     <a class="skip-link" href="#main">Skip to content</a>
     <slot />
+    {/* Vercel Web Analytics. It counts views itself, so pages are reported
+        under the URL a visitor sees, not the built `.html` file name. */}
+    <script>
+      import { inject } from '@vercel/analytics';
+      inject();
+    </script>
   </body>
 </html>
