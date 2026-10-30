@@ -5,11 +5,12 @@ const { current } = Astro.props;
 ---
 <header class="site-header">
   <div class="wrap site-header__row">
-    <a class="site-header__brand" href="/" aria-label="Ambrose Vannier — back to the island">
+    <a class="site-header__brand" href="/" aria-label="Ambrose Vannier, home">
       <img src="/media/monogram.svg" width="32" height="32" alt="" />
       <span>Ambrose Vannier</span>
     </a>
     <nav aria-label="Primary">
+      <a href="/island">Island</a>
       <a href="/#work" aria-current={current === 'work' ? 'page' : undefined}>Work</a>
       <a href="/blog" aria-current={current === 'writing' ? 'page' : undefined}>Writing</a>
       <a href="/about" aria-current={current === 'about' ? 'page' : undefined}>About</a>
@@ -22,6 +23,7 @@ const { current } = Astro.props;
   .site-header { padding-block: var(--space-5); }
   .site-header__row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-5); }
   .site-header__brand {
+    flex: none;
     display: inline-flex; align-items: center; gap: var(--space-3);
     font-family: var(--font-display); font-weight: 700; font-size: var(--step-1);
     letter-spacing: -0.02em; text-decoration: none;
@@ -32,5 +34,9 @@ const { current } = Astro.props;
   nav a { text-decoration: none; color: var(--ink-2); padding-block: 12px; margin-block: -12px; }
   nav a:hover, nav a[aria-current='page'] { color: var(--ink); }
   nav a[aria-current='page'] { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 6px; }
-  @media (max-width: 480px) { .site-header__brand span { display: none; } }
+  @media (max-width: 600px) {
+    .site-header__row { gap: var(--space-3); }
+    .site-header__brand span { display: none; }
+    nav { gap: clamp(8px, 5vw - 8px, var(--space-4)); font-size: var(--step--1); }
+  }
 </style>

@@ -1,7 +1,7 @@
-// The home page's HUD on narrow phones: nothing spills off screen, nothing
+// The island's HUD on narrow phones: nothing spills off screen, nothing
 // overlaps, and the toasts stay small pills.
 import { expect, test, type Page } from '@playwright/test';
-import { expectNoHorizontalScroll, homeReady, phone, seed, watchErrors } from './helpers';
+import { expectNoHorizontalScroll, islandReady, phone, seed, watchErrors } from './helpers';
 
 type Box = { left: number; right: number; top: number; bottom: number; width: number; height: number };
 
@@ -51,8 +51,8 @@ const inside = (inner: Box, outer: Box, slack = 0.5) =>
 
 /** Opens a play view, lets the HUD settle and collapses the intro card, as a phone does after the first move. */
 async function openHud(page: Page, view: string) {
-  await page.goto(`/?view=${view}`);
-  await homeReady(page, view);
+  await page.goto(`/island?view=${view}`);
+  await islandReady(page, view);
   // The HUD fades and slides in after the view is ready; measure it at rest.
   await page.waitForFunction(() =>
     [...document.querySelectorAll('.isl-top > *, .isl-card')].every((el) => {
@@ -73,6 +73,16 @@ const BRAND_SPILLS = new Set<number>();
 for (const width of [320, 375, 390]) {
   test.describe(`${width}px phone`, () => {
     test.use(phone(width));
+
+    test(`the home page fits a ${width}px phone`, async ({ page }) => {
+      await page.goto('/');
+      const brand = (await page.locator('.site-header__brand img').boundingBox())!;
+      const nav = (await page.locator('.site-header nav').boundingBox())!;
+      expect(brand.width, 'the header squashes the brand').toBe(32);
+      expect(nav.x + nav.width, 'the nav runs into the gutter').toBeLessThanOrEqual(width - 16 + 0.5);
+      await expect(page.locator('.peek__cta')).toBeInViewport();
+      await expectNoHorizontalScroll(page);
+    });
 
     test(`HUD fits a ${width}px phone in the island and map views`, async ({ page }) => {
       const errors = watchErrors(page);

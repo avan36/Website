@@ -1,7 +1,7 @@
 ---
 // How this site works: a short, static tour of the world model for the
 // curious, then how it was built. Every example on it is generated from the
-// real world at build time, so it can't drift from what the home page
+// real world at build time, so it can't drift from what the island
 // actually does. The workshop on the island opens this page.
 import { Code } from 'astro:components';
 import Reading from '../layouts/Reading.astro';
@@ -49,19 +49,19 @@ const views = [
 ---
 <Reading
   title="How this site works · Ambrose Vannier"
-  description="The home page is one world described as data, drawn four ways: a 3D island, a pixel map, a text adventure and a list. And how it was built."
+  description="The island is one world described as data, drawn four ways: a 3D island, a pixel map, a text adventure and a list. And how it was built."
   current="none"
 >
   <header class="col-head">
     <p class="col-kicker">Colophon</p>
     <h1 class="col-title">How this site works</h1>
-    <p class="col-lede">The home page is one world described as data, and four different renderers draw it.</p>
+    <p class="col-lede">The island is one world described as data, and four different renderers draw it.</p>
     <p class="col-jump"><a href="#workshop">Skip to how it was built</a></p>
   </header>
 
   <ul class="col-views" role="list">
     {views.map((v) => (
-      <li><a href={`/?view=${v.id}`}><span class="col-views__name">{v.name}</span><span class="col-views__note">{v.note}</span></a></li>
+      <li><a href={`/island?view=${v.id}`}><span class="col-views__name">{v.name}</span><span class="col-views__note">{v.note}</span></a></li>
     ))}
   </ul>
 

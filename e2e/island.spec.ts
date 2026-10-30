@@ -4,7 +4,7 @@
 // fast this machine draws.
 import { expect, test, type Page } from '@playwright/test';
 import { LINES } from '../src/renderers/games/rules/jargon';
-import { homeReady, phone, seed, watchErrors, wordIds, type DebugWindow } from './helpers';
+import { islandReady, phone, seed, watchErrors, wordIds, type DebugWindow } from './helpers';
 
 const me = (page: Page) => page.evaluate(() => (window as DebugWindow).__island!.debug.player());
 const tick = (page: Page, s: number) => page.evaluate((s) => (window as DebugWindow).__island!.debug.tick(s), s);
@@ -13,8 +13,8 @@ const tick = (page: Page, s: number) => page.evaluate((s) => (window as DebugWin
 async function openIsland(page: Page, query = '') {
   const errors = watchErrors(page);
   await seed(page, { found: await wordIds(page), at: { x: 0, z: 9 } });
-  await page.goto(`/?view=island&debug${query}`);
-  await homeReady(page, 'island');
+  await page.goto(`/island?view=island&debug${query}`);
+  await islandReady(page, 'island');
   await page.waitForFunction(() => (window as DebugWindow).__island?.debug.state() === 'play', null, { timeout: 90_000 });
   await page.evaluate(() => (window as DebugWindow).__island!.pause());
   await tick(page, 0.5);
@@ -384,7 +384,7 @@ test.describe('3D island', () => {
     await page.evaluate(() => (window as DebugWindow).__island?.resume());
 
     await page.waitForFunction(() => document.documentElement.dataset.view !== 'island', null, { timeout: 30_000 });
-    await homeReady(page);
+    await islandReady(page);
     expect(await page.evaluate(() => document.documentElement.dataset.view)).toBe('map');
     expect(errors).toEqual([]);
   });

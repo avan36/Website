@@ -79,6 +79,7 @@ Patterns from this site that are worth carrying into anything new:
 
 Things that worked here and could be borrowed, remixed or taken further:
 
+- **A calm front door.** The home page is a page to read, and the island peeks in at the top: a still of it at golden hour, its hazy sky melting into the page, one click from the real thing at `/island`.
 - **A portfolio you can walk.** Every project is a building: the journal is a cabin, the taste app a taproom, the etymology site an old library, the privacy research a lighthouse, the classroom app a schoolhouse, the packaging scanner a recycling depot, the tree of life an ancient tree (`landmark` in the pack).
 - **Hidden lost words.** Eight words English dropped, from Etymon's museum, tucked into the scenery where they belong. Find them all and night falls.
 - **Fishing for posts.** Cast off the pier and what bites is a blog post.

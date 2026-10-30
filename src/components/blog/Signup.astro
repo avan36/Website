@@ -1,0 +1,114 @@
+---
+// The newsletter signup: an email box that posts to the contact Worker, which
+// emails a link to confirm. That link comes back to /blog#subscribed.
+
+// The signup stays hidden until Resend is set up and the contact Worker is deployed.
+const SIGNUP_OPEN = true;
+---
+{SIGNUP_OPEN && (
+  <>
+    <p class="signup__done" id="subscribed">You’re in. New posts will land in your inbox.</p>
+    <form class="signup" data-signup>
+      <label class="signup__label" for="signup-email">Get new posts by email</label>
+      <div class="signup__row">
+        <input class="signup__email" id="signup-email" type="email" name="email" required maxlength="200" autocomplete="email" placeholder="you@example.com" />
+        <button class="btn" type="submit">Subscribe</button>
+      </div>
+      <!-- Honeypot: invisible to people, tempting to bots. Leave empty. -->
+      <input class="signup__hp" type="text" name="company" tabindex="-1" autocomplete="off" aria-hidden="true" />
+      <p class="signup__note" role="status" aria-live="polite">Just new writing. Unsubscribe any time.</p>
+    </form>
+  </>
+)}
+
+<style>
+  .signup {
+    margin-block-start: var(--space-6);
+    max-width: 30rem;
+    font-family: var(--font-ui);
+  }
+  .signup__label {
+    display: block;
+    margin-block-end: var(--space-3);
+    font-size: var(--step--1);
+    font-weight: 650;
+    color: var(--ink-2);
+  }
+  .signup__row { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+  .signup__email {
+    flex: 1 1 14rem;
+    min-width: 0;
+    padding: 13px 16px;
+    border: 0;
+    border-radius: 14px;
+    background: var(--bg-raised);
+    color: var(--ink);
+    font: inherit;
+    font-size: var(--step-0);
+    box-shadow: inset 0 0 0 1.5px var(--line-strong);
+  }
+  .signup__email::placeholder { color: var(--ink-3); opacity: 0.8; }
+  .signup__email:focus {
+    outline: none;
+    box-shadow: inset 0 0 0 2px var(--accent), 0 0 0 4px color-mix(in oklab, var(--accent) 18%, transparent);
+  }
+  .signup__hp { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+  .signup__note {
+    margin-block-start: var(--space-3);
+    font-size: var(--step--1);
+    color: var(--muted, var(--ink-2));
+  }
+  .signup__note.is-error {
+    font-weight: 600;
+    color: color-mix(in oklab, var(--coral) 70%, var(--ink));
+  }
+  /* The confirmation link comes back to /blog#subscribed. */
+  .signup__done {
+    display: none;
+    margin-block-start: var(--space-6);
+    scroll-margin-block-start: 100vh; /* Keeps the page at the top. */
+    font-family: var(--font-ui);
+    font-weight: 650;
+    color: var(--ink);
+  }
+  .signup__done:target { display: block; }
+  .signup__done:target + .signup { display: none; }
+</style>
+
+<script>
+  // Same Worker and text/plain body as the contact form: a CORS "simple request".
+  const SIGNUP_ENDPOINT = 'https://contact-form.todos-thorax09.workers.dev';
+
+  const form = document.querySelector<HTMLFormElement>('[data-signup]');
+  form?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const button = form.querySelector('button')!;
+    const note = form.querySelector<HTMLElement>('.signup__note')!;
+    const say = (text: string, isError = false) => {
+      note.textContent = text;
+      note.classList.toggle('is-error', isError);
+    };
+    const value = (name: string) => (form.elements.namedItem(name) as HTMLInputElement).value;
+
+    button.disabled = true;
+    say('Sending…');
+    try {
+      const res = await fetch(SIGNUP_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
+        body: JSON.stringify({ type: 'newsletter', email: value('email').trim(), company: value('company') }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+      if (res.ok && data.ok) {
+        form.reset();
+        say('Nearly there. Check your inbox for a link to confirm.');
+      } else {
+        say(data.error || 'Something went wrong on my end. Please try again in a moment.', true);
+      }
+    } catch {
+      say("Couldn't reach the mail server. Check your connection and try again.", true);
+    } finally {
+      button.disabled = false;
+    }
+  });
+</script>

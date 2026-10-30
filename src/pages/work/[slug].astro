@@ -69,7 +69,7 @@ const isExternal = (href: string) => /^https?:/.test(href);
 
     {game && (
       <p class="wrap project__play">
-        <a class="text-link" href="/?view=island" data-play-at={`${game.at.x},${game.at.z}`}>Play {game.name} on the island<span class="arrow" aria-hidden="true">→</span></a>
+        <a class="text-link" href="/island?view=island" data-play-at={`${game.at.x},${game.at.z}`}>Play {game.name} on the island<span class="arrow" aria-hidden="true">→</span></a>
         {game.isle && <span class="project__where">It's out on {game.isle}, over the bridge.</span>}
       </p>
     )}

@@ -45,6 +45,10 @@ export const name: { parts: NamePart[]; sum: string } = {
   sum: "So, roughly: an immortal basket-maker. I'll take it.",
 };
 
+/** Who I am in a sentence or two, at the top of the home page and the About page. */
+export const lede =
+  "I'm a software developer. I studied computer science and history at Wesleyan, and a lot of what I make lives where the two meet: tools that show where things came from, and apps that treat people's lives with care.";
+
 /** A link under a belief: to a project's page, or to a post (titled by the post). */
 export type CareLink = { label: string; project: string } | { post: string };
 

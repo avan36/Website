@@ -1,55 +1,249 @@
 ---
-// Home: the world. The page server-renders a complete list view (for no JS,
-// reduced motion, search engines and "List"), embeds the world as JSON, and
-// mounts a renderer over it: the 3D island, the 2D map or the text adventure.
+// Home: a calm page to read. The island peeks in at the top, a real still of
+// it, so nothing heavy loads here; the whole of it lives at /island. Below
+// that: who I am, the writing, what I've made and what I care about.
 import Base from '../layouts/Base.astro';
-import IslandStage from '../components/island/IslandStage.astro';
-import ListView from '../components/island/ListView.astro';
-import WorldData from '../components/world/WorldData.astro';
-import WorldUI from '../components/world/WorldUI.astro';
-import { person } from '../data/projects';
-import { loadWorld } from '../world/load';
+import SiteHeader from '../components/SiteHeader.astro';
+import SiteFooter from '../components/SiteFooter.astro';
+import Signup from '../components/blog/Signup.astro';
+import LandmarkIcon from '../components/island/LandmarkIcon.astro';
+import ViewIcon from '../components/island/ViewIcon.astro';
+import { getPosts, isoDate, formatLong, postUrl } from '../components/blog/posts';
+import { cares, lede } from '../data/about';
+import { person, projects } from '../data/projects';
 
-const world = await loadWorld();
-const colors: Record<string, string> = Object.fromEntries(world.places.map((p) => [p.id, p.color]));
+const posts = (await getPosts()).slice(0, 3);
 ---
 <Base
   title={`${person.name} · ${person.role}`}
-  description="Ambrose Vannier builds apps people love to use and tools that keep the web honest. Explore his work as a tiny island, a pixel map or a text adventure, or browse the list."
-  theme="light"
-  bodyClass="isl-body"
+  description="Ambrose Vannier builds apps people love to use and tools that keep the web honest. Read about him, his writing and his work, or explore it all as a tiny island."
 >
-  <script is:inline slot="head" define:vars={{ colors }}>
-    // Pick the view before first paint, so nothing jumps:
-    // ?view= in the URL, then this tab's last choice, then what the device suits.
-    (function () {
-      var d = document.documentElement;
-      var gl = !!(window.WebGL2RenderingContext || window.WebGLRenderingContext);
-      var rm = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
-      var views = ['island', 'map', 'text', 'list'];
-      var pref = null, ret = null, q = null;
-      try { pref = sessionStorage.getItem('island:view'); ret = sessionStorage.getItem('island:return'); } catch (e) {}
-      try { q = new URLSearchParams(location.search).get('view'); } catch (e) {}
-      var view = views.indexOf(q) >= 0 ? q : location.hash === '#work' ? 'list' : views.indexOf(pref) >= 0 ? pref : rm ? 'list' : 'island';
-      if (view === 'island' && !gl) view = rm ? 'list' : 'map';
-      d.dataset.view = view;
-      d.classList.add(view === 'list' ? 'isl-mode-list' : 'isl-mode-play');
-      d.classList.add('isl-js');
-      if (gl) d.classList.add('isl-gl');
-      if (view !== 'list' && ret && colors[ret]) {
-        d.classList.add('isl-returning');
-        d.style.setProperty('--isl-return', colors[ret]);
-      }
-    })();
+  <script is:inline slot="head">
+    // Old links to the island (/?view=map, /?time=22:00) still land on it.
+    if (/[?&](view|time|commute|fx|debug)\b/.test(location.search)) location.replace('/island' + location.search + location.hash);
   </script>
-  <WorldData />
+  <SiteHeader />
+
   <main id="main">
-    <IslandStage words={world.lostWords.length} outfits={world.outfits.length} />
-    <ListView wanderers={world.wanderers} islands={Object.fromEntries(world.geography.islets.map((s) => [s.id, s.name]))} />
+    <a class="peek" href="/island">
+      <picture>
+        <source media="(max-width: 640px)" srcset="/media/island-peek-phone.webp" width="1200" height="816" />
+        <img src="/media/island-peek.webp" width="3000" height="1040" alt="The island at golden hour: a lighthouse, an ancient tree, a little train and Tower Bridge, with a city on the far shore." fetchpriority="high" />
+      </picture>
+      <span class="peek__cta">Explore the island <span class="peek__arrow" aria-hidden="true">→</span></span>
+    </a>
+
+    <section class="wrap hello" aria-labelledby="hello-title">
+      <h1 class="hello__title" id="hello-title">Hi, I'm Ambrose.</h1>
+      <div class="hello__text">
+        <p class="hello__lede">{lede}</p>
+        <p class="hello__body">This site is one of them. It's a tiny island you can walk around, and every place on it is something I've made.</p>
+        <p class="hello__links">
+          <a class="text-link" href="/about">More about me</a>
+          <a class="text-link" href="/contact">Say hello</a>
+        </p>
+      </div>
+    </section>
+
+    <section class="wrap home__section" aria-labelledby="writing-title">
+      <div class="writing">
+        <div class="writing__head">
+          <h2 class="home__h2" id="writing-title">Writing</h2>
+          <p class="writing__intro">Essays and notes on software, technology, and whatever I’m thinking about.</p>
+          <Signup />
+        </div>
+        <div class="writing__latest">
+          <ol class="posts" role="list">
+            {posts.map((post) => (
+              <li class="post">
+                <time class="post__date" datetime={isoDate(post.data.date)}>{formatLong(post.data.date)}</time>
+                <h3 class="post__title"><a href={postUrl(post)}>{post.data.title}</a></h3>
+                {post.data.description && <p class="post__desc">{post.data.description}</p>}
+              </li>
+            ))}
+          </ol>
+          <p class="writing__all"><a class="text-link" href="/blog">All my writing <span aria-hidden="true">→</span></a></p>
+        </div>
+      </div>
+    </section>
+
+    <section id="work" class="wrap home__section home__split" aria-labelledby="work-title">
+      <div class="home__head">
+        <h2 class="home__h2" id="work-title">Things I've made</h2>
+        <p>Apps, research and tools. Each one is a place on the island.</p>
+      </div>
+      <ul class="work" role="list">
+        {projects.map((p) => (
+          <li style={`--c:${p.hex}`}>
+            <a class="work__item" href={`/work/${p.slug}`}>
+              <span class="work__glyph"><LandmarkIcon kind={p.landmark} size={22} /></span>
+              <span class="work__text">
+                <span class="work__name">{p.name}</span>
+                <span class="work__blurb">{p.blurb}</span>
+              </span>
+            </a>
+          </li>
+        ))}
+        <li style="--c:var(--sea)">
+          <a class="work__item" href="/island">
+            <span class="work__glyph"><ViewIcon id="island" /></span>
+            <span class="work__text">
+              <span class="work__name">The island</span>
+              <span class="work__blurb">Everything I've made, as places you can walk to.</span>
+            </span>
+          </a>
+        </li>
+      </ul>
+    </section>
+
+    <section class="wrap home__section home__split" aria-labelledby="cares-title">
+      <div class="home__head">
+        <h2 class="home__h2" id="cares-title">What I care about</h2>
+        <p><a class="text-link" href="/about">More about me</a></p>
+      </div>
+      <ul class="cares" role="list">
+        {cares.map((x) => (
+          <li>
+            <h3 class="care__title">{x.title}</h3>
+            <p class="care__body">{'quote' in x ? x.quote : x.body}</p>
+          </li>
+        ))}
+      </ul>
+    </section>
   </main>
-  <WorldUI />
+
+  <SiteFooter />
 </Base>
 
-<script>
-  import '../renderers/shell';
-</script>
+<style>
+  /* ---------- The peek: the island's hazy sky melts into the page ---------- */
+  .peek {
+    position: relative;
+    display: block;
+    margin-top: calc(-1 * var(--space-5));
+    text-decoration: none;
+  }
+  .peek picture { display: block; overflow: hidden; }
+  .peek img {
+    width: 100%;
+    aspect-ratio: 1500 / 520;
+    max-height: 62vh;
+    object-fit: cover;
+    object-position: 50% 60%;
+    -webkit-mask: linear-gradient(to bottom, transparent, #000 22%, #000 80%, transparent);
+    mask: linear-gradient(to bottom, transparent, #000 22%, #000 80%, transparent);
+    transition: transform 1400ms var(--ease-out);
+  }
+  .peek__cta {
+    position: absolute;
+    left: 50%;
+    bottom: 13%;
+    translate: -50% 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 13px 22px;
+    border-radius: var(--r-pill);
+    background: var(--bg-raised);
+    color: var(--ink);
+    font-weight: 650;
+    white-space: nowrap;
+    box-shadow: var(--shadow-2);
+    transition: transform var(--dur-3) var(--ease-spring), box-shadow var(--dur-3) var(--ease-out);
+  }
+  .peek__arrow { transition: transform var(--dur-3) var(--ease-spring); }
+  .peek:focus-visible { outline: none; }
+  .peek:focus-visible .peek__cta { outline: 3px solid var(--accent); outline-offset: 3px; }
+  @media (hover: hover) {
+    .peek:hover img { transform: scale(1.025); }
+    .peek:hover .peek__cta { transform: translateY(-2px); box-shadow: var(--shadow-3); }
+    .peek:hover .peek__arrow { transform: translateX(4px); }
+  }
+
+  /* ---------- Hello ---------- */
+  .hello { display: grid; gap: var(--space-5); margin-top: var(--space-6); }
+  .hello__title { font-size: clamp(2.75rem, 1.6rem + 4.6vw, 5.25rem); font-weight: 700; line-height: 1; letter-spacing: -0.04em; }
+  .hello__text { display: grid; gap: var(--space-4); max-width: 38rem; }
+  .hello__lede { font-family: var(--font-read); font-size: clamp(1.25rem, 1.1rem + 0.6vw, 1.55rem); line-height: 1.45; }
+  .hello__body { font-family: var(--font-read); font-size: clamp(1.08rem, 1rem + 0.3vw, 1.2rem); line-height: 1.6; color: var(--ink-2); }
+  .hello__links { display: flex; flex-wrap: wrap; gap: var(--space-5); }
+
+  /* ---------- Sections ---------- */
+  .home__section { margin-top: clamp(var(--space-8), 9vw, var(--space-9)); scroll-margin-top: var(--space-6); }
+  .home__h2 { font-size: var(--step-3); font-weight: 720; letter-spacing: -0.03em; }
+  .home__head { display: grid; align-content: start; gap: var(--space-3); }
+  .home__head p { color: var(--ink-2); }
+  .home__split { display: grid; gap: var(--space-6); }
+
+  /* ---------- Writing ---------- */
+  .writing {
+    display: grid;
+    gap: var(--space-7);
+    padding: clamp(24px, 4.5vw, 56px);
+    border-radius: var(--r-lg);
+    background: var(--bg-sunken);
+  }
+  .writing__intro { margin-top: var(--space-3); max-width: 30ch; font-family: var(--font-read); font-size: clamp(1.1rem, 1.02rem + 0.3vw, 1.25rem); line-height: 1.45; color: var(--ink-2); }
+  .posts { margin: 0; padding: 0; list-style: none; }
+  .post { position: relative; display: grid; gap: var(--space-2); padding-block: var(--space-5); border-bottom: 1px solid var(--line-strong); }
+  .post:first-child { padding-top: 0; }
+  .post__date { font-size: var(--step--1); font-weight: 550; font-variant-numeric: tabular-nums lining-nums; color: var(--ink-2); }
+  .post__title { font-size: var(--step-2); font-weight: 680; letter-spacing: -0.022em; line-height: 1.12; }
+  .post__title a {
+    text-decoration: underline transparent 2px;
+    text-underline-offset: 0.16em;
+    transition: text-decoration-color var(--dur-2);
+  }
+  .post__title a::after { content: ''; position: absolute; inset: 0; }
+  .post:hover .post__title a { text-decoration-color: var(--accent); }
+  .post__title a:focus-visible { outline: none; }
+  .post:has(a:focus-visible) { outline: 3px solid var(--accent); outline-offset: 6px; border-radius: 6px; }
+  .post__desc { font-family: var(--font-read); font-size: 1.08rem; line-height: 1.5; color: var(--ink-2); }
+  .writing__all { margin-top: var(--space-5); }
+
+  /* ---------- Work ---------- */
+  .work { display: grid; margin: 0; padding: 0; list-style: none; }
+  .work__item {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-4);
+    height: 100%;
+    padding-block: var(--space-4);
+    border-bottom: 1px solid var(--line);
+    text-decoration: none;
+  }
+  .work__glyph {
+    display: inline-grid;
+    place-items: center;
+    flex: none;
+    width: 44px;
+    height: 44px;
+    border-radius: 14px;
+    background: var(--c);
+    color: #fff;
+    transition: transform var(--dur-3) var(--ease-spring);
+  }
+  .work__item:hover .work__glyph { transform: rotate(-8deg) scale(1.08); }
+  .work__text { display: grid; gap: 1px; min-width: 0; }
+  .work__name { font-family: var(--font-display); font-size: var(--step-1); font-weight: 700; letter-spacing: -0.02em; line-height: 1.2; }
+  .work__blurb { font-size: var(--step--1); line-height: 1.35; color: var(--ink-2); }
+
+  /* ---------- What I care about ---------- */
+  .cares { display: grid; gap: var(--space-6); margin: 0; padding: 0; list-style: none; }
+  .care__title { font-size: var(--step-1); font-weight: 700; letter-spacing: -0.02em; }
+  .care__body { margin-top: var(--space-2); font-family: var(--font-read); font-size: 1.1rem; line-height: 1.55; color: var(--ink-2); }
+
+  @media (min-width: 760px) {
+    .work { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--space-6); }
+    .cares { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-6); }
+  }
+  @media (min-width: 960px) {
+    .hello { grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: var(--space-7); align-items: start; }
+    .writing { grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: var(--space-8); }
+    .home__split { grid-template-columns: minmax(0, 3fr) minmax(0, 9fr); gap: var(--space-7); }
+  }
+  @media (max-width: 640px) {
+    .peek img { aspect-ratio: 1000 / 680; max-height: none; object-position: 50% 50%; }
+    .peek__cta { bottom: 5%; padding: 11px 18px; font-size: var(--step--1); }
+  }
+</style>

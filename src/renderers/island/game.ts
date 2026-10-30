@@ -586,7 +586,7 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
   let labelHover: string | null = null;
   let labelFocus: string | null = null;
   // The portal's label reads like a place's: where it leads, and a button to step through.
-  const portalLabel = { id: 'portal', color: '#8b5cf6', name: 'The portal', kicker: 'Step through', blurb: 'One island, a few ways to see it. Step through and pick one.', href: `/?view=${PORTAL_NEXT.island}` };
+  const portalLabel = { id: 'portal', color: '#8b5cf6', name: 'The portal', kicker: 'Step through', blurb: 'One island, a few ways to see it. Step through and pick one.', href: `/island?view=${PORTAL_NEXT.island}` };
   const labels = new Labels(
     o.labelsHost,
     portal ? [...PLACES, portalLabel] : PLACES,

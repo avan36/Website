@@ -154,7 +154,7 @@ const views = [
 ---
 <Base
   title="The island's blueprint · Ambrose Vannier"
-  description="Under the hood of the home page: the one world every view draws, as an interactive blueprint of places, paths, lost words and geography."
+  description="Under the hood of the island: the one world every view draws, as an interactive blueprint of places, paths, lost words and geography."
 >
   <SiteHeader />
 
@@ -163,7 +163,7 @@ const views = [
       <p class="kicker">Under the hood</p>
       <h1 class="bp-title">The island's blueprint</h1>
       <p class="bp-lede">
-        Every view on the home page is drawn from one description of the island. This is that description, unrolled on the
+        Every view of the island is drawn from one description of it. This is that description, unrolled on the
         drafting table. Tap anything on the drawing to see what the data says about it.
       </p>
       <ul class="bp-counts" role="list">
@@ -545,7 +545,7 @@ const views = [
         how it looks. Move a place in the data and it moves in every view.
       </p>
       <ul class="bp-views" role="list">
-        {views.map((v) => <li><a class="bp-view" href={`/?view=${v.id}`}>{v.name}<span aria-hidden="true">→</span></a></li>)}
+        {views.map((v) => <li><a class="bp-view" href={`/island?view=${v.id}`}>{v.name}<span aria-hidden="true">→</span></a></li>)}
       </ul>
       <p class="bp-dev">
         <a class="bp-link" href="/colophon">How the site works</a>

@@ -1,12 +1,13 @@
 // Every main page loads without errors, on a desktop and on a phone.
 import { expect, test } from '@playwright/test';
-import { expectNoHorizontalScroll, homeReady, phone, watchErrors } from './helpers';
+import { expectNoHorizontalScroll, islandReady, phone, watchErrors } from './helpers';
 
 const PAGES = [
   '/',
-  '/?view=map',
-  '/?view=text',
-  '/?view=list',
+  '/island',
+  '/island?view=map',
+  '/island?view=text',
+  '/island?view=list',
   '/about',
   '/colophon',
   '/blueprint',
@@ -38,13 +39,13 @@ for (const [name, device] of [
 
       for (const path of [...PAGES, post!]) {
         await test.step(path, async () => {
-          // A fresh tab each time: the home page remembers its view per tab.
+          // A fresh tab each time: the island remembers its view per tab.
           const page = await context.newPage();
           const errors = watchErrors(page);
           const res = await page.goto(path, { waitUntil: 'load' });
           expect(res?.status(), `${path} status`).toBe(200);
-          if (path === '/' || path.startsWith('/?')) {
-            await homeReady(page, path.match(/view=(\w+)/)?.[1]);
+          if (path.startsWith('/island')) {
+            await islandReady(page, path.match(/view=(\w+)/)?.[1]);
             // A moment for the first frames and any late errors.
             await page.waitForTimeout(1000);
           } else {
@@ -67,6 +68,60 @@ for (const [name, device] of [
     });
   });
 }
+
+test.describe('the home page', () => {
+  test('reads as a page, with the island peeking in and nothing heavy loaded', async ({ page }) => {
+    const errors = watchErrors(page);
+    await page.goto('/');
+    await expect(page.getByRole('heading', { level: 1, name: "Hi, I'm Ambrose." })).toBeVisible();
+    await expect(page.locator('.peek img')).toBeVisible();
+    await expect(page.locator('.post').first()).toBeVisible();
+    await expect(page.locator('[data-signup]')).toBeVisible();
+    await expect(page.locator('canvas')).toHaveCount(0);
+    expect(errors).toEqual([]);
+  });
+
+  test('the peek opens the island, and the island comes back home', async ({ page }) => {
+    await page.goto('/');
+    await page.locator('.peek').click();
+    await page.waitForURL('**/island');
+    await islandReady(page);
+    await page.locator('.isl-brand').click();
+    await page.waitForURL((url) => url.pathname === '/');
+    await expect(page.locator('.peek')).toBeVisible();
+  });
+
+  test('old links still land: views on the island, work on the home page', async ({ page }) => {
+    await page.goto('/?view=text');
+    await page.waitForURL('**/island?view=text');
+    await islandReady(page, 'text');
+    await page.goto('/#work');
+    await expect(page.getByRole('heading', { name: "Things I've made" })).toBeInViewport();
+  });
+
+  test('the Island link in the header and footer goes to the island', async ({ page }) => {
+    await page.goto('/about');
+    await expect(page.locator('.site-header a[href="/island"]')).toBeVisible();
+    await expect(page.locator('.site-footer a[href="/island"]')).toBeVisible();
+  });
+});
+
+test.describe('without JavaScript', () => {
+  test.use({ javaScriptEnabled: false });
+
+  test('the home page and the list can still be read', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.getByRole('heading', { level: 1, name: "Hi, I'm Ambrose." })).toBeVisible();
+    await page.goto('/island');
+    await expect(page.locator('#work-title')).toBeVisible();
+  });
+});
+
+test('with reduced motion the island opens on the list', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/island');
+  await islandReady(page, 'list');
+});
 
 test('world.json is valid JSON with places and lost words', async ({ request }) => {
   const res = await request.get('/world.json');

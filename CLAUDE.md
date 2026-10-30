@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Ambrose Vannier's personal site (ambrosevannier.com): Astro 7, TypeScript, three.js. The home page is an island you can explore, and every place on it is a project. Read `README.md` for the full tour and `docs/brief.md` for the taste and voice. Those two files are the source of truth, and this one points at them.
+Ambrose Vannier's personal site (ambrosevannier.com): Astro 7, TypeScript, three.js. The home page is a calm page to read, with a peek at the island at the top. The island itself lives at `/island`: you can explore it, and every place on it is a project. Read `README.md` for the full tour and `docs/brief.md` for the taste and voice. Those two files are the source of truth, and this one points at them.
 
 ## Commands
 
@@ -12,7 +12,7 @@ npm run build     # astro check, then vitest, then the static build in dist/
 npm run test:e2e  # Playwright against dist/, so build first (docs/e2e.md)
 ```
 
-Node 22. Chromium is at `/opt/pw-browsers/chromium` in cloud sessions, so don't run `playwright install`. Run the e2e suite before merging anything that touches the home page. Vercel only runs `npm run build`, which has no browser tests.
+Node 22. Chromium is at `/opt/pw-browsers/chromium` in cloud sessions, so don't run `playwright install`. Run the e2e suite before merging anything that touches the home page or the island. Vercel only runs `npm run build`, which has no browser tests.
 
 ## How it fits together
 

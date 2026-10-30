@@ -132,7 +132,7 @@ describe('the page clock', () => {
   });
 });
 
-describe('the time line on the home page', () => {
+describe('the time line on the island page', () => {
   it('names the part of the day from the sky, not just the clock', () => {
     // A January day: sunrise about 7:20, sunset about 5:10 (winter, UTC-8).
     expect(dayPart(utc('2026-01-15T11:00:00'))).toBe('small-hours'); // 3 am

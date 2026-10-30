@@ -6,7 +6,7 @@ import Base from '../layouts/Base.astro';
 import SiteHeader from '../components/SiteHeader.astro';
 import SiteFooter from '../components/SiteFooter.astro';
 import { person, bySlug } from '../data/projects';
-import { name, cares as caresData, path as pathData } from '../data/about';
+import { name, lede, cares as caresData, path as pathData } from '../data/about';
 import { getPosts, postUrl } from '../components/blog/posts';
 
 const posts = await getPosts();
@@ -31,12 +31,9 @@ const path = pathData.map((x) => ({ ...x, color: c(x.tint) }));
       <div class="about__intro">
         <p class="kicker rise" style="--i:0">About</p>
         <h1 class="about__title rise" id="about-title" style="--i:1">Hi, I'm Ambrose.</h1>
-        <p class="about__lede rise" style="--i:2">
-          I'm a software developer. I studied computer science and history at Wesleyan, and a lot of what I make lives where
-          the two meet: tools that show where things came from, and apps that treat people's lives with care.
-        </p>
+        <p class="about__lede rise" style="--i:2">{lede}</p>
         <p class="about__body rise" style="--i:3">
-          This site is one of them. It's a tiny island you can <a class="text-link" href="/?view=island">walk around</a>, and the same island is also a <a class="text-link" href="/?view=map">pixel map</a>, a <a class="text-link" href="/?view=text">text adventure</a> and a <a class="text-link" href="/?view=list">plain list</a>, because underneath it's <a class="text-link" href="/colophon">one world made of data</a>.
+          This site is one of them. It's a tiny island you can <a class="text-link" href="/island?view=island">walk around</a>, and the same island is also a <a class="text-link" href="/island?view=map">pixel map</a>, a <a class="text-link" href="/island?view=text">text adventure</a> and a <a class="text-link" href="/island?view=list">plain list</a>, because underneath it's <a class="text-link" href="/colophon">one world made of data</a>.
         </p>
       </div>
 
@@ -96,7 +93,7 @@ const path = pathData.map((x) => ({ ...x, color: c(x.tint) }));
     <section class="wrap about__section about__next" aria-labelledby="next-title">
       <h2 class="about__h2" id="next-title">Where to next</h2>
       <ul class="next" role="list">
-        <li><a href="/"><span class="next__name">Explore the island</span><span class="next__note">Everything I've made, as places you can walk to</span></a></li>
+        <li><a href="/island"><span class="next__name">Explore the island</span><span class="next__note">Everything I've made, as places you can walk to</span></a></li>
         <li><a href="/blog"><span class="next__name">Read my writing</span><span class="next__note">Essays and notes, posted from the end of the pier</span></a></li>
         <li><a href="/contact"><span class="next__name">Say hello</span><span class="next__note">I read every message</span></a></li>
         <li><a href={person.github} rel="noopener"><span class="next__name">GitHub <span aria-hidden="true">↗</span></span><span class="next__note">The code behind most of it</span></a></li>

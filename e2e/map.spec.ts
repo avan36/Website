@@ -2,15 +2,15 @@
 // src/renderers/map/index.ts). Every lost word is marked found first, so none
 // lies on a path to stop a walk and open the word card.
 import { expect, test, type Page } from '@playwright/test';
-import { closeDialog, homeReady, seed, watchErrors, wordIds, type DebugWindow, type MapPlayer } from './helpers';
+import { closeDialog, islandReady, seed, watchErrors, wordIds, type DebugWindow, type MapPlayer } from './helpers';
 
 const player = (page: Page) => page.evaluate(() => (window as DebugWindow).__map!.player());
 
 async function openMap(page: Page) {
   const errors = watchErrors(page);
   await seed(page, { found: await wordIds(page) });
-  await page.goto('/?view=map&debug');
-  await homeReady(page, 'map');
+  await page.goto('/island?view=map&debug');
+  await islandReady(page, 'map');
   await page.waitForFunction(() => !!(window as DebugWindow).__map);
   return errors;
 }
@@ -187,8 +187,8 @@ test.describe('map', () => {
   test('the badge gate keeps the long bridge to the glass tower shut until it is open', async ({ page }) => {
     const errors = watchErrors(page);
     const tower = async () => {
-      await page.goto('/?view=map&debug');
-      await homeReady(page, 'map');
+      await page.goto('/island?view=map&debug');
+      await islandReady(page, 'map');
       await page.waitForFunction(() => !!(window as DebugWindow).__map);
       await closeDialog(page);
       return page.evaluate(() => (window as DebugWindow).__map!.places().find((p) => p.id === 'synergy-tower')!);
@@ -208,8 +208,8 @@ test.describe('map', () => {
   test('once the badge gate is open, walks the long bridge to the glass tower, dry all the way', async ({ page }) => {
     const errors = watchErrors(page);
     await seed(page, { found: await wordIds(page), at: { x: -40.1, z: 19.9 }, gates: ['badge-gate'] });
-    await page.goto('/?view=map&debug');
-    await homeReady(page, 'map');
+    await page.goto('/island?view=map&debug');
+    await islandReady(page, 'map');
     await page.waitForFunction(() => !!(window as DebugWindow).__map);
     await closeDialog(page);
     const t = await page.evaluate(() => (window as DebugWindow).__map!.places().find((p) => p.id === 'synergy-tower')!);

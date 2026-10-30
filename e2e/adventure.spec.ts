@@ -35,6 +35,6 @@ for (const [name, device] of [
 }
 
 test('the island links to the adventure', async ({ page }) => {
-  await page.goto('/?view=list');
+  await page.goto('/island?view=list');
   await expect(page.locator('a[href="/adventure"]').first()).toBeAttached();
 });

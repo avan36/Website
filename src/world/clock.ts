@@ -160,7 +160,7 @@ const SKY: Record<DayPart, string> = {
 };
 
 /**
- * A line for the home page about island time, so the light makes sense:
+ * A line for the island page about island time, so the light makes sense:
  * "It's 10:26 pm on the island, Pacific time. Night has fallen: ...". A
  * visitor who found every lost word can have night in the middle of the day
  * (`night`), and the line says why. In the small hours it also says the

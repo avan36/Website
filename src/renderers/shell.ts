@@ -1,4 +1,4 @@
-// The home page's host. It reads the world, keeps the store, wires the HUD,
+// The island page's host. It reads the world, keeps the store, wires the HUD,
 // and mounts whichever renderer the visitor picked: the 3D island, the 2D map
 // or the text adventure (the list is server-rendered and always there).
 // Renderers are loaded with import() only when chosen, so a visitor who only
@@ -174,7 +174,7 @@ async function setView(next: ViewId, { persist = true, focus = false, url }: Vie
   document.querySelectorAll<HTMLButtonElement>('[data-view-set]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.viewSet === next)));
   if (persist) session.set('island:view', next);
   if (url) {
-    // Shareable: /?view=text opens the text adventure.
+    // Shareable: /island?view=text opens the text adventure.
     const u = new URL(location.href);
     u.searchParams.set('view', next);
     u.hash = '';

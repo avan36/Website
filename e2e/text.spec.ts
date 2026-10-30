@@ -1,7 +1,7 @@
 // The text adventure: a few commands give sensible answers, and the portal
 // leads on to the 3D island.
 import { expect, test, type Page } from '@playwright/test';
-import { homeReady, seed, watchErrors, wordIds } from './helpers';
+import { islandReady, seed, watchErrors, wordIds } from './helpers';
 
 /** Types a command and returns the turn it printed. */
 async function say(page: Page, command: string) {
@@ -16,8 +16,8 @@ async function say(page: Page, command: string) {
 test('text adventure: someone out walking, found by name and talked to', async ({ page }) => {
   const errors = watchErrors(page);
   await seed(page, { found: await wordIds(page) });
-  await page.goto('/?view=text&debug');
-  await homeReady(page, 'text');
+  await page.goto('/island?view=text&debug');
+  await islandReady(page, 'text');
   const lines = await page.evaluate(() => ((window as unknown as { __world: { world: { wanderers: { id: string; lines: string[] }[] } } }).__world.world.wanderers.find((v) => v.id === 'protector')!.lines));
   // Wherever they are, "go to" walks you there (or they're right here), and then they talk.
   await say(page, 'go to the protector');
@@ -31,8 +31,8 @@ test('text adventure: someone out walking, found by name and talked to', async (
 test('text adventure: help, look, go, and the portal', async ({ page }) => {
   const errors = watchErrors(page);
   await seed(page, { found: await wordIds(page) });
-  await page.goto('/?view=text&debug');
-  await homeReady(page, 'text');
+  await page.goto('/island?view=text&debug');
+  await islandReady(page, 'text');
   await expect(page.locator('#tx-input')).toBeVisible();
 
   const help = await say(page, 'help');
@@ -55,7 +55,7 @@ test('text adventure: help, look, go, and the portal', async ({ page }) => {
   await expect(island).toBeVisible({ timeout: 10_000 });
   await island.click();
   await page.waitForFunction(() => document.documentElement.dataset.view === 'island', null, { timeout: 30_000 });
-  await homeReady(page, 'island');
+  await islandReady(page, 'island');
   await expect(page).toHaveURL(/view=island/);
   expect(errors).toEqual([]);
 });

@@ -1,6 +1,8 @@
 # ambrosevannier.com
 
-My personal site. The home page is a tiny island you can explore. Every place on it is something I've made, and you can walk it in 3D, on a pixel map, or as a text adventure, or just read the list.
+My personal site. The home page is a calm page to read: who I am, my writing and what I've made, with a peek at the island at the top.
+
+The island itself lives at `/island`. Every place on it is something I've made, and you can walk it in 3D, on a pixel map, or as a text adventure, or just read the list.
 
 Those are four views of **one world**, and the world is data. The first half of this file is what's on the island and how to play it. The second half is how it's built.
 
@@ -15,12 +17,12 @@ Those are four views of **one world**, and the world is data. The first half of 
 
 | View | What it is | Open it with |
 | --- | --- | --- |
-| Island | A low-poly 3D island: walk, swim, jump, go inside, take the boat out | `/?view=island` |
-| Map | The same island in pixel art, walked the same way | `/?view=map` |
-| Text | A text adventure: `look`, `go to library`, `talk to mabel` | `/?view=text` |
-| List | Every place and project as plain HTML, no JavaScript needed | `/?view=list` or `/#work` |
+| Island | A low-poly 3D island: walk, swim, jump, go inside, take the boat out | `/island?view=island` |
+| Map | The same island in pixel art, walked the same way | `/island?view=map` |
+| Text | A text adventure: `look`, `go to library`, `talk to mabel` | `/island?view=text` |
+| List | Every place and project as plain HTML, no JavaScript needed | `/island?view=list` or `/island#work` |
 
-Switch any time from the view menu at the top, or step through the portal on the plaza. You keep your spot and your pockets when you switch.
+Switch any time from the view menu at the top, or step through the portal on the plaza. You keep your spot and your pockets when you switch. The brand at the top left takes you back to the home page. Old `/?view=` links still land on the island.
 
 If you don't choose, the page does: the view you last used in this tab, or else the 3D island. Without WebGL you get the map, and with reduced motion turned on you get the list.
 
@@ -194,6 +196,8 @@ Your progress is saved in this browser: the words you've found, the posts you've
 
 ## The rest of the site
 
+**Home** (`/`): a page to read, with no 3D on it. At the top, the island peeks in: a still of the real island at golden hour, its hazy sky melting into the page, with a way in. Then who I am, the latest writing with the newsletter signup, what I've made, and what I care about. The stills are `public/media/island-peek.webp` and `island-peek-phone.webp`, screenshots of the 3D island with the HUD hidden, so retake them if the island changes a lot.
+
 **Project pages** (`/work/<slug>`), one for each of the seven projects. Each one has a small interactive toy, screenshots in device frames, the facts (platform, what it's built with, where it is on the island), the App Store badge or a link to try it, and a "Next stop" ticket to the next project. If the project has an islet game, a link takes you back to the island right beside it. Arriving from the island, the color wipe finishes on the page.
 
 | Project | The toy |
@@ -207,7 +211,7 @@ Your progress is saved in this browser: the words you've found, the posts you've
 | eQoScan | Pack scan: scan a cereal box and see its packaging footprint |
 
 - **Adventure** (`/adventure`): a mode of its own, away from the island, where each chapter is a place from my life you can drive round. You get there from the views menu on the island or from the footer. Chapter 3 is Wesleyan: the whole campus in 3D, traced from the university's visitor map, with Usdan and Fayerweather's two turrets, Olin's columned porch and Exley's concrete tower, framed windows on every hall, lamp posts, hedges, autumn trees, the tennis courts and the running track. Footpaths round Foss Hill and down past Andrus Field are narrow, but you can drive them. It's a late autumn afternoon: a low warm sun with long shadows, clouds drifting high up, and leaves falling round the car. Dust kicks up off the back wheels on the grass, the tyres smoke in a slide, the brake lights flare, the view widens with speed and shakes when you hit something, and a glowing arrow points at the next gate, which pulses. The picture gets the island's bloom and warm grade, stepped down on slower phones. You race two laps by car through ten gates in order, down Wyllys, High, Church, Cross, Vine and Mount Vernon. A shortcut across campus just means going back for the gate you missed. Passing a landmark shows a card about it, and your best time is kept in your browser. Steer with the arrow keys or WASD, or with the pads on a phone (holding one never selects text). Each chapter card shows a flat map of the course, drawn from the same data, which is all you get without JavaScript or 3D. Chapters that aren't written yet are drafts and stay hidden.
-- **Writing** (`/blog`): static, quiet reading, grouped by year, with a newsletter signup at the top and an RSS feed at `/rss.xml`. The signup posts to the contact Worker, which emails a link to confirm, and only then adds you to the list. Resend keeps the list and sends the emails (`contact-worker/src/newsletter.js`), and the signup shows once `SIGNUP_OPEN` is on in `src/pages/blog/index.astro`. Posts are Markdown in `posts/`, edited through Sveltia CMS at `/admin`.
+- **Writing** (`/blog`): static, quiet reading, grouped by year, with a newsletter signup at the top and an RSS feed at `/rss.xml`. The signup is on the home page too. It posts to the contact Worker, which emails a link to confirm, and only then adds you to the list. Resend keeps the list and sends the emails (`contact-worker/src/newsletter.js`), and the signup shows once `SIGNUP_OPEN` is on in `src/components/blog/Signup.astro`. Posts are Markdown in `posts/`, edited through Sveltia CMS at `/admin`.
 - **About** (`/about`): my name told the way Etymon tells a word's story, what I care about, and where I've been.
 - **Contact** (`/contact`): a bottle bobbing on the waves and a form that posts to a Cloudflare Worker (`contact-worker/`), which emails me, with links to my GitHub and LinkedIn beside it. When you send, the page folds into a paper plane and flies off. There's a guestbook in a bottle too: leave a one-line note, and once I've approved it by hand, it can wash up for someone else (three at random per visit).
 - **The blueprint** (`/blueprint`): the world data laid out on a drafting table. Click anything on the plan for its card and its JSON, browse tabs for every part of the world, and turn over the lost words' flip cards.
@@ -281,7 +285,7 @@ Renderers are loaded with `import()` only when chosen, so someone reading the li
 | Text | `src/renderers/text` | A pure parser/engine with tests, and a terminal UI |
 | List | `src/components/island/ListView.astro` | Server-rendered HTML: the no-JS, reduced-motion and search-engine view |
 
-`/?view=map` (or `island`, `text`, `list`) opens a view directly. Add `?debug` to get the world and the island on `window` for poking at.
+`/island?view=map` (or `island`, `text`, `list`) opens a view directly. Add `?debug` to get the world and the island on `window` for poking at.
 
 Inside a building, the spatial views share more: `renderers/roomPlan.ts` is the room as geometry (where you can stand, what's within reach, a path round the furniture), and `renderers/room.ts` is the room's bar, the "Talk to" nudge and the one conversation box (E or Enter to talk, arrows between choices, Escape to close it or leave). The box never holds you: walking off or tapping the room says goodbye, and the renderers call `hush()` before they act on a tap. In both spatial views the building opens up where it stands: the camera eases in, the roof lifts off and the room appears in its place, with the island still round it. On the map the room is painted by `map/room.ts`, and walking about in it is `map/inside.ts`, a self-contained piece that draws into any 2D canvas at any position and scale. On the island it's `island/interior/`, a Group any three.js scene can mount. The text adventure has `ENTER`, `TALK TO`, `ASK … ABOUT`, `LEAVE`. The store remembers which building you're in, so switching views keeps you inside.
 

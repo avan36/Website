@@ -64,8 +64,8 @@ export async function seed(page: Page, { found = [] as string[], at = null as { 
   );
 }
 
-/** Waits for the home page's current view to be up (the stage marks itself ready). */
-export async function homeReady(page: Page, view?: string) {
+/** Waits for the island's current view to be up (the stage marks itself ready). */
+export async function islandReady(page: Page, view?: string) {
   await page.waitForFunction(
     (v) => {
       const h = document.documentElement;
