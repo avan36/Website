@@ -4,6 +4,9 @@
   "outputDirectory": "dist",
   "cleanUrls": true,
   "trailingSlash": false,
+  "rewrites": [
+    { "source": "/newsletter/confirm", "destination": "https://contact-form.todos-thorax09.workers.dev/newsletter/confirm" }
+  ],
   "git": {
     "deploymentEnabled": {
       "claude/**": false,

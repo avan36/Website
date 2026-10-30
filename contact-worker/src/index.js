@@ -123,7 +123,7 @@ export default {
       if (String(data.company || "").trim()) {
         return new Response(JSON.stringify({ ok: true }), { status: 200, headers });
       }
-      const { status, body } = await sendConfirmation(data.email, url.origin, env);
+      const { status, body } = await sendConfirmation(data.email, env);
       return new Response(JSON.stringify(body), { status, headers });
     }
 

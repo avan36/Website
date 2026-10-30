@@ -2,10 +2,13 @@
 // Nobody joins until they click the link in their confirmation email. The link
 // carries a signature rather than anything stored here, so nothing is kept
 // until then. Needs the RESEND_API_KEY and NEWSLETTER_SECRET secrets, and the
-// RESEND_SEGMENT_ID var in wrangler.jsonc.
+// RESEND_SEGMENT_ID var in wrangler.jsonc. The link in the email is on the site's
+// own domain, which spam filters trust more than workers.dev: vercel.json
+// forwards /newsletter/confirm here.
 const RESEND_API = "https://api.resend.com";
 const FROM = "Ambrose Vannier <newsletter@ambrosevannier.com>";
-const WELCOME_URL = "https://ambrosevannier.com/blog#subscribed";
+const SITE = "https://www.ambrosevannier.com";
+const WELCOME_URL = `${SITE}/blog#subscribed`;
 
 const utf8 = (s) => new TextEncoder().encode(s);
 const hmacKey = (secret) =>
@@ -34,14 +37,14 @@ function resend(env, path, body) {
   });
 }
 
-// Emails the visitor a link to confirm. `origin` is this Worker's own address.
-export async function sendConfirmation(rawEmail, origin, env) {
+// Emails the visitor a link to confirm.
+export async function sendConfirmation(rawEmail, env) {
   const email = String(rawEmail || "").trim().toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 200) {
     return { status: 400, body: { ok: false, error: "That email doesn't look quite right." } };
   }
 
-  const link = new URL("/newsletter/confirm", origin);
+  const link = new URL("/newsletter/confirm", SITE);
   link.searchParams.set("email", email);
   link.searchParams.set("token", await sign(email, env.NEWSLETTER_SECRET));
 
@@ -59,6 +62,11 @@ If this wasn't you, ignore this and you won't hear from me again.
 
 Ambrose
 `,
+    html:
+`<p>Thanks for signing up for new posts from ambrosevannier.com.</p>
+<p><a href="${String(link).replace(/&/g, "&amp;")}">Confirm your subscription</a></p>
+<p>If this wasn't you, ignore this and you won't hear from me again.</p>
+<p>Ambrose</p>`,
   });
   if (!res.ok) {
     return { status: 502, body: { ok: false, error: "Something went wrong on my end. Please try again in a moment." } };
