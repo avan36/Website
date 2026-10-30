@@ -16,7 +16,7 @@ const posts = (await getPosts()).slice(0, 3);
 ---
 <Base
   title={`${person.name} · ${person.role}`}
-  description="Ambrose Vannier builds apps people love to use and tools that keep the web honest. Read about him, his writing and his work, or explore it all as a tiny island."
+  description="Ambrose Vannier is a software developer. Read his writing, see the apps and research he's made, or walk around it all as a tiny island."
 >
   <script is:inline slot="head">
     // Old links to the island (/?view=map, /?time=22:00) still land on it.
@@ -49,7 +49,7 @@ const posts = (await getPosts()).slice(0, 3);
       <div class="writing">
         <div class="writing__head">
           <h2 class="home__h2" id="writing-title">Writing</h2>
-          <p class="writing__intro">Essays and notes on software, technology, and whatever I’m thinking about.</p>
+          <p class="writing__intro">Essays and notes on software, and whatever else is on my mind.</p>
           <Signup />
         </div>
         <div class="writing__latest">
