@@ -9,7 +9,7 @@ export async function GET(context: APIContext) {
   return rss({
     title: 'Ambrose Vannier — Writing',
     description: 'Essays and notes by Ambrose Vannier on software, technology and the things he builds.',
-    site: context.site ?? 'https://ambrosevannier.com',
+    site: context.site ?? 'https://www.ambrosevannier.com',
     trailingSlash: false,
     items: posts.map((post) => ({
       title: post.data.title,

@@ -210,4 +210,4 @@ Allow: /blog$
 Allow: /blog.html
 Allow: /blog/
 
-Sitemap: https://ambrosevannier.com/sitemap-index.xml
+Sitemap: https://www.ambrosevannier.com/sitemap-index.xml

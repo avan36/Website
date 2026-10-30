@@ -75,7 +75,7 @@ describe('the content pack', () => {
     expect(judgment(pack).links).toEqual([]);
     const essay = { slug: 'the-future-of-software', title: 'The future of software', description: 'An essay.', date: '2026-05-01', href: '/blog/the-future-of-software' };
     const withEssay = buildPack(buildWorld([...posts, essay]), css);
-    expect(judgment(withEssay).links).toEqual([{ label: essay.title, href: 'https://ambrosevannier.com/blog/the-future-of-software' }]);
+    expect(judgment(withEssay).links).toEqual([{ label: essay.title, href: 'https://www.ambrosevannier.com/blog/the-future-of-software' }]);
   });
 
   it('never ships a draft from the shelf', () => {

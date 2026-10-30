@@ -7,7 +7,7 @@
 import { person, projects } from '../data/projects';
 import { parseWorld, type Post, type World, type WorldInput } from './schema';
 
-const SITE = 'https://ambrosevannier.com';
+const SITE = 'https://www.ambrosevannier.com';
 
 type PlaceInput = WorldInput['places'][number];
 

@@ -1,21 +1,21 @@
 # The brief
 
-This file and [`/pack.json`](https://ambrosevannier.com/pack.json) are a starter kit for whatever gets built next: a racing game, a new site, some other experiment.
+This file and [`/pack.json`](https://www.ambrosevannier.com/pack.json) are a starter kit for whatever gets built next: a racing game, a new site, some other experiment.
 
-- **The pack** is the content, as data: who Ambrose is, the projects, the posts, what matters, the colors and fonts, and the island's ideas (lost words, games, wardrobe, islanders, people out walking) with the island's coordinates taken out. Every link in it is absolute, and [`/pack.schema.json`](https://ambrosevannier.com/pack.schema.json) describes its exact shape.
+- **The pack** is the content, as data: who Ambrose is, the projects, the posts, what matters, the colors and fonts, and the island's ideas (lost words, games, wardrobe, islanders, people out walking) with the island's coordinates taken out. Every link in it is absolute, and [`/pack.schema.json`](https://www.ambrosevannier.com/pack.schema.json) describes its exact shape.
 - **This brief** is everything that doesn't fit in JSON: the taste, the voice, the rules, and the ideas already built that are worth borrowing.
 
 ## How to use it
 
 **Starting a project with Claude Code**, paste something like this as the first message:
 
-> Read https://github.com/avan36/Website/blob/main/docs/brief.md and https://ambrosevannier.com/pack.json first. They describe me, my work and my taste. I want to build [the idea]. Use the pack for all content (don't retype or invent any), and follow the brief's voice and rules.
+> Read https://github.com/avan36/Website/blob/main/docs/brief.md and https://www.ambrosevannier.com/pack.json first. They describe me, my work and my taste. I want to build [the idea]. Use the pack for all content (don't retype or invent any), and follow the brief's voice and rules.
 
 **Using the data in code:** fetch the pack at build time, or keep a copy of the file in the new project:
 
 ```sh
-curl -o pack.json https://ambrosevannier.com/pack.json
-curl -o pack.schema.json https://ambrosevannier.com/pack.schema.json
+curl -o pack.json https://www.ambrosevannier.com/pack.json
+curl -o pack.schema.json https://www.ambrosevannier.com/pack.schema.json
 ```
 
 Check it against the schema when you load it, so a change on this site can't quietly break the new one. Updates flow one way: edit the content here, and every project that fetches the pack picks it up.
