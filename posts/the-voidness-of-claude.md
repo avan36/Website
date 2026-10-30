@@ -1,5 +1,5 @@
 ---
-title: The voidness of Claude
+title: The Voidness of Claude
 date: 2026-10-30
 description: Is Claude actually "thinking"?
 ---
