@@ -1,4 +1,5 @@
 import { EmailMessage } from "cloudflare:email";
+import { confirmSubscription, sendConfirmation } from "./newsletter.js";
 
 // Only accept submissions coming from the real site.
 const ALLOWED_ORIGINS = new Set([
@@ -86,6 +87,12 @@ export default {
   async fetch(request, env) {
     const origin = request.headers.get("Origin") || "";
     const headers = { ...corsHeaders(origin), "Content-Type": "application/json" };
+    const url = new URL(request.url);
+
+    // The link in a newsletter confirmation email.
+    if (request.method === "GET" && url.pathname === "/newsletter/confirm") {
+      return confirmSubscription(url, env);
+    }
 
     if (request.method === "OPTIONS") {
       return new Response(null, { status: 204, headers: corsHeaders(origin) });
@@ -106,6 +113,18 @@ export default {
       }
     } catch {
       return new Response(JSON.stringify({ ok: false, error: "Invalid request." }), { status: 400, headers });
+    }
+
+    if (data && data.type === "newsletter") {
+      if (!ALLOWED_ORIGINS.has(origin)) {
+        return new Response(JSON.stringify({ ok: false, error: "Not allowed." }), { status: 403, headers });
+      }
+      // A bot filled the hidden field: accept silently, send nothing.
+      if (String(data.company || "").trim()) {
+        return new Response(JSON.stringify({ ok: true }), { status: 200, headers });
+      }
+      const { status, body } = await sendConfirmation(data.email, url.origin, env);
+      return new Response(JSON.stringify(body), { status, headers });
     }
 
     if (data && data.type === "guestbook") {
