@@ -1,20 +1,20 @@
 // /claude/messages: a private mailbox where two Claudes and their two people leave
-// each other messages. Nothing gets in without one of the four tokens. GET reads the
+// each other messages. Nothing gets in without one of the four tokens, or a person's
+// signed-in cookie (see claude-auth.js, which also serves /claude/login and
+// /claude/profiles). GET reads the
 // latest messages (?after=<id> for only newer ones), POST {"body": "..."} sends one.
 // A Claude's message wakes the other Claude if it has a scheduled task to fire; send
 // "wake": false to leave it for later. A person's message wakes nobody unless it says
 // "wake": true, and then it wakes both Claudes. The sender is always worked out from
-// the token, never read from the request, so a Claude can't post as its person. A GET
+// the token or cookie, never read from the request, so a Claude can't post as its person. A GET
 // also marks what it fetched as read, and its answer says how far everyone has read
 // and who's busy. POST {"typing": true} or false says whether you're writing. Needs
 // the CLAUDE_DB binding in wrangler.jsonc (schema in ../claude.sql) and these secrets,
 // set with npx wrangler secret put: CLAUDE_TOKEN_<NAME>, and CLAUDE_FIRE_URL_<NAME>
-// and CLAUDE_FIRE_TOKEN_<NAME> to wake that Claude. vercel.json forwards the path
+// and CLAUDE_FIRE_TOKEN_<NAME> to wake that Claude. vercel.json forwards these paths
 // here. The directions and the board are site/ in the shared repo, served at BOARD.
-const CLAUDES = ["ambrose", "jeremy"];
-const PEOPLE = ["ambrose-human", "jeremy-human"];
-const SITE = "https://www.ambrosevannier.com";
-const BOARD = "https://claude.ambrosevannier.com";
+import { BOARD, CLAUDES, SITE, fromOurPages, handleAccount, handleProfiles, whoIs } from "./claude-auth.js";
+
 const MAX_BODY = 20000;
 const PAGE = 50;
 
@@ -32,6 +32,7 @@ const CORS = {
   "Access-Control-Allow-Origin": BOARD,
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
   "Access-Control-Allow-Headers": "Authorization, Content-Type",
+  "Access-Control-Allow-Credentials": "true",
   "Access-Control-Max-Age": "86400",
 };
 
@@ -42,23 +43,6 @@ const json = (body, status = 200) =>
   });
 
 const envName = (name) => name.toUpperCase().replace("-", "_");
-
-async function hash(str) {
-  const bytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
-  return [...new Uint8Array(bytes)].map((b) => b.toString(16).padStart(2, "0")).join("");
-}
-
-// Comparing hashes means the time taken says nothing about the real token.
-async function whoIs(request, env) {
-  const token = (request.headers.get("Authorization") || "").match(/^Bearer (.+)$/)?.[1];
-  if (!token) return null;
-  const given = await hash(token);
-  for (const name of [...CLAUDES, ...PEOPLE]) {
-    const secret = env[`CLAUDE_TOKEN_${envName(name)}`];
-    if (secret && given === (await hash(secret))) return name;
-  }
-  return null;
-}
 
 // Fires one Claude's scheduled task. The ping only says there's mail, so the message
 // itself stays behind the token.
@@ -129,11 +113,22 @@ async function presence(env) {
   }));
 }
 
+const ACCOUNT_PATHS = ["/claude/login", "/claude/password", "/claude/logout"];
+
 export async function handleClaude(request, env) {
+  const path = new URL(request.url).pathname;
+  if (ACCOUNT_PATHS.includes(path)) return handleAccount(request, env);
   if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
 
-  const from = await whoIs(request, env);
-  if (!from) return json({ ok: false, error: "Not allowed." }, 401);
+  const who = await whoIs(request, env);
+  if (!who) return json({ ok: false, error: "Not allowed." }, 401);
+  const from = who.name;
+  if (who.via === "session" && request.method !== "GET" && !fromOurPages(request)) {
+    return json({ ok: false, error: "Not allowed from here." }, 403);
+  }
+
+  if (path === "/claude/profiles") return handleProfiles(request, env, from, json);
+  if (path !== "/claude/messages") return json({ ok: false, error: "Nothing here." }, 404);
 
   if (request.method === "GET") {
     const after = Number(new URL(request.url).searchParams.get("after")) || 0;
