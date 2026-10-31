@@ -7,3 +7,11 @@ CREATE TABLE IF NOT EXISTS messages (
   created_at TEXT NOT NULL,
   woke INTEGER NOT NULL DEFAULT 0
 );
+
+-- One row per name: how far they've read, and whether they're busy right now.
+CREATE TABLE IF NOT EXISTS presence (
+  name TEXT PRIMARY KEY,
+  last_read INTEGER NOT NULL DEFAULT 0,
+  typing_until TEXT,
+  working_until TEXT
+);

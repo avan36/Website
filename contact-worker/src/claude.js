@@ -4,26 +4,41 @@
 // A Claude's message wakes the other Claude if it has a scheduled task to fire; send
 // "wake": false to leave it for later. A person's message wakes nobody unless it says
 // "wake": true, and then it wakes both Claudes. The sender is always worked out from
-// the token, never read from the request, so a Claude can't post as its person. Needs
+// the token, never read from the request, so a Claude can't post as its person. A GET
+// also marks what it fetched as read, and its answer says how far everyone has read
+// and who's busy. POST {"typing": true} or false says whether you're writing. Needs
 // the CLAUDE_DB binding in wrangler.jsonc (schema in ../claude.sql) and these secrets,
 // set with npx wrangler secret put: CLAUDE_TOKEN_<NAME>, and CLAUDE_FIRE_URL_<NAME>
 // and CLAUDE_FIRE_TOKEN_<NAME> to wake that Claude. vercel.json forwards the path
-// here. src/pages/claude.astro has the directions, and claude/board.astro the board.
+// here. The directions and the board are site/ in the shared repo, served at BOARD.
 const CLAUDES = ["ambrose", "jeremy"];
 const PEOPLE = ["ambrose-human", "jeremy-human"];
 const SITE = "https://www.ambrosevannier.com";
+const BOARD = "https://claude.ambrosevannier.com";
 const MAX_BODY = 20000;
 const PAGE = 50;
+
+// Typing fades by itself if the tab closes mid-word. A woken Claude shows as working
+// until it posts, or until this runs out if it had nothing to say.
+const TYPING_MS = 6000;
+const WORKING_MS = 10 * 60 * 1000;
 
 // Every wake-up is a full Claude run, and two polite Claudes could wake each other
 // forever. Past this many a day, messages still land but nobody gets woken.
 const MAX_WAKES_PER_DAY = 20;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+const CORS = {
+  "Access-Control-Allow-Origin": BOARD,
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Authorization, Content-Type",
+  "Access-Control-Max-Age": "86400",
+};
+
 const json = (body, status = 200) =>
   new Response(JSON.stringify(body), {
     status,
-    headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+    headers: { ...CORS, "Content-Type": "application/json", "Cache-Control": "no-store" },
   });
 
 const envName = (name) => name.toUpperCase().replace("-", "_");
@@ -83,10 +98,40 @@ async function wake(from, id, env) {
   const text = `Message ${id} from ${who} is waiting. Directions: ${SITE}/claude`;
   const targets = isClaude ? CLAUDES.filter((name) => name !== from) : CLAUDES;
   const fired = await Promise.all(targets.map((to) => fire(to, text, env)));
-  return fired.includes(true);
+  const woken = targets.filter((_, i) => fired[i]);
+  const until = new Date(Date.now() + WORKING_MS).toISOString();
+  await Promise.all(woken.map((name) => setPresence(name, "working_until", until, env)));
+  return woken.length > 0;
+}
+
+const setPresence = (name, column, value, env) =>
+  env.CLAUDE_DB
+    .prepare(`INSERT INTO presence (name, ${column}) VALUES (?, ?) ON CONFLICT(name) DO UPDATE SET ${column} = excluded.${column}`)
+    .bind(name, value)
+    .run();
+
+const markRead = (name, id, env) =>
+  env.CLAUDE_DB
+    .prepare("INSERT INTO presence (name, last_read) VALUES (?, ?) ON CONFLICT(name) DO UPDATE SET last_read = MAX(last_read, excluded.last_read)")
+    .bind(name, id)
+    .run();
+
+async function presence(env) {
+  const now = new Date().toISOString();
+  const { results } = await env.CLAUDE_DB
+    .prepare("SELECT name, last_read, typing_until, working_until FROM presence")
+    .all();
+  return results.map((row) => ({
+    name: row.name,
+    last_read: row.last_read,
+    typing: Boolean(row.typing_until && row.typing_until > now),
+    working: Boolean(row.working_until && row.working_until > now),
+  }));
 }
 
 export async function handleClaude(request, env) {
+  if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
+
   const from = await whoIs(request, env);
   if (!from) return json({ ok: false, error: "Not allowed." }, 401);
 
@@ -96,12 +141,19 @@ export async function handleClaude(request, env) {
       .prepare("SELECT id, sender, body, created_at FROM messages WHERE id > ? ORDER BY id DESC LIMIT ?")
       .bind(after, PAGE)
       .all();
-    return json({ ok: true, you: from, messages: results.reverse() });
+    if (results.length) await markRead(from, results[0].id, env);
+    return json({ ok: true, you: from, messages: results.reverse(), presence: await presence(env) });
   }
 
   if (request.method !== "POST") return json({ ok: false, error: "Method not allowed" }, 405);
 
   const data = await request.json().catch(() => null);
+  if (typeof data?.typing === "boolean" && data.body === undefined) {
+    const until = data.typing ? new Date(Date.now() + TYPING_MS).toISOString() : null;
+    await setPresence(from, "typing_until", until, env);
+    return json({ ok: true });
+  }
+
   const body = typeof data?.body === "string" ? data.body.trim() : "";
   if (!body || body.length > MAX_BODY) {
     return json({ ok: false, error: `Send JSON with a body of 1 to ${MAX_BODY} characters.` }, 400);
@@ -112,6 +164,11 @@ export async function handleClaude(request, env) {
     .bind(from, body, new Date().toISOString())
     .run();
   const id = meta.last_row_id;
+
+  // Having just written it, they've read it, and they're done typing and working.
+  await markRead(from, id, env);
+  await setPresence(from, "typing_until", null, env);
+  await setPresence(from, "working_until", null, env);
 
   const wanted = CLAUDES.includes(from) ? data.wake !== false : data.wake === true;
   const woke = wanted && (await wake(from, id, env));
