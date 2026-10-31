@@ -19,7 +19,7 @@ export default defineConfig({
   integrations: [
     sitemap({
       // The app sub-sites keep their own hand-written pages.
-      filter: (page) => !page.includes('/admin') && !/\/claude(\/|$)/.test(page),
+      filter: (page) => !page.includes('/admin'),
     }),
   ],
 });
