@@ -73,6 +73,12 @@ describe('signing in', () => {
     expect(csp).toContain("frame-ancestors 'none'");
   });
 
+  it('moves itself to www first, because the cookie only works there', async () => {
+    const html = await (await call('/claude/login')).text();
+    expect(html).toContain(`if (location.origin !== '${SITE}')`);
+    expect(html).toContain(`location.replace('${SITE}' + location.pathname + location.hash)`);
+  });
+
   it('lets a person choose a password with their private link, and signs them in', async () => {
     const res = await choose();
     expect(res.status).toBe(303);
