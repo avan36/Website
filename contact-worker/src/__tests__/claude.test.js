@@ -7,11 +7,25 @@ const FIRE_URL = 'https://api.anthropic.com/v1/claude_code/routines/trig_jeremy/
 // Just enough of D1 for the queries the mailbox makes.
 function fakeDb() {
   const rows = [];
+  const presence = new Map();
+  const seat = (name) => {
+    if (!presence.has(name)) presence.set(name, { name, last_read: 0, typing_until: null, working_until: null });
+    return presence.get(name);
+  };
   return {
     rows,
     prepare: (sql) => ({
+      all: async () => ({ results: [...presence.values()] }),
       bind: (...args) => ({
         run: async () => {
+          if (sql.includes('presence')) {
+            const [name, value] = args;
+            const row = seat(name);
+            if (sql.includes('(name, last_read)')) row.last_read = Math.max(row.last_read, value);
+            if (sql.includes('(name, typing_until)')) row.typing_until = value;
+            if (sql.includes('(name, working_until)')) row.working_until = value;
+            return { meta: {} };
+          }
           if (sql.startsWith('INSERT')) {
             const [sender, body, created_at] = args;
             rows.push({ id: rows.length + 1, sender, body, created_at, woke: 0 });
@@ -180,5 +194,93 @@ describe('waking the other Claude', () => {
     const res = await post('token-a', { body: 'one too many' });
     expect(await res.json()).toEqual({ ok: true, id: 21, woke: false });
     expect(calls).toHaveLength(20);
+  });
+});
+
+describe('read receipts', () => {
+  const seat = async (token, name) => (await (await get(token)).json()).presence.find((p) => p.name === name);
+
+  it('counts a message as read once someone has fetched it', async () => {
+    await post('token-a', { body: 'one', wake: false });
+    expect((await (await get('token-a')).json()).presence).toEqual([
+      { name: 'ambrose', last_read: 1, typing: false, working: false },
+    ]);
+    await get('token-jh');
+    expect((await seat('token-a', 'jeremy-human')).last_read).toBe(1);
+  });
+
+  it('never moves backwards when someone reads older messages', async () => {
+    for (const body of ['one', 'two', 'three']) await post('token-a', { body, wake: false });
+    await get('token-jh');
+    await get('token-jh', '?after=1');
+    await get('token-jh', '?after=3');
+    expect((await seat('token-a', 'jeremy-human')).last_read).toBe(3);
+  });
+
+  it('counts what you send as read', async () => {
+    await post('token-a', { body: 'one', wake: false });
+    await post('token-jh', { body: 'two' });
+    expect((await seat('token-a', 'jeremy-human')).last_read).toBe(2);
+  });
+});
+
+describe('typing and working', () => {
+  afterEach(() => vi.useRealTimers());
+
+  const seat = async (name) =>
+    (await (await get('token-ah')).json()).presence.find((p) => p.name === name) ?? {};
+
+  it('shows someone typing, and stops when they send', async () => {
+    expect(await (await post('token-jh', { typing: true })).json()).toEqual({ ok: true });
+    expect((await seat('jeremy-human')).typing).toBe(true);
+    await post('token-jh', { body: 'done' });
+    expect((await seat('jeremy-human')).typing).toBe(false);
+  });
+
+  it('stops when they say so, or when they go quiet', async () => {
+    await post('token-jh', { typing: true });
+    await post('token-jh', { typing: false });
+    expect((await seat('jeremy-human')).typing).toBe(false);
+
+    vi.useFakeTimers({ toFake: ['Date'] });
+    await post('token-jh', { typing: true });
+    vi.advanceTimersByTime(7000);
+    expect((await seat('jeremy-human')).typing).toBe(false);
+  });
+
+  it('leaves no message behind, and turns away strangers', async () => {
+    await post('token-jh', { typing: true });
+    expect(env.CLAUDE_DB.rows).toHaveLength(0);
+    expect((await post('wrong', { typing: true })).status).toBe(401);
+  });
+
+  it('shows a woken Claude as working until it posts', async () => {
+    await post('token-a', { body: 'over to you' });
+    expect((await seat('jeremy')).working).toBe(true);
+    await post('token-j', { body: 'done', wake: false });
+    expect((await seat('jeremy')).working).toBe(false);
+  });
+
+  it('stops showing a woken Claude as working if it never posts', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    await post('token-a', { body: 'over to you' });
+    vi.advanceTimersByTime(11 * 60 * 1000);
+    expect((await seat('jeremy')).working).toBe(false);
+  });
+
+  it('only shows Claudes that really woke as working', async () => {
+    respond = () => new Response('{}', { status: 429 });
+    await post('token-a', { body: 'over to you' });
+    expect((await seat('jeremy')).working).toBeFalsy();
+  });
+});
+
+describe('the board', () => {
+  it('can call from its own address, and only that one', async () => {
+    const res = await handleClaude(new Request(URL_BASE, { method: 'OPTIONS' }), env);
+    expect(res.status).toBe(204);
+    expect(res.headers.get('Access-Control-Allow-Origin')).toBe('https://claude.ambrosevannier.com');
+    expect(res.headers.get('Access-Control-Allow-Headers')).toContain('Authorization');
+    expect((await get('token-a')).headers.get('Access-Control-Allow-Origin')).toBe('https://claude.ambrosevannier.com');
   });
 });

@@ -90,9 +90,9 @@ export default {
     const headers = { ...corsHeaders(origin), "Content-Type": "application/json" };
     const url = new URL(request.url);
 
-    // The private mailbox between two Claudes. It has its own token check, so
-    // none of the origin rules below apply.
-    if (url.pathname === "/claude/messages") return handleClaude(request, env);
+    // The private mailbox between two Claudes, its profiles and its sign-in page. It
+    // has its own checks, so none of the origin rules below apply.
+    if (url.pathname.startsWith("/claude/")) return handleClaude(request, env);
 
     // The link in a newsletter confirmation email.
     if (request.method === "GET" && url.pathname === "/newsletter/confirm") {

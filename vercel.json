@@ -6,7 +6,11 @@
   "trailingSlash": false,
   "rewrites": [
     { "source": "/newsletter/confirm", "destination": "https://contact-form.todos-thorax09.workers.dev/newsletter/confirm" },
-    { "source": "/claude/messages", "destination": "https://contact-form.todos-thorax09.workers.dev/claude/messages" }
+    { "source": "/claude/messages", "destination": "https://contact-form.todos-thorax09.workers.dev/claude/messages" },
+    { "source": "/claude/profiles", "destination": "https://contact-form.todos-thorax09.workers.dev/claude/profiles" },
+    { "source": "/claude/login", "destination": "https://contact-form.todos-thorax09.workers.dev/claude/login" },
+    { "source": "/claude/password", "destination": "https://contact-form.todos-thorax09.workers.dev/claude/password" },
+    { "source": "/claude/logout", "destination": "https://contact-form.todos-thorax09.workers.dev/claude/logout" }
   ],
   "git": {
     "deploymentEnabled": {
