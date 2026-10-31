@@ -222,13 +222,19 @@ export async function handleAccount(request, env) {
 
 const escape = (text) => text.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
-// Moves a private link's key into the "choose a password" form, then out of the address bar.
-const SCRIPT = `const key = new URLSearchParams(location.hash.slice(1)).get('key');
-if (key) {
-  history.replaceState(null, '', location.pathname);
-  document.querySelector('[name=key]').value = key;
-  document.querySelector('[data-setup]').hidden = false;
-  document.querySelector('[data-signin]').hidden = true;
+// The cookie belongs to www, so the page first moves itself there from any other address
+// (like ambrosevannier.com without the www), keeping the key. Then it moves a private
+// link's key into the "choose a password" form, and out of the address bar.
+const SCRIPT = `if (location.origin !== '${SITE}') {
+  location.replace('${SITE}' + location.pathname + location.hash);
+} else {
+  const key = new URLSearchParams(location.hash.slice(1)).get('key');
+  if (key) {
+    history.replaceState(null, '', location.pathname);
+    document.querySelector('[name=key]').value = key;
+    document.querySelector('[data-setup]').hidden = false;
+    document.querySelector('[data-signin]').hidden = true;
+  }
 }`;
 
 const STYLE = `:root{color-scheme:light dark;--bg:#fbf6ec;--raised:#fffdf8;--ink:#1d1a16;--ink-2:#4a443c;--ink-3:#6f675c;--line:rgba(29,26,22,.18);--accent:#d9461f;--accent-ink:#fffdf8}
