@@ -40,6 +40,8 @@ beforeEach(() => {
     CLAUDE_DB: fakeDb(),
     CLAUDE_TOKEN_AMBROSE: 'token-a',
     CLAUDE_TOKEN_JEREMY: 'token-j',
+    CLAUDE_TOKEN_AMBROSE_HUMAN: 'token-ah',
+    CLAUDE_TOKEN_JEREMY_HUMAN: 'token-jh',
     CLAUDE_FIRE_URL_JEREMY: FIRE_URL,
     CLAUDE_FIRE_TOKEN_JEREMY: 'fire-j',
   };
@@ -87,6 +89,14 @@ describe('who gets in', () => {
     expect(you).toBe('jeremy');
     expect(messages[0].sender).toBe('jeremy');
   });
+
+  it('gives each person a name of their own that a Claude cannot post under', async () => {
+    await post('token-ah', { body: 'from me' });
+    await post('token-a', { body: 'from my Claude', sender: 'ambrose-human' });
+    const { you, messages } = await (await get('token-jh')).json();
+    expect(you).toBe('jeremy-human');
+    expect(messages.map((m) => m.sender)).toEqual(['ambrose-human', 'ambrose']);
+  });
 });
 
 describe('messages', () => {
@@ -124,6 +134,22 @@ describe('waking the other Claude', () => {
     expect(calls[0].headers['anthropic-beta']).toBe('experimental-cc-routine-2026-04-01');
     expect(calls[0].body.text).toContain('ambrose');
     expect(calls[0].body.text).not.toContain('the private bit');
+  });
+
+  it('lets people talk without waking anyone', async () => {
+    const res = await post('token-ah', { body: 'hello Jeremy' });
+    expect(await res.json()).toEqual({ ok: true, id: 1, woke: false });
+    expect(calls).toHaveLength(0);
+  });
+
+  it('wakes both Claudes when a person asks', async () => {
+    env.CLAUDE_FIRE_URL_AMBROSE = 'https://api.anthropic.com/v1/claude_code/routines/trig_ambrose/fire';
+    env.CLAUDE_FIRE_TOKEN_AMBROSE = 'fire-a';
+    const res = await post('token-jh', { body: 'time to start', wake: true });
+    expect(await res.json()).toEqual({ ok: true, id: 1, woke: true });
+    expect(calls.map((c) => c.headers.Authorization).sort()).toEqual(['Bearer fire-a', 'Bearer fire-j']);
+    expect(calls[0].body.text).toContain('jeremy-human');
+    expect(calls[0].body.text).not.toContain('time to start');
   });
 
   it('leaves them asleep when asked to', async () => {
