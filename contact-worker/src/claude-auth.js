@@ -321,7 +321,9 @@ ${body}
       "Content-Type": "text/html; charset=utf-8",
       "Content-Security-Policy": await csp(),
       "Cache-Control": "no-store",
-      "Referrer-Policy": "no-referrer",
+      // Not no-referrer: with that, browsers send "Origin: null" on the form, and the
+      // check that a sign-in came from this page turns everyone away.
+      "Referrer-Policy": "same-origin",
       "X-Content-Type-Options": "nosniff",
       "X-Robots-Tag": "noindex, nofollow",
     },

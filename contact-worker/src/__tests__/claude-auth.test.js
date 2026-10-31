@@ -73,6 +73,12 @@ describe('signing in', () => {
     expect(csp).toContain("frame-ancestors 'none'");
   });
 
+  it("lets the browser say a form came from this page", async () => {
+    // With no-referrer, browsers send "Origin: null" on a form, and every sign-in fails.
+    expect((await call('/claude/login')).headers.get('Referrer-Policy')).toBe('same-origin');
+    expect((await form('/claude/login', { name: 'ambrose', password: 'x' }, { origin: 'null' })).status).toBe(403);
+  });
+
   it('moves itself to www first, because the cookie only works there', async () => {
     const html = await (await call('/claude/login')).text();
     expect(html).toContain(`if (location.origin !== '${SITE}')`);
