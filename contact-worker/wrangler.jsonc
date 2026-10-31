@@ -11,6 +11,11 @@
     { "name": "EMAIL", "destination_address": "todos_thorax09@icloud.com" }
   ],
 
+  // The private mailbox at /claude/messages (src/claude.js). Schema in claude.sql.
+  "d1_databases": [
+    { "binding": "CLAUDE_DB", "database_name": "claude-bridge", "database_id": "869fb82a-0cc5-419d-851e-c5034485e0be" }
+  ],
+
   // The Resend segment that newsletter subscribers join. RESEND_API_KEY and
   // NEWSLETTER_SECRET are secrets: set them with npx wrangler secret put.
   "vars": { "RESEND_SEGMENT_ID": "a7756ed1-4f70-488e-9f76-e8883915a597" }

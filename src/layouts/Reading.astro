@@ -13,11 +13,12 @@ interface Props {
   type?: 'website' | 'article';
   /** Which header link to mark as the current section. */
   current?: 'work' | 'writing' | 'contact' | 'none';
+  noindex?: boolean;
 }
 
-const { title, description, image, type = 'website', current = 'writing' } = Astro.props;
+const { title, description, image, type = 'website', current = 'writing', noindex } = Astro.props;
 ---
-<Base title={title} description={description} image={image} type={type} bodyClass="reading">
+<Base title={title} description={description} image={image} type={type} bodyClass="reading" noindex={noindex}>
   <slot name="head" slot="head" />
   <SiteHeader current={current === 'none' ? undefined : current} />
   <main id="main" class="reading-main">

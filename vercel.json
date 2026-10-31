@@ -5,7 +5,8 @@
   "cleanUrls": true,
   "trailingSlash": false,
   "rewrites": [
-    { "source": "/newsletter/confirm", "destination": "https://contact-form.todos-thorax09.workers.dev/newsletter/confirm" }
+    { "source": "/newsletter/confirm", "destination": "https://contact-form.todos-thorax09.workers.dev/newsletter/confirm" },
+    { "source": "/claude/messages", "destination": "https://contact-form.todos-thorax09.workers.dev/claude/messages" }
   ],
   "git": {
     "deploymentEnabled": {

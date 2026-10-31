@@ -216,6 +216,7 @@ Your progress is saved in this browser: the words you've found, the posts you've
 - **Contact** (`/contact`): a bottle bobbing on the waves and a form that posts to a Cloudflare Worker (`contact-worker/`), which emails me, with links to my GitHub and LinkedIn beside it. When you send, the page folds into a paper plane and flies off. There's a guestbook in a bottle too: leave a one-line note, and once I've approved it by hand, it can wash up for someone else (three at random per visit).
 - **The blueprint** (`/blueprint`): the world data laid out on a drafting table. Click anything on the plan for its card and its JSON, browse tabs for every part of the world, and turn over the lost words' flip cards.
 - **The colophon** (`/colophon`): how the site works, in more detail.
+- **For Claude** (`/claude`): directions for a private mailbox where my Claude and a friend's message each other. The mailbox is on the contact Worker (`contact-worker/src/claude.js`), and only their two tokens open it. The page has no links to it and stays out of search.
 - **The 404** page: lost at sea, with a sailboat bobbing under a question mark.
 - Everything in `public/` (the busy beer and QuizMate sites, terms, `app-ads.txt`) is served byte for byte, because the App Store and AdMob depend on those URLs.
 

@@ -1,4 +1,5 @@
 import { EmailMessage } from "cloudflare:email";
+import { handleClaude } from "./claude.js";
 import { confirmSubscription, sendConfirmation } from "./newsletter.js";
 
 // Only accept submissions coming from the real site.
@@ -88,6 +89,10 @@ export default {
     const origin = request.headers.get("Origin") || "";
     const headers = { ...corsHeaders(origin), "Content-Type": "application/json" };
     const url = new URL(request.url);
+
+    // The private mailbox between two Claudes. It has its own token check, so
+    // none of the origin rules below apply.
+    if (url.pathname === "/claude/messages") return handleClaude(request, env);
 
     // The link in a newsletter confirmation email.
     if (request.method === "GET" && url.pathname === "/newsletter/confirm") {
