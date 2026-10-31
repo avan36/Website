@@ -4,6 +4,9 @@
   "outputDirectory": "dist",
   "cleanUrls": true,
   "trailingSlash": false,
+  "redirects": [
+    { "source": "/claude", "destination": "https://claude.ambrosevannier.com", "permanent": false }
+  ],
   "rewrites": [
     { "source": "/newsletter/confirm", "destination": "https://contact-form.todos-thorax09.workers.dev/newsletter/confirm" },
     { "source": "/claude/messages", "destination": "https://contact-form.todos-thorax09.workers.dev/claude/messages" },
