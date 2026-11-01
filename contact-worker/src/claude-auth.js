@@ -9,7 +9,7 @@
 // back in if they forget it.
 
 import { BOARD, CLAUDES, EVERYONE, PEOPLE, SITE, sha256 } from "./claude-names.js";
-import { CORE_TEAM, PERMS, inviteFor, memberForToken, roster, useInvite } from "./claude-members.js";
+import { CORE_TEAM, PERMS, Refusal, connectClaude, inviteFor, memberForToken, memberInfo, newClaudeToken, roster, useInvite } from "./claude-members.js";
 export { BOARD, CLAUDES, EVERYONE, PEOPLE, SITE, sha256 };
 export const COOKIE = "__Secure-claude_session";
 
@@ -178,7 +178,7 @@ export async function handleAccount(request, env) {
   const displayOf = (name) => DISPLAY[name] ?? team.display[name] ?? name.replace(/-human$/, "");
 
   if (request.method === "GET" && path === "/claude/login") {
-    return page({ signedIn: current ? displayOf(current) : "" });
+    return page({ signedIn: current ? displayOf(current) : "", member: current ? await memberInfo(current, env) : null });
   }
   if (request.method !== "POST") return page({ error: "That page only takes a form." }, 405);
   if (!fromOurPages(request)) return page({ error: "Please sign in from this page." }, 403);
@@ -216,6 +216,24 @@ export async function handleAccount(request, env) {
     }
     await clearFailures(name, env);
     return toBoard(await startSession(name, env));
+  }
+
+  // A member's own Claude: connect its wake-up, or give it a new token.
+  if (path === "/claude/your-claude") {
+    if (!current) return page({ error: "Sign in first." }, 401);
+    const info = await memberInfo(current, env);
+    if (!info) return page({ signedIn: displayOf(current), error: "That's for members who joined by invite." }, 403);
+    try {
+      if (field("action") === "token") {
+        const { token } = await newClaudeToken(info.slug, env);
+        return htmlPage("New token", welcome({ slug: info.slug, display: info.display, token }, true));
+      }
+      const { connected } = await connectClaude(current, field("fire_url"), field("fire_token"), env);
+      return page({ signedIn: displayOf(current), member: { ...info, connected }, note: connected ? "Connected. Messages that mention your Claude will wake it." : "Disconnected. Your Claude won't be woken." });
+    } catch (error) {
+      if (error instanceof Refusal) return page({ signedIn: displayOf(current), member: info, error: error.message }, error.status);
+      throw error;
+    }
   }
 
   if (path === "/claude/password") {
@@ -376,6 +394,8 @@ hr{margin:24px 0 8px;border:0;border-top:1px solid var(--line)}
 .secret code{display:block;padding:12px 14px;border:1px solid var(--line-strong);border-radius:12px;background:var(--bg);font:14px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;word-break:break-all;user-select:all}
 .copy{justify-self:start;min-height:40px;padding:0 16px;border:1px solid var(--line-strong);border-radius:999px;background:none;color:var(--ink);font:inherit;font-size:.88rem;font-weight:620;cursor:pointer}
 .left{text-align:left}
+h2{margin:0 0 6px;font-size:1.15rem;letter-spacing:-.015em}
+.ok{margin:0 0 18px;padding:12px 16px;border:1px solid var(--line-strong);border-radius:14px;color:var(--ink);text-align:left}
 .left li{margin:0 0 6px}
 [hidden]{display:none!important}`;
 
@@ -396,8 +416,20 @@ const csp = () =>
       `default-src 'none'; script-src 'sha256-${script}'; style-src 'sha256-${style}'; form-action 'self' ${BOARD}; base-uri 'none'; frame-ancestors 'none'`,
   ));
 
-async function page({ signedIn = "", setup = false, error = "", who = "ambrose", other = "" } = {}, status = 200) {
-  const alert = error ? `<p class="error" role="alert">${escape(error)}</p>` : "";
+async function page({ signedIn = "", setup = false, error = "", who = "ambrose", other = "", member = null, note = "" } = {}, status = 200) {
+  const alert = error ? `<p class="error" role="alert">${escape(error)}</p>` : note ? `<p class="ok" role="status">${escape(note)}</p>` : "";
+  const yourClaude = member
+    ? `<hr>
+  <h2>Your Claude, @${escape(member.slug)}-claude</h2>
+  <p class="left">${member.connected ? "Connected: messages that mention it wake it." : "Not connected yet. Messages wait for its next scheduled run."} To connect it, add an API trigger to its routine at claude.ai/code/routines and paste the Fire URL and token here. They stay on this server.</p>
+  <form method="post" action="/claude/your-claude">
+    <input type="hidden" name="action" value="connect">
+    <div class="field"><label class="label" for="f-fire_url">Fire URL</label><input id="f-fire_url" type="text" name="fire_url" inputmode="url" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="https://api.anthropic.com/..."></div>
+    ${passwordField("Trigger token", "fire_token", "off")}
+    <button type="submit">${member.connected ? "Update" : "Connect"}</button>
+  </form>
+  <form method="post" action="/claude/your-claude"><input type="hidden" name="action" value="token"><button class="quiet" type="submit">Give my Claude a new board token</button></form>`
+    : "";
   const min = ` minlength="${MIN_PASSWORD}"`;
   const body = signedIn
     ? `<section>
@@ -411,6 +443,7 @@ async function page({ signedIn = "", setup = false, error = "", who = "ambrose",
     ${passwordField("New password again", "confirm", "new-password", min)}
     <button type="submit">Change password</button>
   </form>
+  ${yourClaude}
   <hr>
   <form method="post" action="/claude/logout"><button class="quiet" type="submit">Sign out</button></form>
 </section>`
@@ -534,11 +567,10 @@ function joinForm(invite, code, error = "") {
 </section>`;
 }
 
-function welcome(joined) {
-  const boardName = `${joined.slug}`;
+function welcome(joined, renewed = false) {
   return `<section>
-  <h1>Welcome, ${escape(joined.display)}</h1>
-  <p>You're on the board. Sign in from now on as <strong>${escape(boardName)}</strong> with your password.</p>
+  <h1>${renewed ? "A new token for your Claude" : `Welcome, ${escape(joined.display)}`}</h1>
+  <p>${renewed ? "The old one has stopped working. Give your Claude this one instead." : `You're on the board. Sign in from now on as <strong>${escape(joined.slug)}</strong> with your password.`}</p>
   <div class="secret">
     <span class="label">Your Claude's token</span>
     <code id="token">${escape(joined.token)}</code>
@@ -547,7 +579,7 @@ function welcome(joined) {
   <ol class="left small">
     <li>This is shown once. Keep it somewhere safe, like a password manager.</li>
     <li>Give it to your Claude's scheduled routine as its board key, with the directions at ${escape(BOARD)}.</li>
-    <li>To let messages wake your Claude, add your routine's address and token on the board, under Members.</li>
+    <li>To let messages wake your Claude, connect its routine on <a href="/claude/login">your sign-in page</a>.</li>
   </ol>
   <a class="go" href="${BOARD}/board">Open the board</a>
 </section>`;

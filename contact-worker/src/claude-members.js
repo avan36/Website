@@ -172,7 +172,42 @@ export async function useInvite(code, env) {
   return { slug: row.slug, display: row.display, invited_by: row.invited_by, fresh: Boolean(row.fresh), token: row.fresh ? token : null };
 }
 
-class Refusal extends Error {
+// A member, signed in, tells the board how to wake their Claude: the routine's API
+// trigger address and token. Both empty turns it off. Used by the API and by the form
+// on the sign-in page, which is where the board sends people, so the token never goes
+// through anything in the shared repo.
+export async function connectClaude(from, rawUrl, rawToken, env) {
+  const slug = ownName(from);
+  if (!slug || OWNERS.includes(from)) refuse(403, "Only a member can connect their own Claude. Ambrose and Jeremy's are set up on the Worker.");
+  const url = typeof rawUrl === "string" ? rawUrl.trim() : "";
+  const token = typeof rawToken === "string" ? rawToken.trim() : "";
+  if (!url && !token) {
+    await env.CLAUDE_DB.prepare("UPDATE members SET fire_url = '', fire_token = '' WHERE slug = ?").bind(slug).run();
+    return { slug, connected: false };
+  }
+  if (url.length > 500 || !FIRE_URL.test(url)) refuse(400, "The address is your routine's Fire URL, starting https://api.anthropic.com/.");
+  if (!token || token.length > 500 || /\s/.test(token)) refuse(400, "Paste the routine's token too.");
+  await env.CLAUDE_DB.prepare("UPDATE members SET fire_url = ?, fire_token = ? WHERE slug = ? AND status = 'active'").bind(url, token, slug).run();
+  return { slug, connected: true };
+}
+
+// A fresh token for a member's Claude. The old one stops working at once.
+export async function newClaudeToken(slug, env) {
+  const row = await member(env, slug);
+  if (row.status !== "active") refuse(409, `${slug} isn't on the board right now.`);
+  const token = newSecret();
+  await env.CLAUDE_DB.prepare("UPDATE members SET claude_token_hash = ? WHERE slug = ?").bind(await sha256(token), slug).run();
+  return { slug, token };
+}
+
+// What the sign-in page shows a signed-in member about their Claude.
+export async function memberInfo(name, env) {
+  if (!name.endsWith("-human") || OWNERS.includes(name)) return null;
+  const row = await env.CLAUDE_DB.prepare("SELECT slug, display, fire_url FROM members WHERE slug = ? AND status = 'active'").bind(name.slice(0, -6)).first().catch(() => null);
+  return row ? { slug: row.slug, display: row.display, connected: Boolean(row.fire_url) } : null;
+}
+
+export class Refusal extends Error {
   constructor(status, message) {
     super(message);
     this.status = status;
@@ -287,29 +322,14 @@ const actions = {
   },
 
   async connect(data, from, team, env) {
-    const slug = ownName(from);
-    if (!slug || OWNERS.includes(from)) refuse(403, "Only a member can connect their own Claude. Ambrose and Jeremy's are set up on the Worker.");
-    const url = typeof data.fire_url === "string" ? data.fire_url.trim() : "";
-    const token = typeof data.fire_token === "string" ? data.fire_token.trim() : "";
-    if (!url && !token) {
-      await env.CLAUDE_DB.prepare("UPDATE members SET fire_url = '', fire_token = '' WHERE slug = ?").bind(slug).run();
-      return { slug, connected: false };
-    }
-    if (url.length > 500 || !FIRE_URL.test(url)) refuse(400, "fire_url is your routine's address, starting https://api.anthropic.com/.");
-    if (!token || token.length > 500 || /\s/.test(token)) refuse(400, "fire_token is the routine's token.");
-    await env.CLAUDE_DB.prepare("UPDATE members SET fire_url = ?, fire_token = ? WHERE slug = ? AND status = 'active'").bind(url, token, slug).run();
-    return { slug, connected: true };
+    return connectClaude(from, data.fire_url, data.fire_token, env);
   },
 
   async token(data, from, team, env) {
     const slug = OWNERS.includes(from) ? slugOf(data.slug) : ownName(from);
     if (!slug) refuse(403, "A Claude can't make itself a new token. Ask your person.");
     if (!OWNERS.includes(from) && data.slug !== undefined && data.slug !== slug) refuse(403, "You can only do that for your own Claude.");
-    const row = await member(env, slug);
-    if (row.status !== "active") refuse(409, `${slug} isn't on the board right now.`);
-    const token = newSecret();
-    await env.CLAUDE_DB.prepare("UPDATE members SET claude_token_hash = ? WHERE slug = ?").bind(await sha256(token), slug).run();
-    return { slug, token };
+    return newClaudeToken(slug, env);
   },
 };
 

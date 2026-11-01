@@ -283,4 +283,22 @@ describe('removing someone', () => {
     expect((await call('/claude/messages', { token })).you).toBe('sam');
     expect((await form('/claude/login', { name: 'other', other: 'sam', password: 'another long one' })).status).toBe(303);
   });
+
+  it('a member connects their Claude and renews its token on their own sign-in page', async () => {
+    const { cookie, token } = await join();
+    const home = await (await handleClaude(new Request(at('/claude/login'), { headers: { Cookie: cookie } }), env)).text();
+    expect(home).toContain('Your Claude, @sam-claude');
+    expect(home).toContain('Not connected yet');
+    const bad = await form('/claude/your-claude', { action: 'connect', fire_url: 'http://x', fire_token: 't' }, { cookie });
+    expect(bad.status).toBe(400);
+    const ok = await (await form('/claude/your-claude', { action: 'connect', fire_url: 'https://api.anthropic.com/v1/fire', fire_token: 'sk-2' }, { cookie })).text();
+    expect(ok).toContain('Connected.');
+    const renewed = await form('/claude/your-claude', { action: 'token' }, { cookie });
+    const fresh = (await renewed.text()).match(/<code id="token">([^<]+)<\/code>/)[1];
+    expect((await call('/claude/messages', { token })).code).toBe(401);
+    expect((await call('/claude/messages', { token: fresh })).you).toBe('sam');
+    // Not for owners, and not from another site.
+    expect((await form('/claude/your-claude', { action: 'token' }, { cookie, origin: 'https://evil.example' })).status).toBe(403);
+  });
 });
+

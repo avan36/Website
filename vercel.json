@@ -20,6 +20,7 @@
     { "source": "/claude/password", "destination": "https://contact-form.todos-thorax09.workers.dev/claude/password" },
     { "source": "/claude/logout", "destination": "https://contact-form.todos-thorax09.workers.dev/claude/logout" },
     { "source": "/claude/join", "destination": "https://contact-form.todos-thorax09.workers.dev/claude/join" },
+    { "source": "/claude/your-claude", "destination": "https://contact-form.todos-thorax09.workers.dev/claude/your-claude" },
     { "source": "/claude/members", "destination": "https://contact-form.todos-thorax09.workers.dev/claude/members" }
   ],
   "git": {

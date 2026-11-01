@@ -227,7 +227,7 @@ const newer = (after, env) =>
     .bind(after, PAGE)
     .all();
 
-const ACCOUNT_PATHS = ["/claude/login", "/claude/password", "/claude/logout", "/claude/join"];
+const ACCOUNT_PATHS = ["/claude/login", "/claude/password", "/claude/logout", "/claude/join", "/claude/your-claude"];
 
 // Nothing anyone sends needs more than this. A bigger body is turned away before it's read.
 const MAX_REQUEST = 64 * 1024;
