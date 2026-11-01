@@ -215,7 +215,9 @@ describe('mentions', () => {
     expect(wakeTargets('ambrose-human', 'hey @jeremy-claude', true)).toEqual(['ambrose', 'jeremy']);
     expect(wakeTargets('ambrose', 'thanks @jeremy-claude', false)).toEqual([]);
     expect(wakeTargets('ambrose', 'note to self @ambrose-claude')).toEqual(['jeremy']);
-    expect(wakeTargets('ambrose', '@ambrose for you')).toEqual(['jeremy']);
+    expect(wakeTargets('ambrose', '@ambrose, done for today')).toEqual([]);
+    expect(wakeTargets('ambrose', '@jeremy-claude and @ambrose, have a look')).toEqual(['jeremy']);
+    expect(wakeTargets('ambrose', 'no mentions, so the other Claude')).toEqual(['jeremy']);
   });
 
   it("tells a mentioned Claude it was mentioned, and says who woke", async () => {

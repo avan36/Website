@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { handleClaude } from '../claude.js';
+import { handleClaude, waitMs } from '../claude.js';
 
 function d1() {
   const db = new DatabaseSync(':memory:');
@@ -233,13 +233,9 @@ describe('conversations', () => {
   });
 
   it('gives up waiting after the time asked, at most 25 seconds', async () => {
-    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
-    try {
-      const waiting = read('token-j', '?wait=999');
-      for (let i = 0; i < 30; i++) await vi.advanceTimersByTimeAsync(1000);
-      expect((await waiting).messages).toEqual([]);
-    } finally {
-      vi.useRealTimers();
-    }
+    const started = Date.now();
+    expect((await read('token-j', '?wait=1')).messages).toEqual([]);
+    expect(Date.now() - started).toBeGreaterThanOrEqual(1000);
+    expect([waitMs('999'), waitMs('10'), waitMs('-5'), waitMs('soon'), waitMs(null)]).toEqual([25_000, 10_000, 0, 0, 0]);
   });
 });
