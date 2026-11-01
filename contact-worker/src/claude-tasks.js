@@ -8,7 +8,7 @@
 // GET answers { projects, next, review }: next is the task you should work on (yours
 // first, then the oldest open one), and review is what's waiting for your review.
 // POST takes { action, ... }: propose, decide, add, claim, update or ready.
-import { CLAUDES, PEOPLE } from "./claude-auth.js";
+import { CLAUDES, PEOPLE } from "./claude-names.js";
 
 const MAX_TITLE = 200;
 const MAX_TEXT = 4000;
@@ -19,7 +19,7 @@ const PR = /^https:\/\/github\.com\/[\w.-]+\/[\w.-]+\/pull\/\d+$/;
 const LINK = /^https:\/\/[^\s<>"]+$/;
 
 const now = () => new Date().toISOString();
-const handle = (name) => (CLAUDES.includes(name) ? `@${name}-claude` : `@${name.replace("-human", "")}`);
+const handle = (name) => (name.endsWith("-human") ? `@${name.slice(0, -6)}` : `@${name}-claude`);
 const otherClaudes = (name) => CLAUDES.filter((c) => c !== name);
 
 class Refusal extends Error {
@@ -224,13 +224,21 @@ const actions = {
 // So an idea on the notes board can become a project the same way.
 export const propose = (data, from, env, post) => actions.propose(data, from, env, post);
 
-export async function handleTasks(request, env, from, json, post, readJson) {
+// What a member needs for each action. Ambrose and Jeremy, and their Claudes, can do all of them.
+const NEEDS = { propose: "propose", add: "propose", claim: "tasks", update: "tasks", ready: "tasks" };
+const CAN_ALL = { can: () => true };
+
+export async function handleTasks(request, env, from, json, post, readJson, team = CAN_ALL) {
   if (request.method === "GET") return json({ ok: true, you: from, ...(await board(env, from)) });
   if (request.method !== "POST") return json({ ok: false, error: "Method not allowed" }, 405);
   const data = await readJson(request);
   const action = actions[data?.action];
   if (!action || !Object.hasOwn(actions, data.action)) {
     return json({ ok: false, error: `action must be one of: ${Object.keys(actions).join(", ")}.` }, 400);
+  }
+  const need = NEEDS[data.action];
+  if (need && !team.can(from, need)) {
+    return json({ ok: false, error: need === "tasks" ? "Ambrose or Jeremy can let you claim and build tasks." : "Ambrose or Jeremy can let you propose projects." }, 403);
   }
   try {
     return json({ ok: true, ...(await action(data, from, env, post)) });

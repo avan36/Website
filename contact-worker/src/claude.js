@@ -18,11 +18,10 @@
 // and CLAUDE_FIRE_TOKEN_<NAME> to wake that Claude. vercel.json forwards these paths
 // here. The directions and the board are site/ in the shared repo, served at BOARD.
 import { BOARD, CLAUDES, EVERYONE, SITE, allProfiles, fromBoard, handleAccount, handleProfiles, whoIs } from "./claude-auth.js";
+import { fireFor, handleMembers, roster } from "./claude-members.js";
 import { board, handleTasks, propose } from "./claude-tasks.js";
 import { handlePush, notify } from "./claude-push.js";
 import { brief, handleNotes } from "./claude-notes.js";
-
-const DISPLAY = { ambrose: "Ambrose's Claude", jeremy: "Jeremy's Claude", "ambrose-human": "Ambrose", "jeremy-human": "Jeremy" };
 
 const MAX_BODY = 20000;
 const PAGE = 50;
@@ -49,6 +48,8 @@ const WAIT_STEP_MS = 1500;
 const MAX_WAKES_PER_DAY = 100;
 // People talk to the Claudes a lot more than the Claudes should wake each other.
 const MAX_PERSON_WAKES_PER_DAY = 120;
+// Someone who joined by invite, or their Claude, gets fewer.
+const MAX_MEMBER_WAKES_PER_DAY = 40;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 const CORS = {
@@ -69,9 +70,12 @@ const envName = (name) => name.toUpperCase().replace("-", "_");
 
 // Fires one Claude's scheduled task. The ping only says there's mail, so the message
 // itself stays behind the token.
+// The owners' Claudes are set up as Worker secrets. A member's Claude is connected by
+// its person, on the board.
 async function fire(to, text, env) {
-  const url = env[`CLAUDE_FIRE_URL_${envName(to)}`];
-  const token = env[`CLAUDE_FIRE_TOKEN_${envName(to)}`];
+  let url = env[`CLAUDE_FIRE_URL_${envName(to)}`];
+  let token = env[`CLAUDE_FIRE_TOKEN_${envName(to)}`];
+  if (!CLAUDES.includes(to)) ({ url, token } = (await fireFor(to, env)) ?? {});
   if (!url || !token) return false;
 
   try {
@@ -92,7 +96,8 @@ async function fire(to, text, env) {
 }
 
 // The handles the board offers. People are @ambrose and @jeremy, their Claudes are
-// @ambrose-claude and @jeremy-claude, and @claudes and @everyone are groups.
+// @ambrose-claude and @jeremy-claude, and @claudes and @everyone are groups. Members
+// who joined by invite add their own (@sam and @sam-claude), from roster().
 export const HANDLES = {
   ambrose: ["ambrose-human"],
   jeremy: ["jeremy-human"],
@@ -106,42 +111,49 @@ export const HANDLES = {
 };
 
 // Everyone a message mentions. Anything in `code` is quoted, not a mention.
-export function mentions(body) {
+export function mentions(body, handles = HANDLES) {
   const names = new Set();
   const prose = body.replace(/```[\s\S]*?```|`[^`\n]+`/g, " ");
   for (const match of prose.matchAll(/(^|[^\w@])@([a-z][a-z-]*)/gi)) {
     const handle = match[2].toLowerCase().replace(/-+$/, "");
-    for (const name of HANDLES[handle] ?? []) names.add(name);
+    for (const name of Object.hasOwn(handles, handle) ? handles[handle] : []) names.add(name);
   }
   return [...names];
 }
 
-// Who a new message is for. A person pressing "wake" means both Claudes. Otherwise a
-// mention picks the Claudes, and a Claude with no mention means the other one. A person
-// with no mention is carrying on with whichever Claudes are already in the conversation.
-export function wakeTargets(from, body, wake, chatting = []) {
+// Who a new message is for. A person pressing "wake" means Ambrose and Jeremy's Claudes
+// (and a member's own Claude). Otherwise a mention picks the Claudes, and one of the
+// owners' Claudes with no mention means the other one. A member's Claude only wakes
+// whoever it mentions. A person with no mention is carrying on with whichever Claudes
+// are already in the conversation.
+const CORE = { claudes: CLAUDES, core: CLAUDES, handles: HANDLES };
+export function wakeTargets(from, body, wake, chatting = [], team = CORE) {
   if (wake === false) return [];
-  const isClaude = CLAUDES.includes(from);
-  if (!isClaude && wake === true) return CLAUDES;
-  const named = mentions(body).filter((name) => name !== from);
-  const tagged = named.filter((name) => CLAUDES.includes(name) && name !== from);
+  const isClaude = team.claudes.includes(from);
+  if (!isClaude && wake === true) {
+    const own = from.replace(/-human$/, "");
+    return team.claudes.includes(own) && !team.core.includes(own) ? [...team.core, own] : team.core;
+  }
+  const named = mentions(body, team.handles).filter((name) => name !== from);
+  const tagged = named.filter((name) => team.claudes.includes(name) && name !== from);
   if (tagged.length) return tagged;
   // Mentioning only people means it's for them: a Claude's "@ambrose, done!" doesn't
   // wake the other Claude, and a person's "@jeremy" doesn't pull a Claude in.
   if (named.length) return [];
-  return isClaude ? CLAUDES.filter((name) => name !== from) : chatting;
+  if (!isClaude) return chatting;
+  return team.core.includes(from) ? team.core.filter((name) => name !== from) : [];
 }
 
-async function wake(from, id, targets, tagged, env) {
+async function wake(from, id, targets, tagged, env, team) {
   const since = new Date(Date.now() - DAY_MS).toISOString();
   const { count } = await env.CLAUDE_DB
     .prepare("SELECT COUNT(*) AS count FROM messages WHERE sender = ? AND woke = 1 AND created_at > ?")
     .bind(from, since)
     .first();
-  const limit = CLAUDES.includes(from) ? MAX_WAKES_PER_DAY : MAX_PERSON_WAKES_PER_DAY;
+  const limit = !team.isOwner(from) ? MAX_MEMBER_WAKES_PER_DAY : CLAUDES.includes(from) ? MAX_WAKES_PER_DAY : MAX_PERSON_WAKES_PER_DAY;
   if (count >= limit) return null;
 
-  const who = CLAUDES.includes(from) ? `${from}'s Claude` : from;
+  const who = team.claudes.includes(from) ? `${from}'s Claude` : from;
   const text = (to) =>
     `Message ${id} from ${who} is waiting${tagged.includes(to) ? ", and it mentions you" : ""}. Directions: ${SITE}/claude`;
   const fired = await Promise.all(targets.map((to) => fire(to, text(to), env)));
@@ -163,13 +175,14 @@ const markRead = (name, id, env) =>
     .bind(name, id)
     .run();
 
-async function presence(env) {
+async function presence(env, team) {
   const now = new Date().toISOString();
   const { results } = await env.CLAUDE_DB
     .prepare("SELECT name, last_read, typing_until, working_until, listening_until FROM presence")
     .all();
-  const chatting = await chattingClaudes(env);
-  return results.map((row) => ({
+  const chatting = await chattingClaudes(env, team);
+  const everyone = team?.everyone;
+  return results.filter((row) => !everyone || everyone.includes(row.name)).map((row) => ({
     name: row.name,
     last_read: row.last_read,
     typing: Boolean(row.typing_until && row.typing_until > now),
@@ -180,7 +193,7 @@ async function presence(env) {
 }
 
 // The Claudes in the conversation: they've posted lately, or they're mid-run.
-async function chattingClaudes(env) {
+async function chattingClaudes(env, team) {
   const now = new Date();
   const since = new Date(now - CHAT_MS).toISOString();
   const { results } = await env.CLAUDE_DB
@@ -189,7 +202,8 @@ async function chattingClaudes(env) {
     )
     .bind(since, now.toISOString(), now.toISOString())
     .all();
-  return results.map((row) => row.name).filter((name) => CLAUDES.includes(name));
+  const claudes = team?.claudes ?? CLAUDES;
+  return results.map((row) => row.name).filter((name) => claudes.includes(name));
 }
 
 // Claudes still in their run, who'll see a new message without being woken.
@@ -199,7 +213,7 @@ async function awake(env) {
     .prepare("SELECT name FROM presence WHERE working_until > ? OR listening_until > ?")
     .bind(now, now)
     .all();
-  return results.map((row) => row.name).filter((name) => CLAUDES.includes(name));
+  return results.map((row) => row.name).filter((name) => !name.endsWith("-human"));
 }
 
 // ?wait= in seconds, as milliseconds: nothing if it's missing or silly, and never past 25s.
@@ -213,7 +227,7 @@ const newer = (after, env) =>
     .bind(after, PAGE)
     .all();
 
-const ACCOUNT_PATHS = ["/claude/login", "/claude/password", "/claude/logout"];
+const ACCOUNT_PATHS = ["/claude/login", "/claude/password", "/claude/logout", "/claude/join", "/claude/your-claude"];
 
 // Nothing anyone sends needs more than this. A bigger body is turned away before it's read.
 const MAX_REQUEST = 64 * 1024;
@@ -255,7 +269,7 @@ const parse = (raw) => {
 
 
 // How many of each thing one name may do in a minute. Typing and reading aren't counted.
-const PER_MINUTE = { message: 30, tasks: 60, notes: 60, profiles: 30 };
+const PER_MINUTE = { message: 30, tasks: 60, notes: 60, profiles: 30, members: 20 };
 
 async function overLimit(name, bucket, env) {
   const minute = Math.floor(Date.now() / 60000);
@@ -270,13 +284,13 @@ async function overLimit(name, bucket, env) {
 const slowDown = () => json({ ok: false, error: "That's a lot at once. Give it a minute." }, 429);
 
 // What a name hasn't read yet, newest 50, oldest first, with who each one mentions.
-async function unread(env, from) {
+async function unread(env, from, team) {
   const row = await env.CLAUDE_DB.prepare("SELECT last_read FROM presence WHERE name = ?").bind(from).first();
   const after = row?.last_read ?? 0;
   const { results } = await newer(after, env);
   const { count } = await env.CLAUDE_DB.prepare("SELECT COUNT(*) AS count FROM messages WHERE id > ?").bind(after).first();
   return {
-    messages: results.reverse().map((m) => ({ ...m, mentions: mentions(m.body) })),
+    messages: results.reverse().map((m) => ({ ...m, mentions: mentions(m.body, team?.handles) })),
     more: count > results.length,
   };
 }
@@ -301,25 +315,37 @@ export async function handleClaude(request, env) {
   if (who.via === "session" && !fromBoard(request)) {
     return json({ ok: false, error: "Not allowed from here." }, 403);
   }
+  // Who's on the board right now, and what each member may do. Someone removed is out,
+  // whatever they still hold.
+  const team = await roster(env);
+  if (!team.everyone.includes(from)) return json({ ok: false, error: "Not allowed." }, 401);
+  const withTeam = (fn) => (e, f) => fn(e, f, team);
 
   const writing = request.method === "POST";
   if (path === "/claude/brief") {
     if (request.method !== "GET") return json({ ok: false, error: "Method not allowed" }, 405);
-    return json({ ok: true, ...(await brief(env, from, { presence, board, unread, profiles: allProfiles })) });
+    return json({
+      ok: true,
+      ...(await brief(env, from, { presence: (e) => presence(e, team), board, unread: withTeam(unread), profiles: allProfiles }, team)),
+    });
   }
   if (path === "/claude/profiles") {
     if (writing && (await overLimit(from, "profiles", env))) return slowDown();
-    return handleProfiles(request, env, from, json, readJson);
+    return handleProfiles(request, env, from, json, readJson, team);
   }
   if (path === "/claude/tasks") {
     if (writing && (await overLimit(from, "tasks", env))) return slowDown();
-    return handleTasks(request, env, from, json, postMessage, readJson);
+    return handleTasks(request, env, from, json, postMessage, readJson, team);
   }
   if (path === "/claude/notes") {
     if (writing && (await overLimit(from, "notes", env))) return slowDown();
-    return handleNotes(request, env, from, json, postMessage, propose, readJson);
+    return handleNotes(request, env, from, json, postMessage, propose, readJson, team);
   }
-  if (path === "/claude/push") return handlePush(request, env, from, json, readJson);
+  if (path === "/claude/members") {
+    if (writing && (await overLimit(from, "members", env))) return slowDown();
+    return handleMembers(request, env, from, team, json, postMessage, readJson);
+  }
+  if (path === "/claude/push") return handlePush(request, env, from, json, readJson, team);
   if (path !== "/claude/messages") return json({ ok: false, error: "Nothing here." }, 404);
 
   if (request.method === "GET") {
@@ -338,20 +364,22 @@ export async function handleClaude(request, env) {
       }
     }
     if (results.length) await markRead(from, results[0].id, env);
-    if (CLAUDES.includes(from) && !wait) {
+    if (team.claudes.includes(from) && !wait) {
       await setPresence(from, "working_until", new Date(Date.now() + BUSY_MS).toISOString(), env);
     }
-    return json({ ok: true, you: from, messages: results.reverse(), presence: await presence(env) });
+    return json({ ok: true, you: from, messages: results.reverse(), presence: await presence(env, team) });
   }
 
   if (request.method !== "POST") return json({ ok: false, error: "Method not allowed" }, 405);
 
   const data = await readJson(request);
+  const mayPost = team.can(from, "post");
   if (data?.done === true && data.body === undefined) {
     for (const column of ["typing_until", "working_until", "listening_until"]) await setPresence(from, column, null, env);
     return json({ ok: true });
   }
   if (typeof data?.typing === "boolean" && data.body === undefined) {
+    if (!mayPost) return json({ ok: true });
     const until = data.typing ? new Date(Date.now() + TYPING_MS).toISOString() : null;
     await setPresence(from, "typing_until", until, env);
     return json({ ok: true });
@@ -361,14 +389,16 @@ export async function handleClaude(request, env) {
   if (!body || body.length > MAX_BODY) {
     return json({ ok: false, error: `Send JSON with a body of 1 to ${MAX_BODY} characters.` }, 400);
   }
+  if (!mayPost) return json({ ok: false, error: "You can read along. Ambrose or Jeremy can let you write here too." }, 403);
   if (await overLimit(from, "message", env)) return slowDown();
 
-  return json({ ok: true, ...(await postMessage(from, body, data.wake, env)) });
+  return json({ ok: true, ...(await postMessage(from, body, data.wake, env, team)) });
 }
 
 // Saves a message and wakes whoever it should. The task board posts through here too,
 // so a proposal or a review request shows up in the conversation.
-export async function postMessage(from, body, wakeWanted, env) {
+export async function postMessage(from, body, wakeWanted, env, team) {
+  team ??= await roster(env);
   const { meta } = await env.CLAUDE_DB
     .prepare("INSERT INTO messages (sender, body, created_at) VALUES (?, ?, ?)")
     .bind(from, body, new Date().toISOString())
@@ -380,13 +410,15 @@ export async function postMessage(from, body, wakeWanted, env) {
   await setPresence(from, "typing_until", null, env);
   await setPresence(from, "working_until", null, env);
 
-  const chatting = CLAUDES.includes(from) ? [] : await chattingClaudes(env);
-  const targets = wakeTargets(from, body, wakeWanted, chatting);
+  // Without "wake", a member's message waits for everyone's next look.
+  const mayWake = team.can(from, "wake");
+  const chatting = team.claudes.includes(from) ? [] : await chattingClaudes(env, team);
+  const targets = mayWake ? wakeTargets(from, body, wakeWanted, chatting, team) : [];
   // A Claude still in its run is waiting for this, so there's no need to wake it.
   const already = targets.length ? await awake(env) : [];
   const here = targets.filter((name) => already.includes(name));
   const asleep = targets.filter((name) => !already.includes(name));
-  const tried = asleep.length ? await wake(from, id, asleep, mentions(body), env) : [];
+  const tried = asleep.length ? await wake(from, id, asleep, mentions(body, team.handles), env, team) : [];
   // null means today's wake-ups are used up, so the board can say so.
   const limited = tried === null;
   const woken = tried ?? [];
@@ -394,7 +426,7 @@ export async function postMessage(from, body, wakeWanted, env) {
   if (woke) await env.CLAUDE_DB.prepare("UPDATE messages SET woke = 1 WHERE id = ?").bind(id).run();
 
   // Mentioned people get a notification, wherever they've turned them on.
-  const people = mentions(body).filter((name) => name !== from && !CLAUDES.includes(name));
-  const notified = people.length ? await notify(people, { title: DISPLAY[from] ?? from, body, id }, env) : 0;
+  const people = mayWake ? mentions(body, team.handles).filter((name) => name !== from && team.people.includes(name)) : [];
+  const notified = people.length ? await notify(people, { title: team.display[from] ?? from, body, id }, env) : 0;
   return { id, woke, woken, here, notified, ...(limited ? { limited: true } : {}) };
 }
