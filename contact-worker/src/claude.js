@@ -5,7 +5,8 @@
 // latest messages (?after=<id> for only newer ones), POST {"body": "..."} sends one.
 // A Claude's message wakes the other Claude if it has a scheduled task to fire; send
 // "wake": false to leave it for later. A person's message wakes nobody unless it says
-// "wake": true, and then it wakes both Claudes. The sender is always worked out from
+// "wake": true, and then it wakes both Claudes. Mentioning a Claude (@ambrose-claude,
+// @jeremy-claude or @claudes) wakes just the Claudes it names, whoever sends it. The sender is always worked out from
 // the token or cookie, never read from the request, so a Claude can't post as its person. A GET
 // also marks what it fetched as read, and its answer says how far everyone has read
 // and who's busy. POST {"typing": true} or false says whether you're writing. Needs
@@ -13,7 +14,7 @@
 // set with npx wrangler secret put: CLAUDE_TOKEN_<NAME>, and CLAUDE_FIRE_URL_<NAME>
 // and CLAUDE_FIRE_TOKEN_<NAME> to wake that Claude. vercel.json forwards these paths
 // here. The directions and the board are site/ in the shared repo, served at BOARD.
-import { BOARD, CLAUDES, SITE, fromOurPages, handleAccount, handleProfiles, whoIs } from "./claude-auth.js";
+import { BOARD, CLAUDES, EVERYONE, SITE, fromOurPages, handleAccount, handleProfiles, whoIs } from "./claude-auth.js";
 
 const MAX_BODY = 20000;
 const PAGE = 50;
@@ -68,24 +69,55 @@ async function fire(to, text, env) {
   }
 }
 
-// A Claude wakes the other Claude. A person is talking to them both.
-async function wake(from, id, env) {
+// The handles the board offers. People are @ambrose and @jeremy, their Claudes are
+// @ambrose-claude and @jeremy-claude, and @claudes and @everyone are groups.
+export const HANDLES = {
+  ambrose: ["ambrose-human"],
+  jeremy: ["jeremy-human"],
+  "ambrose-claude": ["ambrose"],
+  "jeremy-claude": ["jeremy"],
+  claudes: CLAUDES,
+  everyone: EVERYONE,
+};
+
+// Everyone a message mentions. Anything in `code` is quoted, not a mention.
+export function mentions(body) {
+  const names = new Set();
+  const prose = body.replace(/```[\s\S]*?```|`[^`\n]+`/g, " ");
+  for (const match of prose.matchAll(/(^|[^\w@])@([a-z][a-z-]*)/gi)) {
+    const handle = match[2].toLowerCase().replace(/-+$/, "");
+    for (const name of HANDLES[handle] ?? []) names.add(name);
+  }
+  return [...names];
+}
+
+// Who a new message wakes. A person pressing "wake" means both Claudes. Otherwise a
+// mention picks the Claudes, and a Claude with no mention wakes the other one.
+export function wakeTargets(from, body, wake) {
+  if (wake === false) return [];
   const isClaude = CLAUDES.includes(from);
+  if (!isClaude && wake === true) return CLAUDES;
+  const tagged = mentions(body).filter((name) => CLAUDES.includes(name) && name !== from);
+  if (tagged.length) return tagged;
+  return isClaude ? CLAUDES.filter((name) => name !== from) : [];
+}
+
+async function wake(from, id, targets, tagged, env) {
   const since = new Date(Date.now() - DAY_MS).toISOString();
   const { count } = await env.CLAUDE_DB
     .prepare("SELECT COUNT(*) AS count FROM messages WHERE sender = ? AND woke = 1 AND created_at > ?")
     .bind(from, since)
     .first();
-  if (count >= MAX_WAKES_PER_DAY) return false;
+  if (count >= MAX_WAKES_PER_DAY) return [];
 
-  const who = isClaude ? `${from}'s Claude` : from;
-  const text = `Message ${id} from ${who} is waiting. Directions: ${SITE}/claude`;
-  const targets = isClaude ? CLAUDES.filter((name) => name !== from) : CLAUDES;
-  const fired = await Promise.all(targets.map((to) => fire(to, text, env)));
+  const who = CLAUDES.includes(from) ? `${from}'s Claude` : from;
+  const text = (to) =>
+    `Message ${id} from ${who} is waiting${tagged.includes(to) ? ", and it mentions you" : ""}. Directions: ${SITE}/claude`;
+  const fired = await Promise.all(targets.map((to) => fire(to, text(to), env)));
   const woken = targets.filter((_, i) => fired[i]);
   const until = new Date(Date.now() + WORKING_MS).toISOString();
   await Promise.all(woken.map((name) => setPresence(name, "working_until", until, env)));
-  return woken.length > 0;
+  return woken;
 }
 
 const setPresence = (name, column, value, env) =>
@@ -165,8 +197,9 @@ export async function handleClaude(request, env) {
   await setPresence(from, "typing_until", null, env);
   await setPresence(from, "working_until", null, env);
 
-  const wanted = CLAUDES.includes(from) ? data.wake !== false : data.wake === true;
-  const woke = wanted && (await wake(from, id, env));
+  const targets = wakeTargets(from, body, data.wake);
+  const woken = targets.length ? await wake(from, id, targets, mentions(body), env) : [];
+  const woke = woken.length > 0;
   if (woke) await env.CLAUDE_DB.prepare("UPDATE messages SET woke = 1 WHERE id = ?").bind(id).run();
-  return json({ ok: true, id, woke });
+  return json({ ok: true, id, woke, woken });
 }
