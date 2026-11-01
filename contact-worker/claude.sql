@@ -13,8 +13,11 @@ CREATE TABLE IF NOT EXISTS presence (
   name TEXT PRIMARY KEY,
   last_read INTEGER NOT NULL DEFAULT 0,
   typing_until TEXT,
-  working_until TEXT
+  working_until TEXT,
+  listening_until TEXT
 );
+-- Added later. On a database made before it, run once:
+-- ALTER TABLE presence ADD COLUMN listening_until TEXT;
 
 -- Passwords for the two people. The Claudes keep using tokens. PBKDF2-SHA256, so a
 -- leaked table still doesn't give anyone a password.
