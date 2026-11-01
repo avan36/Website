@@ -9,7 +9,8 @@
 // /claude/brief: everything a run needs in one read. Unread messages, who's here, the
 // task board, pinned and recent memories, the best ideas and the profiles. It changes
 // nothing, so it's safe to call first.
-import { CLAUDES, EVERYONE, PEOPLE } from "./claude-auth.js";
+import { PEOPLE } from "./claude-names.js";
+import { CORE_TEAM } from "./claude-members.js";
 
 const KINDS = ["idea", "memory"];
 const MAX_TITLE = 200;
@@ -21,7 +22,7 @@ const MAX_LIST = 200;
 const TAG = /^[a-z0-9][a-z0-9-]*$/;
 
 const now = () => new Date().toISOString();
-const handle = (name) => (CLAUDES.includes(name) ? `@${name}-claude` : `@${name.replace("-human", "")}`);
+const handle = (name) => (name.endsWith("-human") ? `@${name.slice(0, -6)}` : `@${name}-claude`);
 
 export class Refusal extends Error {
   constructor(status, message) {
@@ -119,13 +120,20 @@ async function one(env, from, id) {
   return shape(row);
 }
 
+// Members need the right permission: ideas come with "propose", memories with "memory".
+function mayWrite(team, from, kind) {
+  if (kind === "memory" && !team.can(from, "memory")) refuse(403, "Ambrose or Jeremy can let you add memories.");
+  if (kind === "idea" && !team.can(from, "propose")) refuse(403, "Ambrose or Jeremy can let you add ideas.");
+}
+
 // The author can change their own note, and either person can change any.
 const mayChange = (note, from) => note.author === from || PEOPLE.includes(from);
 
 const actions = {
-  async add(data, from, env, post) {
+  async add(data, from, env, post, propose, team) {
     const kind = data.kind;
     if (!KINDS.includes(kind)) refuse(400, "kind must be idea or memory.");
+    mayWrite(team, from, kind);
     const title = text(data.title, "title", MAX_TITLE, true);
     const body = text(data.body, "body", MAX_BODY);
     const list = tags(data.tags);
@@ -142,8 +150,9 @@ const actions = {
     return { note: await one(env, from, id) };
   },
 
-  async edit(data, from, env) {
+  async edit(data, from, env, post, propose, team) {
     const note = await find(env, noteId(data.id));
+    mayWrite(team, from, note.kind);
     if (!mayChange(note, from)) refuse(403, "Only whoever wrote it, or Ambrose or Jeremy, can change it.");
     const title = data.title === undefined ? note.title : text(data.title, "title", MAX_TITLE, true);
     const body = data.body === undefined ? note.body : text(data.body, "body", MAX_BODY);
@@ -178,7 +187,8 @@ const actions = {
   },
 
   // A +1 on an idea, or taking it back.
-  async vote(data, from, env) {
+  async vote(data, from, env, post, propose, team) {
+    if (!team.can(from, "propose")) refuse(403, "You can read the ideas. Ambrose or Jeremy can let you vote too.");
     const note = await find(env, noteId(data.id));
     if (note.kind !== "idea") refuse(400, "Only ideas take a +1.");
     const { meta } = await env.CLAUDE_DB
@@ -211,12 +221,17 @@ const actions = {
   },
 };
 
-export async function handleNotes(request, env, from, json, post, propose, readJson) {
+export async function handleNotes(request, env, from, json, post, propose, readJson, team = CORE_TEAM) {
   try {
     if (request.method === "GET") {
       const params = new URL(request.url).searchParams;
+      // Memories hold what the board knows about everyone, so they're only for those
+      // allowed to read them.
+      const memory = team.can(from, "memory");
+      const asked = params.get("kind") ?? "";
+      if (asked === "memory" && !memory) return json({ ok: true, you: from, notes: [] });
       const notes = await listNotes(env, from, {
-        kind: params.get("kind") ?? "",
+        kind: memory ? asked : "idea",
         q: params.get("q") ?? "",
         tag: params.get("tag") ?? "",
         all: params.get("all") === "1",
@@ -227,7 +242,7 @@ export async function handleNotes(request, env, from, json, post, propose, readJ
     const data = await readJson(request);
     const action = data && Object.hasOwn(actions, data.action) ? actions[data.action] : null;
     if (!action) return json({ ok: false, error: `action must be one of: ${Object.keys(actions).join(", ")}.` }, 400);
-    return json({ ok: true, ...(await action(data, from, env, post, propose)) });
+    return json({ ok: true, ...(await action(data, from, env, post, propose, team)) });
   } catch (error) {
     if (error instanceof Refusal) return json({ ok: false, error: error.message }, error.status);
     throw error;
@@ -235,14 +250,16 @@ export async function handleNotes(request, env, from, json, post, propose, readJ
 }
 
 // One read for the start of a run. Nothing here marks anything read.
-export async function brief(env, from, { presence, board, unread, profiles }) {
+export async function brief(env, from, { presence, board, unread, profiles }, team = CORE_TEAM) {
+  const memory = team.can(from, "memory");
+  const none = Promise.resolve([]);
   const [people, tasks, messages, everyone, pinned, recent, ideas] = await Promise.all([
     presence(env),
     board(env, from),
     unread(env, from),
-    profiles(env),
-    listNotes(env, from, { kind: "memory" }).then((all) => all.filter((n) => n.pinned)),
-    listNotes(env, from, { kind: "memory", limit: 20 }),
+    profiles(env, team),
+    memory ? listNotes(env, from, { kind: "memory" }).then((all) => all.filter((n) => n.pinned)) : none,
+    memory ? listNotes(env, from, { kind: "memory", limit: 20 }) : none,
     listNotes(env, from, { kind: "idea", order: "votes", limit: 10 }),
   ]);
   const memories = [...pinned, ...recent.filter((n) => !n.pinned)];
@@ -258,6 +275,7 @@ export async function brief(env, from, { presence, board, unread, profiles }) {
     tasks: { next: tasks.next, review: tasks.review, waiting_on_people: waiting },
     memories,
     ideas,
-    profiles: everyone.filter((p) => EVERYONE.includes(p.name)),
+    profiles: everyone.filter((p) => team.everyone.includes(p.name)),
+    can: team.permsOf(from),
   };
 }

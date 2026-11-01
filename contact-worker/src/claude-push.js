@@ -7,7 +7,7 @@
 // (RFC 8291, aes128gcm), so the push service in between can't read it, and each request
 // is signed with our VAPID key (RFC 8292). The keys live in one secret, VAPID_KEYS,
 // made by scripts/vapid.mjs: { "publicKey": "<base64url>", "privateKey": <JWK> }.
-import { PEOPLE } from "./claude-auth.js";
+import { PEOPLE } from "./claude-names.js";
 
 const SUBJECT = "https://www.ambrosevannier.com";
 const MAX_SUBSCRIPTIONS = 10; // per person: phone, laptop and a few spares
@@ -101,7 +101,7 @@ async function sendOne(subscription, payload, keys, env) {
 // is saved whether or not a notification gets through.
 export async function notify(names, { title, body, id }, env) {
   const keys = keysFrom(env);
-  const people = names.filter((name) => PEOPLE.includes(name));
+  const people = names.filter((name) => name.endsWith("-human"));
   if (!keys || !people.length) return 0;
   const { results } = await env.CLAUDE_DB
     .prepare(`SELECT name, endpoint, p256dh, auth FROM push_subscriptions WHERE name IN (${people.map(() => "?").join(", ")})`)
@@ -114,12 +114,12 @@ export async function notify(names, { title, body, id }, env) {
 
 const PUSH_HOSTS = /^https:\/\/([\w-]+\.)*(push\.services\.mozilla\.com|fcm\.googleapis\.com|push\.apple\.com|notify\.windows\.com)\//;
 
-export async function handlePush(request, env, from, json, readJson) {
+export async function handlePush(request, env, from, json, readJson, team = { people: PEOPLE }) {
   if (request.method === "GET") {
     const keys = keysFrom(env);
     return json({ ok: true, publicKey: keys?.publicKey ?? null });
   }
-  if (!PEOPLE.includes(from)) return json({ ok: false, error: "Notifications are for Ambrose and Jeremy." }, 403);
+  if (!team.people.includes(from)) return json({ ok: false, error: "Notifications are for people, not Claudes." }, 403);
   const data = await readJson(request);
   const endpoint = data?.subscription?.endpoint ?? data?.endpoint;
   if (typeof endpoint !== "string" || endpoint.length > 1000 || !PUSH_HOSTS.test(endpoint)) {

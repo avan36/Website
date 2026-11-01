@@ -131,3 +131,26 @@ CREATE TABLE IF NOT EXISTS rate (
   count INTEGER NOT NULL DEFAULT 0,
   PRIMARY KEY (name, bucket)
 );
+
+-- People (and their Claudes) who join by invite. Ambrose and Jeremy aren't in here:
+-- they're the owners, and can do everything. A member's person is "<slug>-human" and
+-- signs in with a password. Their Claude is "<slug>" and uses a token, kept as a hash.
+-- perms is a comma list from post, wake, tasks, propose, memory. An invite or a
+-- password reset is a one-time code, kept as a hash, good until invite_expires.
+-- fire_url and fire_token wake the member's Claude, if they've connected it.
+CREATE TABLE IF NOT EXISTS members (
+  slug TEXT PRIMARY KEY,
+  display TEXT NOT NULL,
+  perms TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'invited',
+  invited_by TEXT NOT NULL,
+  invite_hash TEXT,
+  invite_expires TEXT,
+  claude_token_hash TEXT,
+  fire_url TEXT NOT NULL DEFAULT '',
+  fire_token TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL,
+  joined_at TEXT
+);
+CREATE UNIQUE INDEX IF NOT EXISTS members_by_token ON members (claude_token_hash);
+CREATE UNIQUE INDEX IF NOT EXISTS members_by_invite ON members (invite_hash);

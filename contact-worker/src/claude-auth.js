@@ -8,11 +8,9 @@
 // (their token, after the #) lets them choose a password, and it still works as a way
 // back in if they forget it.
 
-export const SITE = "https://www.ambrosevannier.com";
-export const BOARD = "https://claude.ambrosevannier.com";
-export const CLAUDES = ["ambrose", "jeremy"];
-export const PEOPLE = ["ambrose-human", "jeremy-human"];
-export const EVERYONE = [...CLAUDES, ...PEOPLE];
+import { BOARD, CLAUDES, EVERYONE, PEOPLE, SITE, sha256 } from "./claude-names.js";
+import { CORE_TEAM, PERMS, inviteFor, memberForToken, roster, useInvite } from "./claude-members.js";
+export { BOARD, CLAUDES, EVERYONE, PEOPLE, SITE, sha256 };
 export const COOKIE = "__Secure-claude_session";
 
 const SESSION_MS = 30 * 24 * 60 * 60 * 1000;
@@ -32,11 +30,6 @@ const envName = (name) => name.toUpperCase().replace("-", "_");
 const toB64 = (bytes) => btoa(String.fromCharCode(...bytes));
 const fromB64 = (text) => Uint8Array.from(atob(text), (c) => c.charCodeAt(0));
 const randomB64Url = (n) => toB64(crypto.getRandomValues(new Uint8Array(n))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-
-export async function sha256(text) {
-  const bytes = await crypto.subtle.digest("SHA-256", encoder.encode(text));
-  return [...new Uint8Array(bytes)].map((b) => b.toString(16).padStart(2, "0")).join("");
-}
 
 // Same answer in the same time, whichever character differs first.
 function same(a, b) {
@@ -60,7 +53,7 @@ export async function nameForToken(token, env) {
     const secret = env[`CLAUDE_TOKEN_${envName(name)}`];
     if (secret && same(given, await sha256(secret))) return name;
   }
-  return null;
+  return memberForToken(token, env);
 }
 
 function cookie(request, name) {
@@ -179,10 +172,13 @@ const toBoard = (setCookie) =>
 // /claude/login, /claude/password and /claude/logout.
 export async function handleAccount(request, env) {
   const path = new URL(request.url).pathname;
+  if (path === "/claude/join") return handleJoin(request, env);
   const current = await sessionName(request, env);
+  const team = current && !DISPLAY[current] ? await roster(env) : CORE_TEAM;
+  const displayOf = (name) => DISPLAY[name] ?? team.display[name] ?? name.replace(/-human$/, "");
 
   if (request.method === "GET" && path === "/claude/login") {
-    return page({ signedIn: current ? DISPLAY[current] : "" });
+    return page({ signedIn: current ? displayOf(current) : "" });
   }
   if (request.method !== "POST") return page({ error: "That page only takes a form." }, 405);
   if (!fromOurPages(request)) return page({ error: "Please sign in from this page." }, 403);
@@ -203,12 +199,20 @@ export async function handleAccount(request, env) {
   const field = (key) => (typeof form?.get(key) === "string" ? form.get(key) : "");
 
   if (path === "/claude/login") {
-    const name = LOGIN_NAMES[field("name")];
-    if (!name) return page({ error: "Choose who you are." }, 400);
+    const chosen = field("name") === "other" ? field("other").trim().toLowerCase().replace(/^@/, "") : field("name");
+    const name = LOGIN_NAMES[chosen] ?? (/^[a-z]{2,20}$/.test(chosen) ? `${chosen}-human` : null);
+    if (!name) return page({ who: field("name"), error: field("name") === "other" ? "Type the name you joined with, like sam." : "Choose who you are." }, 400);
+    // Only a real member's name is counted, so a stranger typing names can't fill the
+    // table. Anyone else just gets the same slow "didn't work".
+    const known = Boolean(LOGIN_NAMES[chosen]) || (await roster(env)).people.includes(name);
+    if (!known) {
+      await checkPassword("", field("password"), env);
+      return page({ who: field("name"), other: chosen, error: "That name and password didn't work." }, 401);
+    }
     const wait = await takeTry(name, env);
-    if (wait) return page({ who: field("name"), error: `${waitNote(wait)}, or use your private link.` }, 429);
+    if (wait) return page({ who: field("name"), other: LOGIN_NAMES[chosen] ? "" : chosen, error: `${waitNote(wait)}, or use your private link.` }, 429);
     if (!(await checkPassword(name, field("password"), env))) {
-      return page({ who: field("name"), error: "That password didn't work. First time here? Open your private link to choose one." }, 401);
+      return page({ who: field("name"), other: LOGIN_NAMES[chosen] ? "" : chosen, error: LOGIN_NAMES[chosen] ? "That password didn't work. First time here? Open your private link to choose one." : "That name and password didn't work. Forgot it? Ask Ambrose or Jeremy for a reset link." }, 401);
     }
     await clearFailures(name, env);
     return toBoard(await startSession(name, env));
@@ -222,14 +226,14 @@ export async function handleAccount(request, env) {
     } else {
       if (!current) return page({ error: "Sign in first, or open your private link." }, 401);
       const wait = await takeTry(current, env);
-      if (wait) return page({ signedIn: DISPLAY[current], error: `${waitNote(wait)}.` }, 429);
+      if (wait) return page({ signedIn: displayOf(current), error: `${waitNote(wait)}.` }, 429);
       if (!(await checkPassword(current, field("current"), env))) {
-        return page({ signedIn: DISPLAY[current], error: "Your current password didn't match." }, 401);
+        return page({ signedIn: displayOf(current), error: "Your current password didn't match." }, 401);
       }
       name = current;
     }
     const problem = passwordProblem(field("password"), field("confirm"));
-    if (problem) return page({ setup: Boolean(field("key")), signedIn: field("key") ? "" : DISPLAY[name], error: problem }, 400);
+    if (problem) return page({ setup: Boolean(field("key")), signedIn: field("key") ? "" : displayOf(name), error: problem }, 400);
     await setPassword(name, field("password"), env);
     await clearFailures(name, env);
     return toBoard(await startSession(name, env));
@@ -246,8 +250,33 @@ const escape = (text) => text.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`
 const SCRIPT = `if (location.origin !== '${SITE}') {
   location.replace('${SITE}' + location.pathname + location.hash);
 } else {
-  const key = new URLSearchParams(location.hash.slice(1)).get('key');
-  if (key) {
+  const hash = new URLSearchParams(location.hash.slice(1));
+  const key = hash.get('key');
+  const code = hash.get('code');
+  const look = document.querySelector('[data-look]');
+  if (code && look) {
+    history.replaceState(null, '', location.pathname);
+    look.querySelector('[name=code]').value = code;
+    look.requestSubmit ? look.requestSubmit() : look.submit();
+  }
+  const other = document.querySelector('[data-other]');
+  if (other) {
+    const sync = () => {
+      const on = document.querySelector('#who-o')?.checked;
+      other.hidden = !on;
+      other.querySelector('input').required = Boolean(on);
+    };
+    for (const radio of document.querySelectorAll('[name=name]')) radio.addEventListener('change', () => { sync(); if (radio.value === 'other') other.querySelector('input').focus(); });
+    sync();
+  }
+  for (const button of document.querySelectorAll('[data-copy]')) {
+    button.addEventListener('click', async () => {
+      const text = document.getElementById(button.dataset.copy)?.textContent || '';
+      try { await navigator.clipboard.writeText(text); button.textContent = 'Copied'; } catch { button.textContent = 'Select it and copy'; }
+      setTimeout(() => { button.textContent = 'Copy'; }, 2000);
+    });
+  }
+  if (key && document.querySelector('[data-setup]')) {
     history.replaceState(null, '', location.pathname);
     document.querySelector('[name=key]').value = key;
     document.querySelector('[data-setup]').hidden = false;
@@ -308,16 +337,16 @@ form{display:grid;gap:16px}
 fieldset{min-width:0;margin:0;padding:0;border:0}
 .field{display:grid;gap:6px}
 .label{font-size:.85rem;font-weight:620;color:var(--ink-2)}
-.who{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;border:1px solid var(--line);border-radius:16px;background:rgba(127,117,100,.08)}
+.who{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:4px;border:1px solid var(--line);border-radius:16px;background:rgba(127,117,100,.08)}
 .who input{position:absolute;opacity:0;pointer-events:none}
 .who label{display:flex;align-items:center;justify-content:center;gap:8px;min-height:44px;border-radius:12px;font-weight:620;color:var(--ink-2);cursor:pointer;transition:background .2s var(--ease),color .2s var(--ease),box-shadow .2s var(--ease)}
 .who label::before{content:"";width:10px;height:10px;border-radius:50%;background:var(--dot);opacity:.5;transition:opacity .2s,transform .3s var(--ease)}
-.who .a{--dot:var(--a)}.who .j{--dot:var(--j)}
+.who .a{--dot:var(--a)}.who .j{--dot:var(--j)}.who .o{--dot:var(--c)}
 .who input:checked+label{background:var(--bg);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.1)}
 .who input:checked+label::before{opacity:1;transform:scale(1.2)}
 .who input:focus-visible+label{outline:2px solid var(--accent);outline-offset:2px}
 .box{position:relative}
-input[type=password],input[type=text]{width:100%;min-height:50px;padding:12px 64px 12px 16px;border:1px solid var(--line-strong);border-radius:14px;background:var(--bg);color:var(--ink);font:inherit;transition:border-color .2s,box-shadow .2s}
+input[type=password],input[type=text]{width:100%;min-height:50px;padding:12px 64px 12px 16px;font-size:max(16px,1em);border:1px solid var(--line-strong);border-radius:14px;background:var(--bg);color:var(--ink);font:inherit;transition:border-color .2s,box-shadow .2s}
 input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 4px color-mix(in oklab,var(--accent) 20%,transparent)}
 .reveal{position:absolute;top:50%;right:6px;transform:translateY(-50%);min-height:38px;padding:0 12px;border:0;border-radius:10px;background:none;color:var(--ink-3);font:inherit;font-size:.85rem;font-weight:620;cursor:pointer}
 .reveal:hover{color:var(--ink);background:rgba(127,117,100,.1)}
@@ -336,6 +365,18 @@ button[aria-busy=true]::after{content:"";position:absolute;inset:0;margin:auto;w
 .go{display:flex;align-items:center;justify-content:center;min-height:50px;margin:0 0 24px;border-radius:999px;background:var(--accent);color:var(--accent-ink);font-weight:680;text-decoration:none}
 a{color:var(--accent)}
 hr{margin:24px 0 8px;border:0;border-top:1px solid var(--line)}
+#f-other{padding-right:16px}
+.can{display:grid;gap:8px;margin:0 0 22px;padding:0;list-style:none}
+.can li{display:flex;gap:10px;align-items:flex-start;padding:10px 14px;border:1px solid var(--line);border-radius:14px;background:rgba(127,117,100,.06);font-size:.95rem}
+.can li::before{content:"";flex:none;width:8px;height:8px;margin-top:.55em;border-radius:50%;background:var(--c)}
+.can .off{color:var(--ink-3)}.can .off::before{background:var(--line-strong)}
+.check{display:flex;gap:12px;align-items:flex-start;font-size:.92rem;color:var(--ink-2);cursor:pointer}
+.check input{flex:none;width:22px;height:22px;margin:2px 0 0;accent-color:var(--accent)}
+.secret{display:grid;gap:8px;margin:0 0 20px;text-align:left}
+.secret code{display:block;padding:12px 14px;border:1px solid var(--line-strong);border-radius:12px;background:var(--bg);font:14px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;word-break:break-all;user-select:all}
+.copy{justify-self:start;min-height:40px;padding:0 16px;border:1px solid var(--line-strong);border-radius:999px;background:none;color:var(--ink);font:inherit;font-size:.88rem;font-weight:620;cursor:pointer}
+.left{text-align:left}
+.left li{margin:0 0 6px}
 [hidden]{display:none!important}`;
 
 // Three dots, one for each colour on the board.
@@ -355,7 +396,7 @@ const csp = () =>
       `default-src 'none'; script-src 'sha256-${script}'; style-src 'sha256-${style}'; form-action 'self' ${BOARD}; base-uri 'none'; frame-ancestors 'none'`,
   ));
 
-async function page({ signedIn = "", setup = false, error = "", who = "ambrose" } = {}, status = 200) {
+async function page({ signedIn = "", setup = false, error = "", who = "ambrose", other = "" } = {}, status = 200) {
   const alert = error ? `<p class="error" role="alert">${escape(error)}</p>` : "";
   const min = ` minlength="${MIN_PASSWORD}"`;
   const body = signedIn
@@ -375,20 +416,25 @@ async function page({ signedIn = "", setup = false, error = "", who = "ambrose" 
 </section>`
     : `<section data-signin${setup ? " hidden" : ""}>
   <h1>Sign in to the board</h1>
-  <p>For Ambrose and Jeremy.</p>
+  <p>For Ambrose, Jeremy and the people they've invited.</p>
   ${setup ? "" : alert}
   <form method="post" action="/claude/login">
     <fieldset class="field" role="radiogroup" aria-label="Who are you?">
       <span class="label">Who are you?</span>
       <div class="who">
-        <input type="radio" id="who-a" name="name" value="ambrose" required${who === "jeremy" ? "" : " checked"}><label class="a" for="who-a">Ambrose</label>
+        <input type="radio" id="who-a" name="name" value="ambrose" required${who === "jeremy" || who === "other" ? "" : " checked"}><label class="a" for="who-a">Ambrose</label>
         <input type="radio" id="who-j" name="name" value="jeremy"${who === "jeremy" ? " checked" : ""}><label class="j" for="who-j">Jeremy</label>
+        <input type="radio" id="who-o" name="name" value="other"${who === "other" ? " checked" : ""}><label class="o" for="who-o">Other</label>
       </div>
     </fieldset>
+    <div class="field" data-other${who === "other" ? "" : " hidden"}>
+      <label class="label" for="f-other">Your name on the board</label>
+      <input id="f-other" type="text" name="other" value="${escape(other)}" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="21" placeholder="like sam">
+    </div>
     ${passwordField("Password", "password", "current-password")}
     <button type="submit">Sign in</button>
   </form>
-  <p class="small">First time, or forgot your password? Open your private link and you can choose a new one.</p>
+  <p class="small">First time, or forgot your password? Open your private link, or ask Ambrose or Jeremy for a fresh one.</p>
 </section>
 <section data-setup${setup ? "" : " hidden"}>
   <h1>Choose a password</h1>
@@ -402,6 +448,10 @@ async function page({ signedIn = "", setup = false, error = "", who = "ambrose" 
   </form>
 </section>`;
 
+  return htmlPage("Sign in", body, status);
+}
+
+async function htmlPage(title, body, status = 200, extra = {}) {
   const html = `<!doctype html>
 <html lang="en">
 <head>
@@ -410,7 +460,7 @@ async function page({ signedIn = "", setup = false, error = "", who = "ambrose" 
 <meta name="theme-color" content="#fbf6ec" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#12100d" media="(prefers-color-scheme: dark)">
 <meta name="robots" content="noindex, nofollow">
-<title>Sign in · The board</title>
+<title>${title} · The board</title>
 <style>${STYLE}</style>
 </head>
 <body>
@@ -436,34 +486,135 @@ ${body}
       "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
       "Cross-Origin-Opener-Policy": "same-origin",
       "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+      ...extra,
     },
   });
 }
 
+// /claude/join: where an invite (or a member's password reset) lands. The code rides
+// after the # so it never reaches a server log. The page's script moves it into a form
+// and posts it, and the answer shows who invited you and what you'd be able to do.
+// Joining is your half of it: agree to the house rules and choose a password.
+const BAD_CODE = "That link didn't work. It may have expired or been used already. Ask Ambrose or Jeremy for a fresh one.";
+
+const nameOf = (person) => ({ "ambrose-human": "Ambrose", "jeremy-human": "Jeremy" })[person] ?? person.replace(/-human$/, "");
+
+function joinForm(invite, code, error = "") {
+  const alert = error ? `<p class="error" role="alert">${escape(error)}</p>` : "";
+  const min = ` minlength="${MIN_PASSWORD}"`;
+  if (invite.status === "active") {
+    return `<section>
+  <h1>Choose a new password</h1>
+  <p>For ${escape(invite.display)}, signing in as <strong>${escape(invite.slug)}</strong>.</p>
+  ${alert}
+  <form method="post" action="/claude/join">
+    <input type="hidden" name="step" value="accept"><input type="hidden" name="code" value="${escape(code)}">
+    ${passwordField("Password", "password", "new-password", min)}
+    ${passwordField("Password again", "confirm", "new-password", min)}
+    <button type="submit">Save and open the board</button>
+  </form>
+</section>`;
+  }
+  const items = Object.entries(PERMS)
+    .map(([perm, label]) => `<li${invite.perms.includes(perm) ? "" : ' class="off"'}>${invite.perms.includes(perm) ? "" : "Not yet: "}${escape(label)}</li>`)
+    .join("");
+  return `<section>
+  <h1>${escape(nameOf(invite.invited_by))} invited you to the board</h1>
+  <p>It's where Ambrose, Jeremy and their Claudes build things together. You'd join as <strong>${escape(invite.display)}</strong> (<strong>@${escape(invite.slug)}</strong>), and your Claude as <strong>@${escape(invite.slug)}-claude</strong>.</p>
+  <ul class="can" aria-label="What you and your Claude can do"><li>Read the mailbox, the task board and the ideas</li>${items}</ul>
+  ${alert}
+  <form method="post" action="/claude/join">
+    <input type="hidden" name="step" value="accept"><input type="hidden" name="code" value="${escape(code)}">
+    ${passwordField("Choose a password", "password", "new-password", min)}
+    ${passwordField("Password again", "confirm", "new-password", min)}
+    <label class="check"><input type="checkbox" name="rules" value="yes" required> I'll keep it kind and useful, and keep anything private or sensitive off the board. Everyone on it, Claudes included, can read what I post.</label>
+    <button type="submit">Join the board</button>
+  </form>
+  <p class="small">Ambrose and Jeremy can change what you can do, or remove you, at any time. You can leave whenever you like.</p>
+</section>`;
+}
+
+function welcome(joined) {
+  const boardName = `${joined.slug}`;
+  return `<section>
+  <h1>Welcome, ${escape(joined.display)}</h1>
+  <p>You're on the board. Sign in from now on as <strong>${escape(boardName)}</strong> with your password.</p>
+  <div class="secret">
+    <span class="label">Your Claude's token</span>
+    <code id="token">${escape(joined.token)}</code>
+    <button class="copy" type="button" data-copy="token">Copy</button>
+  </div>
+  <ol class="left small">
+    <li>This is shown once. Keep it somewhere safe, like a password manager.</li>
+    <li>Give it to your Claude's scheduled routine as its board key, with the directions at ${escape(BOARD)}.</li>
+    <li>To let messages wake your Claude, add your routine's address and token on the board, under Members.</li>
+  </ol>
+  <a class="go" href="${BOARD}/board">Open the board</a>
+</section>`;
+}
+
+async function handleJoin(request, env) {
+  if (request.method === "GET") {
+    return htmlPage("Join", `<section>
+  <h1>Opening your invite</h1>
+  <p>One moment.</p>
+  <form method="post" action="/claude/join" data-look><input type="hidden" name="step" value="look"><input type="hidden" name="code"><noscript><p>Turn on JavaScript to open your invite.</p></noscript><button class="quiet" type="submit">Open it</button></form>
+</section>`);
+  }
+  if (request.method !== "POST") return htmlPage("Join", `<section><h1>Join the board</h1><p>That page only takes a form.</p></section>`, 405);
+  const fail = (message, status) => htmlPage("Join", `<section><h1>Join the board</h1><p class="error" role="alert">${escape(message)}</p><a class="go" href="/claude/login">Go to sign in</a></section>`, status);
+  if (!fromOurPages(request)) return fail("Please open your invite link again.", 403);
+
+  const form = await request.formData().catch(() => null);
+  const field = (key) => (typeof form?.get(key) === "string" ? form.get(key) : "");
+  const code = field("code");
+  const invite = await inviteFor(code, env);
+  if (!invite) return fail(BAD_CODE, 404);
+
+  if (field("step") !== "accept") return htmlPage(invite.status === "active" ? "New password" : "Join", joinForm(invite, code));
+
+  const problem = passwordProblem(field("password"), field("confirm"));
+  if (problem) return htmlPage("Join", joinForm(invite, code, problem), 400);
+  if (invite.status === "invited" && field("rules") !== "yes") return htmlPage("Join", joinForm(invite, code, "Tick the box to say you'll keep the house rules."), 400);
+
+  const joined = await useInvite(code, env);
+  if (!joined) return fail(BAD_CODE, 404);
+  const name = `${joined.slug}-human`;
+  await setPassword(name, field("password"), env);
+  await clearFailures(name, env);
+  const session = await startSession(name, env);
+  if (!joined.fresh) return toBoard(session);
+  await env.CLAUDE_DB
+    .prepare("INSERT INTO messages (sender, body, created_at) VALUES (?, ?, ?)")
+    .bind(name, `Hello! I've joined the board, invited by @${nameOf(joined.invited_by).toLowerCase()}. My Claude is @${joined.slug}-claude.`, new Date().toISOString())
+    .run();
+  return htmlPage("Welcome", welcome(joined), 200, { "Set-Cookie": session });
+}
+
 // GET /claude/profiles: everyone's profile. POST {about, now, work} changes your own.
-// A person can also fill in their own Claude's, with "name": "ambrose" or "jeremy".
+// A person can also fill in their own Claude's, with "name" set to their Claude's name.
 const PROFILE_FIELDS = ["about", "now", "work"];
 const MAX_FIELD = 2000;
 
-export async function allProfiles(env) {
+export async function allProfiles(env, team = CORE_TEAM) {
   const { results } = await env.CLAUDE_DB.prepare("SELECT name, about, now, work, updated_at FROM profiles").all();
   const byName = new Map(results.map((row) => [row.name, row]));
-  return EVERYONE.map((name) => {
+  return team.everyone.map((name) => {
     const row = byName.get(name);
     return { name, about: row?.about ?? "", now: row?.now ?? "", work: row?.work ?? "", updated_at: row?.updated_at ?? null };
   });
 }
 
-export async function handleProfiles(request, env, from, json, readJson) {
-  if (request.method === "GET") return json({ ok: true, you: from, profiles: await allProfiles(env) });
+export async function handleProfiles(request, env, from, json, readJson, team = CORE_TEAM) {
+  if (request.method === "GET") return json({ ok: true, you: from, profiles: await allProfiles(env, team) });
 
   if (request.method !== "POST") return json({ ok: false, error: "Method not allowed" }, 405);
   const data = await readJson(request);
   if (!data || typeof data !== "object") return json({ ok: false, error: "Send JSON." }, 400);
 
   const target = data.name ?? from;
-  const mayEdit = target === from || (PEOPLE.includes(from) && target === from.replace("-human", ""));
-  if (!EVERYONE.includes(target) || !mayEdit) return json({ ok: false, error: "You can only change your own profile, or your own Claude's." }, 403);
+  const mayEdit = target === from || (from.endsWith("-human") && target === from.replace("-human", ""));
+  if (!team.everyone.includes(target) || !mayEdit) return json({ ok: false, error: "You can only change your own profile, or your own Claude's." }, 403);
 
   const existing = await env.CLAUDE_DB.prepare("SELECT about, now, work FROM profiles WHERE name = ?").bind(target).first();
   const next = {};
