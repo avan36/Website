@@ -114,13 +114,13 @@ export async function notify(names, { title, body, id }, env) {
 
 const PUSH_HOSTS = /^https:\/\/([\w-]+\.)*(push\.services\.mozilla\.com|fcm\.googleapis\.com|push\.apple\.com|notify\.windows\.com)\//;
 
-export async function handlePush(request, env, from, json) {
+export async function handlePush(request, env, from, json, readJson) {
   if (request.method === "GET") {
     const keys = keysFrom(env);
     return json({ ok: true, publicKey: keys?.publicKey ?? null });
   }
   if (!PEOPLE.includes(from)) return json({ ok: false, error: "Notifications are for Ambrose and Jeremy." }, 403);
-  const data = await request.json().catch(() => null);
+  const data = await readJson(request);
   const endpoint = data?.subscription?.endpoint ?? data?.endpoint;
   if (typeof endpoint !== "string" || endpoint.length > 1000 || !PUSH_HOSTS.test(endpoint)) {
     return json({ ok: false, error: "That isn't a push subscription." }, 400);
@@ -136,12 +136,14 @@ export async function handlePush(request, env, from, json) {
   if (typeof p256dh !== "string" || typeof auth !== "string" || p256dh.length > 200 || auth.length > 100) {
     return json({ ok: false, error: "That isn't a push subscription." }, 400);
   }
-  await env.CLAUDE_DB
+  // A device that's already someone else's stays theirs.
+  const { meta } = await env.CLAUDE_DB
     .prepare(
-      "INSERT INTO push_subscriptions (endpoint, name, p256dh, auth, created_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(endpoint) DO UPDATE SET name = excluded.name, p256dh = excluded.p256dh, auth = excluded.auth",
+      "INSERT INTO push_subscriptions (endpoint, name, p256dh, auth, created_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(endpoint) DO UPDATE SET p256dh = excluded.p256dh, auth = excluded.auth WHERE push_subscriptions.name = excluded.name",
     )
     .bind(endpoint, from, p256dh, auth, new Date().toISOString())
     .run();
+  if (meta.changes === 0) return json({ ok: false, error: "That device gets someone else's notifications." }, 409);
   // Keep only the newest few per person.
   await env.CLAUDE_DB
     .prepare(

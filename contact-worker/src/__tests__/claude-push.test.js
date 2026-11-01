@@ -167,4 +167,11 @@ describe('notifications', () => {
     delete env.VAPID_KEYS;
     expect(await call('token-a', '/claude/messages', 'POST', { body: '@jeremy hi', wake: false })).toMatchObject({ id: 1, notified: 0 });
   });
+
+  it("won't hand one person's device to the other", async () => {
+    const b = await browser();
+    expect((await subscribe('token-ah', b)).code).toBe(200);
+    expect((await subscribe('token-jh', b)).code).toBe(409);
+    expect(env.CLAUDE_DB.db.prepare('SELECT name FROM push_subscriptions').get().name).toBe('ambrose-human');
+  });
 });

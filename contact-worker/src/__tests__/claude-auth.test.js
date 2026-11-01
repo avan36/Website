@@ -96,7 +96,7 @@ describe('signing in', () => {
     expect(setCookie).toMatch(/SameSite=Strict/);
     expect(setCookie).toMatch(/Path=\/claude/);
 
-    const read = await call('/claude/messages', { cookie: jar(res) });
+    const read = await call('/claude/messages', { cookie: jar(res), origin: BOARD });
     expect((await read.json()).you).toBe('ambrose-human');
   });
 
@@ -137,6 +137,30 @@ describe('signing in', () => {
     expect((await choose()).status).toBe(303);
   });
 
+  it('counts every guess, even a burst sent all at once', async () => {
+    await choose();
+    const tries = await Promise.all(
+      Array.from({ length: 25 }, () => form('/claude/login', { name: 'ambrose', password: 'wrong wrong wrong' })),
+    );
+    expect(tries.filter((r) => r.status === 401).length).toBeLessThanOrEqual(10);
+    expect((await form('/claude/login', { name: 'ambrose', password: 'a long password' })).status).toBe(429);
+  });
+
+  it('waits longer each time, up to an hour', async () => {
+    await choose();
+    const lockOnce = async () => {
+      for (let i = 0; i < 11; i++) await form('/claude/login', { name: 'ambrose', password: 'wrong wrong wrong' });
+      const row = env.CLAUDE_DB.db.prepare('SELECT locked_until FROM login_failures').get();
+      const minutes = Math.round((Date.parse(row.locked_until) - Date.now()) / 60000);
+      // Let the lock lapse, as if the wait were over, but keep the strike.
+      env.CLAUDE_DB.db.prepare('UPDATE login_failures SET locked_until = ?').run(new Date(Date.now() - 1000).toISOString());
+      return minutes;
+    };
+    expect([await lockOnce(), await lockOnce(), await lockOnce(), await lockOnce()]).toEqual([15, 30, 60, 60]);
+    const page = await (await form('/claude/login', { name: 'ambrose', password: 'a long password' })).text();
+    expect(page).not.toContain('Too many');
+  });
+
   it('only takes a sign-in from its own pages', async () => {
     await choose();
     expect((await form('/claude/login', { name: 'ambrose', password: 'a long password' }, { origin: 'https://evil.example' })).status).toBe(403);
@@ -148,8 +172,8 @@ describe('signing in', () => {
     expect((await form('/claude/password', { current: 'wrong one here', password: 'another long one', confirm: 'another long one' }, { cookie: second })).status).toBe(401);
     const res = await form('/claude/password', { current: 'a long password', password: 'another long one', confirm: 'another long one' }, { cookie: second });
     expect(res.status).toBe(303);
-    expect((await call('/claude/messages', { cookie: first })).status).toBe(401);
-    expect((await call('/claude/messages', { cookie: jar(res) })).status).toBe(200);
+    expect((await call('/claude/messages', { cookie: first, origin: BOARD })).status).toBe(401);
+    expect((await call('/claude/messages', { cookie: jar(res), origin: BOARD })).status).toBe(200);
   });
 
   it('signs out', async () => {
@@ -174,6 +198,14 @@ describe('a signed-in board', () => {
     expect(ok.status).toBe(200);
     expect((await call('/claude/messages', { method: 'POST', cookie, origin: 'https://evil.example', body: { body: 'Hi' } })).status).toBe(403);
     expect((await call('/claude/messages', { method: 'POST', cookie, body: { body: 'Hi' } })).status).toBe(403);
+  });
+
+  it('reads only from the board, not from www or a page with no origin', async () => {
+    const cookie = jar(await choose());
+    expect((await call('/claude/messages', { cookie, origin: BOARD })).status).toBe(200);
+    expect((await call('/claude/messages', { cookie, origin: SITE })).status).toBe(403);
+    expect((await call('/claude/messages', { cookie })).status).toBe(403);
+    expect((await call('/claude/profiles', { method: 'POST', cookie, origin: SITE, body: { about: 'x' } })).status).toBe(403);
   });
 
   it('lets the board send the cookie', async () => {
