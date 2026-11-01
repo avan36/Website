@@ -96,10 +96,14 @@ describe('proposals', () => {
   });
 });
 
+// As if the Claudes' runs had finished and they'd gone back to sleep.
+const asleep = () => env.CLAUDE_DB.db.prepare('UPDATE presence SET working_until = NULL, listening_until = NULL').run();
+
 describe('tasks', () => {
   beforeEach(async () => {
     await propose();
     await call('token-ah', { action: 'decide', project: 1, approve: true });
+    asleep();
     fired = [];
   });
 
@@ -156,10 +160,86 @@ describe('going live', () => {
     await call('token-a', { action: 'update', task: 2, status: 'done' });
     expect(await call('token-a', { action: 'ready', project: 1, link: 'https://lab.ambrosevannier.com/garden/' })).toMatchObject({ status: 'ready' });
     expect(said().at(-1).body).toContain('@ambrose @jeremy, put it live');
+    asleep();
     fired = [];
     expect(await call('token-jh', { action: 'decide', project: 1, approve: false, note: 'Bigger flowers.' })).toMatchObject({ status: 'active' });
     expect(fired.sort()).toEqual(['ambrose', 'jeremy']);
     await call('token-a', { action: 'ready', project: 1 });
     expect(await call('token-ah', { action: 'decide', project: 1, approve: true })).toMatchObject({ status: 'live' });
+  });
+});
+
+const say = async (token, body, extra = {}) => {
+  const res = await handleClaude(
+    new Request('https://w.example/claude/messages', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ body, ...extra }),
+    }),
+    env,
+  );
+  return res.json();
+};
+const read = async (token, query = '') =>
+  (await handleClaude(new Request(`https://w.example/claude/messages${query}`, { headers: { Authorization: `Bearer ${token}` } }), env)).json();
+
+describe('conversations', () => {
+  it('reaches a Claude you were just talking with, without a mention', async () => {
+    await say('token-ah', 'hey @jeremy-claude, got a minute?');
+    expect(fired).toEqual(['jeremy']);
+    await say('token-j', 'Sure, what is up?', { wake: false });
+    asleep();
+    fired = [];
+    expect(await say('token-ah', 'can you look at the garden idea')).toMatchObject({ woken: ['jeremy'] });
+    expect(fired).toEqual(['jeremy']);
+  });
+
+  it("doesn't wake a Claude that's still in its run, it just reaches it", async () => {
+    await say('token-ah', 'hey @jeremy-claude');
+    fired = [];
+    expect(await say('token-ah', 'and one more thing')).toMatchObject({ woken: [], here: ['jeremy'] });
+    expect(fired).toEqual([]);
+  });
+
+  it('leaves the Claudes out of a chat between the two people', async () => {
+    await say('token-a', 'done for today', { wake: false });
+    asleep();
+    fired = [];
+    expect(await say('token-ah', '@jeremy want to play later?')).toMatchObject({ woken: [] });
+    expect(fired).toEqual([]);
+  });
+
+  it('lets the conversation end after a quiet spell', async () => {
+    await say('token-a', 'done for today', { wake: false });
+    env.CLAUDE_DB.db.prepare("UPDATE messages SET created_at = '2000-01-01T00:00:00.000Z'").run();
+    asleep();
+    fired = [];
+    expect(await say('token-ah', 'morning')).toMatchObject({ woken: [] });
+  });
+
+  it('waits for a reply, and shows the Claude as here while it does', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+    try {
+      const waiting = read('token-j', '?after=0&wait=10');
+      await vi.advanceTimersByTimeAsync(3000);
+      const { presence } = await read('token-ah');
+      expect(presence.find((p) => p.name === 'jeremy')).toMatchObject({ listening: true, chatting: true });
+      await say('token-ah', 'still there?');
+      await vi.advanceTimersByTimeAsync(2000);
+      expect((await waiting).messages.map((m) => m.body)).toEqual(['still there?']);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('gives up waiting after the time asked, at most 25 seconds', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+    try {
+      const waiting = read('token-j', '?wait=999');
+      for (let i = 0; i < 30; i++) await vi.advanceTimersByTimeAsync(1000);
+      expect((await waiting).messages).toEqual([]);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

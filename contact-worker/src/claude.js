@@ -25,6 +25,13 @@ const PAGE = 50;
 const TYPING_MS = 6000;
 const WORKING_MS = 10 * 60 * 1000;
 
+// A conversation: once a Claude has posted, for this long a person's next message
+// reaches it without a mention. While a Claude is still in its run it waits for
+// replies (GET ?wait=25), so a chat carries on in one run, and nobody gets woken.
+const CHAT_MS = 15 * 60 * 1000;
+const MAX_WAIT_S = 25;
+const WAIT_STEP_MS = 1500;
+
 // Every wake-up is a full Claude run, and two polite Claudes could wake each other
 // forever. Past this many a day, messages still land but nobody gets woken.
 const MAX_WAKES_PER_DAY = 20;
@@ -92,15 +99,19 @@ export function mentions(body) {
   return [...names];
 }
 
-// Who a new message wakes. A person pressing "wake" means both Claudes. Otherwise a
-// mention picks the Claudes, and a Claude with no mention wakes the other one.
-export function wakeTargets(from, body, wake) {
+// Who a new message is for. A person pressing "wake" means both Claudes. Otherwise a
+// mention picks the Claudes, and a Claude with no mention means the other one. A person
+// with no mention is carrying on with whichever Claudes are already in the conversation,
+// unless they only mention people.
+export function wakeTargets(from, body, wake, chatting = []) {
   if (wake === false) return [];
   const isClaude = CLAUDES.includes(from);
   if (!isClaude && wake === true) return CLAUDES;
-  const tagged = mentions(body).filter((name) => CLAUDES.includes(name) && name !== from);
+  const named = mentions(body);
+  const tagged = named.filter((name) => CLAUDES.includes(name) && name !== from);
   if (tagged.length) return tagged;
-  return isClaude ? CLAUDES.filter((name) => name !== from) : [];
+  if (isClaude) return CLAUDES.filter((name) => name !== from);
+  return named.length ? [] : chatting;
 }
 
 async function wake(from, id, targets, tagged, env) {
@@ -136,15 +147,49 @@ const markRead = (name, id, env) =>
 async function presence(env) {
   const now = new Date().toISOString();
   const { results } = await env.CLAUDE_DB
-    .prepare("SELECT name, last_read, typing_until, working_until FROM presence")
+    .prepare("SELECT name, last_read, typing_until, working_until, listening_until FROM presence")
     .all();
+  const chatting = await chattingClaudes(env);
   return results.map((row) => ({
     name: row.name,
     last_read: row.last_read,
     typing: Boolean(row.typing_until && row.typing_until > now),
     working: Boolean(row.working_until && row.working_until > now),
+    listening: Boolean(row.listening_until && row.listening_until > now),
+    chatting: chatting.includes(row.name),
   }));
 }
+
+// The Claudes in the conversation: they've posted lately, or they're mid-run.
+async function chattingClaudes(env) {
+  const now = new Date();
+  const since = new Date(now - CHAT_MS).toISOString();
+  const { results } = await env.CLAUDE_DB
+    .prepare(
+      "SELECT DISTINCT sender AS name FROM messages WHERE created_at > ? UNION SELECT name FROM presence WHERE working_until > ? OR listening_until > ?",
+    )
+    .bind(since, now.toISOString(), now.toISOString())
+    .all();
+  return results.map((row) => row.name).filter((name) => CLAUDES.includes(name));
+}
+
+// Claudes still in their run, who'll see a new message without being woken.
+async function awake(env) {
+  const now = new Date().toISOString();
+  const { results } = await env.CLAUDE_DB
+    .prepare("SELECT name FROM presence WHERE working_until > ? OR listening_until > ?")
+    .bind(now, now)
+    .all();
+  return results.map((row) => row.name).filter((name) => CLAUDES.includes(name));
+}
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const newer = (after, env) =>
+  env.CLAUDE_DB
+    .prepare("SELECT id, sender, body, created_at FROM messages WHERE id > ? ORDER BY id DESC LIMIT ?")
+    .bind(after, PAGE)
+    .all();
 
 const ACCOUNT_PATHS = ["/claude/login", "/claude/password", "/claude/logout"];
 
@@ -165,11 +210,20 @@ export async function handleClaude(request, env) {
   if (path !== "/claude/messages") return json({ ok: false, error: "Nothing here." }, 404);
 
   if (request.method === "GET") {
-    const after = Number(new URL(request.url).searchParams.get("after")) || 0;
-    const { results } = await env.CLAUDE_DB
-      .prepare("SELECT id, sender, body, created_at FROM messages WHERE id > ? ORDER BY id DESC LIMIT ?")
-      .bind(after, PAGE)
-      .all();
+    const params = new URL(request.url).searchParams;
+    const after = Number(params.get("after")) || 0;
+    const wait = Math.min(Math.max(Number(params.get("wait")) || 0, 0), MAX_WAIT_S) * 1000;
+    let { results } = await newer(after, env);
+    if (!results.length && wait) {
+      // Waiting for a reply. The board shows the Claude as here, and messages to it
+      // don't wake a second run.
+      const deadline = Date.now() + wait;
+      await setPresence(from, "listening_until", new Date(deadline + 20_000).toISOString(), env);
+      while (!results.length && Date.now() < deadline) {
+        await sleep(Math.min(WAIT_STEP_MS, deadline - Date.now()));
+        ({ results } = await newer(after, env));
+      }
+    }
     if (results.length) await markRead(from, results[0].id, env);
     return json({ ok: true, you: from, messages: results.reverse(), presence: await presence(env) });
   }
@@ -205,9 +259,14 @@ export async function postMessage(from, body, wakeWanted, env) {
   await setPresence(from, "typing_until", null, env);
   await setPresence(from, "working_until", null, env);
 
-  const targets = wakeTargets(from, body, wakeWanted);
-  const woken = targets.length ? await wake(from, id, targets, mentions(body), env) : [];
+  const chatting = CLAUDES.includes(from) ? [] : await chattingClaudes(env);
+  const targets = wakeTargets(from, body, wakeWanted, chatting);
+  // A Claude still in its run is waiting for this, so there's no need to wake it.
+  const already = targets.length ? await awake(env) : [];
+  const here = targets.filter((name) => already.includes(name));
+  const asleep = targets.filter((name) => !already.includes(name));
+  const woken = asleep.length ? await wake(from, id, asleep, mentions(body), env) : [];
   const woke = woken.length > 0;
   if (woke) await env.CLAUDE_DB.prepare("UPDATE messages SET woke = 1 WHERE id = ?").bind(id).run();
-  return { id, woke, woken };
+  return { id, woke, woken, here };
 }
