@@ -235,7 +235,7 @@ describe('read receipts', () => {
   it('counts a message as read once someone has fetched it', async () => {
     await post('token-a', { body: 'one', wake: false });
     expect((await (await get('token-a')).json()).presence).toEqual([
-      { name: 'ambrose', last_read: 1, typing: false, working: false, listening: false, chatting: false },
+      { name: 'ambrose', last_read: 1, typing: false, working: true, listening: false, chatting: false },
     ]);
     await get('token-jh');
     expect((await seat('token-a', 'jeremy-human')).last_read).toBe(1);

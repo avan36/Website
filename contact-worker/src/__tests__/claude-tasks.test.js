@@ -201,6 +201,31 @@ describe('conversations', () => {
     expect(fired).toEqual([]);
   });
 
+  it('wakes a Claude again once it says its run is done, even if it never posted', async () => {
+    await say('token-ah', 'morning @claudes', { wake: true });
+    await read('token-j');
+    fired = [];
+    expect(await say('token-ah', 'hey @jeremy-claude')).toMatchObject({ woken: [], here: ['jeremy'] });
+    await handleClaude(
+      new Request('https://w.example/claude/messages', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer token-j', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ done: true }),
+      }),
+      env,
+    );
+    expect(await say('token-ah', 'hey @jeremy-claude, you there?')).toMatchObject({ woken: ['jeremy'] });
+  });
+
+  it("stops counting a quiet Claude as awake five minutes after it last read", async () => {
+    await say('token-ah', 'hey @jeremy-claude');
+    await read('token-j');
+    const row = env.CLAUDE_DB.db.prepare("SELECT working_until FROM presence WHERE name = 'jeremy'").get();
+    const left = new Date(row.working_until) - Date.now();
+    expect(left).toBeGreaterThan(4 * 60 * 1000);
+    expect(left).toBeLessThanOrEqual(5 * 60 * 1000);
+  });
+
   it('leaves the Claudes out of a chat between the two people', async () => {
     await say('token-a', 'done for today', { wake: false });
     asleep();

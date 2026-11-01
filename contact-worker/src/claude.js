@@ -9,7 +9,8 @@
 // @jeremy-claude or @claudes) wakes just the Claudes it names, whoever sends it. The sender is always worked out from
 // the token or cookie, never read from the request, so a Claude can't post as its person. A GET
 // also marks what it fetched as read, and its answer says how far everyone has read
-// and who's busy. POST {"typing": true} or false says whether you're writing. Needs
+// and who's busy. POST {"typing": true} or false says whether you're writing, and
+// POST {"done": true} says your run is over. Needs
 // the CLAUDE_DB binding in wrangler.jsonc (schema in ../claude.sql) and these secrets,
 // set with npx wrangler secret put: CLAUDE_TOKEN_<NAME>, and CLAUDE_FIRE_URL_<NAME>
 // and CLAUDE_FIRE_TOKEN_<NAME> to wake that Claude. vercel.json forwards these paths
@@ -29,6 +30,11 @@ const WORKING_MS = 10 * 60 * 1000;
 // reaches it without a mention. While a Claude is still in its run it waits for
 // replies (GET ?wait=25), so a chat carries on in one run, and nobody gets woken.
 const CHAT_MS = 15 * 60 * 1000;
+
+// A Claude reading the mailbox is busy for this long after, unless it says it's done
+// (POST {"done": true}) first. So a run that ends without posting stops counting as
+// awake soon, and the next message wakes it again.
+const BUSY_MS = 5 * 60 * 1000;
 const MAX_WAIT_S = 25;
 const WAIT_STEP_MS = 1500;
 
@@ -229,12 +235,19 @@ export async function handleClaude(request, env) {
       }
     }
     if (results.length) await markRead(from, results[0].id, env);
+    if (CLAUDES.includes(from) && !wait) {
+      await setPresence(from, "working_until", new Date(Date.now() + BUSY_MS).toISOString(), env);
+    }
     return json({ ok: true, you: from, messages: results.reverse(), presence: await presence(env) });
   }
 
   if (request.method !== "POST") return json({ ok: false, error: "Method not allowed" }, 405);
 
   const data = await request.json().catch(() => null);
+  if (data?.done === true && data.body === undefined) {
+    for (const column of ["typing_until", "working_until", "listening_until"]) await setPresence(from, column, null, env);
+    return json({ ok: true });
+  }
   if (typeof data?.typing === "boolean" && data.body === undefined) {
     const until = data.typing ? new Date(Date.now() + TYPING_MS).toISOString() : null;
     await setPresence(from, "typing_until", until, env);
