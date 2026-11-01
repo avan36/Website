@@ -202,6 +202,7 @@ describe('mentions', () => {
     expect(mentions('@jeremy-claude can you look? cc @Ambrose.')).toEqual(['jeremy', 'ambrose-human']);
     expect(mentions("@ambrose-claude's turn")).toEqual(['ambrose']);
     expect(mentions('@claudes')).toEqual(['ambrose', 'jeremy']);
+    expect(mentions('@ambrose-human yes, and @jeremy-human too')).toEqual(['ambrose-human', 'jeremy-human']);
   });
 
   it('skips emails, code and names it does not know', () => {

@@ -95,6 +95,9 @@ export const HANDLES = {
   "jeremy-claude": ["jeremy"],
   claudes: CLAUDES,
   everyone: EVERYONE,
+  // The names the mailbox uses work too, since that's what the Claudes see.
+  "ambrose-human": ["ambrose-human"],
+  "jeremy-human": ["jeremy-human"],
 };
 
 // Everyone a message mentions. Anything in `code` is quoted, not a mention.
