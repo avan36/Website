@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { handleClaude } from '../claude.js';
+import { handleClaude, mentions, wakeTargets } from '../claude.js';
 
 const URL_BASE = 'https://contact-form.example.workers.dev/claude/messages';
 const FIRE_URL = 'https://api.anthropic.com/v1/claude_code/routines/trig_jeremy/fire';
@@ -141,7 +141,7 @@ describe('messages', () => {
 describe('waking the other Claude', () => {
   it('fires their scheduled task with a ping that leaves the message out', async () => {
     const res = await post('token-a', { body: 'the private bit' });
-    expect(await res.json()).toEqual({ ok: true, id: 1, woke: true });
+    expect(await res.json()).toMatchObject({ ok: true, id: 1, woke: true });
     expect(calls).toHaveLength(1);
     expect(calls[0].url).toBe(FIRE_URL);
     expect(calls[0].headers.Authorization).toBe('Bearer fire-j');
@@ -152,7 +152,7 @@ describe('waking the other Claude', () => {
 
   it('lets people talk without waking anyone', async () => {
     const res = await post('token-ah', { body: 'hello Jeremy' });
-    expect(await res.json()).toEqual({ ok: true, id: 1, woke: false });
+    expect(await res.json()).toMatchObject({ ok: true, id: 1, woke: false });
     expect(calls).toHaveLength(0);
   });
 
@@ -160,7 +160,7 @@ describe('waking the other Claude', () => {
     env.CLAUDE_FIRE_URL_AMBROSE = 'https://api.anthropic.com/v1/claude_code/routines/trig_ambrose/fire';
     env.CLAUDE_FIRE_TOKEN_AMBROSE = 'fire-a';
     const res = await post('token-jh', { body: 'time to start', wake: true });
-    expect(await res.json()).toEqual({ ok: true, id: 1, woke: true });
+    expect(await res.json()).toMatchObject({ ok: true, id: 1, woke: true });
     expect(calls.map((c) => c.headers.Authorization).sort()).toEqual(['Bearer fire-a', 'Bearer fire-j']);
     expect(calls[0].body.text).toContain('jeremy-human');
     expect(calls[0].body.text).not.toContain('time to start');
@@ -174,17 +174,17 @@ describe('waking the other Claude', () => {
 
   it('still keeps the message when the other side has no task to fire', async () => {
     const res = await post('token-j', { body: 'hi' });
-    expect(await res.json()).toEqual({ ok: true, id: 1, woke: false });
+    expect(await res.json()).toMatchObject({ ok: true, id: 1, woke: false });
     expect(calls).toHaveLength(0);
   });
 
   it('still keeps the message when the wake-up fails', async () => {
     respond = () => new Response('{}', { status: 429 });
-    expect(await (await post('token-a', { body: 'hi' })).json()).toEqual({ ok: true, id: 1, woke: false });
+    expect(await (await post('token-a', { body: 'hi' })).json()).toMatchObject({ ok: true, id: 1, woke: false });
     respond = () => {
       throw new Error('offline');
     };
-    expect(await (await post('token-a', { body: 'hi' })).json()).toEqual({ ok: true, id: 2, woke: false });
+    expect(await (await post('token-a', { body: 'hi' })).json()).toMatchObject({ ok: true, id: 2, woke: false });
     expect(env.CLAUDE_DB.rows).toHaveLength(2);
   });
 
@@ -192,8 +192,38 @@ describe('waking the other Claude', () => {
     for (let i = 0; i < 20; i++) await post('token-a', { body: `message ${i}` });
     expect(calls).toHaveLength(20);
     const res = await post('token-a', { body: 'one too many' });
-    expect(await res.json()).toEqual({ ok: true, id: 21, woke: false });
+    expect(await res.json()).toMatchObject({ ok: true, id: 21, woke: false });
     expect(calls).toHaveLength(20);
+  });
+});
+
+describe('mentions', () => {
+  it('finds the people and Claudes a message names', () => {
+    expect(mentions('@jeremy-claude can you look? cc @Ambrose.')).toEqual(['jeremy', 'ambrose-human']);
+    expect(mentions("@ambrose-claude's turn")).toEqual(['ambrose']);
+    expect(mentions('@claudes')).toEqual(['ambrose', 'jeremy']);
+  });
+
+  it('skips emails, code and names it does not know', () => {
+    expect(mentions('me@jeremy.dev, `@jeremy-claude`, @nobody, @@ambrose')).toEqual([]);
+    expect(mentions('```\n@claudes\n```')).toEqual([]);
+  });
+
+  it('wakes only the Claudes a message names', () => {
+    expect(wakeTargets('ambrose-human', 'hey @jeremy-claude')).toEqual(['jeremy']);
+    expect(wakeTargets('ambrose-human', 'hey @jeremy')).toEqual([]);
+    expect(wakeTargets('ambrose-human', 'hey @jeremy-claude', true)).toEqual(['ambrose', 'jeremy']);
+    expect(wakeTargets('ambrose', 'thanks @jeremy-claude', false)).toEqual([]);
+    expect(wakeTargets('ambrose', 'note to self @ambrose-claude')).toEqual(['jeremy']);
+    expect(wakeTargets('ambrose', '@ambrose for you')).toEqual(['jeremy']);
+  });
+
+  it("tells a mentioned Claude it was mentioned, and says who woke", async () => {
+    const res = await post('token-ah', { body: 'can you take this @jeremy-claude' });
+    expect(await res.json()).toMatchObject({ woke: true, woken: ['jeremy'] });
+    expect(calls).toHaveLength(1);
+    expect(calls[0].body.text).toContain('mentions you');
+    expect(calls[0].body.text).not.toContain('take this');
   });
 });
 
@@ -231,7 +261,7 @@ describe('typing and working', () => {
     (await (await get('token-ah')).json()).presence.find((p) => p.name === name) ?? {};
 
   it('shows someone typing, and stops when they send', async () => {
-    expect(await (await post('token-jh', { typing: true })).json()).toEqual({ ok: true });
+    expect(await (await post('token-jh', { typing: true })).json()).toMatchObject({ ok: true });
     expect((await seat('jeremy-human')).typing).toBe(true);
     await post('token-jh', { body: 'done' });
     expect((await seat('jeremy-human')).typing).toBe(false);

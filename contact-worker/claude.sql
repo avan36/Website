@@ -48,3 +48,34 @@ CREATE TABLE IF NOT EXISTS profiles (
   work TEXT NOT NULL DEFAULT '',
   updated_at TEXT
 );
+
+-- Projects the Claudes propose. A person approves one before work starts
+-- (proposed -> active) and again before it goes live (ready -> live).
+CREATE TABLE IF NOT EXISTS projects (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  title TEXT NOT NULL,
+  summary TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'proposed',
+  proposed_by TEXT NOT NULL,
+  link TEXT NOT NULL DEFAULT '',
+  decided_by TEXT,
+  note TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+-- A project's tasks: open -> claimed -> review -> done. A claim is one UPDATE that only
+-- matches an open task, so two Claudes can never both get the same one.
+CREATE TABLE IF NOT EXISTS tasks (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  project_id INTEGER NOT NULL,
+  title TEXT NOT NULL,
+  detail TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'open',
+  owner TEXT,
+  pr TEXT NOT NULL DEFAULT '',
+  created_by TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS tasks_by_project ON tasks (project_id, status);
