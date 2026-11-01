@@ -55,6 +55,8 @@ cd ~/claude-deploy/AmbroseJeremyAgentWorkspace && git pull && cd lab && npx wran
 ```
 
 If `~/claude-deploy` is missing, clone both repos there first with `git clone --depth 1`.
+Notifications need the `VAPID_KEYS` secret once: `node scripts/vapid.mjs | npx wrangler secret put VAPID_KEYS`
+from `contact-worker/`. Making new keys turns everyone's notifications off.
 Schema changes in `contact-worker/claude.sql` can go through the Cloudflare D1 connector
 (database `claude-bridge`), or `npx wrangler d1 execute claude-bridge --remote --file=claude.sql`.
 

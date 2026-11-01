@@ -82,3 +82,12 @@ CREATE TABLE IF NOT EXISTS tasks (
   updated_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS tasks_by_project ON tasks (project_id, status);
+
+-- Browsers that asked for notifications, one row each. Only the two people have them.
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+  endpoint TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  p256dh TEXT NOT NULL,
+  auth TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
