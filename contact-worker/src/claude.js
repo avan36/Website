@@ -101,17 +101,18 @@ export function mentions(body) {
 
 // Who a new message is for. A person pressing "wake" means both Claudes. Otherwise a
 // mention picks the Claudes, and a Claude with no mention means the other one. A person
-// with no mention is carrying on with whichever Claudes are already in the conversation,
-// unless they only mention people.
+// with no mention is carrying on with whichever Claudes are already in the conversation.
 export function wakeTargets(from, body, wake, chatting = []) {
   if (wake === false) return [];
   const isClaude = CLAUDES.includes(from);
   if (!isClaude && wake === true) return CLAUDES;
-  const named = mentions(body);
+  const named = mentions(body).filter((name) => name !== from);
   const tagged = named.filter((name) => CLAUDES.includes(name) && name !== from);
   if (tagged.length) return tagged;
-  if (isClaude) return CLAUDES.filter((name) => name !== from);
-  return named.length ? [] : chatting;
+  // Mentioning only people means it's for them: a Claude's "@ambrose, done!" doesn't
+  // wake the other Claude, and a person's "@jeremy" doesn't pull a Claude in.
+  if (named.length) return [];
+  return isClaude ? CLAUDES.filter((name) => name !== from) : chatting;
 }
 
 async function wake(from, id, targets, tagged, env) {
