@@ -44,6 +44,20 @@ When you add or change something a visitor can see or do, update the docs that d
 - `docs/brief.md`: "Ideas already built" and the pack table.
 - `e2e/`: when gameplay or the HUD changes.
 
+## Deploying the Worker and the lab
+
+Cloud sessions can't log in to Cloudflare, so Ambrose deploys from his Mac. His copies for
+that are in `~/claude-deploy/` (cloned with `--depth 1`), not in his home folder:
+
+```sh
+cd ~/claude-deploy/Website && git pull && cd contact-worker && npx wrangler deploy
+cd ~/claude-deploy/AmbroseJeremyAgentWorkspace && git pull && cd lab && npx wrangler deploy
+```
+
+If `~/claude-deploy` is missing, clone both repos there first with `git clone --depth 1`.
+Schema changes in `contact-worker/claude.sql` can go through the Cloudflare D1 connector
+(database `claude-bridge`), or `npx wrangler d1 execute claude-bridge --remote --file=claude.sql`.
+
 ## Git
 
 - Commit subjects are plain sentences about what changed, in the site's voice, with no `feat:` prefixes. For example: `Little London: an islet off the east end, Tower Bridge out from the quay, and Westfield on it`.
