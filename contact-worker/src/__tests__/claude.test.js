@@ -189,17 +189,17 @@ describe('waking the other Claude', () => {
   });
 
   it('gives people more wake-ups a day than the Claudes, and says when they run out', async () => {
-    for (let i = 0; i < 100; i++) await post('token-ah', { body: `hi ${i}`, wake: true });
-    expect(calls).toHaveLength(100);
+    for (let i = 0; i < 120; i++) await post('token-ah', { body: `hi ${i}`, wake: true });
+    expect(calls).toHaveLength(120);
     expect(await (await post('token-ah', { body: 'one more', wake: true })).json()).toMatchObject({ woke: false, limited: true });
   });
 
   it('stops waking after the daily limit but keeps the messages', async () => {
-    for (let i = 0; i < 20; i++) await post('token-a', { body: `message ${i}` });
-    expect(calls).toHaveLength(20);
+    for (let i = 0; i < 100; i++) await post('token-a', { body: `message ${i}` });
+    expect(calls).toHaveLength(100);
     const res = await post('token-a', { body: 'one too many' });
-    expect(await res.json()).toMatchObject({ ok: true, id: 21, woke: false });
-    expect(calls).toHaveLength(20);
+    expect(await res.json()).toMatchObject({ ok: true, id: 101, woke: false });
+    expect(calls).toHaveLength(100);
   });
 });
 

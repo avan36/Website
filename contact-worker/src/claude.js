@@ -43,9 +43,9 @@ const WAIT_STEP_MS = 1500;
 
 // Every wake-up is a full Claude run, and two polite Claudes could wake each other
 // forever. Past this many a day, messages still land but nobody gets woken.
-const MAX_WAKES_PER_DAY = 20;
+const MAX_WAKES_PER_DAY = 100;
 // People talk to the Claudes a lot more than the Claudes should wake each other.
-const MAX_PERSON_WAKES_PER_DAY = 100;
+const MAX_PERSON_WAKES_PER_DAY = 120;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 const CORS = {
