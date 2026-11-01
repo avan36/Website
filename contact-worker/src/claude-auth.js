@@ -21,6 +21,8 @@ const MIN_PASSWORD = 10;
 const MAX_PASSWORD = 200;
 const MAX_FAILURES = 10;
 const LOCK_MS = 15 * 60 * 1000;
+const MAX_LOCK_MS = 60 * 60 * 1000;
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 const LOGIN_NAMES = { ambrose: "ambrose-human", jeremy: "jeremy-human" };
 const DISPLAY = { "ambrose-human": "Ambrose", "jeremy-human": "Jeremy" };
@@ -93,6 +95,10 @@ export async function whoIs(request, env) {
 // A cookie goes wherever the browser goes, so anything that changes something with
 // one has to come from one of our own pages.
 export const fromOurPages = (request) => [SITE, BOARD].includes(request.headers.get("Origin") || "");
+// The mailbox itself only answers a cookie from the board. Not from www: anything that
+// ever ran a script there could otherwise read and write the mailbox. And not with no
+// Origin at all, so an image or a link on another page can't fake a read receipt.
+export const fromBoard = (request) => (request.headers.get("Origin") || "") === BOARD;
 
 async function startSession(name, env) {
   const id = randomB64Url(32);
@@ -129,22 +135,34 @@ async function setPassword(name, password, env) {
   await env.CLAUDE_DB.prepare("DELETE FROM sessions WHERE name = ?").bind(name).run();
 }
 
-async function lockedOut(name, env) {
-  const row = await env.CLAUDE_DB.prepare("SELECT locked_until FROM login_failures WHERE name = ?").bind(name).first();
-  return Boolean(row?.locked_until && row.locked_until > new Date().toISOString());
+// Every try is counted before the password is checked, in one statement, so a burst
+// of guesses sent all at once still gets only MAX_FAILURES tries. Too many in a row and
+// that name waits: 15 minutes, then 30, then an hour at most. Returns the minutes left
+// to wait, or 0 if this try may go ahead.
+async function takeTry(name, env) {
+  const now = new Date();
+  const row = await env.CLAUDE_DB
+    .prepare(
+      "INSERT INTO login_failures (name, count) VALUES (?, 1) ON CONFLICT(name) DO UPDATE SET count = count + 1 RETURNING count, locked_until, strikes",
+    )
+    .bind(name)
+    .first();
+  if (row.locked_until && row.locked_until > now.toISOString()) {
+    return Math.ceil((Date.parse(row.locked_until) - now.getTime()) / 60000);
+  }
+  if (row.count <= MAX_FAILURES) return 0;
+  // Strikes fade after a quiet day, so one bad evening doesn't follow you around.
+  const fresh = !row.locked_until || Date.parse(row.locked_until) < now.getTime() - DAY_MS;
+  const strikes = fresh ? 0 : row.strikes;
+  const wait = Math.min(LOCK_MS * 2 ** strikes, MAX_LOCK_MS);
+  await env.CLAUDE_DB
+    .prepare("UPDATE login_failures SET count = 0, strikes = ?, locked_until = ? WHERE name = ?")
+    .bind(strikes + 1, new Date(now.getTime() + wait).toISOString(), name)
+    .run();
+  return wait / 60000;
 }
 
-async function recordFailure(name, env) {
-  const row = await env.CLAUDE_DB.prepare("SELECT count FROM login_failures WHERE name = ?").bind(name).first();
-  const count = (row?.count ?? 0) + 1;
-  const lock = count >= MAX_FAILURES;
-  await env.CLAUDE_DB
-    .prepare(
-      "INSERT INTO login_failures (name, count, locked_until) VALUES (?, ?, ?) ON CONFLICT(name) DO UPDATE SET count = excluded.count, locked_until = excluded.locked_until",
-    )
-    .bind(name, lock ? 0 : count, lock ? new Date(Date.now() + LOCK_MS).toISOString() : null)
-    .run();
-}
+const waitNote = (minutes) => `Too many tries. Wait ${minutes} ${minutes === 1 ? "minute" : "minutes"}`;
 
 const clearFailures = (name, env) => env.CLAUDE_DB.prepare("DELETE FROM login_failures WHERE name = ?").bind(name).run();
 
@@ -187,10 +205,10 @@ export async function handleAccount(request, env) {
   if (path === "/claude/login") {
     const name = LOGIN_NAMES[field("name")];
     if (!name) return page({ error: "Choose who you are." }, 400);
-    if (await lockedOut(name, env)) return page({ error: "Too many tries. Wait 15 minutes, or use your private link." }, 429);
+    const wait = await takeTry(name, env);
+    if (wait) return page({ who: field("name"), error: `${waitNote(wait)}, or use your private link.` }, 429);
     if (!(await checkPassword(name, field("password"), env))) {
-      await recordFailure(name, env);
-      return page({ error: "That password didn't work. First time here? Open your private link to choose one." }, 401);
+      return page({ who: field("name"), error: "That password didn't work. First time here? Open your private link to choose one." }, 401);
     }
     await clearFailures(name, env);
     return toBoard(await startSession(name, env));
@@ -203,9 +221,9 @@ export async function handleAccount(request, env) {
       if (!PEOPLE.includes(name)) return page({ setup: true, error: "That private link didn't work. Ask Ambrose for a fresh one." }, 401);
     } else {
       if (!current) return page({ error: "Sign in first, or open your private link." }, 401);
-      if (await lockedOut(current, env)) return page({ signedIn: DISPLAY[current], error: "Too many tries. Wait 15 minutes." }, 429);
+      const wait = await takeTry(current, env);
+      if (wait) return page({ signedIn: DISPLAY[current], error: `${waitNote(wait)}.` }, 429);
       if (!(await checkPassword(current, field("current"), env))) {
-        await recordFailure(current, env);
         return page({ signedIn: DISPLAY[current], error: "Your current password didn't match." }, 401);
       }
       name = current;
@@ -235,20 +253,99 @@ const SCRIPT = `if (location.origin !== '${SITE}') {
     document.querySelector('[data-setup]').hidden = false;
     document.querySelector('[data-signin]').hidden = true;
   }
+  for (const toggle of document.querySelectorAll('[data-reveal]')) {
+    toggle.addEventListener('click', () => {
+      const input = toggle.parentElement.querySelector('input');
+      const show = input.type === 'password';
+      input.type = show ? 'text' : 'password';
+      toggle.textContent = show ? 'Hide' : 'Show';
+      toggle.setAttribute('aria-pressed', String(show));
+      input.focus();
+    });
+  }
+  const caps = (event) => {
+    const hint = event.target.closest('.field')?.querySelector('[data-caps]');
+    if (hint && event.getModifierState) hint.hidden = !event.getModifierState('CapsLock');
+  };
+  for (const input of document.querySelectorAll('input[type=password]')) {
+    input.addEventListener('keyup', caps);
+    input.addEventListener('keydown', caps);
+  }
+  for (const form of document.querySelectorAll('form')) {
+    form.addEventListener('submit', (event) => {
+      if (form.dataset.sent) return event.preventDefault();
+      form.dataset.sent = 'true';
+      const button = form.querySelector('button[type=submit]');
+      if (button) button.setAttribute('aria-busy', 'true');
+    });
+  }
+  addEventListener('pageshow', () => {
+    for (const form of document.querySelectorAll('form')) delete form.dataset.sent;
+    for (const button of document.querySelectorAll('[aria-busy]')) button.removeAttribute('aria-busy');
+  });
+  const first = document.querySelector('section:not([hidden]) input:not([type=hidden]):not([type=radio])');
+  if (first && matchMedia('(hover: hover)').matches) first.focus();
 }`;
 
-const STYLE = `:root{color-scheme:light dark;--bg:#fbf6ec;--raised:#fffdf8;--ink:#1d1a16;--ink-2:#4a443c;--ink-3:#6f675c;--line:rgba(29,26,22,.18);--accent:#d9461f;--accent-ink:#fffdf8}
-@media (prefers-color-scheme:dark){:root{--bg:#12100d;--raised:#1c1915;--ink:#f4eee4;--ink-2:#c9c1b4;--ink-3:#8f877b;--line:rgba(244,238,228,.18);--accent:#ff7a5c;--accent-ink:#1d0f0a}}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.55 system-ui,-apple-system,sans-serif}
-main{max-width:420px;margin:0 auto;padding:clamp(32px,10vh,96px) 20px 48px}
-h1{margin:0 0 8px;font-size:1.6rem;letter-spacing:-.02em}p{margin:0 0 20px;color:var(--ink-2)}
-form{display:grid;gap:14px}label{display:grid;gap:6px;font-size:.92rem;font-weight:600;color:var(--ink-2)}
-input,select{width:100%;min-height:44px;padding:10px 14px;border:1px solid var(--line);border-radius:12px;background:var(--raised);color:var(--ink);font:inherit}
-input:focus,select:focus{outline:none;border-color:var(--accent)}
-button{min-height:44px;padding:0 24px;border:0;border-radius:999px;background:var(--accent);color:var(--accent-ink);font:inherit;font-weight:650;cursor:pointer}
-.quiet{background:none;color:var(--ink-2);padding:0;min-height:44px;font-weight:600}
-.error{padding:10px 14px;border:1px solid var(--accent);border-radius:12px;color:var(--ink)}
-.small{font-size:.9rem;color:var(--ink-3)}a{color:var(--accent)}section+section{margin-top:40px}[hidden]{display:none!important}`;
+const STYLE = `:root{color-scheme:light dark;--bg:#fbf6ec;--raised:rgba(255,253,248,.72);--ink:#1d1a16;--ink-2:#4a443c;--ink-3:#6f675c;--line:rgba(29,26,22,.12);--line-strong:rgba(29,26,22,.22);--accent:#d9461f;--accent-ink:#fffdf8;--a:#e2552f;--j:#2f7de2;--c:#b46cf0;--ease:cubic-bezier(.22,1,.36,1)}
+@media (prefers-color-scheme:dark){:root{--bg:#12100d;--raised:rgba(28,25,21,.7);--ink:#f4eee4;--ink-2:#c9c1b4;--ink-3:#8f877b;--line:rgba(244,238,228,.1);--line-strong:rgba(244,238,228,.2);--accent:#ff7a5c;--accent-ink:#1d0f0a}}
+*{box-sizing:border-box}
+html{min-height:100%;background:var(--bg)}
+body{margin:0;min-height:100dvh;display:grid;place-items:center;padding:max(24px,env(safe-area-inset-top)) 20px max(32px,env(safe-area-inset-bottom));color:var(--ink);font:17px/1.55 ui-rounded,system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+body::before,body::after{content:"";position:fixed;z-index:-1;width:70vmax;height:70vmax;border-radius:50%;filter:blur(70px);opacity:.38;pointer-events:none}
+body::before{top:-30vmax;left:-20vmax;background:radial-gradient(closest-side,var(--a),transparent)}
+body::after{bottom:-35vmax;right:-25vmax;background:radial-gradient(closest-side,var(--j),transparent)}
+@media (prefers-reduced-motion:no-preference){body::before{animation:drift 22s var(--ease) infinite alternate}body::after{animation:drift 26s var(--ease) infinite alternate-reverse}main{animation:rise .7s var(--ease) both}}
+@keyframes drift{to{transform:translate(8vmax,6vmax) scale(1.12)}}
+@keyframes rise{from{opacity:0;transform:translateY(14px) scale(.98)}}
+@keyframes shake{20%,60%{transform:translateX(-6px)}40%,80%{transform:translateX(6px)}}
+@keyframes spin{to{transform:rotate(1turn)}}
+main{width:100%;max-width:400px;padding:36px 28px 28px;border:1px solid var(--line);border-radius:28px;background:var(--raised);-webkit-backdrop-filter:blur(24px) saturate(1.6);backdrop-filter:blur(24px) saturate(1.6);box-shadow:0 1px 2px rgba(0,0,0,.04),0 24px 60px -24px rgba(29,26,22,.28)}
+.mark{display:block;margin:0 auto 20px}
+h1{margin:0 0 6px;font-size:1.55rem;line-height:1.2;letter-spacing:-.025em;text-align:center;text-wrap:balance}
+p{margin:0 0 22px;color:var(--ink-2);text-align:center}
+form{display:grid;gap:16px}
+fieldset{min-width:0;margin:0;padding:0;border:0}
+.field{display:grid;gap:6px}
+.label{font-size:.85rem;font-weight:620;color:var(--ink-2)}
+.who{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;border:1px solid var(--line);border-radius:16px;background:rgba(127,117,100,.08)}
+.who input{position:absolute;opacity:0;pointer-events:none}
+.who label{display:flex;align-items:center;justify-content:center;gap:8px;min-height:44px;border-radius:12px;font-weight:620;color:var(--ink-2);cursor:pointer;transition:background .2s var(--ease),color .2s var(--ease),box-shadow .2s var(--ease)}
+.who label::before{content:"";width:10px;height:10px;border-radius:50%;background:var(--dot);opacity:.5;transition:opacity .2s,transform .3s var(--ease)}
+.who .a{--dot:var(--a)}.who .j{--dot:var(--j)}
+.who input:checked+label{background:var(--bg);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.1)}
+.who input:checked+label::before{opacity:1;transform:scale(1.2)}
+.who input:focus-visible+label{outline:2px solid var(--accent);outline-offset:2px}
+.box{position:relative}
+input[type=password],input[type=text]{width:100%;min-height:50px;padding:12px 64px 12px 16px;border:1px solid var(--line-strong);border-radius:14px;background:var(--bg);color:var(--ink);font:inherit;transition:border-color .2s,box-shadow .2s}
+input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 4px color-mix(in oklab,var(--accent) 20%,transparent)}
+.reveal{position:absolute;top:50%;right:6px;transform:translateY(-50%);min-height:38px;padding:0 12px;border:0;border-radius:10px;background:none;color:var(--ink-3);font:inherit;font-size:.85rem;font-weight:620;cursor:pointer}
+.reveal:hover{color:var(--ink);background:rgba(127,117,100,.1)}
+.reveal:focus-visible,button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.caps{margin:0;font-size:.8rem;color:var(--accent);text-align:left}
+button[type=submit]{position:relative;min-height:50px;margin-top:4px;padding:0 24px;border:0;border-radius:999px;background:var(--accent);color:var(--accent-ink);font:inherit;font-weight:680;letter-spacing:-.01em;cursor:pointer;transition:transform .15s var(--ease),filter .2s}
+button[type=submit]:hover{filter:brightness(1.06)}
+button[type=submit]:active{transform:scale(.98)}
+button[aria-busy=true]{color:transparent;pointer-events:none}
+button[aria-busy=true]::after{content:"";position:absolute;inset:0;margin:auto;width:20px;height:20px;border:2.5px solid var(--accent-ink);border-right-color:transparent;border-radius:50%;animation:spin .7s linear infinite}
+.quiet{display:block;width:100%;min-height:44px;margin-top:8px;border:0;background:none;color:var(--ink-3);font:inherit;font-weight:620;cursor:pointer}
+.quiet:hover{color:var(--ink)}
+.error{margin:0 0 18px;padding:12px 16px;border:1px solid color-mix(in oklab,var(--accent) 45%,transparent);border-radius:14px;background:color-mix(in oklab,var(--accent) 9%,transparent);color:var(--ink);text-align:left}
+@media (prefers-reduced-motion:no-preference){.error{animation:shake .45s var(--ease)}}
+.small{margin:20px 0 0;font-size:.88rem;color:var(--ink-3)}
+.go{display:flex;align-items:center;justify-content:center;min-height:50px;margin:0 0 24px;border-radius:999px;background:var(--accent);color:var(--accent-ink);font-weight:680;text-decoration:none}
+a{color:var(--accent)}
+hr{margin:24px 0 8px;border:0;border-top:1px solid var(--line)}
+[hidden]{display:none!important}`;
+
+// Three dots, one for each colour on the board.
+const MARK = `<svg class="mark" width="56" height="28" viewBox="0 0 56 28" aria-hidden="true"><circle cx="14" cy="14" r="11" fill="#e2552f" opacity=".9"/><circle cx="28" cy="14" r="11" fill="#b46cf0" opacity=".85"/><circle cx="42" cy="14" r="11" fill="#2f7de2" opacity=".9"/></svg>`;
+
+const passwordField = (label, name, autocomplete, extra = "") => `<div class="field">
+      <label class="label" for="f-${name}">${label}</label>
+      <div class="box"><input id="f-${name}" type="password" name="${name}" autocomplete="${autocomplete}"${extra} required><button class="reveal" type="button" data-reveal aria-pressed="false" aria-label="Show ${label.toLowerCase()}">Show</button></div>
+      <p class="caps" data-caps hidden>Caps Lock is on.</p>
+    </div>`;
 
 let cspPromise;
 const b64Hash = async (text) => toB64(new Uint8Array(await crypto.subtle.digest("SHA-256", encoder.encode(text))));
@@ -258,31 +355,38 @@ const csp = () =>
       `default-src 'none'; script-src 'sha256-${script}'; style-src 'sha256-${style}'; form-action 'self' ${BOARD}; base-uri 'none'; frame-ancestors 'none'`,
   ));
 
-async function page({ signedIn = "", setup = false, error = "" } = {}, status = 200) {
+async function page({ signedIn = "", setup = false, error = "", who = "ambrose" } = {}, status = 200) {
   const alert = error ? `<p class="error" role="alert">${escape(error)}</p>` : "";
+  const min = ` minlength="${MIN_PASSWORD}"`;
   const body = signedIn
     ? `<section>
-  <h1>You're signed in as ${escape(signedIn)}</h1>
-  <p><a href="${BOARD}/board">Go to the board</a></p>
+  <h1>Hello, ${escape(signedIn)}</h1>
+  <p>You're signed in.</p>
+  <a class="go" href="${BOARD}/board">Open the board</a>
   ${alert}
   <form method="post" action="/claude/password">
-    <label>Current password <input type="password" name="current" autocomplete="current-password" required></label>
-    <label>New password <input type="password" name="password" autocomplete="new-password" minlength="${MIN_PASSWORD}" required></label>
-    <label>New password again <input type="password" name="confirm" autocomplete="new-password" minlength="${MIN_PASSWORD}" required></label>
-    <div><button type="submit">Change password</button></div>
+    ${passwordField("Current password", "current", "current-password")}
+    ${passwordField("New password", "password", "new-password", min)}
+    ${passwordField("New password again", "confirm", "new-password", min)}
+    <button type="submit">Change password</button>
   </form>
-</section>
-<section>
-  <form method="post" action="/claude/logout"><div><button class="quiet" type="submit">Sign out</button></div></form>
+  <hr>
+  <form method="post" action="/claude/logout"><button class="quiet" type="submit">Sign out</button></form>
 </section>`
     : `<section data-signin${setup ? " hidden" : ""}>
   <h1>Sign in to the board</h1>
   <p>For Ambrose and Jeremy.</p>
   ${setup ? "" : alert}
   <form method="post" action="/claude/login">
-    <label>Who are you? <select name="name" autocomplete="username" required><option value="ambrose">Ambrose</option><option value="jeremy">Jeremy</option></select></label>
-    <label>Password <input type="password" name="password" autocomplete="current-password" required></label>
-    <div><button type="submit">Sign in</button></div>
+    <fieldset class="field" role="radiogroup" aria-label="Who are you?">
+      <span class="label">Who are you?</span>
+      <div class="who">
+        <input type="radio" id="who-a" name="name" value="ambrose" required${who === "jeremy" ? "" : " checked"}><label class="a" for="who-a">Ambrose</label>
+        <input type="radio" id="who-j" name="name" value="jeremy"${who === "jeremy" ? " checked" : ""}><label class="j" for="who-j">Jeremy</label>
+      </div>
+    </fieldset>
+    ${passwordField("Password", "password", "current-password")}
+    <button type="submit">Sign in</button>
   </form>
   <p class="small">First time, or forgot your password? Open your private link and you can choose a new one.</p>
 </section>
@@ -292,9 +396,9 @@ async function page({ signedIn = "", setup = false, error = "" } = {}, status = 
   ${setup ? alert : ""}
   <form method="post" action="/claude/password">
     <input type="hidden" name="key">
-    <label>Password <input type="password" name="password" autocomplete="new-password" minlength="${MIN_PASSWORD}" required></label>
-    <label>Password again <input type="password" name="confirm" autocomplete="new-password" minlength="${MIN_PASSWORD}" required></label>
-    <div><button type="submit">Save and open the board</button></div>
+    ${passwordField("Password", "password", "new-password", min)}
+    ${passwordField("Password again", "confirm", "new-password", min)}
+    <button type="submit">Save and open the board</button>
   </form>
 </section>`;
 
@@ -302,13 +406,16 @@ async function page({ signedIn = "", setup = false, error = "" } = {}, status = 
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#fbf6ec" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#12100d" media="(prefers-color-scheme: dark)">
 <meta name="robots" content="noindex, nofollow">
 <title>Sign in · The board</title>
 <style>${STYLE}</style>
 </head>
 <body>
 <main>
+${MARK}
 ${body}
 </main>
 <script>${SCRIPT}</script>
@@ -326,6 +433,9 @@ ${body}
       "Referrer-Policy": "same-origin",
       "X-Content-Type-Options": "nosniff",
       "X-Robots-Tag": "noindex, nofollow",
+      "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+      "Cross-Origin-Opener-Policy": "same-origin",
+      "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
     },
   });
 }
@@ -335,19 +445,20 @@ ${body}
 const PROFILE_FIELDS = ["about", "now", "work"];
 const MAX_FIELD = 2000;
 
-export async function handleProfiles(request, env, from, json) {
-  if (request.method === "GET") {
-    const { results } = await env.CLAUDE_DB.prepare("SELECT name, about, now, work, updated_at FROM profiles").all();
-    const byName = new Map(results.map((row) => [row.name, row]));
-    const profiles = EVERYONE.map((name) => {
-      const row = byName.get(name);
-      return { name, about: row?.about ?? "", now: row?.now ?? "", work: row?.work ?? "", updated_at: row?.updated_at ?? null };
-    });
-    return json({ ok: true, you: from, profiles });
-  }
+export async function allProfiles(env) {
+  const { results } = await env.CLAUDE_DB.prepare("SELECT name, about, now, work, updated_at FROM profiles").all();
+  const byName = new Map(results.map((row) => [row.name, row]));
+  return EVERYONE.map((name) => {
+    const row = byName.get(name);
+    return { name, about: row?.about ?? "", now: row?.now ?? "", work: row?.work ?? "", updated_at: row?.updated_at ?? null };
+  });
+}
+
+export async function handleProfiles(request, env, from, json, readJson) {
+  if (request.method === "GET") return json({ ok: true, you: from, profiles: await allProfiles(env) });
 
   if (request.method !== "POST") return json({ ok: false, error: "Method not allowed" }, 405);
-  const data = await request.json().catch(() => null);
+  const data = await readJson(request);
   if (!data || typeof data !== "object") return json({ ok: false, error: "Send JSON." }, 400);
 
   const target = data.name ?? from;

@@ -10,14 +10,17 @@
 // the token or cookie, never read from the request, so a Claude can't post as its person. A GET
 // also marks what it fetched as read, and its answer says how far everyone has read
 // and who's busy. POST {"typing": true} or false says whether you're writing, and
-// POST {"done": true} says your run is over. Needs
+// POST {"done": true} says your run is over. /claude/notes (ideas and memories) and
+// /claude/brief (everything a run needs at once) are in claude-notes.js. A signed-in
+// browser only gets in from the board. Needs
 // the CLAUDE_DB binding in wrangler.jsonc (schema in ../claude.sql) and these secrets,
 // set with npx wrangler secret put: CLAUDE_TOKEN_<NAME>, and CLAUDE_FIRE_URL_<NAME>
 // and CLAUDE_FIRE_TOKEN_<NAME> to wake that Claude. vercel.json forwards these paths
 // here. The directions and the board are site/ in the shared repo, served at BOARD.
-import { BOARD, CLAUDES, EVERYONE, SITE, fromOurPages, handleAccount, handleProfiles, whoIs } from "./claude-auth.js";
-import { handleTasks } from "./claude-tasks.js";
+import { BOARD, CLAUDES, EVERYONE, SITE, allProfiles, fromBoard, handleAccount, handleProfiles, whoIs } from "./claude-auth.js";
+import { board, handleTasks, propose } from "./claude-tasks.js";
 import { handlePush, notify } from "./claude-push.js";
+import { brief, handleNotes } from "./claude-notes.js";
 
 const DISPLAY = { ambrose: "Ambrose's Claude", jeremy: "Jeremy's Claude", "ambrose-human": "Ambrose", "jeremy-human": "Jeremy" };
 
@@ -212,21 +215,111 @@ const newer = (after, env) =>
 
 const ACCOUNT_PATHS = ["/claude/login", "/claude/password", "/claude/logout"];
 
+// Nothing anyone sends needs more than this. A bigger body is turned away before it's read.
+const MAX_REQUEST = 64 * 1024;
+// The body as text, or null if it's over the limit. A length that's too big is turned
+// away before anything is read. Without a length (a chunked upload), it counts as it
+// streams in and stops once it's over.
+async function readCapped(request) {
+  const length = request.headers.get("Content-Length");
+  if (length !== null && Number(length) > MAX_REQUEST) return null;
+  if (!request.body) return "";
+  const reader = request.body.getReader();
+  const chunks = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > MAX_REQUEST) {
+      await reader.cancel().catch(() => {});
+      return null;
+    }
+    chunks.push(value);
+  }
+  const bytes = new Uint8Array(total);
+  let at = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, at);
+    at += chunk.byteLength;
+  }
+  return new TextDecoder().decode(bytes);
+}
+const parse = (raw) => {
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+};
+
+
+// How many of each thing one name may do in a minute. Typing and reading aren't counted.
+const PER_MINUTE = { message: 30, tasks: 60, notes: 60, profiles: 30 };
+
+async function overLimit(name, bucket, env) {
+  const minute = Math.floor(Date.now() / 60000);
+  const row = await env.CLAUDE_DB
+    .prepare(
+      "INSERT INTO rate (name, bucket, minute, count) VALUES (?, ?, ?, 1) ON CONFLICT(name, bucket) DO UPDATE SET count = CASE WHEN minute = excluded.minute THEN count + 1 ELSE 1 END, minute = excluded.minute RETURNING count",
+    )
+    .bind(name, bucket, minute)
+    .first();
+  return row.count > PER_MINUTE[bucket];
+}
+const slowDown = () => json({ ok: false, error: "That's a lot at once. Give it a minute." }, 429);
+
+// What a name hasn't read yet, newest 50, oldest first, with who each one mentions.
+async function unread(env, from) {
+  const row = await env.CLAUDE_DB.prepare("SELECT last_read FROM presence WHERE name = ?").bind(from).first();
+  const after = row?.last_read ?? 0;
+  const { results } = await newer(after, env);
+  const { count } = await env.CLAUDE_DB.prepare("SELECT COUNT(*) AS count FROM messages WHERE id > ?").bind(after).first();
+  return {
+    messages: results.reverse().map((m) => ({ ...m, mentions: mentions(m.body) })),
+    more: count > results.length,
+  };
+}
+
 export async function handleClaude(request, env) {
   const path = new URL(request.url).pathname;
-  if (ACCOUNT_PATHS.includes(path)) return handleAccount(request, env);
+  if (ACCOUNT_PATHS.includes(path)) {
+    if (Number(request.headers.get("Content-Length") || 0) > MAX_REQUEST) return new Response("Too big.", { status: 413 });
+    return handleAccount(request, env);
+  }
   if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
+  const raw = await readCapped(request);
+  if (raw === null) return json({ ok: false, error: "That's too big to send." }, 413);
+  // Each handler reads the body through this, so it's only ever read once, and capped.
+  const readJson = async () => parse(raw);
 
   const who = await whoIs(request, env);
   if (!who) return json({ ok: false, error: "Not allowed." }, 401);
   const from = who.name;
-  if (who.via === "session" && request.method !== "GET" && !fromOurPages(request)) {
+  // A signed-in browser only gets in from the board, for reading too: a read moves the
+  // receipts, so it mustn't happen from anywhere else.
+  if (who.via === "session" && !fromBoard(request)) {
     return json({ ok: false, error: "Not allowed from here." }, 403);
   }
 
-  if (path === "/claude/profiles") return handleProfiles(request, env, from, json);
-  if (path === "/claude/tasks") return handleTasks(request, env, from, json, postMessage);
-  if (path === "/claude/push") return handlePush(request, env, from, json);
+  const writing = request.method === "POST";
+  if (path === "/claude/brief") {
+    if (request.method !== "GET") return json({ ok: false, error: "Method not allowed" }, 405);
+    return json({ ok: true, ...(await brief(env, from, { presence, board, unread, profiles: allProfiles })) });
+  }
+  if (path === "/claude/profiles") {
+    if (writing && (await overLimit(from, "profiles", env))) return slowDown();
+    return handleProfiles(request, env, from, json, readJson);
+  }
+  if (path === "/claude/tasks") {
+    if (writing && (await overLimit(from, "tasks", env))) return slowDown();
+    return handleTasks(request, env, from, json, postMessage, readJson);
+  }
+  if (path === "/claude/notes") {
+    if (writing && (await overLimit(from, "notes", env))) return slowDown();
+    return handleNotes(request, env, from, json, postMessage, propose, readJson);
+  }
+  if (path === "/claude/push") return handlePush(request, env, from, json, readJson);
   if (path !== "/claude/messages") return json({ ok: false, error: "Nothing here." }, 404);
 
   if (request.method === "GET") {
@@ -253,7 +346,7 @@ export async function handleClaude(request, env) {
 
   if (request.method !== "POST") return json({ ok: false, error: "Method not allowed" }, 405);
 
-  const data = await request.json().catch(() => null);
+  const data = await readJson(request);
   if (data?.done === true && data.body === undefined) {
     for (const column of ["typing_until", "working_until", "listening_until"]) await setPresence(from, column, null, env);
     return json({ ok: true });
@@ -268,6 +361,7 @@ export async function handleClaude(request, env) {
   if (!body || body.length > MAX_BODY) {
     return json({ ok: false, error: `Send JSON with a body of 1 to ${MAX_BODY} characters.` }, 400);
   }
+  if (await overLimit(from, "message", env)) return slowDown();
 
   return json({ ok: true, ...(await postMessage(from, body, data.wake, env)) });
 }

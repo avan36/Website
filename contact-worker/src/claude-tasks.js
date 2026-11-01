@@ -13,6 +13,8 @@ import { CLAUDES, PEOPLE } from "./claude-auth.js";
 const MAX_TITLE = 200;
 const MAX_TEXT = 4000;
 const MAX_TASKS = 30;
+const MAX_HANDOFF = 2000;
+const MAX_TASKS_PER_PROJECT = 60;
 const PR = /^https:\/\/github\.com\/[\w.-]+\/[\w.-]+\/pull\/\d+$/;
 const LINK = /^https:\/\/[^\s<>"]+$/;
 
@@ -73,7 +75,7 @@ const setProject = (env, projectId, fields) => {
     .run();
 };
 
-async function board(env, from) {
+export async function board(env, from) {
   const { results: projects } = await env.CLAUDE_DB.prepare("SELECT * FROM projects ORDER BY id").all();
   const { results: tasks } = await env.CLAUDE_DB.prepare("SELECT * FROM tasks ORDER BY id").all();
   const active = new Set(projects.filter((p) => p.status === "active").map((p) => p.id));
@@ -138,6 +140,8 @@ const actions = {
     const p = await project(env, id(data.project, "project"));
     if (!["proposed", "active"].includes(p.status)) refuse(409, `Project ${p.id} is ${p.status}, so it takes no new tasks.`);
     if (p.status === "proposed" && p.proposed_by !== from) refuse(403, "Only whoever proposed it can add tasks before it's approved.");
+    const { count } = await env.CLAUDE_DB.prepare("SELECT COUNT(*) AS count FROM tasks WHERE project_id = ?").bind(p.id).first();
+    if (count >= MAX_TASKS_PER_PROJECT) refuse(409, `Project ${p.id} already has ${MAX_TASKS_PER_PROJECT} tasks.`);
     await addTasks(env, p.id, [{ title: data.title, detail: data.detail }], from);
     const { id: taskId } = await env.CLAUDE_DB.prepare("SELECT MAX(id) AS id FROM tasks").first();
     return { task: taskId };
@@ -162,21 +166,36 @@ const actions = {
 
   // Owners move their own tasks. Review needs the pull request, and wakes the other
   // Claude to review it. Anyone can mark a task in review as done once it's merged.
+  // Tasks only move forward through claimed, review and done, or back to open, and only
+  // in an active project. Reopening a finished task is for Ambrose and Jeremy.
+  // A "note" leaves a hand-off on the task: where you stopped and what's left. It can
+  // come with a status, or on its own.
   async update(data, from, env, post) {
     const t = await task(env, id(data.task, "task"));
+    const p = await project(env, t.project_id);
+    if (p.status !== "active") refuse(409, `Project ${p.id} is ${p.status}, so its tasks don't move.`);
     const status = data.status;
     const mine = t.owner === from || PEOPLE.includes(from);
+    const note = data.note === undefined ? null : text(data.note, "note", MAX_HANDOFF);
+    if (note !== null) {
+      if (!mine && t.owner) refuse(403, "Only whoever claimed it can leave its hand-off note.");
+      await env.CLAUDE_DB.prepare("UPDATE tasks SET handoff = ?, updated_at = ? WHERE id = ?").bind(note, now(), t.id).run();
+      if (status === undefined) return { task: t.id, status: t.status, handoff: note };
+    }
     if (status === "open") {
       if (!mine) refuse(403, "Only whoever claimed it can let it go.");
+      if (t.status === "done" && !PEOPLE.includes(from)) refuse(403, "Only Ambrose or Jeremy can reopen a finished task.");
       await env.CLAUDE_DB.prepare("UPDATE tasks SET status = 'open', owner = NULL, updated_at = ? WHERE id = ?").bind(now(), t.id).run();
     } else if (status === "review") {
       if (!mine) refuse(403, "Only whoever claimed it can send it for review.");
+      if (!["claimed", "review"].includes(t.status)) refuse(409, `Task ${t.id} is ${t.status}. Claim it first.`);
       const pr = text(data.pr ?? t.pr, "pr", 300);
       if (!PR.test(pr)) refuse(400, "pr must be a GitHub pull request link.");
       await env.CLAUDE_DB.prepare("UPDATE tasks SET status = 'review', pr = ?, updated_at = ? WHERE id = ?").bind(pr, now(), t.id).run();
       const reviewers = CLAUDES.includes(from) ? otherClaudes(from) : CLAUDES;
       await post(from, `Ready for review, task ${t.id}: ${t.title}\n${pr}\n${reviewers.map(handle).join(" ")} please review, and approve it on GitHub if it's good.`, undefined, env);
     } else if (status === "done") {
+      if (t.status === "open") refuse(409, `Task ${t.id} is open. Claim it first.`);
       if (!mine && t.status !== "review") refuse(403, "Only whoever claimed it can finish it before review.");
       await env.CLAUDE_DB.prepare("UPDATE tasks SET status = 'done', updated_at = ? WHERE id = ?").bind(now(), t.id).run();
     } else {
@@ -202,10 +221,13 @@ const actions = {
   },
 };
 
-export async function handleTasks(request, env, from, json, post) {
+// So an idea on the notes board can become a project the same way.
+export const propose = (data, from, env, post) => actions.propose(data, from, env, post);
+
+export async function handleTasks(request, env, from, json, post, readJson) {
   if (request.method === "GET") return json({ ok: true, you: from, ...(await board(env, from)) });
   if (request.method !== "POST") return json({ ok: false, error: "Method not allowed" }, 405);
-  const data = await request.json().catch(() => null);
+  const data = await readJson(request);
   const action = actions[data?.action];
   if (!action || !Object.hasOwn(actions, data.action)) {
     return json({ ok: false, error: `action must be one of: ${Object.keys(actions).join(", ")}.` }, 400);
