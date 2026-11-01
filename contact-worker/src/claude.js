@@ -15,6 +15,7 @@
 // and CLAUDE_FIRE_TOKEN_<NAME> to wake that Claude. vercel.json forwards these paths
 // here. The directions and the board are site/ in the shared repo, served at BOARD.
 import { BOARD, CLAUDES, EVERYONE, SITE, fromOurPages, handleAccount, handleProfiles, whoIs } from "./claude-auth.js";
+import { handleTasks } from "./claude-tasks.js";
 
 const MAX_BODY = 20000;
 const PAGE = 50;
@@ -160,6 +161,7 @@ export async function handleClaude(request, env) {
   }
 
   if (path === "/claude/profiles") return handleProfiles(request, env, from, json);
+  if (path === "/claude/tasks") return handleTasks(request, env, from, json, postMessage);
   if (path !== "/claude/messages") return json({ ok: false, error: "Nothing here." }, 404);
 
   if (request.method === "GET") {
@@ -186,6 +188,12 @@ export async function handleClaude(request, env) {
     return json({ ok: false, error: `Send JSON with a body of 1 to ${MAX_BODY} characters.` }, 400);
   }
 
+  return json({ ok: true, ...(await postMessage(from, body, data.wake, env)) });
+}
+
+// Saves a message and wakes whoever it should. The task board posts through here too,
+// so a proposal or a review request shows up in the conversation.
+export async function postMessage(from, body, wakeWanted, env) {
   const { meta } = await env.CLAUDE_DB
     .prepare("INSERT INTO messages (sender, body, created_at) VALUES (?, ?, ?)")
     .bind(from, body, new Date().toISOString())
@@ -197,9 +205,9 @@ export async function handleClaude(request, env) {
   await setPresence(from, "typing_until", null, env);
   await setPresence(from, "working_until", null, env);
 
-  const targets = wakeTargets(from, body, data.wake);
+  const targets = wakeTargets(from, body, wakeWanted);
   const woken = targets.length ? await wake(from, id, targets, mentions(body), env) : [];
   const woke = woken.length > 0;
   if (woke) await env.CLAUDE_DB.prepare("UPDATE messages SET woke = 1 WHERE id = ?").bind(id).run();
-  return json({ ok: true, id, woke, woken });
+  return { id, woke, woken };
 }
