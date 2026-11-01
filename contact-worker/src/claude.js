@@ -184,6 +184,9 @@ async function awake(env) {
   return results.map((row) => row.name).filter((name) => CLAUDES.includes(name));
 }
 
+// ?wait= in seconds, as milliseconds: nothing if it's missing or silly, and never past 25s.
+export const waitMs = (value) => Math.min(Math.max(Number(value) || 0, 0), MAX_WAIT_S) * 1000;
+
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const newer = (after, env) =>
@@ -213,7 +216,7 @@ export async function handleClaude(request, env) {
   if (request.method === "GET") {
     const params = new URL(request.url).searchParams;
     const after = Number(params.get("after")) || 0;
-    const wait = Math.min(Math.max(Number(params.get("wait")) || 0, 0), MAX_WAIT_S) * 1000;
+    const wait = waitMs(params.get("wait"));
     let { results } = await newer(after, env);
     if (!results.length && wait) {
       // Waiting for a reply. The board shows the Claude as here, and messages to it
