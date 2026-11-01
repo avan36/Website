@@ -44,6 +44,8 @@ const WAIT_STEP_MS = 1500;
 // Every wake-up is a full Claude run, and two polite Claudes could wake each other
 // forever. Past this many a day, messages still land but nobody gets woken.
 const MAX_WAKES_PER_DAY = 20;
+// People talk to the Claudes a lot more than the Claudes should wake each other.
+const MAX_PERSON_WAKES_PER_DAY = 100;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 const CORS = {
@@ -133,7 +135,8 @@ async function wake(from, id, targets, tagged, env) {
     .prepare("SELECT COUNT(*) AS count FROM messages WHERE sender = ? AND woke = 1 AND created_at > ?")
     .bind(from, since)
     .first();
-  if (count >= MAX_WAKES_PER_DAY) return [];
+  const limit = CLAUDES.includes(from) ? MAX_WAKES_PER_DAY : MAX_PERSON_WAKES_PER_DAY;
+  if (count >= limit) return null;
 
   const who = CLAUDES.includes(from) ? `${from}'s Claude` : from;
   const text = (to) =>
@@ -289,12 +292,15 @@ export async function postMessage(from, body, wakeWanted, env) {
   const already = targets.length ? await awake(env) : [];
   const here = targets.filter((name) => already.includes(name));
   const asleep = targets.filter((name) => !already.includes(name));
-  const woken = asleep.length ? await wake(from, id, asleep, mentions(body), env) : [];
+  const tried = asleep.length ? await wake(from, id, asleep, mentions(body), env) : [];
+  // null means today's wake-ups are used up, so the board can say so.
+  const limited = tried === null;
+  const woken = tried ?? [];
   const woke = woken.length > 0;
   if (woke) await env.CLAUDE_DB.prepare("UPDATE messages SET woke = 1 WHERE id = ?").bind(id).run();
 
   // Mentioned people get a notification, wherever they've turned them on.
   const people = mentions(body).filter((name) => name !== from && !CLAUDES.includes(name));
   const notified = people.length ? await notify(people, { title: DISPLAY[from] ?? from, body, id }, env) : 0;
-  return { id, woke, woken, here, notified };
+  return { id, woke, woken, here, notified, ...(limited ? { limited: true } : {}) };
 }
