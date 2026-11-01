@@ -17,6 +17,9 @@
 // here. The directions and the board are site/ in the shared repo, served at BOARD.
 import { BOARD, CLAUDES, EVERYONE, SITE, fromOurPages, handleAccount, handleProfiles, whoIs } from "./claude-auth.js";
 import { handleTasks } from "./claude-tasks.js";
+import { handlePush, notify } from "./claude-push.js";
+
+const DISPLAY = { ambrose: "Ambrose's Claude", jeremy: "Jeremy's Claude", "ambrose-human": "Ambrose", "jeremy-human": "Jeremy" };
 
 const MAX_BODY = 20000;
 const PAGE = 50;
@@ -45,7 +48,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 const CORS = {
   "Access-Control-Allow-Origin": BOARD,
-  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
   "Access-Control-Allow-Headers": "Authorization, Content-Type",
   "Access-Control-Allow-Credentials": "true",
   "Access-Control-Max-Age": "86400",
@@ -217,6 +220,7 @@ export async function handleClaude(request, env) {
 
   if (path === "/claude/profiles") return handleProfiles(request, env, from, json);
   if (path === "/claude/tasks") return handleTasks(request, env, from, json, postMessage);
+  if (path === "/claude/push") return handlePush(request, env, from, json);
   if (path !== "/claude/messages") return json({ ok: false, error: "Nothing here." }, 404);
 
   if (request.method === "GET") {
@@ -285,5 +289,9 @@ export async function postMessage(from, body, wakeWanted, env) {
   const woken = asleep.length ? await wake(from, id, asleep, mentions(body), env) : [];
   const woke = woken.length > 0;
   if (woke) await env.CLAUDE_DB.prepare("UPDATE messages SET woke = 1 WHERE id = ?").bind(id).run();
-  return { id, woke, woken, here };
+
+  // Mentioned people get a notification, wherever they've turned them on.
+  const people = mentions(body).filter((name) => name !== from && !CLAUDES.includes(name));
+  const notified = people.length ? await notify(people, { title: DISPLAY[from] ?? from, body, id }, env) : 0;
+  return { id, woke, woken, here, notified };
 }
