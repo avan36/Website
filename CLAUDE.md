@@ -46,7 +46,10 @@ When you add or change something a visitor can see or do, update the docs that d
 
 ## Deploying the Worker and the lab
 
-Cloud sessions can't log in to Cloudflare, so Ambrose deploys from his Mac. His copies for
+A merge to `main` that touches `contact-worker/` deploys the Worker by itself
+(`.github/workflows/deploy-worker.yml`, once the repo has the `CLOUDFLARE_API_TOKEN` and
+`CLOUDFLARE_ACCOUNT_ID` secrets). To deploy by hand, Ambrose uses his Mac, since cloud
+sessions can't log in to Cloudflare. His copies for
 that are in `~/claude-deploy/` (cloned with `--depth 1`), not in his home folder:
 
 ```sh
