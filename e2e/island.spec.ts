@@ -309,6 +309,18 @@ test.describe('3D island', () => {
     });
     expect(after.held).toBe(false);
     expect(after.v).toBeGreaterThan(0);
+    // It's solid: dropped in the middle of it, you end up beside it, not inside.
+    const beside = await page.evaluate(() => {
+      const d = (window as DebugWindow).__island!.debug;
+      const b = d.bus()!;
+      d.teleport(b.x, b.z);
+      d.tick(0.1);
+      const p = d.player();
+      const now = d.bus()!;
+      // How far you are from its middle, across it.
+      return Math.abs((p.x - now.x) * Math.cos(now.yaw) - (p.z - now.z) * Math.sin(now.yaw));
+    });
+    expect(beside, 'pushed out to its side').toBeGreaterThan(0.9);
     expect(errors).toEqual([]);
   });
 

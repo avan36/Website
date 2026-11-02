@@ -8,6 +8,7 @@
 // pair, so it leans round the bends like a real one.
 
 import type { Geo } from './geo';
+import { boxAt, type Box } from './solid';
 
 /** How long the bus is, nose to tail, and how far apart its axles are. */
 export const BUS_LEN = 4.4;
@@ -87,13 +88,10 @@ export function createBus(geo: Geo) {
       const b = road.at(s - BUS_AXLES / 2);
       return { x: (f.x + b.x) / 2, z: (f.z + b.z) / 2, yaw: Math.atan2(f.x - b.x, f.z - b.z), front: { x: f.x, z: f.z }, back: { x: b.x, z: b.z } };
     },
-    /** Its body as three circles down its length, for the explorer to bump into. */
-    body() {
+    /** Its body as a solid box, nose to tail, for the explorer to bump into. Null without a road. */
+    body(): Box | null {
       const p = this.pose();
-      if (!p) return [];
-      const ux = Math.sin(p.yaw);
-      const uz = Math.cos(p.yaw);
-      return [-1.45, 0, 1.45].map((t) => ({ x: p.x + ux * t, z: p.z + uz * t, r: BUS_W / 2 + 0.05 }));
+      return p ? boxAt(p, BUS_LEN, BUS_W + 0.1) : null;
     },
     state: () => ({ s, v, dwell: Math.max(0, dwell), atStop: atStop(), held }),
   };

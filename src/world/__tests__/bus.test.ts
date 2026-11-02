@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { BUS_LEN, createBus, DWELL } from '../bus';
 import { createGeo } from '../geo';
 import { checkWorld } from '../schema';
+import { touches } from '../solid';
 import { world } from './fixtures';
 
 const geo = createGeo(world());
@@ -102,13 +103,19 @@ describe('the London bus', () => {
     expect(b.state().v).toBeGreaterThan(0);
   });
 
-  it('gives the explorer a body to bump into, down its length', () => {
+  it("is solid nose to tail, so you can't walk through it", () => {
     const b = createBus(geo);
     const p = b.pose()!;
-    const body = b.body();
-    expect(body).toHaveLength(3);
-    expect(Math.hypot(body[1].x - p.x, body[1].z - p.z)).toBeLessThan(1e-9);
-    expect(Math.hypot(body[2].x - body[0].x, body[2].z - body[0].z)).toBeCloseTo(2.9, 5);
+    const body = b.body()!;
+    expect(Math.hypot(body.x - p.x, body.z - p.z)).toBeLessThan(1e-9);
+    expect(body.yaw).toBe(p.yaw);
+    expect(body.along * 2).toBe(BUS_LEN);
+    // Every point down its middle, from the nose to the tail, is inside it.
+    const ux = Math.sin(p.yaw);
+    const uz = Math.cos(p.yaw);
+    for (let t = -BUS_LEN / 2 + 0.05; t < BUS_LEN / 2; t += 0.1) {
+      expect(touches(p.x + ux * t, p.z + uz * t, body, 0)).toBe(true);
+    }
   });
 });
 

@@ -9,9 +9,12 @@
 // so the cars bend round the curves one after another.
 
 import type { Geo } from './geo';
+import { boxAt, type Box } from './solid';
 
 export const CAR_LEN = 3.3;
 export const CAR_GAP = 0.25;
+/** How wide a car is (for the explorer to bump into). */
+export const CAR_W = 1.12;
 /** Cars, front to back: a locomotive, a two-deck coach and a cab car. */
 export const CARS = ['loco', 'coach', 'cab'] as const;
 export type CarKind = (typeof CARS)[number];
@@ -85,6 +88,10 @@ export function createTrain(geo: Geo) {
         const b = rail.at(mid - CAR_LEN * 0.32);
         return { kind, x: (f.x + b.x) / 2, z: (f.z + b.z) / 2, yaw: Math.atan2(f.x - b.x, f.z - b.z) };
       });
+    },
+    /** Each car as a solid box, for the explorer to bump into. They overlap a little, so there's no squeezing between them. */
+    body(): Box[] {
+      return this.cars().map((c) => boxAt(c, CAR_LEN + CAR_GAP * 2, CAR_W));
     },
     state: () => ({ s, v, dwell: Math.max(0, dwell), atStation: atPlatform() }),
   };

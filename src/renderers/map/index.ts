@@ -39,6 +39,7 @@ import { paintRoom, type MapRoom } from './room';
 import { busStop, drawBus, drawTrain, shelter } from './commute';
 import { daylight, pageClock } from '../../world/clock';
 import { createTrain } from '../../world/train';
+import { pushOut, touches, type Box } from '../../world/solid';
 import { createBus } from '../../world/bus';
 import { holdable } from '../hold';
 
@@ -213,7 +214,7 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
   // FOSS HILL's letters below the lighthouse, and the small flag on the hilltop.
   const fossHill = layoutFossHill(geo);
   for (const b of fossHill.blocks) stampCircle(b.x, b.z, b.r + BODY_R * 0.5);
-  // The station's shelter and the bus stop stand in the way too (the bus itself only waits for you, like the train).
+  // The station's shelter and the bus stop stand in the way too (the train and the bus are solid as they move: see canStand).
   const stopAt = geo.busStop?.shelter ?? null;
   if (stopAt) stampCircle(stopAt.x, stopAt.z, 0.7 + BODY_R);
   const shelterAt = geo.station && geo.rail ? (() => {
@@ -233,10 +234,15 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
     const j = tj(z);
     return i >= 0 && j >= 0 && i < W && j < H ? terrain.water[j * W + i] : 0;
   };
+  /** The train's cars and the bus, solid where they are this frame (refreshed each time they move). */
+  let vehicles: Box[] = [];
+  const inVehicle = (x: number, z: number) => vehicles.some((v) => touches(x, z, v, BODY_R));
   /** Can the explorer move here from where it is now? */
   const canStand = (x: number, z: number) => {
     const b = blockedAt(x, z);
     if (b === 1) return false;
+    // You walk round the train and the bus, never through them (and if one's on top of you, you can step out).
+    if (inVehicle(x, z) && !inVehicle(pos.x, pos.z)) return false;
     // The water by the pier: only in the air, or swimming out of it after landing there.
     if (b === 2 && !jump.air && blockedAt(pos.x, pos.z) !== 2) return false;
     // Out of deep water you climb out through the shallows, never straight up onto the deck.
@@ -2157,6 +2163,13 @@ export async function mount(ctx: RendererContext): Promise<RendererHandle> {
     }
     train.update(dt, commuting, pos);
     bus.update(dt, pos);
+    // They're solid: if one comes up against you, it nudges you aside (wherever you can stand).
+    const busBody = bus.body();
+    vehicles = busBody ? [...train.body(), busBody] : train.body();
+    for (const v of vehicles) {
+      const out = pushOut(pos.x, pos.z, v, BODY_R);
+      if (out && blockedAt(out.x, out.z) === 0) (pos.x = out.x), (pos.z = out.z);
+    }
     nightK = motion ? Math.max(0, Math.min(1, nightK + Math.max(-dt * 1.6, Math.min(dt * 1.6, nightGoal - nightK)))) : nightGoal; // eases to a goal that can be anywhere in 0..1 at dusk
     aimCamera();
     // With a room open the camera's on the room (see view()); `cam` keeps its place outside, for the way back.

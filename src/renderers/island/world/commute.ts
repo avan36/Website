@@ -24,16 +24,16 @@ import {
   type Object3D,
 } from 'three';
 import { readGeo } from '../../../world/client';
-import { CAR_LEN, CARS, createTrain, type CarKind } from '../../../world/train';
+import { CAR_LEN, CAR_W, CARS, createTrain, type CarKind } from '../../../world/train';
 import type { Glow } from '../landmarks/builders';
 import { Kit } from './kit';
+import type { Collider } from './nature';
 import { smoothstep } from '../util/math';
 
 const geo = readGeo();
 
 /** Half the distance between the rails. */
 const GAUGE = 0.5;
-const CAR_W = 1.12;
 
 const SILVER = '#c9ced4';
 const SILVER_DARK = '#9aa1aa';
@@ -317,17 +317,22 @@ export function buildCommute() {
 
   // ---------- Running the train ----------
   const train = createTrain(geo);
+  /** The train's body, a solid box per car, moved along with it each frame. */
+  const body: Collider[] = cars.map(() => ({ x: 0, z: 0, r: 0, box: { x: 0, z: 0, yaw: 0, along: 0, across: 0 } }));
   const place = () => {
     train.cars().forEach((c, i) => {
       cars[i].position.set(c.x, bedY + 0.12, c.z);
       cars[i].rotation.y = c.yaw;
     });
+    train.body().forEach((box, i) => body[i] && Object.assign(body[i], { x: box.x, z: box.z, box }));
   };
   place();
 
   return {
     group,
     colliders,
+    /** The train itself: a solid box per car that moves with it (add them to the colliders once; they're updated in place). */
+    body,
     /** Lamps on the platform and the quay (for the night's halos). */
     glows: () => ({ halos, pools }),
     /** Darkness, 0 (day) to 1 (night): the windows warm up. */

@@ -7,6 +7,7 @@
 // wardrobe (a hat, glasses, a scarf in another color, a vest) is built here
 // from a few primitives.
 
+import { pushOut } from '../../world/solid';
 import {
   BoxGeometry,
   CanvasTexture,
@@ -712,6 +713,11 @@ export class Explorer {
     let nz = this.pos.z + this.vel.y * dt;
     for (let pass = 0; pass < 2; pass++) {
       for (const c of colliders) {
+        if (c.box) {
+          const out = pushOut(nx, nz, c.box, c.r + BODY_R);
+          if (out) (nx = out.x), (nz = out.z);
+          continue;
+        }
         const dx = nx - c.x;
         const dz = nz - c.z;
         const R = c.r + BODY_R;
