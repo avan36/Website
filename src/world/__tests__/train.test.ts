@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createGeo } from '../geo';
-import { CAR_GAP, CAR_LEN, createTrain } from '../train';
+import { pushOut, touches } from '../solid';
+import { CAR_GAP, CAR_LEN, CAR_W, createTrain } from '../train';
 import { world } from './fixtures';
 
 const geo = createGeo(world());
@@ -128,5 +129,27 @@ describe('the commuter train', () => {
         expect(gap).toBeLessThan((CAR_LEN + CAR_GAP) * 1.02);
       }
     }
+  });
+
+  it('is solid end to end, with no gap to slip through between the cars', () => {
+    const t = createTrain(geo);
+    run(t, 4, true); // out on the line, wherever that is
+    const body = t.body();
+    expect(body).toHaveLength(t.cars().length);
+    // Walk the rail from the back of the train to the front: every point is inside a car.
+    const rail = geo.rail!;
+    const len = t.cars().length * CAR_LEN + (t.cars().length - 1) * CAR_GAP;
+    const s = t.state().s;
+    for (let k = -len / 2 + 0.1; k < len / 2 - 0.1; k += 0.05) {
+      const p = rail.at(s + k);
+      expect(body.some((b) => touches(p.x, p.z, b, 0.05))).toBe(true);
+    }
+  });
+
+  it('pushes anyone standing in a car out to its side', () => {
+    const t = createTrain(geo);
+    const car = t.body()[1];
+    const out = pushOut(car.x, car.z, car, 0.5)!;
+    expect(Math.hypot(out.x - car.x, out.z - car.z)).toBeCloseTo(CAR_W / 2 + 0.5, 6);
   });
 });

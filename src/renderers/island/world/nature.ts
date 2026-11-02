@@ -2,6 +2,7 @@
 // instanced, and one shader patch makes it all sway in the breeze and pop up
 // with a staggered springy grow during the intro.
 
+import type { Box } from '../../../world/solid';
 import {
   BufferGeometry,
   Color,
@@ -30,6 +31,8 @@ export interface Collider {
   x: number;
   z: number;
   r: number;
+  /** A box instead of a circle (the bus, a train car): r then rounds its corners. Moving ones are updated in place. */
+  box?: Box;
 }
 
 /** Patch a material so its geometry sways (by height²) and grows in. */

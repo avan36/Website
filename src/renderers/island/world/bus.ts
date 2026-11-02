@@ -8,8 +8,8 @@
 // Where it all is comes from src/world/geo.ts (the road and the stop), and
 // where the bus is from src/world/bus.ts: it laps the loop, pulls in at the
 // stop for a few seconds each time round, and waits for anyone standing in
-// the road ahead. Its body is three moving circles the explorer bumps off,
-// like the people out walking, so it can nudge you aside but never trap you.
+// the road ahead. Its body is a solid box that moves with it (src/world/solid.ts):
+// it nudges you aside if it drives into you, and you can't walk through it.
 
 import { BoxGeometry as ThreeBox, Color, Group, MeshBasicMaterial, SphereGeometry } from 'three';
 import { readGeo } from '../../../world/client';
@@ -101,8 +101,8 @@ export function buildLondonBus() {
   const stop = geo.busStop;
   const glass = new MeshBasicMaterial({ vertexColors: true, color: DAY_GLASS.clone() });
   const beaconGlow = new MeshBasicMaterial({ vertexColors: true, color: '#ffffff', toneMapped: false });
-  /** The bus's body, three circles moved along with it each frame. */
-  const body: Collider[] = [0, 1, 2].map(() => ({ x: 0, z: 0, r: 0 }));
+  /** The bus's body, a solid box moved along with it each frame. */
+  const body: Collider[] = [{ x: 0, z: 0, r: 0, box: { x: 0, z: 0, yaw: 0, along: 0, across: 0 } }];
   if (!road || !stop) return { group, colliders, body, glows: () => ({ halos, pools }), night() {}, update() {}, state: () => null };
 
   const y = geo.heightAt(road.points[0].x, road.points[0].z);
@@ -190,7 +190,8 @@ export function buildLondonBus() {
     if (!p) return;
     mesh.position.set(p.x, y + 0.045, p.z);
     mesh.rotation.y = p.yaw;
-    bus.body().forEach((c, i) => Object.assign(body[i], c));
+    const box = bus.body();
+    if (box) Object.assign(body[0], { x: box.x, z: box.z, box });
   };
   place();
 
@@ -198,7 +199,7 @@ export function buildLondonBus() {
     group,
     /** Things that stand still: the stop's shelter and sign, and the beacons. */
     colliders,
-    /** The bus itself: three circles that move with it (add them to the colliders once; they're updated in place). */
+    /** The bus itself: a solid box that moves with it (add it to the colliders once; it's updated in place). */
     body,
     /** The beacons, for the night's halos. */
     glows: () => ({ halos, pools }),

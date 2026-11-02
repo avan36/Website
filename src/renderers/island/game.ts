@@ -321,6 +321,7 @@ export async function createGame(o: GameOptions): Promise<GameHandle> {
     ...landmarks.map((l) => ({ x: l.place.x, z: l.place.z, r: l.place.radius })),
     ...landmarks.flatMap((l) => l.solids()),
     ...commute.colliders,
+    ...commute.body,
     ...bridges.colliders,
     ...london.colliders,
     ...londonBus.colliders,
