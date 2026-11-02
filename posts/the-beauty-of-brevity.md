@@ -1,5 +1,5 @@
 ---
-title: The beauty of brevity
+title: The beauty of Brevity
 date: 2026-11-02
 description: ' Why AI makes it important to write briefly.'
 ---
