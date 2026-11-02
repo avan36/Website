@@ -1,213 +1,113 @@
-# Allow real search engines to crawl and index the site, except the contact
-# page, which no robot gets. Each obeys its own
-# (most-specific) group, opting it out of the blanket "User-agent: * / Disallow: /"
-# block at the bottom.
+# Who may read this site.
+#
+# Search engines, and the search tools inside AI assistants that fetch a page
+# to answer someone's question and link back to it, get the whole site except
+# the contact page. Everyone else gets nothing: AI training crawlers, dataset
+# builders, SEO and scraping tools, and any robot not named here.
+#
+# Each robot obeys its own (most specific) group, so the named groups below
+# opt their robots out of the blanket "User-agent: * / Disallow: /" at the end.
+
+# ---------- Search engines ----------
 User-agent: Googlebot
-Allow: /
-Disallow: /contact
-
 User-agent: Googlebot-Image
-Allow: /
-Disallow: /contact
-
 User-agent: Bingbot
-Allow: /
-Disallow: /contact
-
 User-agent: DuckDuckBot
-Allow: /
-Disallow: /contact
-
 User-agent: Applebot
-Allow: /
 Disallow: /contact
+Allow: /
 
-# AI answer engines: they retrieve a page to answer a question and link back,
-# so they get the blog (/blog and /blog/<post>) and nothing else.
+# ---------- AI search tools ----------
+# They fetch a page when someone asks a question, and cite it. Not training.
+# OpenAI's ChatGPT search, and pages ChatGPT opens for a person:
 User-agent: OAI-SearchBot
-Disallow: /
-Allow: /blog$
-Allow: /blog.html
-Allow: /blog/
-
 User-agent: ChatGPT-User
-Disallow: /
-Allow: /blog$
-Allow: /blog.html
-Allow: /blog/
-
-User-agent: Perplexity
-Disallow: /
-Allow: /blog$
-Allow: /blog.html
-Allow: /blog/
-
+# Anthropic's Claude search, and pages Claude opens for a person:
+User-agent: Claude-SearchBot
+User-agent: Claude-User
+# Perplexity's search, and pages it opens for a person:
 User-agent: PerplexityBot
-Disallow: /
-Allow: /blog$
-Allow: /blog.html
-Allow: /blog/
+User-agent: Perplexity-User
+# DuckDuckGo's AI answers, and pages Mistral's Le Chat opens for a person:
+User-agent: DuckAssistBot
+User-agent: MistralAI-User
+Disallow: /contact
+Allow: /
 
-User-agent: Amazonbot
-Disallow: /
-Allow: /blog$
-Allow: /blog.html
-Allow: /blog/
-
-User-agent: Google-CloudVertexBot
-Disallow: /
-Allow: /blog$
-Allow: /blog.html
-Allow: /blog/
-
-# AI training and dataset crawlers: blocked everywhere, blog included. No
-# Allow lines here — that is the whole point of this section.
+# ---------- AI training and dataset crawlers ----------
+# Blocked everywhere, blog included.
 User-agent: GPTBot
-Disallow: /
-
-User-agent: OpenAI
-Disallow: /
-
-User-agent: GPT-3
-Disallow: /
-
-User-agent: Claude
-Disallow: /
-
 User-agent: ClaudeBot
-Disallow: /
-
 User-agent: Claude-Web
-Disallow: /
-
 User-agent: anthropic-ai
-Disallow: /
-
 User-agent: Google-Extended
-Disallow: /
-
+User-agent: GoogleOther
+User-agent: GoogleOther-Image
+User-agent: GoogleOther-Video
+User-agent: Google-CloudVertexBot
 User-agent: Applebot-Extended
-Disallow: /
-
 User-agent: Meta-ExternalAgent
-User-agent: meta-externalagent
-Disallow: /
-
-User-agent: Bytespider
-Disallow: /
-
-User-agent: CCBot
-Disallow: /
-
-User-agent: cohere-ai
-Disallow: /
-
-User-agent: Diffbot
-Disallow: /
-
-User-agent: FriendlyCrawler
-Disallow: /
-
-User-agent: ImagesiftBot
-Disallow: /
-
-User-agent: omgili
-Disallow: /
-
-User-agent: omgilibot
-Disallow: /
-
-# SEO, scraping and media-monitoring bots: not search, not training. Same deal
-# as the AI answer engines — blog only.
-User-agent: AhrefsBot
-Disallow: /
-Allow: /blog$
-Allow: /blog.html
-Allow: /blog/
-
-User-agent: SemrushBot
-Disallow: /
-Allow: /blog$
-Allow: /blog.html
-Allow: /blog/
-
-User-agent: Moz
-Disallow: /
-Allow: /blog$
-Allow: /blog.html
-Allow: /blog/
-
-User-agent: Yandex
-Disallow: /
-Allow: /blog$
-Allow: /blog.html
-Allow: /blog/
-
-User-agent: AwarioRssBot
-User-agent: AwarioSmartBot
-Disallow: /
-Allow: /blog$
-Allow: /blog.html
-Allow: /blog/
-
-User-agent: DataForSeoBot
-Disallow: /
-Allow: /blog$
-Allow: /blog.html
-Allow: /blog/
-
+User-agent: Meta-ExternalFetcher
 User-agent: FacebookBot
-Disallow: /
-Allow: /blog$
-Allow: /blog.html
-Allow: /blog/
-
-User-agent: magpie-crawler
-Disallow: /
-Allow: /blog$
-Allow: /blog.html
-Allow: /blog/
-
-User-agent: NewsNow
-Disallow: /
-Allow: /blog$
-Allow: /blog.html
-Allow: /blog/
-
-User-agent: news-please
-Disallow: /
-Allow: /blog$
-Allow: /blog.html
-Allow: /blog/
-
-User-agent: peer39_crawler
-Disallow: /
-Allow: /blog$
-Allow: /blog.html
-Allow: /blog/
-
+User-agent: Amazonbot
+User-agent: Bytespider
+User-agent: TikTokSpider
+User-agent: CCBot
+User-agent: cohere-ai
+User-agent: cohere-training-data-crawler
+User-agent: AI2Bot
+User-agent: Ai2Bot-Dolma
+User-agent: Diffbot
+User-agent: Timpibot
+User-agent: YouBot
+User-agent: PanguBot
+User-agent: PetalBot
+User-agent: Kangaroo Bot
+User-agent: Webzio-Extended
+User-agent: omgili
+User-agent: omgilibot
+User-agent: img2dataset
+User-agent: ImagesiftBot
+User-agent: FriendlyCrawler
+User-agent: ICC-Crawler
+User-agent: iaskspider
+User-agent: Brightbot
+User-agent: VelenPublicWebCrawler
+User-agent: Sidetrade indexer bot
 User-agent: Quora-Bot
 Disallow: /
-Allow: /blog$
-Allow: /blog.html
-Allow: /blog/
 
-User-agent: Scrapy
-Disallow: /
-Allow: /blog$
-Allow: /blog.html
-Allow: /blog/
-
+# ---------- SEO, scraping, data-broker and monitoring bots ----------
+# Not search and not useful to anyone reading. Blocked everywhere.
+User-agent: AhrefsBot
+User-agent: SemrushBot
+User-agent: SemrushBot-SA
+User-agent: MJ12bot
+User-agent: DotBot
+User-agent: BLEXBot
+User-agent: DataForSeoBot
+User-agent: Barkrowler
+User-agent: serpstatbot
+User-agent: SeekportBot
+User-agent: Moz
+User-agent: rogerbot
+User-agent: AwarioBot
+User-agent: AwarioRssBot
+User-agent: AwarioSmartBot
+User-agent: magpie-crawler
+User-agent: peer39_crawler
+User-agent: NewsNow
+User-agent: news-please
 User-agent: TurnitinBot
+User-agent: ISSCyberRiskCrawler
+User-agent: Scrapy
+User-agent: Yandex
+User-agent: Baiduspider
+User-agent: Sogou
 Disallow: /
-Allow: /blog$
-Allow: /blog.html
-Allow: /blog/
 
+# ---------- Everyone else ----------
 User-agent: *
 Disallow: /
-Allow: /blog$
-Allow: /blog.html
-Allow: /blog/
 
 Sitemap: https://www.ambrosevannier.com/sitemap-index.xml
