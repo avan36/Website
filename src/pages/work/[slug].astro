@@ -18,6 +18,7 @@ import PackScan from '../../components/work/toys/PackScan.astro';
 import WordJourney from '../../components/work/toys/WordJourney.astro';
 import WritingDesk from '../../components/life/WritingDesk.astro';
 import { projects, type Project } from '../../data/projects';
+import { jsonLdText, personNode, projectNode } from '../../data/jsonld';
 import { loadWorld } from '../../world/load';
 import { GAME_INFO, isletAt, playableIn } from '../../renderers/games/catalog';
 
@@ -51,10 +52,14 @@ const title = `${project.name}: ${project.headline.replace(/[.!]$/, '')} · Ambr
 const clip = (s: string, n = 158) => (s.length <= n ? s : `${s.slice(0, s.lastIndexOf(' ', n - 1))}…`);
 const description = clip(project.body.join(' '));
 
+const pageUrl = new URL(`/work/${project.slug}`, Astro.site).href;
+const jsonLd = jsonLdText(projectNode(project, pageUrl, description), personNode());
+
 const textLinks = project.links.filter((l) => !l.kind || l.kind === 'text');
 const isExternal = (href: string) => /^https?:/.test(href);
 ---
 <Base title={title} description={description}>
+  <script slot="head" type="application/ld+json" set:html={jsonLd} />
   <EntranceReveal slug={project.slug} />
   <SiteHeader current="work" />
 
