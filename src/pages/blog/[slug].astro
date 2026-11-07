@@ -2,6 +2,7 @@
 import { render } from 'astro:content';
 import Reading from '../../layouts/Reading.astro';
 import Prose from '../../components/blog/Prose.astro';
+import { PERSON_ID } from '../../data/jsonld';
 import {
   getPosts, isoDate, formatLong, readingMinutes, postUrl, type Post,
 } from '../../components/blog/posts';
@@ -34,8 +35,8 @@ const jsonLd = {
   image: new URL('/media/og-default.png', Astro.site).href,
   inLanguage: 'en',
   timeRequired: `PT${minutes}M`,
-  author: { '@type': 'Person', name: 'Ambrose Vannier', url: Astro.site?.href },
-  publisher: { '@type': 'Person', name: 'Ambrose Vannier', url: Astro.site?.href },
+  author: { '@type': 'Person', '@id': PERSON_ID, name: 'Ambrose Vannier', url: Astro.site?.href },
+  publisher: { '@type': 'Person', '@id': PERSON_ID, name: 'Ambrose Vannier', url: Astro.site?.href },
 };
 // Keep "</script>" (or any "<") inside a string from closing the tag early.
 const jsonLdText = JSON.stringify(jsonLd).replace(/</g, '\\u003c');
