@@ -208,7 +208,7 @@ export const bySlug = (slug: string) => projects.find((p) => p.slug === slug);
 
 export const person = {
   name: 'Ambrose Vannier',
-  role: 'Software developer',
+  role: 'Software developer and product manager',
   intro:
     'I build apps people love to use and tools that keep the web honest. Recently graduated from Wesleyan University, B.A. in Computer Science & History, May 2026.',
   github: 'https://github.com/avan36',

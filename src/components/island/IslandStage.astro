@@ -702,7 +702,10 @@ const VIEWS = [
     .isl-card.is-collapsed { width: min(292px, calc(100vw - 32px - 56px)); }
     /* The view switcher keeps its chevron, so it's a small pill, not a circle. */
     .isl-chip.isl-views__toggle { width: auto; padding: 0 8px 0 11px; gap: 0; }
-    .isl-brand__name, .isl-brand__role { white-space: nowrap; }
+    .isl-brand__name { white-space: nowrap; }
+    /* The role wraps under the name rather than push the buttons off the edge. */
+    .isl-brand { min-width: 0; }
+    .isl-nav { flex-shrink: 0; }
     .isl-hint { bottom: auto; top: calc(max(16px, env(safe-area-inset-top)) + 64px); }
   }
   @media (max-width: 420px) {

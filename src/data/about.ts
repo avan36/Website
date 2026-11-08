@@ -47,7 +47,7 @@ export const name: { parts: NamePart[]; sum: string } = {
 
 /** Who I am in a sentence or two, at the top of the home page and the About page. */
 export const lede =
-  "I'm a software developer. I studied computer science and history at Wesleyan, and a lot of my work draws on both. I make tools that show where things came from, and apps that treat people's lives with care.";
+  "I'm a software developer and product manager. I studied computer science and history at Wesleyan, and a lot of my work draws on both. I make tools that show where things came from, and apps that treat people's lives with care.";
 
 /** A link under a belief: to a project's page, or to a post (titled by the post). */
 export type CareLink = { label: string; project: string } | { post: string };
