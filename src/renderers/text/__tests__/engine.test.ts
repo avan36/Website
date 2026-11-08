@@ -476,7 +476,7 @@ describe('the rest', () => {
   it('lists work, writing and the person', () => {
     expect(say('plaza', 'work')).toMatch(/Etymon {2}An animated history of English/);
     expect(say('plaza', 'writing')).toMatch(/Second post {2}March 4, 2026/);
-    expect(say('plaza', 'about')).toMatch(/Ambrose Vannier \(Software developer\)/);
+    expect(say('plaza', 'about')).toMatch(/Ambrose Vannier \(Software developer and product manager\)/);
   });
 
   it('walks you to the bottle when you want to get in touch', () => {

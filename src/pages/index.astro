@@ -17,7 +17,7 @@ const posts = (await getPosts()).slice(0, 3);
 ---
 <Base
   title={`${person.name} · ${person.role}`}
-  description="Ambrose Vannier is a software developer. Read his writing, see the apps and research he's made, or walk around it all as a tiny island."
+  description="Ambrose Vannier is a software developer and product manager. Read his writing, see the apps and research he's made, or walk around it all as a tiny island."
 >
   <script slot="head" type="application/ld+json" set:html={jsonLdText(personNode())} />
   <script is:inline slot="head">
