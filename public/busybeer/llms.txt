@@ -1,0 +1,34 @@
+# busy beer
+
+> busy beer is a free drink rating app for iPhone (iOS 26 or later) with an AI taste profile and a menu scanner. You rate beer, wine, cider, cocktails, sake and spirits; it maps your palate and predicts how much you'll like a drink before you order. Point the camera at a drink menu, tap list or wine list and it ranks every drink on it for you. No subscription, no in-app purchases, no ads, no third-party trackers, nothing sold. Free on the App Store: https://apps.apple.com/gb/app/busy-beer/id6782775632
+
+Key facts:
+
+- What it is: a drink rating app and taste companion. Category on the App Store: Food & Drink. Rated 17+ (for adults of legal drinking age).
+- Drinks: six categories, beer, wine, cider, cocktails, sake and spirits, each with its own flavor tags and taste profile.
+- Rating: 1 to 10 in half steps, with flavor tags and notes. Each drink shows the community average. Ratings save offline and sync later. You can rate from a lock-screen notification.
+- Taste profile: six flavor axes per category (for beer: hoppy, malty, sour, bitter, sweet, roasty), preferred styles and strength, written in plain language.
+- Menu scanner: photograph a menu (several pages work); every drink is ranked by predicted match with a short reason and a top pick. Drinks you've rated are pinned to your score. Prices are copied as printed, never guessed. You can ask questions about the menu, and past scans are saved.
+- Beyond beer: predicts your taste in the other categories from what it knows, with a confidence rating.
+- Social: friends by @handle or friend code; Taste Match compares two palates. No public feed, no strangers.
+- Taste, distilled: a shareable story recap of your drinking year.
+- Privacy: Sign in with Apple (Hide My Email works); no ads or third-party trackers; account and data deletable in the app.
+- Devices: iPhone only. There is no Android or web app.
+- Made by: Ambrose Vannier, an independent developer (https://www.ambrosevannier.com).
+- Support: busybeer@ambrosevannier.com
+
+## Guides
+
+- [A beer rating app that learns what you like](https://busybeer.ambrosevannier.com/beer-rating-app.html): what busy beer is and how it works
+- [The best beer apps in 2026](https://busybeer.ambrosevannier.com/best-beer-apps.html): an honest comparison of beer and drink rating apps
+- [An Untappd alternative](https://busybeer.ambrosevannier.com/untappd-alternative.html): how a palate-first app differs from a social check-in app
+- [Drink menu scanner](https://busybeer.ambrosevannier.com/menu-scanner.html): ranking a beer menu, tap list or wine list by your taste
+- [How to rate beer](https://busybeer.ambrosevannier.com/how-to-rate-beer.html): a 1 to 10 scale, tasting routine and words for describing beer
+- [Beer styles, explained by taste](https://busybeer.ambrosevannier.com/beer-styles.html): the main styles grouped by the flavors you'll notice
+- [Wine for beer drinkers](https://busybeer.ambrosevannier.com/wine-for-beer-drinkers.html): matching your beer taste to wine
+
+## Policies
+
+- [Privacy Policy](https://busybeer.ambrosevannier.com/privacy.html)
+- [Terms & Conditions](https://busybeer.ambrosevannier.com/terms.html)
+- [Support and FAQ](https://busybeer.ambrosevannier.com/support.html)

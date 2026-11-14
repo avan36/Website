@@ -3,10 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>busy beer — know what you'll love before you order</title>
-<meta name="description" content="busy beer is an AI taste companion for everything you drink. Rate beer, wine, cocktails and spirits, map your palate, and scan any menu to see what's actually worth ordering.">
-<link rel="canonical" href="https://ambrosevannier.com/busybeer/">
-<meta name="robots" content="index, follow, max-image-preview:large">
+<title>Beer Rating App &amp; Drink Menu Scanner for iPhone | busy beer</title>
+<meta name="description" content="Free beer and drink rating app for iPhone. Rate beer, wine, cider, cocktails and spirits, map your palate, and scan any menu to rank what you'll love before you order.">
+<link rel="canonical" href="https://busybeer.ambrosevannier.com/">
+<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1">
+<meta name="apple-itunes-app" content="app-id=6782775632">
 <meta name="color-scheme" content="dark">
 <meta name="theme-color" content="#0d0d0d">
 <meta name="application-name" content="busy beer">
@@ -16,10 +17,10 @@
 <meta property="og:title" content="busy beer — know what you'll love before you order">
 <meta property="og:description" content="An AI taste companion for everything you drink. Rate it, map your palate, and scan any menu to see what's worth ordering.">
 <meta property="og:type" content="website">
-<meta property="og:url" content="https://ambrosevannier.com/busybeer/">
+<meta property="og:url" content="https://busybeer.ambrosevannier.com/">
 <meta property="og:site_name" content="busy beer">
 <meta property="og:locale" content="en_US">
-<meta property="og:image" content="https://ambrosevannier.com/busybeer/media/share-card.png">
+<meta property="og:image" content="https://busybeer.ambrosevannier.com/media/share-card.png">
 <meta property="og:image:type" content="image/png">
 <meta property="og:image:width" content="2400">
 <meta property="og:image:height" content="1260">
@@ -29,20 +30,152 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="busy beer">
 <meta name="twitter:description" content="Know what you'll love before you order. An AI taste companion for everything you drink.">
-<meta name="twitter:image" content="https://ambrosevannier.com/busybeer/media/share-card.png">
+<meta name="twitter:image" content="https://busybeer.ambrosevannier.com/media/share-card.png">
 <meta name="twitter:image:alt" content="busy beer">
 
 <link rel="icon" href="app-icon.png" type="image/png">
 <link rel="apple-touch-icon" href="app-icon.png">
 <link rel="manifest" href="site.webmanifest">
-<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="styles.css?v=2">
 
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@graph": [
-    { "@type": "WebSite", "@id": "https://ambrosevannier.com/busybeer/#website", "url": "https://ambrosevannier.com/busybeer/", "name": "busy beer", "description": "An AI taste companion for everything you drink.", "inLanguage": "en-US" },
-    { "@type": "SoftwareApplication", "name": "busy beer", "applicationCategory": "LifestyleApplication", "operatingSystem": "iOS 26", "url": "https://ambrosevannier.com/busybeer/", "image": "https://ambrosevannier.com/busybeer/media/share-card.png", "description": "Rate beer, wine, cider, cocktails and spirits, build an AI taste profile, and scan any menu to rank every drink by how much you'll like it.", "isAccessibleForFree": true }
+    {
+      "@type": "WebSite",
+      "@id": "https://busybeer.ambrosevannier.com/#website",
+      "url": "https://busybeer.ambrosevannier.com/",
+      "name": "busy beer",
+      "description": "A beer and drink rating app with an AI taste profile and a menu scanner.",
+      "inLanguage": "en-US",
+      "publisher": {
+        "@id": "https://busybeer.ambrosevannier.com/#organization"
+      }
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://busybeer.ambrosevannier.com/#organization",
+      "name": "busy beer",
+      "url": "https://busybeer.ambrosevannier.com/",
+      "logo": {
+        "@type": "ImageObject",
+        "url": "https://busybeer.ambrosevannier.com/app-icon.png",
+        "width": 1024,
+        "height": 1024
+      },
+      "email": "busybeer@ambrosevannier.com",
+      "founder": {
+        "@id": "https://www.ambrosevannier.com/#person"
+      },
+      "sameAs": [
+        "https://apps.apple.com/gb/app/busy-beer/id6782775632"
+      ]
+    },
+    {
+      "@type": "Person",
+      "@id": "https://www.ambrosevannier.com/#person",
+      "name": "Ambrose Vannier",
+      "url": "https://www.ambrosevannier.com/",
+      "sameAs": [
+        "https://github.com/avan36",
+        "https://www.linkedin.com/in/ambrosev"
+      ]
+    },
+    {
+      "@type": "MobileApplication",
+      "@id": "https://busybeer.ambrosevannier.com/#app",
+      "name": "busy beer",
+      "alternateName": "busy beer: Beer & Wine Ratings",
+      "applicationCategory": "LifestyleApplication",
+      "applicationSubCategory": "Food & Drink",
+      "operatingSystem": "iOS 26.0 or later",
+      "url": "https://busybeer.ambrosevannier.com/",
+      "downloadUrl": "https://apps.apple.com/gb/app/busy-beer/id6782775632",
+      "installUrl": "https://apps.apple.com/gb/app/busy-beer/id6782775632",
+      "image": "https://busybeer.ambrosevannier.com/media/share-card.png",
+      "screenshot": [
+        "https://busybeer.ambrosevannier.com/media/shots/scan-results.webp",
+        "https://busybeer.ambrosevannier.com/media/shots/flavor-axes.webp",
+        "https://busybeer.ambrosevannier.com/media/shots/discover.webp"
+      ],
+      "description": "Rate beer, wine, cider, cocktails, sake and spirits, build an AI taste profile, and scan any menu to rank every drink by how much you'll like it.",
+      "featureList": [
+        "Rate drinks 1 to 10 with flavor tags and notes",
+        "AI taste profile with six flavor axes per category",
+        "Menu scanner that ranks every drink on a menu",
+        "Cross-category taste predictions with confidence",
+        "Taste Match with friends",
+        "Yearly taste story"
+      ],
+      "contentRating": "17+",
+      "isAccessibleForFree": true,
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "author": {
+        "@id": "https://www.ambrosevannier.com/#person"
+      },
+      "publisher": {
+        "@id": "https://busybeer.ambrosevannier.com/#organization"
+      }
+    },
+    {
+      "@type": "FAQPage",
+      "@id": "https://busybeer.ambrosevannier.com/#faq",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "What is busy beer?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "busy beer is a free drink rating app for iPhone. You rate beer, wine, cider, cocktails, sake and spirits, it maps your palate, and its menu scanner ranks every drink on a menu by how much you're predicted to like it."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Is busy beer free?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. It's a free download on the App Store with no subscription, no in-app purchases and no ads."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How does the menu scanner work?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Point your camera at a drink menu, tap list or wine list, or choose photos. busy beer reads every drink, classifies it and ranks the whole list by predicted match, with a short reason for each and a top pick. Drinks you've already rated are pinned to your own score."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can I rate wine, cocktails and spirits, not just beer?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. busy beer covers six categories: beer, wine, cider, cocktails, sake and spirits, each with its own flavor tags and taste profile. It can also predict your taste in a new category from the ones it knows, with a confidence rating."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Is there a public feed like Untappd?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No. You add friends by @handle or friend code and see what they've been drinking, and Taste Match compares your palates. There's no public feed and no strangers."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Is busy beer on Android?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No. busy beer is iPhone only for now, and needs iOS 26 or later."
+          }
+        }
+      ]
+    }
   ]
 }
 </script>
@@ -68,7 +201,7 @@
     <nav class="nav" aria-label="Primary">
       <a class="nav-extra" href="#features">Features</a>
       <a class="nav-extra" href="#scanner">Menu scanner</a>
-      <a class="nav-extra" href="#privacy">Privacy</a>
+      <a class="nav-extra" href="guides.html">Guides</a>
       <a class="nav-cta" href="#get">Get the app</a>
     </nav>
   </div>
@@ -80,7 +213,7 @@
   <section class="hero band band--tight">
     <div class="wrap-wide">
       <div class="hero-copy">
-        <span class="kicker">Taste, tracked</span>
+        <span class="kicker">Beer &amp; drink rating app</span>
         <h1 class="display">Know what you'll love<br><span class="grad">before you order.</span></h1>
         <p class="lede">An AI taste companion for everything you drink. Rate it, map your palate, and scan any menu to see what's actually worth ordering.</p>
         <div class="cta-row">
@@ -228,13 +361,13 @@
     </div>
     <div class="gallery" aria-label="Screenshots of busy beer">
       <div class="gallery-group">
-        <div class="phone"><img src="media/shots/discover.webp" alt="Discover" loading="lazy"></div>
-        <div class="phone"><img src="media/shots/scan-results.webp" alt="Menu scan" loading="lazy"></div>
-        <div class="phone"><img src="media/shots/flavor-axes.webp" alt="Flavor axes" loading="lazy"></div>
-        <div class="phone"><img src="media/shots/you-profile.webp" alt="Your profile" loading="lazy"></div>
-        <div class="phone"><img src="media/shots/categories.webp" alt="Categories" loading="lazy"></div>
-        <div class="phone"><img src="media/shots/story-summary.webp" alt="Taste story" loading="lazy"></div>
-        <div class="phone"><img src="media/shots/scan-empty.webp" alt="Scan a menu" loading="lazy"></div>
+        <div class="phone"><img src="media/shots/discover.webp" alt="busy beer Discover screen listing rated beers and drinks" loading="lazy"></div>
+        <div class="phone"><img src="media/shots/scan-results.webp" alt="Menu scanner ranking every drink on a menu by predicted match" loading="lazy"></div>
+        <div class="phone"><img src="media/shots/flavor-axes.webp" alt="Beer taste profile with six flavor axes" loading="lazy"></div>
+        <div class="phone"><img src="media/shots/you-profile.webp" alt="Your drink rating profile" loading="lazy"></div>
+        <div class="phone"><img src="media/shots/categories.webp" alt="Six drink categories: beer, wine, cider, cocktails, sake and spirits" loading="lazy"></div>
+        <div class="phone"><img src="media/shots/story-summary.webp" alt="Taste story recap of your drinking year" loading="lazy"></div>
+        <div class="phone"><img src="media/shots/scan-empty.webp" alt="Scan a drink menu or wine list" loading="lazy"></div>
       </div>
       <div class="gallery-group" aria-hidden="true">
         <div class="phone"><img src="media/shots/discover.webp" alt="" loading="lazy"></div>
@@ -262,6 +395,31 @@
           <span class="chip">Nothing sold</span>
         </div>
         <a class="btn btn--ghost" href="privacy.html">Read the full Privacy Policy</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ + guides -->
+  <section class="band band--tight" id="faq" style="padding-top: 24px;">
+    <div class="wrap">
+      <div class="section-header" style="margin-bottom: 28px;">
+        <span class="kicker">Questions</span>
+        <h2 class="section-h">Good to know.</h2>
+      </div>
+        <details class="faq"><summary>What is busy beer?</summary><p>busy beer is a free drink rating app for iPhone. You rate beer, wine, cider, cocktails, sake and spirits, it maps your palate, and its menu scanner ranks every drink on a menu by how much you're predicted to like it.</p></details>
+        <details class="faq"><summary>Is busy beer free?</summary><p>Yes. It's a free download on the App Store with no subscription, no in-app purchases and no ads.</p></details>
+        <details class="faq"><summary>How does the menu scanner work?</summary><p>Point your camera at a drink menu, tap list or wine list, or choose photos. busy beer reads every drink, classifies it and ranks the whole list by predicted match, with a short reason for each and a top pick. Drinks you've already rated are pinned to your own score.</p></details>
+        <details class="faq"><summary>Can I rate wine, cocktails and spirits, not just beer?</summary><p>Yes. busy beer covers six categories: beer, wine, cider, cocktails, sake and spirits, each with its own flavor tags and taste profile. It can also predict your taste in a new category from the ones it knows, with a confidence rating.</p></details>
+        <details class="faq"><summary>Is there a public feed like Untappd?</summary><p>No. You add friends by @handle or friend code and see what they've been drinking, and Taste Match compares your palates. There's no public feed and no strangers.</p></details>
+        <details class="faq"><summary>Is busy beer on Android?</summary><p>No. busy beer is iPhone only for now, and needs iOS 26 or later.</p></details>
+      <h3 style="margin: 56px 0 8px; font-size: 24px;">Guides</h3>
+      <div class="guide-grid">
+        <a class="guide-card" href="menu-scanner.html"><strong>Drink menu scanner</strong><span>Rank a beer menu, tap list or wine list by your taste.</span></a>
+        <a class="guide-card" href="how-to-rate-beer.html"><strong>How to rate beer</strong><span>A 1 to 10 scale and words for what you taste.</span></a>
+        <a class="guide-card" href="beer-styles.html"><strong>Beer styles by taste</strong><span>Find the styles you'll actually like.</span></a>
+        <a class="guide-card" href="wine-for-beer-drinkers.html"><strong>Wine for beer drinkers</strong><span>Match the beer you love to a wine.</span></a>
+        <a class="guide-card" href="best-beer-apps.html"><strong>The best beer apps in 2026</strong><span>An honest comparison.</span></a>
+        <a class="guide-card" href="untappd-alternative.html"><strong>An Untappd alternative</strong><span>Your palate first, no public feed.</span></a>
       </div>
     </div>
   </section>
@@ -297,9 +455,19 @@
   <div class="wrap-wide">
     <span class="brand-foot">busy beer</span>
     <nav class="footer-links" aria-label="Footer">
+      <a href="guides.html">Guides</a>
       <a href="privacy.html">Privacy Policy</a>
       <a href="terms.html">Terms &amp; Conditions</a>
       <a href="support.html">Support</a>
+    </nav>
+    <nav class="footer-guides" aria-label="Guides">
+      <a href="beer-rating-app.html">Beer rating app</a>
+      <a href="best-beer-apps.html">Best beer apps</a>
+      <a href="untappd-alternative.html">Untappd alternative</a>
+      <a href="menu-scanner.html">Drink menu scanner</a>
+      <a href="how-to-rate-beer.html">How to rate beer</a>
+      <a href="beer-styles.html">Beer styles by taste</a>
+      <a href="wine-for-beer-drinkers.html">Wine for beer drinkers</a>
     </nav>
     <p class="copy">© 2026 busy beer. Please drink responsibly.</p>
   </div>
