@@ -6,7 +6,11 @@
   "trailingSlash": false,
   "redirects": [
     { "source": "/claude", "destination": "https://claude.ambrosevannier.com/", "permanent": false },
-    { "source": "/claude/board", "destination": "https://claude.ambrosevannier.com/board", "permanent": false }
+    { "source": "/claude/board", "destination": "https://claude.ambrosevannier.com/board", "permanent": false },
+    { "source": "/sitemap.xml", "destination": "/sitemap-index.xml", "permanent": true },
+    { "source": "/support.html", "destination": "/contact", "permanent": true },
+    { "source": "/gpccode.html", "destination": "/work/privacy-research", "permanent": true },
+    { "source": "/writing", "destination": "/blog", "permanent": true }
   ],
   "rewrites": [
     { "source": "/newsletter/confirm", "destination": "https://contact-form.todos-thorax09.workers.dev/newsletter/confirm" },
