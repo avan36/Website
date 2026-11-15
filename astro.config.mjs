@@ -18,8 +18,9 @@ export default defineConfig({
   },
   integrations: [
     sitemap({
-      // The app sub-sites keep their own hand-written pages.
-      filter: (page) => !page.includes('/admin'),
+      // The app sub-sites keep their own hand-written pages. /contact is kept
+      // out because robots.txt keeps every robot off it.
+      filter: (page) => !page.includes('/admin') && !page.endsWith('/contact'),
     }),
   ],
 });

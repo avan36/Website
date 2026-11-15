@@ -1,8 +1,9 @@
 # Who may read this site.
 #
-# Search engines, and the search tools inside AI assistants that fetch a page
-# to answer someone's question and link back to it, get the whole site except
-# the contact page. Everyone else gets nothing: AI training crawlers, dataset
+# Search engines, the search tools inside AI assistants that fetch a page to
+# answer someone's question and link back to it, and the apps that draw a card
+# when someone shares a link, get the whole site except the contact page.
+# Everyone else gets nothing: AI training crawlers, dataset
 # builders, SEO and scraping tools, and any robot not named here.
 #
 # Each robot obeys its own (most specific) group, so the named groups below
@@ -31,6 +32,21 @@ User-agent: Perplexity-User
 # DuckDuckGo's AI answers, and pages Mistral's Le Chat opens for a person:
 User-agent: DuckAssistBot
 User-agent: MistralAI-User
+Disallow: /contact
+Allow: /
+
+# ---------- Link previews ----------
+# They fetch a page once, when someone shares its link, to draw the preview card.
+User-agent: Twitterbot
+User-agent: LinkedInBot
+User-agent: facebookexternalhit
+User-agent: Facebot
+User-agent: Pinterestbot
+User-agent: Discordbot
+User-agent: TelegramBot
+User-agent: WhatsApp
+User-agent: Slackbot-LinkExpanding
+User-agent: redditbot
 Disallow: /contact
 Allow: /
 
