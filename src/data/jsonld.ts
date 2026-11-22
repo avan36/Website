@@ -22,7 +22,9 @@ export function personNode() {
   };
 }
 
-const external = (p: Project) => p.links.map((l) => l.href).filter((h) => /^https?:/.test(h));
+/** Outside links; an App Store link drops its campaign tags, so the data names the plain App Store page. */
+const external = (p: Project) =>
+  p.links.map((l) => (l.kind === 'appstore' ? l.href.split('?')[0] : l.href)).filter((h) => /^https?:/.test(h));
 
 /** A project page: an app when it's on the App Store, otherwise a piece of work. */
 export function projectNode(p: Project, pageUrl: string, description: string) {

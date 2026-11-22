@@ -12,4 +12,4 @@ My favourite part is that you just have to journal like normal, and middle place
 
 And yet, it’s something I could never have built all by myself. Is it vibe-coded? My ego would say no. The rest of me would say it was a collaboration. The decisions were mine, and the decisions are the product.
 
-You can see more at [middleplace.app](https://middleplace.app/) or at [https://apps.apple.com/us/app/middle-place/id6777842850](https://apps.apple.com/us/app/middle-place/id6777842850)
+You can see more at [middleplace.app](https://middleplace.app/) or at [https://apps.apple.com/us/app/middle-place/id6777842850](https://apps.apple.com/us/app/middle-place/id6777842850?pt=127580512&ct=blog-vibe-coded&mt=8)

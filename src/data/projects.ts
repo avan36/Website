@@ -46,7 +46,7 @@ export const projects: Project[] = [
     ],
     tags: ['SwiftUI', 'SwiftData', 'Local-first'],
     links: [
-      { label: 'Download on the App Store', href: 'https://apps.apple.com/us/app/middle-place/id6777842850', kind: 'appstore' },
+      { label: 'Download on the App Store', href: 'https://apps.apple.com/us/app/middle-place/id6777842850?pt=127580512&ct=personal-site&mt=8', kind: 'appstore' },
       { label: 'Visit middleplace.app', href: 'https://middleplace.app', kind: 'text' },
     ],
     shots: [
