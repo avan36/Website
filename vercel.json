@@ -27,6 +27,11 @@
     { "source": "/claude/your-claude", "destination": "https://contact-form.todos-thorax09.workers.dev/claude/your-claude" },
     { "source": "/claude/members", "destination": "https://contact-form.todos-thorax09.workers.dev/claude/members" }
   ],
+  "headers": [
+    { "source": "/pushkar", "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow, noarchive" }, { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }] },
+    { "source": "/pushkar.html", "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow, noarchive" }] },
+    { "source": "/media/pushkar-card.png", "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow, noarchive" }] }
+  ],
   "git": {
     "deploymentEnabled": {
       "claude/**": false,
